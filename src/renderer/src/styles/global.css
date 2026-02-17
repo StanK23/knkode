@@ -1,0 +1,69 @@
+*,
+*::before,
+*::after {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+
+:root {
+	--bg-primary: #1a1a2e;
+	--bg-secondary: #16213e;
+	--bg-tertiary: #0f1626;
+	--bg-tab: #232946;
+	--bg-tab-active: #2d3561;
+	--bg-tab-hover: #283050;
+	--text-primary: #e0e0e0;
+	--text-secondary: #8892b0;
+	--text-dim: #5a6380;
+	--border: #2a2f4a;
+	--accent: #6c63ff;
+	--danger: #e74c3c;
+	--radius: 6px;
+	--radius-sm: 4px;
+	--tab-height: 38px;
+	--pane-header-height: 28px;
+	--drag-region-height: 38px;
+}
+
+html,
+body,
+#root {
+	height: 100%;
+	width: 100%;
+	overflow: hidden;
+	background: var(--bg-primary);
+	color: var(--text-primary);
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	font-size: 13px;
+	-webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+::-webkit-scrollbar-thumb {
+	background: var(--border);
+	border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+	background: var(--text-dim);
+}
+
+/* Electron frameless window drag region */
+.drag-region {
+	-webkit-app-region: drag;
+}
+
+/* Allotment overrides */
+.sash-container .sash {
+	background: var(--border) !important;
+}
+.sash-container .sash:hover {
+	background: var(--accent) !important;
+}
