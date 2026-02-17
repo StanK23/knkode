@@ -7,7 +7,7 @@
 - [done] Drag-to-reorder workspace tabs (PR #4)
 - [done] Testing — vitest setup + 44 store tests (PR #5)
 - [done] Feature completion brainstorming & planning
-- [in-progress] PTY lifecycle — lazy tab loading & terminal persistence (`feature/pty-lifecycle`)
+- [done] PTY lifecycle — lazy tab loading & terminal persistence (PR #7, 53 tests)
 
 ## Active Decisions
 - Tech stack: Electron + React + TypeScript + xterm.js + node-pty + Zustand
