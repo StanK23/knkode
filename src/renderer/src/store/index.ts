@@ -327,10 +327,14 @@ export const useStore = create<StoreState>((set, get) => ({
 		for (const paneId of Object.keys(source.panes)) {
 			idMap.set(paneId, crypto.randomUUID())
 		}
+		const requireMapped = (oldId: string): string => {
+			const newId = idMap.get(oldId)
+			if (!newId) throw new Error(`[store] duplicateWorkspace: unmapped pane ID "${oldId}"`)
+			return newId
+		}
 		const newPanes: Record<string, PaneConfig> = {}
 		for (const [oldId, config] of Object.entries(source.panes)) {
-			const newId = idMap.get(oldId) ?? oldId
-			newPanes[newId] = {
+			newPanes[requireMapped(oldId)] = {
 				...config,
 				themeOverride: config.themeOverride ? { ...config.themeOverride } : null,
 			}
@@ -339,7 +343,7 @@ export const useStore = create<StoreState>((set, get) => ({
 			if (isLayoutBranch(node)) {
 				return { ...node, children: node.children.map(remapTree) }
 			}
-			return { ...node, paneId: idMap.get(node.paneId) ?? node.paneId }
+			return { ...node, paneId: requireMapped(node.paneId) }
 		}
 		const workspace: Workspace = {
 			id: crypto.randomUUID(),
