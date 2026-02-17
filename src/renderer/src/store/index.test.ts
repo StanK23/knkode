@@ -1,9 +1,14 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AppState, Workspace } from '../../../shared/types'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { AppState, PaneTheme, Workspace } from '../../../shared/types'
 import { isLayoutBranch } from '../../../shared/types'
 import { createLayoutFromPreset, getPaneIdsInOrder, useStore } from './index'
 
-// Mock window.api used by the store
+const TEST_THEME: PaneTheme = { background: '#000', foreground: '#fff', fontSize: 14, opacity: 1 }
+const TEST_BOUNDS = { x: 0, y: 0, width: 1200, height: 800 }
+
+// Mock window.api — defineProperty is needed because jsdom
+// defines window as non-configurable on globalThis.
+// Typed to match KnkodeApi from preload (manual sync required).
 const mockApi = {
 	getWorkspaces: vi.fn<() => Promise<Workspace[]>>(),
 	getAppState: vi.fn<() => Promise<AppState>>(),
@@ -11,25 +16,37 @@ const mockApi = {
 	saveWorkspace: vi.fn<(ws: Workspace) => Promise<void>>(),
 	saveAppState: vi.fn<(state: AppState) => Promise<void>>(),
 	deleteWorkspace: vi.fn<(id: string) => Promise<void>>(),
-	createPty: vi.fn(),
-	writePty: vi.fn(),
-	resizePty: vi.fn(),
-	killPty: vi.fn(),
+	createPty: vi.fn<(id: string, cwd: string, startupCommand: string | null) => Promise<void>>(),
+	writePty: vi.fn<(id: string, data: string) => Promise<void>>(),
+	resizePty: vi.fn<(id: string, cols: number, rows: number) => Promise<void>>(),
+	killPty: vi.fn<(id: string) => Promise<void>>(),
 	onPtyData: vi.fn(() => () => {}),
 	onPtyExit: vi.fn(() => () => {}),
 	onPtyCwdChanged: vi.fn(() => () => {}),
 }
 
-Object.defineProperty(globalThis, 'window', {
-	value: { api: mockApi },
+Object.defineProperty(window, 'api', {
+	value: mockApi,
 	writable: true,
+	configurable: true,
 })
 
-// Mock crypto.randomUUID
 let uuidCounter = 0
 vi.stubGlobal('crypto', {
 	randomUUID: () => `uuid-${++uuidCounter}`,
 })
+
+function makeWorkspace(overrides?: Partial<Workspace>): Workspace {
+	return {
+		id: 'ws-1',
+		name: 'Test',
+		color: '#fff',
+		theme: TEST_THEME,
+		layout: { type: 'preset', preset: 'single', tree: { paneId: 'p1', size: 100 } },
+		panes: { p1: { label: 'term', cwd: '/home', startupCommand: null, themeOverride: null } },
+		...overrides,
+	}
+}
 
 function resetStore() {
 	useStore.setState({
@@ -37,9 +54,9 @@ function resetStore() {
 		appState: {
 			openWorkspaceIds: [],
 			activeWorkspaceId: null,
-			windowBounds: { x: 100, y: 100, width: 1200, height: 800 },
+			windowBounds: TEST_BOUNDS,
 		},
-		homeDir: '/home/test',
+		homeDir: '/home',
 		initialized: false,
 		initError: null,
 		focusedPaneId: null,
@@ -55,8 +72,6 @@ beforeEach(() => {
 	mockApi.deleteWorkspace.mockResolvedValue(undefined)
 	resetStore()
 })
-
-// ── createLayoutFromPreset ──────────────────────────────────────
 
 describe('createLayoutFromPreset', () => {
 	it('creates a single-pane layout', () => {
@@ -81,6 +96,7 @@ describe('createLayoutFromPreset', () => {
 	it('creates a 2-row layout', () => {
 		const { layout, panes } = createLayoutFromPreset('2-row', '/home')
 		expect(Object.keys(panes)).toHaveLength(2)
+		expect(isLayoutBranch(layout.tree)).toBe(true)
 		if (isLayoutBranch(layout.tree)) {
 			expect(layout.tree.direction).toBe('vertical')
 		}
@@ -109,8 +125,6 @@ describe('createLayoutFromPreset', () => {
 	})
 })
 
-// ── getPaneIdsInOrder ───────────────────────────────────────────
-
 describe('getPaneIdsInOrder', () => {
 	it('returns single pane id for leaf', () => {
 		expect(getPaneIdsInOrder({ paneId: 'a', size: 100 })).toEqual(['a'])
@@ -118,12 +132,12 @@ describe('getPaneIdsInOrder', () => {
 
 	it('returns ids in depth-first order for branch', () => {
 		const tree = {
-			direction: 'horizontal' as const,
+			direction: 'horizontal',
 			size: 100,
 			children: [
 				{ paneId: 'left', size: 50 },
 				{
-					direction: 'vertical' as const,
+					direction: 'vertical',
 					size: 50,
 					children: [
 						{ paneId: 'top-right', size: 50 },
@@ -132,26 +146,17 @@ describe('getPaneIdsInOrder', () => {
 				},
 			],
 		}
-		expect(getPaneIdsInOrder(tree)).toEqual(['left', 'top-right', 'bottom-right'])
+		expect(getPaneIdsInOrder(tree as never)).toEqual(['left', 'top-right', 'bottom-right'])
 	})
 })
 
-// ── Store: init ─────────────────────────────────────────────────
-
 describe('store init', () => {
 	it('loads workspaces and app state', async () => {
-		const ws: Workspace = {
-			id: 'ws-1',
-			name: 'Test',
-			color: '#fff',
-			theme: { background: '#000', foreground: '#fff', fontSize: 14, opacity: 1 },
-			layout: { type: 'preset', preset: 'single', tree: { paneId: 'p1', size: 100 } },
-			panes: { p1: { label: 'term', cwd: '/home', startupCommand: null, themeOverride: null } },
-		}
+		const ws = makeWorkspace()
 		const appState: AppState = {
 			openWorkspaceIds: ['ws-1'],
 			activeWorkspaceId: 'ws-1',
-			windowBounds: { x: 0, y: 0, width: 1200, height: 800 },
+			windowBounds: TEST_BOUNDS,
 		}
 		mockApi.getWorkspaces.mockResolvedValue([ws])
 		mockApi.getAppState.mockResolvedValue(appState)
@@ -170,7 +175,7 @@ describe('store init', () => {
 		mockApi.getAppState.mockResolvedValue({
 			openWorkspaceIds: [],
 			activeWorkspaceId: null,
-			windowBounds: { x: 0, y: 0, width: 1200, height: 800 },
+			windowBounds: TEST_BOUNDS,
 		})
 		mockApi.getHomeDir.mockResolvedValue('/home')
 
@@ -183,7 +188,26 @@ describe('store init', () => {
 		expect(mockApi.saveAppState).toHaveBeenCalled()
 	})
 
+	it('opens first workspace when openWorkspaceIds is empty but workspaces exist', async () => {
+		const ws = makeWorkspace()
+		mockApi.getWorkspaces.mockResolvedValue([ws])
+		mockApi.getAppState.mockResolvedValue({
+			openWorkspaceIds: [],
+			activeWorkspaceId: null,
+			windowBounds: TEST_BOUNDS,
+		})
+		mockApi.getHomeDir.mockResolvedValue('/home')
+
+		await useStore.getState().init()
+
+		const state = useStore.getState()
+		expect(state.appState.openWorkspaceIds).toEqual(['ws-1'])
+		expect(state.appState.activeWorkspaceId).toBe('ws-1')
+		expect(mockApi.saveAppState).toHaveBeenCalled()
+	})
+
 	it('sets initError on failure', async () => {
+		vi.spyOn(console, 'error').mockImplementation(() => {})
 		mockApi.getWorkspaces.mockRejectedValue(new Error('disk error'))
 
 		await useStore.getState().init()
@@ -191,10 +215,10 @@ describe('store init', () => {
 		const state = useStore.getState()
 		expect(state.initialized).toBe(true)
 		expect(state.initError).toContain('disk error')
+		expect(console.error).toHaveBeenCalled()
+		vi.restoreAllMocks()
 	})
 })
-
-// ── Store: workspace CRUD ───────────────────────────────────────
 
 describe('store workspace CRUD', () => {
 	it('creates a workspace', async () => {
@@ -215,14 +239,7 @@ describe('store workspace CRUD', () => {
 	})
 
 	it('updates a workspace', async () => {
-		const ws: Workspace = {
-			id: 'ws-1',
-			name: 'Original',
-			color: '#fff',
-			theme: { background: '#000', foreground: '#fff', fontSize: 14, opacity: 1 },
-			layout: { type: 'preset', preset: 'single', tree: { paneId: 'p1', size: 100 } },
-			panes: { p1: { label: 'term', cwd: '/', startupCommand: null, themeOverride: null } },
-		}
+		const ws = makeWorkspace({ name: 'Original' })
 		useStore.setState({ workspaces: [ws] })
 
 		const updated = { ...ws, name: 'Updated' }
@@ -233,20 +250,13 @@ describe('store workspace CRUD', () => {
 	})
 
 	it('removes a workspace', async () => {
-		const ws: Workspace = {
-			id: 'ws-1',
-			name: 'Test',
-			color: '#fff',
-			theme: { background: '#000', foreground: '#fff', fontSize: 14, opacity: 1 },
-			layout: { type: 'preset', preset: 'single', tree: { paneId: 'p1', size: 100 } },
-			panes: { p1: { label: 'term', cwd: '/', startupCommand: null, themeOverride: null } },
-		}
+		const ws = makeWorkspace()
 		useStore.setState({
 			workspaces: [ws],
 			appState: {
 				openWorkspaceIds: ['ws-1'],
 				activeWorkspaceId: 'ws-1',
-				windowBounds: { x: 0, y: 0, width: 1200, height: 800 },
+				windowBounds: TEST_BOUNDS,
 			},
 		})
 
@@ -256,9 +266,16 @@ describe('store workspace CRUD', () => {
 		expect(useStore.getState().appState.openWorkspaceIds).toHaveLength(0)
 		expect(mockApi.deleteWorkspace).toHaveBeenCalledWith('ws-1')
 	})
-})
 
-// ── Store: tab management ───────────────────────────────────────
+	it('propagates error when saveWorkspace rejects', async () => {
+		useStore.setState({ homeDir: '/home' })
+		mockApi.saveWorkspace.mockRejectedValue(new Error('write failed'))
+
+		await expect(useStore.getState().createWorkspace('Bad', '#000', 'single')).rejects.toThrow(
+			'write failed',
+		)
+	})
+})
 
 describe('store tab management', () => {
 	const makeState = () => ({
@@ -266,7 +283,7 @@ describe('store tab management', () => {
 		appState: {
 			openWorkspaceIds: ['a', 'b', 'c'],
 			activeWorkspaceId: 'b',
-			windowBounds: { x: 0, y: 0, width: 1200, height: 800 },
+			windowBounds: TEST_BOUNDS,
 		} as AppState,
 	})
 
@@ -307,15 +324,13 @@ describe('store tab management', () => {
 	})
 })
 
-// ── Store: reorderWorkspaceTabs ─────────────────────────────────
-
 describe('store reorderWorkspaceTabs', () => {
 	beforeEach(() => {
 		useStore.setState({
 			appState: {
 				openWorkspaceIds: ['a', 'b', 'c', 'd'],
 				activeWorkspaceId: 'a',
-				windowBounds: { x: 0, y: 0, width: 1200, height: 800 },
+				windowBounds: TEST_BOUNDS,
 			},
 		})
 	})
@@ -337,9 +352,12 @@ describe('store reorderWorkspaceTabs', () => {
 	})
 
 	it('no-ops for out-of-range indices', () => {
+		vi.spyOn(console, 'warn').mockImplementation(() => {})
 		useStore.getState().reorderWorkspaceTabs(-1, 2)
 		expect(useStore.getState().appState.openWorkspaceIds).toEqual(['a', 'b', 'c', 'd'])
 		expect(mockApi.saveAppState).not.toHaveBeenCalled()
+		expect(console.warn).toHaveBeenCalled()
+		vi.restoreAllMocks()
 	})
 
 	it('persists to app state', () => {
@@ -347,8 +365,6 @@ describe('store reorderWorkspaceTabs', () => {
 		expect(mockApi.saveAppState).toHaveBeenCalled()
 	})
 })
-
-// ── Store: pane focus ───────────────────────────────────────────
 
 describe('store pane focus', () => {
 	it('sets focused pane and increments generation', () => {
@@ -371,20 +387,9 @@ describe('store pane focus', () => {
 	})
 })
 
-// ── Store: splitPane ────────────────────────────────────────────
-
 describe('store splitPane', () => {
-	const makeWs = (): Workspace => ({
-		id: 'ws-1',
-		name: 'Test',
-		color: '#fff',
-		theme: { background: '#000', foreground: '#fff', fontSize: 14, opacity: 1 },
-		layout: { type: 'preset', preset: 'single', tree: { paneId: 'p1', size: 100 } },
-		panes: { p1: { label: 'term', cwd: '/home', startupCommand: null, themeOverride: null } },
-	})
-
 	it('splits a pane vertically', () => {
-		useStore.setState({ workspaces: [makeWs()] })
+		useStore.setState({ workspaces: [makeWorkspace()] })
 		useStore.getState().splitPane('ws-1', 'p1', 'vertical')
 
 		const ws = useStore.getState().workspaces[0]
@@ -397,7 +402,7 @@ describe('store splitPane', () => {
 	})
 
 	it('focuses the new pane after split', () => {
-		useStore.setState({ workspaces: [makeWs()] })
+		useStore.setState({ workspaces: [makeWorkspace()] })
 		useStore.getState().splitPane('ws-1', 'p1', 'horizontal')
 
 		const state = useStore.getState()
@@ -407,49 +412,45 @@ describe('store splitPane', () => {
 	})
 
 	it('inherits cwd from source pane', () => {
-		useStore.setState({ workspaces: [makeWs()] })
+		useStore.setState({ workspaces: [makeWorkspace()] })
 		useStore.getState().splitPane('ws-1', 'p1', 'vertical')
 
 		const ws = useStore.getState().workspaces[0]
 		const newPaneId = Object.keys(ws.panes).find((id) => id !== 'p1')
 		expect(newPaneId).toBeDefined()
-		expect(ws.panes[newPaneId as string].cwd).toBe('/home')
+		if (!newPaneId) throw new Error('unreachable')
+		expect(ws.panes[newPaneId].cwd).toBe('/home')
 	})
 
 	it('no-ops for non-existent pane', () => {
-		useStore.setState({ workspaces: [makeWs()] })
+		useStore.setState({ workspaces: [makeWorkspace()] })
 		useStore.getState().splitPane('ws-1', 'nonexistent', 'vertical')
 		expect(Object.keys(useStore.getState().workspaces[0].panes)).toHaveLength(1)
 	})
 })
 
-// ── Store: closePane ────────────────────────────────────────────
-
 describe('store closePane', () => {
-	const makeWs = (): Workspace => ({
-		id: 'ws-1',
-		name: 'Test',
-		color: '#fff',
-		theme: { background: '#000', foreground: '#fff', fontSize: 14, opacity: 1 },
-		layout: {
-			type: 'custom',
-			tree: {
-				direction: 'horizontal',
-				size: 100,
-				children: [
-					{ paneId: 'p1', size: 50 },
-					{ paneId: 'p2', size: 50 },
-				],
+	const makeTwoPaneWs = () =>
+		makeWorkspace({
+			layout: {
+				type: 'custom',
+				tree: {
+					direction: 'horizontal',
+					size: 100,
+					children: [
+						{ paneId: 'p1', size: 50 },
+						{ paneId: 'p2', size: 50 },
+					],
+				},
 			},
-		},
-		panes: {
-			p1: { label: 'left', cwd: '/', startupCommand: null, themeOverride: null },
-			p2: { label: 'right', cwd: '/', startupCommand: null, themeOverride: null },
-		},
-	})
+			panes: {
+				p1: { label: 'left', cwd: '/', startupCommand: null, themeOverride: null },
+				p2: { label: 'right', cwd: '/', startupCommand: null, themeOverride: null },
+			},
+		})
 
 	it('closes a pane and collapses the branch', () => {
-		useStore.setState({ workspaces: [makeWs()] })
+		useStore.setState({ workspaces: [makeTwoPaneWs()] })
 		useStore.getState().closePane('ws-1', 'p1')
 
 		const ws = useStore.getState().workspaces[0]
@@ -460,10 +461,7 @@ describe('store closePane', () => {
 	})
 
 	it('does not close the last pane', () => {
-		const ws = makeWs()
-		// Make it single-pane
-		ws.layout = { type: 'preset', preset: 'single', tree: { paneId: 'p1', size: 100 } }
-		ws.panes = { p1: ws.panes.p1 }
+		const ws = makeWorkspace()
 		useStore.setState({ workspaces: [ws] })
 
 		useStore.getState().closePane('ws-1', 'p1')
@@ -471,44 +469,33 @@ describe('store closePane', () => {
 	})
 
 	it('clears focus if closed pane was focused', () => {
-		useStore.setState({ workspaces: [makeWs()], focusedPaneId: 'p1' })
+		useStore.setState({ workspaces: [makeTwoPaneWs()], focusedPaneId: 'p1' })
 		useStore.getState().closePane('ws-1', 'p1')
 		expect(useStore.getState().focusedPaneId).toBeNull()
 	})
 
 	it('preserves focus if different pane closed', () => {
-		useStore.setState({ workspaces: [makeWs()], focusedPaneId: 'p2' })
+		useStore.setState({ workspaces: [makeTwoPaneWs()], focusedPaneId: 'p2' })
 		useStore.getState().closePane('ws-1', 'p1')
 		expect(useStore.getState().focusedPaneId).toBe('p2')
 	})
 })
 
-// ── Store: pane config ──────────────────────────────────────────
-
 describe('store pane config', () => {
-	const makeWs = (): Workspace => ({
-		id: 'ws-1',
-		name: 'Test',
-		color: '#fff',
-		theme: { background: '#000', foreground: '#fff', fontSize: 14, opacity: 1 },
-		layout: { type: 'preset', preset: 'single', tree: { paneId: 'p1', size: 100 } },
-		panes: { p1: { label: 'term', cwd: '/home', startupCommand: null, themeOverride: null } },
-	})
-
 	it('updates pane label', () => {
-		useStore.setState({ workspaces: [makeWs()] })
+		useStore.setState({ workspaces: [makeWorkspace()] })
 		useStore.getState().updatePaneConfig('ws-1', 'p1', { label: 'renamed' })
 		expect(useStore.getState().workspaces[0].panes.p1.label).toBe('renamed')
 	})
 
 	it('updates pane cwd', () => {
-		useStore.setState({ workspaces: [makeWs()] })
+		useStore.setState({ workspaces: [makeWorkspace()] })
 		useStore.getState().updatePaneCwd('ws-1', 'p1', '/new/path')
 		expect(useStore.getState().workspaces[0].panes.p1.cwd).toBe('/new/path')
 	})
 
 	it('no-ops for non-existent pane', () => {
-		useStore.setState({ workspaces: [makeWs()] })
+		useStore.setState({ workspaces: [makeWorkspace()] })
 		useStore.getState().updatePaneConfig('ws-1', 'nonexistent', { label: 'test' })
 		expect(useStore.getState().workspaces[0].panes.p1.label).toBe('term')
 	})
