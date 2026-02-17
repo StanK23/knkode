@@ -14,6 +14,7 @@ import { TerminalView } from './Terminal'
 
 interface PaneProps {
 	paneId: string
+	paneIndex: number
 	config: PaneConfig
 	workspaceTheme: PaneTheme
 	onUpdateConfig: (paneId: string, updates: Partial<PaneConfig>) => void
@@ -28,6 +29,7 @@ interface PaneProps {
 
 export function Pane({
 	paneId,
+	paneIndex,
 	config,
 	workspaceTheme,
 	onUpdateConfig,
@@ -84,6 +86,7 @@ export function Pane({
 	return (
 		<div style={isFocused ? focusedContainerStyle : paneContainerStyle}>
 			<div onContextMenu={handleContextMenu} onMouseDown={handleFocus} style={paneHeaderStyle}>
+				<span style={paneIndexStyle}>{paneIndex}</span>
 				{isEditing ? (
 					<input {...inputProps} style={editInputStyle} />
 				) : (
@@ -101,6 +104,7 @@ export function Pane({
 					type="button"
 					onClick={() => onSplitVertical(paneId)}
 					title={`Split vertical (${modKey}+D)`}
+					aria-label="Split pane vertically"
 					style={headerBtnStyle}
 				>
 					┃
@@ -109,6 +113,7 @@ export function Pane({
 					type="button"
 					onClick={() => onSplitHorizontal(paneId)}
 					title={`Split horizontal (${modKey}+Shift+D)`}
+					aria-label="Split pane horizontally"
 					style={headerBtnStyle}
 				>
 					━
@@ -118,6 +123,7 @@ export function Pane({
 						type="button"
 						onClick={() => onClose(paneId)}
 						title={`Close pane (${modKey}+W)`}
+						aria-label="Close pane"
 						style={{ ...headerBtnStyle, color: 'var(--danger)' }}
 					>
 						✕
@@ -370,6 +376,15 @@ const paneHeaderStyle: React.CSSProperties = {
 	flexShrink: 0,
 	position: 'relative',
 	userSelect: 'none',
+}
+
+const paneIndexStyle: React.CSSProperties = {
+	color: 'var(--text-dim)',
+	fontSize: 9,
+	fontWeight: 600,
+	minWidth: 12,
+	textAlign: 'center',
+	flexShrink: 0,
 }
 
 const editInputStyle: React.CSSProperties = {

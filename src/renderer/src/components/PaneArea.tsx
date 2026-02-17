@@ -3,7 +3,7 @@ import { useCallback } from 'react'
 import 'allotment/dist/style.css'
 import type { LayoutNode, PaneConfig, Workspace } from '../../../shared/types'
 import { isLayoutBranch } from '../../../shared/types'
-import { useStore } from '../store'
+import { getPaneIdsInOrder, useStore } from '../store'
 import { Pane } from './Pane'
 
 interface PaneAreaProps {
@@ -18,6 +18,8 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 	const focusGeneration = useStore((s) => s.focusGeneration)
 	const setFocusedPane = useStore((s) => s.setFocusedPane)
 	const paneCount = Object.keys(workspace.panes).length
+	const paneOrder = getPaneIdsInOrder(workspace.layout.tree)
+	const paneIndexMap = new Map(paneOrder.map((id, i) => [id, i + 1]))
 
 	const handleUpdateConfig = useCallback(
 		(paneId: string, updates: Partial<PaneConfig>) => {
@@ -48,6 +50,7 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 				<Pane
 					key={node.paneId}
 					paneId={node.paneId}
+					paneIndex={paneIndexMap.get(node.paneId) ?? 0}
 					config={config}
 					workspaceTheme={workspace.theme}
 					onUpdateConfig={handleUpdateConfig}
