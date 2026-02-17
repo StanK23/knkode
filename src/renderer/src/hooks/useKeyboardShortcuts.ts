@@ -11,9 +11,14 @@ import { isMac } from '../utils/platform'
  * - Mod+Shift+[: previous workspace tab
  * - Mod+Shift+]: next workspace tab
  * - Mod+1-9: focus pane by index
+ * - Mod+,: toggle settings panel
  */
 
-export function useKeyboardShortcuts() {
+interface ShortcutOptions {
+	toggleSettings?: () => void
+}
+
+export function useKeyboardShortcuts({ toggleSettings }: ShortcutOptions = {}) {
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
 			// Use Cmd on macOS, Ctrl on other platforms to avoid conflicting
@@ -78,6 +83,13 @@ export function useKeyboardShortcuts() {
 				return
 			}
 
+			// Mod+, — toggle settings panel
+			if (e.key === ',') {
+				e.preventDefault()
+				toggleSettings?.()
+				return
+			}
+
 			// Mod+1-9 — focus pane by index
 			if (e.key >= '1' && e.key <= '9' && !e.shiftKey) {
 				if (!activeWs) return
@@ -92,5 +104,5 @@ export function useKeyboardShortcuts() {
 
 		window.addEventListener('keydown', handler)
 		return () => window.removeEventListener('keydown', handler)
-	}, [])
+	}, [toggleSettings])
 }
