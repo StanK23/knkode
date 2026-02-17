@@ -12,12 +12,32 @@ import {
 interface TabProps {
 	workspace: Workspace
 	isActive: boolean
+	index: number
 	onActivate: (id: string) => void
 	onClose: (id: string) => void
 	onRename: (id: string, name: string) => void
+	onDragStart: (index: number) => void
+	onDragOver: (e: React.DragEvent, index: number) => void
+	onDrop: (index: number) => void
+	onDragEnd: () => void
+	isDragOver: boolean
+	isDragging: boolean
 }
 
-export function Tab({ workspace, isActive, onActivate, onClose, onRename }: TabProps) {
+export function Tab({
+	workspace,
+	isActive,
+	index,
+	onActivate,
+	onClose,
+	onRename,
+	onDragStart,
+	onDragOver,
+	onDrop,
+	onDragEnd,
+	isDragOver,
+	isDragging,
+}: TabProps) {
 	const [showContext, setShowContext] = useState(false)
 	const contextRef = useRef<HTMLDivElement>(null)
 
@@ -37,6 +57,8 @@ export function Tab({ workspace, isActive, onActivate, onClose, onRename }: TabP
 			role="tab"
 			tabIndex={0}
 			aria-selected={isActive}
+			aria-roledescription="draggable tab"
+			draggable={!isEditing}
 			onClick={() => onActivate(workspace.id)}
 			onKeyDown={(e) => {
 				if (e.key === 'Enter' || e.key === ' ') {
@@ -45,10 +67,20 @@ export function Tab({ workspace, isActive, onActivate, onClose, onRename }: TabP
 				}
 			}}
 			onContextMenu={handleContextMenu}
+			onDragStart={(e) => {
+				e.dataTransfer.effectAllowed = 'move'
+				e.dataTransfer.setData('text/plain', workspace.id)
+				onDragStart(index)
+			}}
+			onDragOver={(e) => onDragOver(e, index)}
+			onDrop={() => onDrop(index)}
+			onDragEnd={onDragEnd}
 			style={{
 				...tabStyle,
 				background: isActive ? 'var(--bg-tab-active)' : 'var(--bg-tab)',
 				borderBottom: isActive ? `2px solid ${workspace.color}` : '2px solid transparent',
+				boxShadow: isDragOver ? 'inset 2px 0 0 var(--accent)' : 'none',
+				opacity: isDragging ? 0.4 : 1,
 			}}
 			onMouseEnter={(e) => {
 				if (!isActive) e.currentTarget.style.background = 'var(--bg-tab-hover)'

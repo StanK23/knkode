@@ -14,10 +14,43 @@ export function TabBar() {
 	const createDefaultWorkspace = useStore((s) => s.createDefaultWorkspace)
 	const updateWorkspace = useStore((s) => s.updateWorkspace)
 	const openWorkspace = useStore((s) => s.openWorkspace)
+	const reorderWorkspaceTabs = useStore((s) => s.reorderWorkspaceTabs)
 
 	const [showClosedMenu, setShowClosedMenu] = useState(false)
+	const [dragFromIndex, setDragFromIndex] = useState<number | null>(null)
+	const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+	const dragFromRef = useRef<number | null>(null)
 	const closedMenuRef = useRef<HTMLDivElement>(null)
 	useClickOutside(closedMenuRef, () => setShowClosedMenu(false), showClosedMenu)
+
+	const resetDragState = useCallback(() => {
+		setDragFromIndex(null)
+		setDragOverIndex(null)
+		dragFromRef.current = null
+	}, [])
+
+	const handleDragStart = useCallback((index: number) => {
+		setDragFromIndex(index)
+		dragFromRef.current = index
+	}, [])
+	const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
+		e.preventDefault()
+		e.dataTransfer.dropEffect = 'move'
+		setDragOverIndex((prev) => (prev === index ? prev : index))
+	}, [])
+	const handleDrop = useCallback(
+		(toIndex: number) => {
+			const from = dragFromRef.current
+			if (from !== null && from !== toIndex) {
+				reorderWorkspaceTabs(from, toIndex)
+			}
+			resetDragState()
+		},
+		[reorderWorkspaceTabs, resetDragState],
+	)
+	const handleDragEnd = useCallback(() => {
+		resetDragState()
+	}, [resetDragState])
 
 	const openTabs: Workspace[] = appState.openWorkspaceIds
 		.map((id) => workspaces.find((w) => w.id === id))
@@ -39,19 +72,26 @@ export function TabBar() {
 
 	return (
 		<div style={barStyle}>
-			{/* Drag region for frameless window */}
+			{/* Window title-bar drag region */}
 			<div className="drag-region" style={dragRegionStyle} />
 
 			{/* Tabs */}
 			<div role="tablist" style={tabsContainerStyle}>
-				{openTabs.map((ws) => (
+				{openTabs.map((ws, i) => (
 					<Tab
 						key={ws.id}
 						workspace={ws}
 						isActive={ws.id === appState.activeWorkspaceId}
+						index={i}
 						onActivate={setActiveWorkspace}
 						onClose={closeWorkspaceTab}
 						onRename={handleRename}
+						onDragStart={handleDragStart}
+						onDragOver={handleDragOver}
+						onDrop={handleDrop}
+						onDragEnd={handleDragEnd}
+						isDragOver={dragOverIndex === i && dragFromIndex !== i}
+						isDragging={dragFromIndex === i}
 					/>
 				))}
 
