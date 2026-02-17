@@ -119,6 +119,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 							/>
 						</label>
 					</div>
+					{/* Theme */}
 					<div className="flex flex-col gap-2">
 						<span className="section-label">Terminal Theme</span>
 						<label className="flex items-center gap-2">
@@ -166,9 +167,11 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 							</span>
 						</label>
 					</div>
+					{/* Layout */}
 					<div className="flex flex-col gap-2">
 						<LayoutPicker current={currentPreset} onSelect={handleLayoutChange} />
 					</div>
+					{/* Pane list */}
 					<div className="flex flex-col gap-2">
 						<span className="section-label">Panes</span>
 						{Object.entries(workspace.panes).map(([paneId, pane]) => (
