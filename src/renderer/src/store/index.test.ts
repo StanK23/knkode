@@ -518,7 +518,7 @@ describe('store visitedWorkspaceIds', () => {
 		expect(useStore.getState().visitedWorkspaceIds).toEqual(['ws-1'])
 	})
 
-	it('init with no active workspace leaves visited empty', async () => {
+	it('init with no workspaces creates default and adds to visited', async () => {
 		mockApi.getWorkspaces.mockResolvedValue([])
 		mockApi.getAppState.mockResolvedValue({
 			openWorkspaceIds: [],
@@ -596,11 +596,43 @@ describe('store visitedWorkspaceIds', () => {
 	})
 
 	it('createWorkspace adds new workspace to visited', async () => {
-		useStore.setState({ homeDir: '/home', visitedWorkspaceIds: ['existing'] })
+		useStore.setState({ homeDir: '/home', visitedWorkspaceIds: [] })
 
 		const ws = await useStore.getState().createWorkspace('New', '#ff0000', 'single')
 
 		expect(useStore.getState().visitedWorkspaceIds).toContain(ws.id)
-		expect(useStore.getState().visitedWorkspaceIds).toContain('existing')
+	})
+
+	it('removeWorkspace cleans up visited', async () => {
+		const ws = makeWorkspace()
+		useStore.setState({
+			workspaces: [ws],
+			appState: {
+				openWorkspaceIds: ['ws-1'],
+				activeWorkspaceId: 'ws-1',
+				windowBounds: TEST_BOUNDS,
+			},
+			visitedWorkspaceIds: ['ws-1'],
+		})
+
+		await useStore.getState().removeWorkspace('ws-1')
+
+		expect(useStore.getState().visitedWorkspaceIds).toEqual([])
+	})
+
+	it('closeWorkspaceTab adds fallback active workspace to visited', () => {
+		useStore.setState({
+			appState: {
+				openWorkspaceIds: ['a', 'b'],
+				activeWorkspaceId: 'a',
+				windowBounds: TEST_BOUNDS,
+			},
+			visitedWorkspaceIds: ['a'],
+		})
+
+		useStore.getState().closeWorkspaceTab('a')
+
+		expect(useStore.getState().visitedWorkspaceIds).toContain('b')
+		expect(useStore.getState().appState.activeWorkspaceId).toBe('b')
 	})
 })
