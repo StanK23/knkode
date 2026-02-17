@@ -57,7 +57,12 @@ export function Tab({
 		setShowContext(true)
 	}, [])
 
-	useClickOutside(contextRef, () => setShowContext(false), showContext)
+	const closeContext = useCallback(() => {
+		closeContext()
+		setShowColorPicker(false)
+	}, [])
+
+	useClickOutside(contextRef, closeContext, showContext)
 
 	return (
 		<div
@@ -123,7 +128,7 @@ export function Tab({
 						onClick={(e) => {
 							e.stopPropagation()
 							startEditing()
-							setShowContext(false)
+							closeContext()
 						}}
 					>
 						Rename
@@ -153,8 +158,7 @@ export function Tab({
 									onClick={(e) => {
 										e.stopPropagation()
 										onChangeColor(workspace.id, c)
-										setShowColorPicker(false)
-										setShowContext(false)
+										closeContext()
 									}}
 								/>
 							))}
@@ -166,7 +170,7 @@ export function Tab({
 						onClick={(e) => {
 							e.stopPropagation()
 							onDuplicate(workspace.id)
-							setShowContext(false)
+							closeContext()
 						}}
 					>
 						Duplicate
@@ -178,7 +182,7 @@ export function Tab({
 						onClick={(e) => {
 							e.stopPropagation()
 							onClose(workspace.id)
-							setShowContext(false)
+							closeContext()
 						}}
 					>
 						Close Tab
