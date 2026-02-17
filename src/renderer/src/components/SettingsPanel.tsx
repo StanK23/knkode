@@ -13,6 +13,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const updateWorkspace = useStore((s) => s.updateWorkspace)
 	const removeWorkspace = useStore((s) => s.removeWorkspace)
 	const updatePaneConfig = useStore((s) => s.updatePaneConfig)
+	const killPtys = useStore((s) => s.killPtys)
 	const homeDir = useStore((s) => s.homeDir)
 
 	const [name, setName] = useState(workspace.name)
@@ -36,10 +37,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 
 	const handleLayoutChange = useCallback(
 		(preset: LayoutPreset) => {
-			// Kill old PTYs before replacing panes
-			for (const oldPaneId of Object.keys(workspace.panes)) {
-				window.api.killPty(oldPaneId).catch(() => {})
-			}
+			killPtys(Object.keys(workspace.panes))
 			const { layout, panes } = createLayoutFromPreset(preset, homeDir)
 			updateWorkspace({
 				...workspace,
@@ -47,7 +45,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 				panes,
 			})
 		},
-		[workspace, updateWorkspace, homeDir],
+		[workspace, updateWorkspace, killPtys, homeDir],
 	)
 
 	const handleDelete = useCallback(() => {

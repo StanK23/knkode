@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PaneConfig, PaneTheme } from '../../../shared/types'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useInlineEdit } from '../hooks/useInlineEdit'
+import { useStore } from '../store'
 import {
 	contextItemStyle,
 	contextMenuStyle,
@@ -49,17 +50,16 @@ export function Pane({
 		fontSize: config.themeOverride?.fontSize?.toString() ?? '',
 	})
 
-	// Spawn PTY on mount only — config changes via context menu take effect on next pane creation
+	// Ensure PTY exists for this pane. Uses store's activePtyIds to avoid
+	// double-creation on Allotment remounts (e.g. when splitting panes).
+	// PTY kill is handled by store actions and layout-change helpers.
+	const ensurePty = useStore((s) => s.ensurePty)
+	// Capture initial values so config updates don't re-trigger PTY creation
 	const initialCwdRef = useRef(config.cwd)
 	const initialCmdRef = useRef(config.startupCommand)
 	useEffect(() => {
-		window.api
-			.createPty(paneId, initialCwdRef.current, initialCmdRef.current)
-			.catch((err) => console.error(`[pane] Failed to create PTY ${paneId}:`, err))
-		return () => {
-			window.api.killPty(paneId).catch(() => {})
-		}
-	}, [paneId])
+		ensurePty(paneId, initialCwdRef.current, initialCmdRef.current)
+	}, [paneId, ensurePty])
 
 	const { isEditing, inputProps, startEditing } = useInlineEdit(config.label, (label) =>
 		onUpdateConfig(paneId, { label }),
