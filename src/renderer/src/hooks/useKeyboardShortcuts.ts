@@ -2,101 +2,96 @@ import { useEffect } from 'react'
 import { getPaneIdsInOrder, useStore } from '../store'
 
 /**
- * Global keyboard shortcuts. Cmd/Ctrl is the modifier.
- * - Cmd+D: split focused pane vertical
- * - Cmd+Shift+D: split focused pane horizontal
- * - Cmd+W: close focused pane
- * - Cmd+T: new workspace
- * - Cmd+Shift+[: previous workspace tab
- * - Cmd+Shift+]: next workspace tab
- * - Cmd+1-9: focus pane by index
+ * Global keyboard shortcuts. Uses Cmd (macOS) or Ctrl (other platforms).
+ * - Mod+D: split focused pane (vertical layout direction)
+ * - Mod+Shift+D: split focused pane (horizontal layout direction)
+ * - Mod+W: close focused pane
+ * - Mod+T: new workspace
+ * - Mod+Shift+[: previous workspace tab
+ * - Mod+Shift+]: next workspace tab
+ * - Mod+1-9: focus pane by index
  */
-export function useKeyboardShortcuts(handlers: {
-	onSplitVertical: (paneId: string) => void
-	onSplitHorizontal: (paneId: string) => void
-	onClosePane: (paneId: string) => void
-	onNewWorkspace: () => void
-	onFocusPane: (paneId: string) => void
-}) {
+
+const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform)
+
+export function useKeyboardShortcuts() {
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
-			const isMod = e.metaKey || e.ctrlKey
-
+			// Use Cmd on macOS, Ctrl on other platforms to avoid conflicting
+			// with terminal control sequences (Ctrl+D = EOF, Ctrl+W = delete word)
+			const isMod = isMac ? e.metaKey : e.ctrlKey
 			if (!isMod) return
 
+			// Read latest store state imperatively (avoids stale closure)
 			const state = useStore.getState()
 			const activeWs = state.workspaces.find((w) => w.id === state.appState.activeWorkspaceId)
 
-			if (e.key === 'd' && !e.shiftKey) {
+			// Resolve focused pane — auto-focus first pane if none focused
+			const focusedId = state.focusedPaneId
+			const resolvedFocusId =
+				focusedId && activeWs?.panes[focusedId]
+					? focusedId
+					: activeWs
+						? (getPaneIdsInOrder(activeWs.layout.tree)[0] ?? null)
+						: null
+
+			// Mod+D / Mod+Shift+D — split pane
+			if (e.key === 'd' || (e.shiftKey && e.key === 'D')) {
+				if (!resolvedFocusId || !activeWs) return
 				e.preventDefault()
-				if (state.focusedPaneId && activeWs?.panes[state.focusedPaneId]) {
-					handlers.onSplitVertical(state.focusedPaneId)
-				}
+				const direction = e.shiftKey ? 'horizontal' : 'vertical'
+				state.splitPane(activeWs.id, resolvedFocusId, direction)
 				return
 			}
 
-			if (e.key === 'D' && e.shiftKey) {
-				e.preventDefault()
-				if (state.focusedPaneId && activeWs?.panes[state.focusedPaneId]) {
-					handlers.onSplitHorizontal(state.focusedPaneId)
-				}
-				return
-			}
-
+			// Mod+W — close pane (only when more than 1 pane)
 			if (e.key === 'w' && !e.shiftKey) {
+				if (!resolvedFocusId || !activeWs) return
+				if (Object.keys(activeWs.panes).length <= 1) return
 				e.preventDefault()
-				if (state.focusedPaneId && activeWs) {
-					const paneCount = Object.keys(activeWs.panes).length
-					if (paneCount > 1 && activeWs.panes[state.focusedPaneId]) {
-						handlers.onClosePane(state.focusedPaneId)
-					}
-				}
+				state.closePane(activeWs.id, resolvedFocusId)
 				return
 			}
 
+			// Mod+T — new workspace
 			if (e.key === 't' && !e.shiftKey) {
 				e.preventDefault()
-				handlers.onNewWorkspace()
+				state.createDefaultWorkspace().catch((err) => {
+					console.error('[shortcuts] Failed to create workspace:', err)
+				})
 				return
 			}
 
-			// Cmd+Shift+[ — previous tab
-			if (e.key === '{' || (e.key === '[' && e.shiftKey)) {
-				e.preventDefault()
+			// Mod+Shift+[ / Mod+Shift+] — cycle workspace tabs
+			// On US keyboard, Shift+[ emits '{' and Shift+] emits '}'
+			// Other layouts may emit '['/']' with shiftKey flag
+			const isPrevTab = e.key === '{' || (e.key === '[' && e.shiftKey)
+			const isNextTab = e.key === '}' || (e.key === ']' && e.shiftKey)
+			if (isPrevTab || isNextTab) {
 				const { openWorkspaceIds, activeWorkspaceId } = state.appState
-				if (openWorkspaceIds.length < 2) return
-				const idx = openWorkspaceIds.indexOf(activeWorkspaceId ?? '')
-				const prev = idx <= 0 ? openWorkspaceIds.length - 1 : idx - 1
-				state.setActiveWorkspace(openWorkspaceIds[prev])
+				if (openWorkspaceIds.length < 2 || !activeWorkspaceId) return
+				e.preventDefault()
+				const idx = openWorkspaceIds.indexOf(activeWorkspaceId)
+				const delta = isPrevTab ? -1 : 1
+				const next = (idx + delta + openWorkspaceIds.length) % openWorkspaceIds.length
+				const targetId = openWorkspaceIds[next]
+				if (targetId) state.setActiveWorkspace(targetId)
 				return
 			}
 
-			// Cmd+Shift+] — next tab
-			if (e.key === '}' || (e.key === ']' && e.shiftKey)) {
-				e.preventDefault()
-				const { openWorkspaceIds, activeWorkspaceId } = state.appState
-				if (openWorkspaceIds.length < 2) return
-				const idx = openWorkspaceIds.indexOf(activeWorkspaceId ?? '')
-				const next = idx >= openWorkspaceIds.length - 1 ? 0 : idx + 1
-				state.setActiveWorkspace(openWorkspaceIds[next])
-				return
-			}
-
-			// Cmd+1-9: focus pane by index
-			const num = Number.parseInt(e.key, 10)
-			if (num >= 1 && num <= 9 && !e.shiftKey) {
-				e.preventDefault()
+			// Mod+1-9 — focus pane by index
+			if (e.key >= '1' && e.key <= '9' && !e.shiftKey) {
 				if (!activeWs) return
 				const paneIds = getPaneIdsInOrder(activeWs.layout.tree)
-				const targetId = paneIds[num - 1]
-				if (targetId) {
-					handlers.onFocusPane(targetId)
-				}
+				const targetId = paneIds[Number(e.key) - 1]
+				if (!targetId) return
+				e.preventDefault()
+				state.setFocusedPane(targetId)
 				return
 			}
 		}
 
 		window.addEventListener('keydown', handler)
 		return () => window.removeEventListener('keydown', handler)
-	}, [handlers])
+	}, [])
 }
