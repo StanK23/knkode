@@ -12,23 +12,36 @@ function ensureConfigDir(): void {
 }
 
 function readJson<T>(filePath: string, fallback: T): T {
+	let raw: string
 	try {
-		if (fs.existsSync(filePath)) {
-			const raw = fs.readFileSync(filePath, 'utf-8')
-			return JSON.parse(raw) as T
+		raw = fs.readFileSync(filePath, 'utf-8')
+	} catch (err: unknown) {
+		if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+			return fallback
 		}
-	} catch (err) {
-		console.error(
-			`[config-store] Failed to read ${filePath}, using defaults:`,
-			err instanceof Error ? err.message : err
-		)
+		console.error(`[config-store] Cannot read ${filePath}:`, err instanceof Error ? err.message : err)
+		return fallback
 	}
-	return fallback
+
+	try {
+		return JSON.parse(raw) as T
+	} catch (err) {
+		console.error(`[config-store] Corrupt JSON in ${filePath}, backing up:`, err instanceof Error ? err.message : err)
+		try {
+			fs.copyFileSync(filePath, `${filePath}.corrupt`)
+		} catch { /* best-effort backup */ }
+		return fallback
+	}
 }
 
 function writeJson(filePath: string, data: unknown): void {
 	ensureConfigDir()
-	fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8')
+	try {
+		fs.writeFileSync(filePath, JSON.stringify(data, null, 2), { encoding: 'utf-8', mode: 0o600 })
+	} catch (err) {
+		console.error(`[config-store] Failed to write ${filePath}:`, err instanceof Error ? err.message : err)
+		throw err
+	}
 }
 
 export function getWorkspaces(): Workspace[] {
