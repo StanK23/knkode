@@ -1,5 +1,4 @@
 import type { LayoutPreset } from '../../../shared/types'
-import { sectionLabelStyle } from '../styles/shared'
 
 interface LayoutPickerProps {
 	current: LayoutPreset | null
@@ -17,50 +16,28 @@ const PRESETS: { value: LayoutPreset; label: string; icon: string }[] = [
 
 export function LayoutPicker({ current, onSelect }: LayoutPickerProps) {
 	return (
-		<div style={containerStyle}>
-			<span style={sectionLabelStyle}>Layout</span>
-			<div style={gridStyle}>
+		<div className="flex flex-col gap-2">
+			<span className="text-[11px] text-content-secondary uppercase tracking-wider font-semibold">
+				Layout
+			</span>
+			<div className="grid grid-cols-3 gap-1.5">
 				{PRESETS.map((p) => (
 					<button
 						type="button"
 						key={p.value}
 						onClick={() => onSelect(p.value)}
-						style={{
-							...presetBtnStyle,
-							borderColor: current === p.value ? 'var(--accent)' : 'var(--border)',
-							background: current === p.value ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 'var(--bg-tertiary)',
-						}}
+						className={`flex flex-col items-center gap-1 py-2.5 px-2 border rounded-md cursor-pointer text-content ${
+							current === p.value
+								? 'border-accent bg-accent/15'
+								: 'border-edge bg-sunken hover:border-content-muted'
+						}`}
 						title={p.label}
 					>
-						<span style={{ fontSize: 16, letterSpacing: 2 }}>{p.icon}</span>
-						<span style={{ fontSize: 10, color: 'var(--text-dim)' }}>{p.label}</span>
+						<span className="text-base tracking-widest">{p.icon}</span>
+						<span className="text-[10px] text-content-muted">{p.label}</span>
 					</button>
 				))}
 			</div>
 		</div>
 	)
-}
-
-const containerStyle: React.CSSProperties = {
-	display: 'flex',
-	flexDirection: 'column',
-	gap: 8,
-}
-
-const gridStyle: React.CSSProperties = {
-	display: 'grid',
-	gridTemplateColumns: 'repeat(3, 1fr)',
-	gap: 6,
-}
-
-const presetBtnStyle: React.CSSProperties = {
-	display: 'flex',
-	flexDirection: 'column',
-	alignItems: 'center',
-	gap: 4,
-	padding: '10px 8px',
-	border: '1px solid var(--border)',
-	borderRadius: 'var(--radius)',
-	cursor: 'pointer',
-	color: 'var(--text-primary)',
 }

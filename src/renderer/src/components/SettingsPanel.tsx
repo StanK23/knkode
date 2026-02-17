@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { LayoutPreset, PaneConfig, Workspace } from '../../../shared/types'
 import { createLayoutFromPreset, useStore } from '../store'
-import { sectionLabelStyle } from '../styles/shared'
 import { LayoutPicker } from './LayoutPicker'
 
 interface SettingsPanelProps {
@@ -71,74 +70,92 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	)
 
 	return (
-		<div role="presentation" style={overlayStyle} onClick={onClose}>
+		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape key handled via document listener above
+		<div
+			role="presentation"
+			className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
+			onClick={onClose}
+		>
+			{/* biome-ignore lint/a11y/useKeyWithClickEvents: stopPropagation only, keyboard handled by overlay */}
+			{/* biome-ignore lint/a11y/useSemanticElements: native dialog has styling/focus-trap limitations in Electron */}
 			<div
 				role="dialog"
 				aria-modal="true"
 				aria-label="Workspace Settings"
-				style={panelStyle}
+				className="bg-elevated border border-edge rounded-md w-[520px] max-h-[80vh] flex flex-col shadow-panel"
 				onClick={(e) => e.stopPropagation()}
 			>
-				<div style={headerStyle}>
-					<h2 style={{ fontSize: 16, fontWeight: 600 }}>Workspace Settings</h2>
-					<button type="button" onClick={onClose} aria-label="Close settings" style={closeBtnStyle}>
+				<div className="flex items-center justify-between px-5 py-4 border-b border-edge">
+					<h2 className="text-base font-semibold">Workspace Settings</h2>
+					<button
+						type="button"
+						onClick={onClose}
+						aria-label="Close settings"
+						className="bg-transparent border-none text-content-muted cursor-pointer text-sm hover:text-content"
+					>
 						✕
 					</button>
 				</div>
 
-				<div style={bodyStyle}>
+				<div className="px-5 py-4 overflow-y-auto flex flex-col gap-5">
 					{/* Name & Color */}
-					<div style={sectionStyle}>
-						<span style={sectionLabelStyle}>General</span>
-						<label style={fieldRowStyle}>
-							<span style={fieldLabelStyle}>Name</span>
-							<input value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
+					<div className="flex flex-col gap-2">
+						<span className="text-[11px] text-content-secondary uppercase tracking-wider font-semibold">
+							General
+						</span>
+						<label className="flex items-center gap-2">
+							<span className="text-xs text-content-secondary w-20 shrink-0">Name</span>
+							<input
+								value={name}
+								onChange={(e) => setName(e.target.value)}
+								className="bg-sunken border border-edge rounded-sm text-content text-xs py-1 px-2 outline-none focus:border-accent"
+							/>
 						</label>
-						<label style={fieldRowStyle}>
-							<span style={fieldLabelStyle}>Color</span>
+						<label className="flex items-center gap-2">
+							<span className="text-xs text-content-secondary w-20 shrink-0">Color</span>
 							<input
 								type="color"
 								value={color}
 								onChange={(e) => setColor(e.target.value)}
-								style={{ ...inputStyle, width: 40, height: 28, padding: 2, cursor: 'pointer' }}
+								className="bg-sunken border border-edge rounded-sm w-10 h-7 p-0.5 cursor-pointer"
 							/>
 						</label>
 					</div>
-
-					{/* Theme */}
-					<div style={sectionStyle}>
-						<span style={sectionLabelStyle}>Terminal Theme</span>
-						<label style={fieldRowStyle}>
-							<span style={fieldLabelStyle}>Background</span>
+					<div className="flex flex-col gap-2">
+						<span className="text-[11px] text-content-secondary uppercase tracking-wider font-semibold">
+							Terminal Theme
+						</span>
+						<label className="flex items-center gap-2">
+							<span className="text-xs text-content-secondary w-20 shrink-0">Background</span>
 							<input
 								type="color"
 								value={bg}
 								onChange={(e) => setBg(e.target.value)}
-								style={{ ...inputStyle, width: 40, height: 28, padding: 2, cursor: 'pointer' }}
+								className="bg-sunken border border-edge rounded-sm w-10 h-7 p-0.5 cursor-pointer"
 							/>
 						</label>
-						<label style={fieldRowStyle}>
-							<span style={fieldLabelStyle}>Foreground</span>
+						<label className="flex items-center gap-2">
+							<span className="text-xs text-content-secondary w-20 shrink-0">Foreground</span>
 							<input
 								type="color"
 								value={fg}
 								onChange={(e) => setFg(e.target.value)}
-								style={{ ...inputStyle, width: 40, height: 28, padding: 2, cursor: 'pointer' }}
+								className="bg-sunken border border-edge rounded-sm w-10 h-7 p-0.5 cursor-pointer"
 							/>
 						</label>
-						<label style={fieldRowStyle}>
-							<span style={fieldLabelStyle}>Font Size</span>
+						<label className="flex items-center gap-2">
+							<span className="text-xs text-content-secondary w-20 shrink-0">Font Size</span>
 							<input
 								type="number"
 								min={8}
 								max={32}
 								value={fontSize}
 								onChange={(e) => setFontSize(Number(e.target.value))}
-								style={{ ...inputStyle, width: 60 }}
+								className="bg-sunken border border-edge rounded-sm text-content text-xs py-1 px-2 outline-none w-15 focus:border-accent"
 							/>
 						</label>
-						<label style={fieldRowStyle}>
-							<span style={fieldLabelStyle}>Opacity</span>
+						<label className="flex items-center gap-2">
+							<span className="text-xs text-content-secondary w-20 shrink-0">Opacity</span>
 							<input
 								type="range"
 								min={0.3}
@@ -146,35 +163,33 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								step={0.05}
 								value={opacity}
 								onChange={(e) => setOpacity(Number(e.target.value))}
-								style={{ flex: 1 }}
+								className="flex-1"
 							/>
-							<span style={{ fontSize: 11, color: 'var(--text-dim)', width: 30 }}>
+							<span className="text-[11px] text-content-muted w-7">
 								{Math.round(opacity * 100)}%
 							</span>
 						</label>
 					</div>
-
-					{/* Layout */}
-					<div style={sectionStyle}>
+					<div className="flex flex-col gap-2">
 						<LayoutPicker current={currentPreset} onSelect={handleLayoutChange} />
 					</div>
-
-					{/* Pane list */}
-					<div style={sectionStyle}>
-						<span style={sectionLabelStyle}>Panes</span>
+					<div className="flex flex-col gap-2">
+						<span className="text-[11px] text-content-secondary uppercase tracking-wider font-semibold">
+							Panes
+						</span>
 						{Object.entries(workspace.panes).map(([paneId, pane]) => (
-							<div key={paneId} style={paneRowStyle}>
+							<div key={paneId} className="flex gap-1.5">
 								<input
 									value={pane.label}
 									onChange={(e) => handlePaneUpdate(paneId, { label: e.target.value })}
-									style={{ ...inputStyle, flex: 1 }}
+									className="bg-sunken border border-edge rounded-sm text-content text-xs py-1 px-2 outline-none flex-1 focus:border-accent"
 									placeholder="Label"
 									aria-label={`Pane ${pane.label} label`}
 								/>
 								<input
 									value={pane.cwd}
 									onChange={(e) => handlePaneUpdate(paneId, { cwd: e.target.value })}
-									style={{ ...inputStyle, flex: 2 }}
+									className="bg-sunken border border-edge rounded-sm text-content text-xs py-1 px-2 outline-none flex-[2] focus:border-accent"
 									placeholder="Working directory"
 									aria-label={`Pane ${pane.label} working directory`}
 								/>
@@ -185,7 +200,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 											startupCommand: e.target.value || null,
 										})
 									}
-									style={{ ...inputStyle, flex: 2 }}
+									className="bg-sunken border border-edge rounded-sm text-content text-xs py-1 px-2 outline-none flex-[2] focus:border-accent"
 									placeholder="Startup command"
 									aria-label={`Pane ${pane.label} startup command`}
 								/>
@@ -194,137 +209,31 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					</div>
 				</div>
 
-				<div style={footerStyle}>
-					<button type="button" onClick={handleDelete} style={deleteBtnStyle}>
+				<div className="flex items-center gap-2 px-5 py-3 border-t border-edge">
+					<button
+						type="button"
+						onClick={handleDelete}
+						className="bg-transparent border border-danger text-danger cursor-pointer text-xs py-1.5 px-3 rounded-sm hover:bg-danger/10"
+					>
 						Delete Workspace
 					</button>
-					<div style={{ flex: 1 }} />
-					<button type="button" onClick={onClose} style={cancelBtnStyle}>
+					<div className="flex-1" />
+					<button
+						type="button"
+						onClick={onClose}
+						className="bg-transparent border border-edge text-content-secondary cursor-pointer text-xs py-1.5 px-3 rounded-sm hover:text-content hover:border-content-muted"
+					>
 						Cancel
 					</button>
-					<button type="button" onClick={handleSave} style={saveBtnStyle}>
+					<button
+						type="button"
+						onClick={handleSave}
+						className="bg-accent border-none text-white cursor-pointer text-xs py-1.5 px-4 rounded-sm font-semibold hover:brightness-110"
+					>
 						Save
 					</button>
 				</div>
 			</div>
 		</div>
 	)
-}
-
-const overlayStyle: React.CSSProperties = {
-	position: 'fixed',
-	inset: 0,
-	background: 'rgba(0, 0, 0, 0.6)',
-	display: 'flex',
-	alignItems: 'center',
-	justifyContent: 'center',
-	zIndex: 200,
-}
-
-const panelStyle: React.CSSProperties = {
-	background: 'var(--bg-secondary)',
-	border: '1px solid var(--border)',
-	borderRadius: 'var(--radius)',
-	width: 520,
-	maxHeight: '80vh',
-	display: 'flex',
-	flexDirection: 'column',
-	boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
-}
-
-const headerStyle: React.CSSProperties = {
-	display: 'flex',
-	alignItems: 'center',
-	justifyContent: 'space-between',
-	padding: '16px 20px',
-	borderBottom: '1px solid var(--border)',
-}
-
-const closeBtnStyle: React.CSSProperties = {
-	background: 'none',
-	border: 'none',
-	color: 'var(--text-dim)',
-	cursor: 'pointer',
-	fontSize: 14,
-}
-
-const bodyStyle: React.CSSProperties = {
-	padding: '16px 20px',
-	overflowY: 'auto',
-	display: 'flex',
-	flexDirection: 'column',
-	gap: 20,
-}
-
-const sectionStyle: React.CSSProperties = {
-	display: 'flex',
-	flexDirection: 'column',
-	gap: 8,
-}
-
-const fieldRowStyle: React.CSSProperties = {
-	display: 'flex',
-	alignItems: 'center',
-	gap: 8,
-}
-
-const fieldLabelStyle: React.CSSProperties = {
-	fontSize: 12,
-	color: 'var(--text-secondary)',
-	width: 80,
-	flexShrink: 0,
-}
-
-const inputStyle: React.CSSProperties = {
-	background: 'var(--bg-tertiary)',
-	border: '1px solid var(--border)',
-	borderRadius: 'var(--radius-sm)',
-	color: 'var(--text-primary)',
-	fontSize: 12,
-	padding: '4px 8px',
-	outline: 'none',
-}
-
-const paneRowStyle: React.CSSProperties = {
-	display: 'flex',
-	gap: 6,
-}
-
-const footerStyle: React.CSSProperties = {
-	display: 'flex',
-	alignItems: 'center',
-	gap: 8,
-	padding: '12px 20px',
-	borderTop: '1px solid var(--border)',
-}
-
-const deleteBtnStyle: React.CSSProperties = {
-	background: 'none',
-	border: '1px solid var(--danger)',
-	color: 'var(--danger)',
-	cursor: 'pointer',
-	fontSize: 12,
-	padding: '6px 12px',
-	borderRadius: 'var(--radius-sm)',
-}
-
-const cancelBtnStyle: React.CSSProperties = {
-	background: 'none',
-	border: '1px solid var(--border)',
-	color: 'var(--text-secondary)',
-	cursor: 'pointer',
-	fontSize: 12,
-	padding: '6px 12px',
-	borderRadius: 'var(--radius-sm)',
-}
-
-const saveBtnStyle: React.CSSProperties = {
-	background: 'var(--accent)',
-	border: 'none',
-	color: '#fff',
-	cursor: 'pointer',
-	fontSize: 12,
-	padding: '6px 16px',
-	borderRadius: 'var(--radius-sm)',
-	fontWeight: 600,
 }
