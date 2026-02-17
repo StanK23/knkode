@@ -58,7 +58,7 @@ export function TerminalView({ paneId, theme, themeOverride }: TerminalProps) {
 		fitAddonRef.current = fitAddon
 
 		term.onData((data) => {
-			window.api.writePty(paneId, data)
+			window.api.writePty(paneId, data).catch(() => {})
 		})
 
 		const removeDataListener = window.api.onPtyData((id, data) => {
@@ -72,7 +72,7 @@ export function TerminalView({ paneId, theme, themeOverride }: TerminalProps) {
 		})
 
 		term.onResize(({ cols, rows }) => {
-			window.api.resizePty(paneId, cols, rows)
+			window.api.resizePty(paneId, cols, rows).catch(() => {})
 		})
 
 		const resizeObserver = new ResizeObserver(() => {

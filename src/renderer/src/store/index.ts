@@ -1,4 +1,3 @@
-import { v4 as uuid } from 'uuid'
 import { create } from 'zustand'
 import type {
 	AppState,
@@ -38,14 +37,14 @@ function createLayoutFromPreset(
 
 	switch (preset) {
 		case 'single': {
-			const id = uuid()
+			const id = crypto.randomUUID()
 			panes[id] = makePaneConfig('terminal')
 			tree = { paneId: id, size: 100 }
 			break
 		}
 		case '2-column': {
-			const left = uuid()
-			const right = uuid()
+			const left = crypto.randomUUID()
+			const right = crypto.randomUUID()
 			panes[left] = makePaneConfig('left')
 			panes[right] = makePaneConfig('right')
 			tree = {
@@ -59,8 +58,8 @@ function createLayoutFromPreset(
 			break
 		}
 		case '2-row': {
-			const top = uuid()
-			const bottom = uuid()
+			const top = crypto.randomUUID()
+			const bottom = crypto.randomUUID()
 			panes[top] = makePaneConfig('top')
 			panes[bottom] = makePaneConfig('bottom')
 			tree = {
@@ -74,9 +73,9 @@ function createLayoutFromPreset(
 			break
 		}
 		case '3-panel-l': {
-			const main = uuid()
-			const topRight = uuid()
-			const bottomRight = uuid()
+			const main = crypto.randomUUID()
+			const topRight = crypto.randomUUID()
+			const bottomRight = crypto.randomUUID()
 			panes[main] = makePaneConfig('main')
 			panes[topRight] = makePaneConfig('top-right')
 			panes[bottomRight] = makePaneConfig('bottom-right')
@@ -98,9 +97,9 @@ function createLayoutFromPreset(
 			break
 		}
 		case '3-panel-t': {
-			const top = uuid()
-			const bottomLeft = uuid()
-			const bottomRight = uuid()
+			const top = crypto.randomUUID()
+			const bottomLeft = crypto.randomUUID()
+			const bottomRight = crypto.randomUUID()
 			panes[top] = makePaneConfig('top')
 			panes[bottomLeft] = makePaneConfig('bottom-left')
 			panes[bottomRight] = makePaneConfig('bottom-right')
@@ -122,10 +121,10 @@ function createLayoutFromPreset(
 			break
 		}
 		case '2x2-grid': {
-			const tl = uuid()
-			const tr = uuid()
-			const bl = uuid()
-			const br = uuid()
+			const tl = crypto.randomUUID()
+			const tr = crypto.randomUUID()
+			const bl = crypto.randomUUID()
+			const br = crypto.randomUUID()
 			panes[tl] = makePaneConfig('top-left')
 			panes[tr] = makePaneConfig('top-right')
 			panes[bl] = makePaneConfig('bottom-left')
@@ -181,6 +180,7 @@ interface StoreState {
 
 	// UI state
 	initialized: boolean
+	initError: string | null
 
 	// Actions
 	init: () => Promise<void>
@@ -203,45 +203,52 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 	homeDir: '/tmp',
 	initialized: false,
+	initError: null,
 
 	init: async () => {
-		const [workspaces, appState, homeDir] = await Promise.all([
-			window.api.getWorkspaces(),
-			window.api.getAppState(),
-			window.api.getHomeDir(),
-		])
+		try {
+			const [workspaces, appState, homeDir] = await Promise.all([
+				window.api.getWorkspaces(),
+				window.api.getAppState(),
+				window.api.getHomeDir(),
+			])
 
-		// If no workspaces exist, create a default one
-		if (workspaces.length === 0) {
-			const { layout, panes } = createLayoutFromPreset('single', homeDir)
-			const defaultWorkspace: Workspace = {
-				id: uuid(),
-				name: 'Default',
-				color: WORKSPACE_COLORS[0],
-				theme: defaultTheme(),
-				layout,
-				panes,
+			// If no workspaces exist, create a default one
+			if (workspaces.length === 0) {
+				const { layout, panes } = createLayoutFromPreset('single', homeDir)
+				const defaultWorkspace: Workspace = {
+					id: crypto.randomUUID(),
+					name: 'Default',
+					color: WORKSPACE_COLORS[0],
+					theme: defaultTheme(),
+					layout,
+					panes,
+				}
+				workspaces.push(defaultWorkspace)
+				await window.api.saveWorkspace(defaultWorkspace)
+				appState.openWorkspaceIds = [defaultWorkspace.id]
+				appState.activeWorkspaceId = defaultWorkspace.id
+				await window.api.saveAppState(appState)
 			}
-			workspaces.push(defaultWorkspace)
-			await window.api.saveWorkspace(defaultWorkspace)
-			appState.openWorkspaceIds = [defaultWorkspace.id]
-			appState.activeWorkspaceId = defaultWorkspace.id
-			await window.api.saveAppState(appState)
-		}
 
-		// Ensure at least one tab is open
-		if (appState.openWorkspaceIds.length === 0 && workspaces.length > 0) {
-			appState.openWorkspaceIds = [workspaces[0].id]
-			appState.activeWorkspaceId = workspaces[0].id
-		}
+			// Ensure at least one tab is open
+			if (appState.openWorkspaceIds.length === 0 && workspaces.length > 0) {
+				appState.openWorkspaceIds = [workspaces[0].id]
+				appState.activeWorkspaceId = workspaces[0].id
+				await window.api.saveAppState(appState)
+			}
 
-		set({ workspaces, appState, homeDir, initialized: true })
+			set({ workspaces, appState, homeDir, initialized: true })
+		} catch (err) {
+			console.error('[store] Failed to initialize:', err)
+			set({ initError: String(err), initialized: true })
+		}
 	},
 
 	createWorkspace: async (name, color, preset) => {
 		const { layout, panes } = createLayoutFromPreset(preset, get().homeDir)
 		const workspace: Workspace = {
-			id: uuid(),
+			id: crypto.randomUUID(),
 			name,
 			color,
 			theme: defaultTheme(),
@@ -279,7 +286,7 @@ export const useStore = create<StoreState>((set, get) => ({
 		const newOpen = state.appState.openWorkspaceIds.filter((wid) => wid !== id)
 		const newActive =
 			state.appState.activeWorkspaceId === id
-				? newOpen[0] || null
+				? (newOpen[0] ?? null)
 				: state.appState.activeWorkspaceId
 		const newAppState = {
 			...state.appState,
@@ -296,7 +303,9 @@ export const useStore = create<StoreState>((set, get) => ({
 	setActiveWorkspace: (id) => {
 		set((state) => {
 			const newAppState = { ...state.appState, activeWorkspaceId: id }
-			window.api.saveAppState(newAppState)
+			window.api.saveAppState(newAppState).catch((err) => {
+				console.error('[store] Failed to save app state:', err)
+			})
 			return { appState: newAppState }
 		})
 	},
@@ -306,7 +315,9 @@ export const useStore = create<StoreState>((set, get) => ({
 			const open = state.appState.openWorkspaceIds
 			if (open.includes(id)) {
 				const newAppState = { ...state.appState, activeWorkspaceId: id }
-				window.api.saveAppState(newAppState)
+				window.api.saveAppState(newAppState).catch((err) => {
+					console.error('[store] Failed to save app state:', err)
+				})
 				return { appState: newAppState }
 			}
 			const newAppState = {
@@ -314,7 +325,9 @@ export const useStore = create<StoreState>((set, get) => ({
 				openWorkspaceIds: [...open, id],
 				activeWorkspaceId: id,
 			}
-			window.api.saveAppState(newAppState)
+			window.api.saveAppState(newAppState).catch((err) => {
+				console.error('[store] Failed to save app state:', err)
+			})
 			return { appState: newAppState }
 		})
 	},
@@ -324,14 +337,16 @@ export const useStore = create<StoreState>((set, get) => ({
 			const newOpen = state.appState.openWorkspaceIds.filter((wid) => wid !== id)
 			const newActive =
 				state.appState.activeWorkspaceId === id
-					? newOpen[newOpen.length - 1] || null
+					? (newOpen[newOpen.length - 1] ?? null)
 					: state.appState.activeWorkspaceId
 			const newAppState = {
 				...state.appState,
 				openWorkspaceIds: newOpen,
 				activeWorkspaceId: newActive,
 			}
-			window.api.saveAppState(newAppState)
+			window.api.saveAppState(newAppState).catch((err) => {
+				console.error('[store] Failed to save app state:', err)
+			})
 			return { appState: newAppState }
 		})
 	},
@@ -347,7 +362,9 @@ export const useStore = create<StoreState>((set, get) => ({
 					[paneId]: { ...workspace.panes[paneId], cwd },
 				},
 			}
-			window.api.saveWorkspace(updated)
+			window.api.saveWorkspace(updated).catch((err) => {
+				console.error('[store] Failed to save workspace:', err)
+			})
 			return {
 				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
 			}

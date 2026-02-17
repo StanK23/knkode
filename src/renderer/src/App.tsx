@@ -6,6 +6,7 @@ import { useStore } from './store'
 
 export function App() {
 	const initialized = useStore((s) => s.initialized)
+	const initError = useStore((s) => s.initError)
 	const init = useStore((s) => s.init)
 	const workspaces = useStore((s) => s.workspaces)
 	const appState = useStore((s) => s.appState)
@@ -30,6 +31,16 @@ export function App() {
 		return (
 			<div style={loadingStyle}>
 				<span style={{ color: 'var(--text-dim)' }}>Loading...</span>
+			</div>
+		)
+	}
+
+	if (initError) {
+		return (
+			<div style={loadingStyle}>
+				<span style={{ color: 'var(--danger, #e74c3c)' }}>
+					Failed to load: {initError}
+				</span>
 			</div>
 		)
 	}

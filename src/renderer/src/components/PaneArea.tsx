@@ -1,7 +1,6 @@
 import { Allotment } from 'allotment'
 import { useCallback } from 'react'
 import 'allotment/dist/style.css'
-import { v4 as uuid } from 'uuid'
 import type { LayoutNode, PaneConfig, Workspace } from '../../../shared/types'
 import { isLayoutBranch } from '../../../shared/types'
 import { useStore } from '../store'
@@ -32,7 +31,7 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 
 	const handleSplit = useCallback(
 		(paneId: string, direction: 'horizontal' | 'vertical') => {
-			const newPaneId = uuid()
+			const newPaneId = crypto.randomUUID()
 			const sourcePane = workspace.panes[paneId]
 			if (!sourcePane) return
 
