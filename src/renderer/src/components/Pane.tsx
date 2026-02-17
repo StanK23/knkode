@@ -3,12 +3,6 @@ import type { PaneConfig, PaneTheme } from '../../../shared/types'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useInlineEdit } from '../hooks/useInlineEdit'
 import { useStore } from '../store'
-import {
-	contextItemStyle,
-	contextMenuStyle,
-	contextSeparatorStyle,
-	editInputBaseStyle,
-} from '../styles/shared'
 import { modKey } from '../utils/platform'
 import { TerminalView } from './Terminal'
 
@@ -84,28 +78,38 @@ export function Pane({
 	const handleFocus = useCallback(() => onFocus(paneId), [paneId, onFocus])
 
 	return (
-		<div style={paneContainerStyle}>
-			<div onContextMenu={handleContextMenu} onMouseDown={handleFocus} style={isFocused ? focusedHeaderStyle : paneHeaderStyle}>
-				<span style={paneIndexStyle}>{paneIndex}</span>
+		<div className="flex flex-col h-full w-full">
+			<div
+				onContextMenu={handleContextMenu}
+				onMouseDown={handleFocus}
+				className={`h-header flex items-center gap-2 px-2 text-[11px] shrink-0 relative select-none ${
+					isFocused ? 'bg-elevated border-b border-accent' : 'bg-sunken border-b border-edge'
+				}`}
+			>
+				<span className="text-content-muted text-[10px] font-semibold min-w-3 text-center shrink-0">
+					{paneIndex}
+				</span>
 				{isEditing ? (
-					<input {...inputProps} style={editInputStyle} />
+					<input
+						{...inputProps}
+						className="bg-elevated border border-accent rounded-sm text-content text-[11px] py-px px-1 outline-none w-20"
+					/>
 				) : (
-					<span
-						onDoubleClick={startEditing}
-						style={{ color: 'var(--text-primary)', fontWeight: 500, cursor: 'default' }}
-					>
+					<span onDoubleClick={startEditing} className="text-content font-medium cursor-default">
 						{config.label}
 					</span>
 				)}
 
-				<span style={cwdStyle}>{shortCwd}</span>
+				<span className="text-content-muted flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
+					{shortCwd}
+				</span>
 
 				<button
 					type="button"
 					onClick={() => onSplitVertical(paneId)}
 					title={`Split vertical (${modKey}+D)`}
 					aria-label="Split pane vertically"
-					style={headerBtnStyle}
+					className="bg-transparent border-none text-content-muted cursor-pointer px-0.5 text-[11px] leading-none hover:text-content"
 				>
 					┃
 				</button>
@@ -114,7 +118,7 @@ export function Pane({
 					onClick={() => onSplitHorizontal(paneId)}
 					title={`Split horizontal (${modKey}+Shift+D)`}
 					aria-label="Split pane horizontally"
-					style={headerBtnStyle}
+					className="bg-transparent border-none text-content-muted cursor-pointer px-0.5 text-[11px] leading-none hover:text-content"
 				>
 					━
 				</button>
@@ -124,7 +128,7 @@ export function Pane({
 						onClick={() => onClose(paneId)}
 						title={`Close pane (${modKey}+W)`}
 						aria-label="Close pane"
-						style={{ ...headerBtnStyle, color: 'var(--danger)' }}
+						className="bg-transparent border-none text-danger cursor-pointer px-0.5 text-[11px] leading-none hover:text-content"
 					>
 						✕
 					</button>
@@ -133,14 +137,14 @@ export function Pane({
 				{showContext && (
 					<div
 						ref={contextRef}
-						style={{ ...contextMenuStyle, top: 'var(--pane-header-height)', right: 4 }}
+						className="ctx-menu top-header right-1"
 						onKeyDown={(e) => {
 							if (e.key === 'Escape') closeContext()
 						}}
 					>
 						<button
 							type="button"
-							style={contextItemStyle}
+							className="ctx-item"
 							onClick={() => {
 								onSplitVertical(paneId)
 								closeContext()
@@ -150,7 +154,7 @@ export function Pane({
 						</button>
 						<button
 							type="button"
-							style={contextItemStyle}
+							className="ctx-item"
 							onClick={() => {
 								onSplitHorizontal(paneId)
 								closeContext()
@@ -158,10 +162,10 @@ export function Pane({
 						>
 							Split Horizontal
 						</button>
-						<div style={contextSeparatorStyle} />
+						<div className="ctx-separator" />
 						<button
 							type="button"
-							style={contextItemStyle}
+							className="ctx-item"
 							onClick={() => {
 								startEditing()
 								closeContext()
@@ -171,7 +175,7 @@ export function Pane({
 						</button>
 						<button
 							type="button"
-							style={contextItemStyle}
+							className="ctx-item"
 							onClick={() => {
 								setCwdInput(config.cwd)
 								setContextPanel(contextPanel === 'cwd' ? null : 'cwd')
@@ -181,7 +185,7 @@ export function Pane({
 						</button>
 						{contextPanel === 'cwd' && (
 							<form
-								style={contextFormStyle}
+								className="flex gap-1 px-3 py-1 pb-2"
 								onSubmit={(e) => {
 									e.preventDefault()
 									const path = cwdInput.trim()
@@ -196,17 +200,20 @@ export function Pane({
 									value={cwdInput}
 									onChange={(e) => setCwdInput(e.target.value)}
 									placeholder="/path/to/directory"
-									style={contextInputStyle}
+									className="bg-canvas border border-edge rounded-sm text-content text-[11px] py-0.5 px-1.5 outline-none flex-1 min-w-0 focus:border-accent"
 									ref={(el) => el?.focus()}
 								/>
-								<button type="submit" style={contextSubmitStyle}>
+								<button
+									type="submit"
+									className="bg-sunken border border-edge rounded-sm text-content text-[11px] py-0.5 px-2 cursor-pointer shrink-0 hover:bg-overlay"
+								>
 									Set
 								</button>
 							</form>
 						)}
 						<button
 							type="button"
-							style={contextItemStyle}
+							className="ctx-item"
 							onClick={() => {
 								setCmdInput(config.startupCommand ?? '')
 								setContextPanel(contextPanel === 'cmd' ? null : 'cmd')
@@ -216,7 +223,7 @@ export function Pane({
 						</button>
 						{contextPanel === 'cmd' && (
 							<form
-								style={contextFormStyle}
+								className="flex gap-1 px-3 py-1 pb-2"
 								onSubmit={(e) => {
 									e.preventDefault()
 									onUpdateConfig(paneId, {
@@ -230,17 +237,20 @@ export function Pane({
 									value={cmdInput}
 									onChange={(e) => setCmdInput(e.target.value)}
 									placeholder="npm run dev"
-									style={contextInputStyle}
+									className="bg-canvas border border-edge rounded-sm text-content text-[11px] py-0.5 px-1.5 outline-none flex-1 min-w-0 focus:border-accent"
 									ref={(el) => el?.focus()}
 								/>
-								<button type="submit" style={contextSubmitStyle}>
+								<button
+									type="submit"
+									className="bg-sunken border border-edge rounded-sm text-content text-[11px] py-0.5 px-2 cursor-pointer shrink-0 hover:bg-overlay"
+								>
 									Set
 								</button>
 							</form>
 						)}
 						<button
 							type="button"
-							style={contextItemStyle}
+							className="ctx-item"
 							onClick={() => {
 								setThemeInput({
 									background: config.themeOverride?.background ?? '',
@@ -253,43 +263,43 @@ export function Pane({
 							Theme Override
 						</button>
 						{contextPanel === 'theme' && (
-							<div style={themeFormStyle}>
-								<label style={themeLabelStyle}>
+							<div className="flex flex-col gap-1.5 px-3 py-1 pb-2">
+								<label className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
 									<span>Background</span>
 									<input
 										type="text"
 										value={themeInput.background}
 										onChange={(e) => setThemeInput((t) => ({ ...t, background: e.target.value }))}
 										placeholder={workspaceTheme.background}
-										style={contextInputStyle}
+										className="bg-canvas border border-edge rounded-sm text-content text-[11px] py-0.5 px-1.5 outline-none flex-1 min-w-0 focus:border-accent"
 									/>
 								</label>
-								<label style={themeLabelStyle}>
+								<label className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
 									<span>Foreground</span>
 									<input
 										type="text"
 										value={themeInput.foreground}
 										onChange={(e) => setThemeInput((t) => ({ ...t, foreground: e.target.value }))}
 										placeholder={workspaceTheme.foreground}
-										style={contextInputStyle}
+										className="bg-canvas border border-edge rounded-sm text-content text-[11px] py-0.5 px-1.5 outline-none flex-1 min-w-0 focus:border-accent"
 									/>
 								</label>
-								<label style={themeLabelStyle}>
+								<label className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
 									<span>Font size</span>
 									<input
 										type="number"
 										value={themeInput.fontSize}
 										onChange={(e) => setThemeInput((t) => ({ ...t, fontSize: e.target.value }))}
 										placeholder={String(workspaceTheme.fontSize)}
-										style={{ ...contextInputStyle, width: 60 }}
+										className="bg-canvas border border-edge rounded-sm text-content text-[11px] py-0.5 px-1.5 outline-none w-15 focus:border-accent"
 										min={8}
 										max={32}
 									/>
 								</label>
-								<div style={{ display: 'flex', gap: 4 }}>
+								<div className="flex gap-1">
 									<button
 										type="button"
-										style={contextSubmitStyle}
+										className="bg-sunken border border-edge rounded-sm text-content text-[11px] py-0.5 px-2 cursor-pointer shrink-0 hover:bg-overlay"
 										onClick={() => {
 											const override: Partial<PaneTheme> = {}
 											if (themeInput.background) override.background = themeInput.background
@@ -308,7 +318,7 @@ export function Pane({
 									</button>
 									<button
 										type="button"
-										style={{ ...contextSubmitStyle, color: 'var(--text-dim)' }}
+										className="bg-sunken border border-edge rounded-sm text-content-muted text-[11px] py-0.5 px-2 cursor-pointer shrink-0 hover:bg-overlay"
 										onClick={() => {
 											onUpdateConfig(paneId, { themeOverride: null })
 											closeContext()
@@ -321,10 +331,10 @@ export function Pane({
 						)}
 						{canClose && (
 							<>
-								<div style={contextSeparatorStyle} />
+								<div className="ctx-separator" />
 								<button
 									type="button"
-									style={{ ...contextItemStyle, color: 'var(--danger)' }}
+									className="ctx-item text-danger"
 									onClick={() => {
 										onClose(paneId)
 										closeContext()
@@ -338,7 +348,7 @@ export function Pane({
 				)}
 			</div>
 
-			<div style={{ flex: 1, overflow: 'hidden' }}>
+			<div className="flex-1 overflow-hidden">
 				<TerminalView
 					paneId={paneId}
 					theme={workspaceTheme}
@@ -350,108 +360,4 @@ export function Pane({
 			</div>
 		</div>
 	)
-}
-
-const paneContainerStyle: React.CSSProperties = {
-	display: 'flex',
-	flexDirection: 'column',
-	height: '100%',
-	width: '100%',
-}
-
-const paneHeaderStyle: React.CSSProperties = {
-	height: 'var(--pane-header-height)',
-	display: 'flex',
-	alignItems: 'center',
-	gap: 8,
-	padding: '0 8px',
-	background: 'var(--bg-tertiary)',
-	borderBottom: '1px solid var(--border)',
-	fontSize: 11,
-	flexShrink: 0,
-	position: 'relative',
-	userSelect: 'none',
-}
-
-const focusedHeaderStyle: React.CSSProperties = {
-	...paneHeaderStyle,
-	background: 'var(--bg-secondary)',
-	borderBottom: '1px solid var(--accent)',
-}
-
-const paneIndexStyle: React.CSSProperties = {
-	color: 'var(--text-dim)',
-	fontSize: 10,
-	fontWeight: 600,
-	minWidth: 12,
-	textAlign: 'center',
-	flexShrink: 0,
-}
-
-const editInputStyle: React.CSSProperties = {
-	...editInputBaseStyle,
-	fontSize: 11,
-}
-
-const cwdStyle: React.CSSProperties = {
-	color: 'var(--text-dim)',
-	flex: 1,
-	overflow: 'hidden',
-	textOverflow: 'ellipsis',
-	whiteSpace: 'nowrap',
-}
-
-const headerBtnStyle: React.CSSProperties = {
-	background: 'none',
-	border: 'none',
-	color: 'var(--text-dim)',
-	cursor: 'pointer',
-	padding: '0 3px',
-	fontSize: 11,
-	lineHeight: 1,
-}
-
-const contextFormStyle: React.CSSProperties = {
-	display: 'flex',
-	gap: 4,
-	padding: '4px 12px 8px',
-}
-
-const contextInputStyle: React.CSSProperties = {
-	background: 'var(--bg-primary)',
-	border: '1px solid var(--border)',
-	borderRadius: 'var(--radius-sm)',
-	color: 'var(--text-primary)',
-	fontSize: 11,
-	padding: '3px 6px',
-	outline: 'none',
-	flex: 1,
-	minWidth: 0,
-}
-
-const contextSubmitStyle: React.CSSProperties = {
-	background: 'var(--bg-tertiary)',
-	border: '1px solid var(--border)',
-	borderRadius: 'var(--radius-sm)',
-	color: 'var(--text-primary)',
-	fontSize: 11,
-	padding: '3px 8px',
-	cursor: 'pointer',
-	flexShrink: 0,
-}
-
-const themeFormStyle: React.CSSProperties = {
-	display: 'flex',
-	flexDirection: 'column',
-	gap: 6,
-	padding: '4px 12px 8px',
-}
-
-const themeLabelStyle: React.CSSProperties = {
-	display: 'flex',
-	alignItems: 'center',
-	justifyContent: 'space-between',
-	gap: 8,
-	fontSize: 11,
-	color: 'var(--text-dim)',
 }

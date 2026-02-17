@@ -2,13 +2,6 @@ import { useCallback, useRef, useState } from 'react'
 import type { Workspace } from '../../../shared/types'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useInlineEdit } from '../hooks/useInlineEdit'
-import {
-	colorDotStyle,
-	contextItemStyle,
-	contextMenuStyle,
-	contextSeparatorStyle,
-	editInputBaseStyle,
-} from '../styles/shared'
 
 interface TabProps {
 	workspace: Workspace
@@ -88,26 +81,31 @@ export function Tab({
 			onDragOver={(e) => onDragOver(e, index)}
 			onDrop={() => onDrop(index)}
 			onDragEnd={onDragEnd}
+			className={`flex items-center gap-1.5 px-3 h-tab cursor-pointer rounded-t-md select-none relative min-w-20 max-w-44 ${
+				isActive ? 'bg-overlay-active' : 'bg-overlay hover:bg-overlay-hover'
+			} ${isDragOver ? 'shadow-[inset_2px_0_0_var(--color-accent)]' : ''} ${
+				isDragging ? 'opacity-40' : ''
+			}`}
 			style={{
-				...tabStyle,
-				background: isActive ? 'var(--bg-tab-active)' : 'var(--bg-tab)',
 				borderBottom: isActive ? `2px solid ${workspace.color}` : '2px solid transparent',
-				boxShadow: isDragOver ? 'inset 2px 0 0 var(--accent)' : 'none',
-				opacity: isDragging ? 0.4 : 1,
-			}}
-			onMouseEnter={(e) => {
-				if (!isActive) e.currentTarget.style.background = 'var(--bg-tab-hover)'
-			}}
-			onMouseLeave={(e) => {
-				if (!isActive) e.currentTarget.style.background = 'var(--bg-tab)'
 			}}
 		>
-			<span aria-hidden="true" style={{ ...colorDotStyle, background: workspace.color }} />
+			<span
+				aria-hidden="true"
+				className="w-2 h-2 rounded-full shrink-0"
+				style={{ background: workspace.color }}
+			/>
 
 			{isEditing ? (
-				<input {...inputProps} onClick={(e) => e.stopPropagation()} style={editInputStyle} />
+				<input
+					{...inputProps}
+					onClick={(e) => e.stopPropagation()}
+					className="bg-elevated border border-accent rounded-sm text-content text-xs py-px px-1 outline-none w-20"
+				/>
 			) : (
-				<span style={nameStyle}>{workspace.name}</span>
+				<span className="text-content text-xs whitespace-nowrap overflow-hidden text-ellipsis">
+					{workspace.name}
+				</span>
 			)}
 
 			<button
@@ -117,7 +115,7 @@ export function Tab({
 					onClose(workspace.id)
 				}}
 				aria-label={`Close ${workspace.name}`}
-				style={closeBtnStyle}
+				className="bg-transparent border-none text-content-muted cursor-pointer px-0.5 text-[10px] leading-none ml-auto shrink-0 hover:text-content"
 			>
 				✕
 			</button>
@@ -125,14 +123,14 @@ export function Tab({
 			{showContext && (
 				<div
 					ref={contextRef}
-					style={{ ...contextMenuStyle, top: 'var(--tab-height)', left: 0 }}
+					className="ctx-menu top-tab left-0"
 					onKeyDown={(e) => {
 						if (e.key === 'Escape') closeContext()
 					}}
 				>
 					<button
 						type="button"
-						style={contextItemStyle}
+						className="ctx-item"
 						onClick={(e) => {
 							e.stopPropagation()
 							startEditing()
@@ -143,7 +141,7 @@ export function Tab({
 					</button>
 					<button
 						type="button"
-						style={contextItemStyle}
+						className="ctx-item"
 						onClick={(e) => {
 							e.stopPropagation()
 							setShowColorPicker((v) => !v)
@@ -152,18 +150,16 @@ export function Tab({
 						Change Color
 					</button>
 					{showColorPicker && (
-						<div style={colorPaletteStyle}>
+						<div className="flex flex-wrap gap-1 px-3 py-1 pb-2">
 							{colors.map((c) => (
 								<button
 									type="button"
 									key={c}
 									aria-label={`Color ${c}`}
-									style={{
-										...colorSwatchStyle,
-										background: c,
-										outline: c === workspace.color ? '2px solid var(--text-primary)' : 'none',
-										outlineOffset: 1,
-									}}
+									className={`size-4.5 rounded-full border-none cursor-pointer p-0 ${
+										c === workspace.color ? 'outline-2 outline-content outline-offset-1' : ''
+									}`}
+									style={{ background: c }}
 									onClick={(e) => {
 										e.stopPropagation()
 										onChangeColor(workspace.id, c)
@@ -175,7 +171,7 @@ export function Tab({
 					)}
 					<button
 						type="button"
-						style={contextItemStyle}
+						className="ctx-item"
 						onClick={(e) => {
 							e.stopPropagation()
 							onDuplicate(workspace.id)
@@ -184,10 +180,10 @@ export function Tab({
 					>
 						Duplicate
 					</button>
-					<div style={contextSeparatorStyle} />
+					<div className="ctx-separator" />
 					<button
 						type="button"
-						style={{ ...contextItemStyle, color: 'var(--danger)' }}
+						className="ctx-item text-danger"
 						onClick={(e) => {
 							e.stopPropagation()
 							onClose(workspace.id)
@@ -200,59 +196,4 @@ export function Tab({
 			)}
 		</div>
 	)
-}
-
-const tabStyle: React.CSSProperties = {
-	display: 'flex',
-	alignItems: 'center',
-	gap: 6,
-	padding: '0 12px',
-	height: 'var(--tab-height)',
-	cursor: 'pointer',
-	borderRadius: 'var(--radius) var(--radius) 0 0',
-	userSelect: 'none',
-	position: 'relative',
-	minWidth: 80,
-	maxWidth: 180,
-}
-
-const editInputStyle: React.CSSProperties = {
-	...editInputBaseStyle,
-	fontSize: 12,
-}
-
-const nameStyle: React.CSSProperties = {
-	color: 'var(--text-primary)',
-	fontSize: 12,
-	whiteSpace: 'nowrap',
-	overflow: 'hidden',
-	textOverflow: 'ellipsis',
-}
-
-const closeBtnStyle: React.CSSProperties = {
-	background: 'none',
-	border: 'none',
-	color: 'var(--text-dim)',
-	cursor: 'pointer',
-	padding: '0 2px',
-	fontSize: 10,
-	lineHeight: 1,
-	marginLeft: 'auto',
-	flexShrink: 0,
-}
-
-const colorPaletteStyle: React.CSSProperties = {
-	display: 'flex',
-	flexWrap: 'wrap',
-	gap: 4,
-	padding: '4px 12px 8px',
-}
-
-const colorSwatchStyle: React.CSSProperties = {
-	width: 18,
-	height: 18,
-	borderRadius: '50%',
-	border: 'none',
-	cursor: 'pointer',
-	padding: 0,
 }
