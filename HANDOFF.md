@@ -21,7 +21,8 @@
 - Change directory UX: text input, not native folder picker
 
 ## What's Next
-- Task 3: Launch, test & fix (`fix/launch-and-integration`)
-  - Debug empty window issue
-  - Verify terminal data pipeline end-to-end
-  - Test workspace/pane lifecycle
+- Task 3 in progress: `fix/launch-and-integration` (PR pending)
+  - Fixed: `term.onFocus` crash (xterm.js v5.5 compat) → DOM focusin event
+  - Fixed: Tab.tsx recursive closeContext → stack overflow on context dismiss
+  - All integration paths verified via code review
+  - 59 tests pass, lint clean
