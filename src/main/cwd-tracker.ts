@@ -1,5 +1,5 @@
 import { IPC } from '../shared/types'
-import { getMainWindow } from './main-window'
+import { safeSend } from './main-window'
 import { getPtyCwd } from './pty-manager'
 
 const trackedPanes = new Map<string, string>() // paneId -> last observed cwd (polled, may lag)
@@ -23,7 +23,7 @@ export function startCwdTracking(): void {
 				const currentCwd = getPtyCwd(paneId)
 				if (currentCwd && currentCwd !== lastCwd) {
 					trackedPanes.set(paneId, currentCwd)
-					getMainWindow()?.webContents.send(IPC.PTY_CWD_CHANGED, paneId, currentCwd)
+					safeSend(IPC.PTY_CWD_CHANGED, paneId, currentCwd)
 				}
 			} catch (err) {
 				console.warn(
