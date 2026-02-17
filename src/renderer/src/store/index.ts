@@ -184,11 +184,13 @@ interface StoreState {
 	initialized: boolean
 	initError: string | null
 	focusedPaneId: string | null
+	focusGeneration: number
 
 	// Actions
 	setFocusedPane: (paneId: string | null) => void
 	init: () => Promise<void>
 	createWorkspace: (name: string, color: string, preset: LayoutPreset) => Promise<Workspace>
+	createDefaultWorkspace: () => Promise<Workspace>
 	updateWorkspace: (workspace: Workspace) => Promise<void>
 	removeWorkspace: (id: string) => Promise<void>
 	setActiveWorkspace: (id: string) => void
@@ -212,8 +214,10 @@ export const useStore = create<StoreState>((set, get) => ({
 	initialized: false,
 	initError: null,
 	focusedPaneId: null,
+	focusGeneration: 0,
 
-	setFocusedPane: (paneId) => set({ focusedPaneId: paneId }),
+	setFocusedPane: (paneId) =>
+		set((state) => ({ focusedPaneId: paneId, focusGeneration: state.focusGeneration + 1 })),
 
 	init: async () => {
 		try {
@@ -283,6 +287,16 @@ export const useStore = create<StoreState>((set, get) => ({
 		return workspace
 	},
 
+	createDefaultWorkspace: async () => {
+		const state = get()
+		const colorIndex = state.workspaces.length % WORKSPACE_COLORS.length
+		return state.createWorkspace(
+			`Workspace ${state.workspaces.length + 1}`,
+			WORKSPACE_COLORS[colorIndex],
+			'single',
+		)
+	},
+
 	updateWorkspace: async (workspace) => {
 		await window.api.saveWorkspace(workspace)
 		set((state) => ({
@@ -316,7 +330,7 @@ export const useStore = create<StoreState>((set, get) => ({
 			window.api.saveAppState(newAppState).catch((err) => {
 				console.error('[store] Failed to save app state:', err)
 			})
-			return { appState: newAppState }
+			return { appState: newAppState, focusedPaneId: null }
 		})
 	},
 
@@ -374,6 +388,8 @@ export const useStore = create<StoreState>((set, get) => ({
 				themeOverride: null,
 			}
 
+			// Walk layout tree; when the target leaf is found, replace it with a
+			// branch containing the original pane and a new sibling at 50/50.
 			const replaceInTree = (node: LayoutNode): LayoutNode => {
 				if (isLayoutBranch(node)) {
 					return { ...node, children: node.children.map(replaceInTree) }
@@ -401,6 +417,8 @@ export const useStore = create<StoreState>((set, get) => ({
 			})
 			return {
 				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
+				focusedPaneId: newPaneId,
+				focusGeneration: state.focusGeneration + 1,
 			}
 		})
 	},
@@ -411,6 +429,9 @@ export const useStore = create<StoreState>((set, get) => ({
 			if (!workspace) return state
 			if (Object.keys(workspace.panes).length <= 1) return state
 
+			// Remove pane from tree. If a branch is left with one child, collapse
+			// it upward (promote the child, preserving the parent's size).
+			// PTY cleanup is handled by Pane's unmount effect.
 			const removeFromTree = (node: LayoutNode): LayoutNode | null => {
 				if (!isLayoutBranch(node)) {
 					return node.paneId === paneId ? null : node
@@ -487,7 +508,7 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 }))
 
-/** Get pane IDs in depth-first (left-to-right, top-to-bottom) order. */
+/** Get pane IDs in depth-first tree order, matching visual layout reading order. */
 function getPaneIdsInOrder(node: LayoutNode): string[] {
 	if (!isLayoutBranch(node)) return [node.paneId]
 	return node.children.flatMap(getPaneIdsInOrder)

@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import type { Workspace } from '../../../shared/types'
 import { useClickOutside } from '../hooks/useClickOutside'
-import { WORKSPACE_COLORS, useStore } from '../store'
+import { useStore } from '../store'
 import { colorDotStyle } from '../styles/shared'
 import { Tab } from './Tab'
 
@@ -10,7 +10,7 @@ export function TabBar() {
 	const appState = useStore((s) => s.appState)
 	const setActiveWorkspace = useStore((s) => s.setActiveWorkspace)
 	const closeWorkspaceTab = useStore((s) => s.closeWorkspaceTab)
-	const createWorkspace = useStore((s) => s.createWorkspace)
+	const createDefaultWorkspace = useStore((s) => s.createDefaultWorkspace)
 	const updateWorkspace = useStore((s) => s.updateWorkspace)
 	const openWorkspace = useStore((s) => s.openWorkspace)
 
@@ -33,13 +33,8 @@ export function TabBar() {
 	)
 
 	const handleNewWorkspace = useCallback(async () => {
-		const colorIndex = workspaces.length % WORKSPACE_COLORS.length
-		await createWorkspace(
-			`Workspace ${workspaces.length + 1}`,
-			WORKSPACE_COLORS[colorIndex],
-			'single',
-		)
-	}, [workspaces, createWorkspace])
+		await createDefaultWorkspace()
+	}, [createDefaultWorkspace])
 
 	return (
 		<div style={barStyle}>
