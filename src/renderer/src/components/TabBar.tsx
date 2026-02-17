@@ -127,22 +127,27 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 					type="button"
 					onClick={handleNewWorkspace}
 					title={`New workspace (${modKey}+T)`}
+					aria-label="Create new workspace"
 					style={newBtnStyle}
 				>
 					+
 				</button>
 			</div>
 
-			{/* Gear (settings) button */}
-			<button
-				type="button"
-				onClick={onOpenSettings}
-				title="Workspace settings"
-				aria-label="Open workspace settings"
-				style={gearBtnStyle}
-			>
-				&#9881;
-			</button>
+			{/* Gear (settings) button — only shown when a workspace is active */}
+			{appState.activeWorkspaceId && (
+				<button
+					type="button"
+					onClick={onOpenSettings}
+					title="Workspace settings"
+					aria-label="Open workspace settings"
+					style={gearBtnStyle}
+					onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
+					onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-dim)' }}
+				>
+					&#9881;
+				</button>
+			)}
 
 			{/* Closed workspaces menu */}
 			{closedWorkspaces.length > 0 && (
@@ -154,6 +159,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 						type="button"
 						onClick={() => setShowClosedMenu((v) => !v)}
 						title="Reopen closed workspace"
+						aria-label={`Reopen closed workspace (${closedWorkspaces.length} available)`}
 						style={reopenBtnStyle}
 					>
 						{closedWorkspaces.length} closed
@@ -235,7 +241,6 @@ const gearBtnStyle: React.CSSProperties = {
 	display: 'flex',
 	alignItems: 'center',
 	flexShrink: 0,
-	marginLeft: 'auto',
 }
 
 const reopenBtnStyle: React.CSSProperties = {
