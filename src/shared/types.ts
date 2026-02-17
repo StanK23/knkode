@@ -66,6 +66,9 @@ export const IPC = {
 	CONFIG_GET_APP_STATE: 'config:get-app-state',
 	CONFIG_SAVE_APP_STATE: 'config:save-app-state',
 
+	// App
+	APP_GET_HOME_DIR: 'app:get-home-dir',
+
 	// PTY
 	PTY_CREATE: 'pty:create',
 	PTY_WRITE: 'pty:write',
