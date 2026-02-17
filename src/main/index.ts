@@ -1,0 +1,111 @@
+import path from 'node:path'
+import { BrowserWindow, app, shell } from 'electron'
+import { getAppState, saveAppState } from './config-store'
+import { startCwdTracking, stopCwdTracking } from './cwd-tracker'
+import { registerIpcHandlers } from './ipc'
+import { getMainWindow, setMainWindow } from './main-window'
+import { killAllPtys } from './pty-manager'
+
+function createWindow(): void {
+	const { windowBounds } = getAppState()
+
+	const win = new BrowserWindow({
+		x: windowBounds.x,
+		y: windowBounds.y,
+		width: windowBounds.width,
+		height: windowBounds.height,
+		minWidth: 600,
+		minHeight: 400,
+		titleBarStyle: 'hiddenInset',
+		trafficLightPosition: { x: 12, y: 12 },
+		backgroundColor: '#1a1a2e',
+		webPreferences: {
+			preload: path.join(__dirname, '../preload/index.js'),
+			nodeIntegration: false,
+			contextIsolation: true,
+			sandbox: true,
+			webSecurity: true,
+		},
+	})
+
+	setMainWindow(win)
+
+	let saveBoundsTimer: ReturnType<typeof setTimeout> | null = null
+	function saveBounds(): void {
+		if (saveBoundsTimer) clearTimeout(saveBoundsTimer)
+		saveBoundsTimer = setTimeout(() => {
+			const mw = getMainWindow()
+			if (!mw) return
+			try {
+				const bounds = mw.getBounds()
+				const state = getAppState()
+				state.windowBounds = bounds
+				saveAppState(state)
+			} catch (err) {
+				console.error('[main] Failed to save window bounds:', err)
+			}
+		}, 500)
+	}
+
+	win.on('resize', saveBounds)
+	win.on('move', saveBounds)
+
+	win.webContents.setWindowOpenHandler(({ url }) => {
+		try {
+			const parsed = new URL(url)
+			if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+				shell.openExternal(url).catch((err) => {
+					console.error('[main] Failed to open external URL:', err)
+				})
+			}
+		} catch {
+			/* invalid URL — ignore */
+		}
+		return { action: 'deny' }
+	})
+
+	// Prevent the main window from navigating away from the renderer
+	win.webContents.on('will-navigate', (e) => {
+		e.preventDefault()
+	})
+
+	if (process.env.ELECTRON_RENDERER_URL) {
+		win.loadURL(process.env.ELECTRON_RENDERER_URL)
+	} else {
+		win.loadFile(path.join(__dirname, '../renderer/index.html'))
+	}
+}
+
+let cleanedUp = false
+function cleanup(): void {
+	if (cleanedUp) return
+	cleanedUp = true
+	stopCwdTracking()
+	killAllPtys()
+}
+
+app
+	.whenReady()
+	.then(() => {
+		registerIpcHandlers()
+		createWindow()
+		startCwdTracking()
+
+		app.on('activate', () => {
+			if (BrowserWindow.getAllWindows().length === 0) {
+				createWindow()
+			}
+		})
+	})
+	.catch((err) => {
+		console.error('[main] app.whenReady() failed:', err)
+	})
+
+app.on('window-all-closed', () => {
+	cleanup()
+	if (process.platform !== 'darwin') {
+		app.quit()
+	}
+})
+
+app.on('before-quit', cleanup)
