@@ -3,15 +3,13 @@ import path from 'node:path'
 import { getAppState, saveAppState } from './config-store'
 import { startCwdTracking, stopCwdTracking } from './cwd-tracker'
 import { registerIpcHandlers } from './ipc'
-import { setMainWindow } from './main-window'
+import { getMainWindow, setMainWindow } from './main-window'
 import { killAllPtys } from './pty-manager'
-
-let mainWindow: BrowserWindow | null = null
 
 function createWindow(): void {
 	const { windowBounds } = getAppState()
 
-	mainWindow = new BrowserWindow({
+	const win = new BrowserWindow({
 		x: windowBounds.x,
 		y: windowBounds.y,
 		width: windowBounds.width,
@@ -30,16 +28,16 @@ function createWindow(): void {
 		},
 	})
 
-	setMainWindow(mainWindow)
+	setMainWindow(win)
 
-	// Debounced window bounds save — avoids disk I/O on every resize/move frame
 	let saveBoundsTimer: ReturnType<typeof setTimeout> | null = null
 	function saveBounds(): void {
 		if (saveBoundsTimer) clearTimeout(saveBoundsTimer)
 		saveBoundsTimer = setTimeout(() => {
-			if (!mainWindow) return
+			const mw = getMainWindow()
+			if (!mw) return
 			try {
-				const bounds = mainWindow.getBounds()
+				const bounds = mw.getBounds()
 				const state = getAppState()
 				state.windowBounds = bounds
 				saveAppState(state)
@@ -49,27 +47,32 @@ function createWindow(): void {
 		}, 500)
 	}
 
-	mainWindow.on('resize', saveBounds)
-	mainWindow.on('move', saveBounds)
+	win.on('resize', saveBounds)
+	win.on('move', saveBounds)
 
-	// Open external links in browser — only allow http/https
-	mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+	win.webContents.setWindowOpenHandler(({ url }) => {
 		try {
 			const parsed = new URL(url)
 			if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
-				shell.openExternal(url)
+				shell.openExternal(url).catch((err) => {
+					console.error('[main] Failed to open external URL:', err)
+				})
 			}
 		} catch {
-			// Invalid URL — ignore
+			/* invalid URL — ignore */
 		}
 		return { action: 'deny' }
 	})
 
-	// Load the renderer
+	// Prevent the main window from navigating away from the renderer
+	win.webContents.on('will-navigate', (e) => {
+		e.preventDefault()
+	})
+
 	if (process.env.ELECTRON_RENDERER_URL) {
-		mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
+		win.loadURL(process.env.ELECTRON_RENDERER_URL)
 	} else {
-		mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
+		win.loadFile(path.join(__dirname, '../renderer/index.html'))
 	}
 }
 
@@ -81,17 +84,21 @@ function cleanup(): void {
 	killAllPtys()
 }
 
-app.whenReady().then(() => {
-	registerIpcHandlers()
-	createWindow()
-	startCwdTracking()
+app.whenReady()
+	.then(() => {
+		registerIpcHandlers()
+		createWindow()
+		startCwdTracking()
 
-	app.on('activate', () => {
-		if (BrowserWindow.getAllWindows().length === 0) {
-			createWindow()
-		}
+		app.on('activate', () => {
+			if (BrowserWindow.getAllWindows().length === 0) {
+				createWindow()
+			}
+		})
 	})
-})
+	.catch((err) => {
+		console.error('[main] app.whenReady() failed:', err)
+	})
 
 app.on('window-all-closed', () => {
 	cleanup()
