@@ -36,6 +36,16 @@ export const sectionLabelStyle: React.CSSProperties = {
 	fontWeight: 600,
 }
 
+export const editInputBaseStyle: React.CSSProperties = {
+	background: 'var(--bg-secondary)',
+	border: '1px solid var(--accent)',
+	borderRadius: 'var(--radius-sm)',
+	color: 'var(--text-primary)',
+	padding: '1px 4px',
+	outline: 'none',
+	width: 80,
+}
+
 export const colorDotStyle: React.CSSProperties = {
 	width: 8,
 	height: 8,

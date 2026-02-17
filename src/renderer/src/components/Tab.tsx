@@ -7,6 +7,7 @@ import {
 	contextItemStyle,
 	contextMenuStyle,
 	contextSeparatorStyle,
+	editInputBaseStyle,
 } from '../styles/shared'
 
 interface TabProps {
@@ -16,12 +17,15 @@ interface TabProps {
 	onActivate: (id: string) => void
 	onClose: (id: string) => void
 	onRename: (id: string, name: string) => void
+	onChangeColor: (id: string, color: string) => void
+	onDuplicate: (id: string) => void
 	onDragStart: (index: number) => void
 	onDragOver: (e: React.DragEvent, index: number) => void
 	onDrop: (index: number) => void
 	onDragEnd: () => void
 	isDragOver: boolean
 	isDragging: boolean
+	colors: readonly string[]
 }
 
 export function Tab({
@@ -31,14 +35,18 @@ export function Tab({
 	onActivate,
 	onClose,
 	onRename,
+	onChangeColor,
+	onDuplicate,
 	onDragStart,
 	onDragOver,
 	onDrop,
 	onDragEnd,
 	isDragOver,
 	isDragging,
+	colors,
 }: TabProps) {
 	const [showContext, setShowContext] = useState(false)
+	const [showColorPicker, setShowColorPicker] = useState(false)
 	const contextRef = useRef<HTMLDivElement>(null)
 
 	const { isEditing, inputProps, startEditing } = useInlineEdit(workspace.name, (name) =>
@@ -50,7 +58,12 @@ export function Tab({
 		setShowContext(true)
 	}, [])
 
-	useClickOutside(contextRef, () => setShowContext(false), showContext)
+	const closeContext = useCallback(() => {
+		closeContext()
+		setShowColorPicker(false)
+	}, [])
+
+	useClickOutside(contextRef, closeContext, showContext)
 
 	return (
 		<div
@@ -109,17 +122,66 @@ export function Tab({
 			</button>
 
 			{showContext && (
-				<div ref={contextRef} style={{ ...contextMenuStyle, top: 'var(--tab-height)', left: 0 }}>
+				<div
+					ref={contextRef}
+					style={{ ...contextMenuStyle, top: 'var(--tab-height)', left: 0 }}
+					onKeyDown={(e) => {
+						if (e.key === 'Escape') closeContext()
+					}}
+				>
 					<button
 						type="button"
 						style={contextItemStyle}
 						onClick={(e) => {
 							e.stopPropagation()
 							startEditing()
-							setShowContext(false)
+							closeContext()
 						}}
 					>
 						Rename
+					</button>
+					<button
+						type="button"
+						style={contextItemStyle}
+						onClick={(e) => {
+							e.stopPropagation()
+							setShowColorPicker((v) => !v)
+						}}
+					>
+						Change Color
+					</button>
+					{showColorPicker && (
+						<div style={colorPaletteStyle}>
+							{colors.map((c) => (
+								<button
+									type="button"
+									key={c}
+									aria-label={`Color ${c}`}
+									style={{
+										...colorSwatchStyle,
+										background: c,
+										outline: c === workspace.color ? '2px solid var(--text-primary)' : 'none',
+										outlineOffset: 1,
+									}}
+									onClick={(e) => {
+										e.stopPropagation()
+										onChangeColor(workspace.id, c)
+										closeContext()
+									}}
+								/>
+							))}
+						</div>
+					)}
+					<button
+						type="button"
+						style={contextItemStyle}
+						onClick={(e) => {
+							e.stopPropagation()
+							onDuplicate(workspace.id)
+							closeContext()
+						}}
+					>
+						Duplicate
 					</button>
 					<div style={contextSeparatorStyle} />
 					<button
@@ -128,7 +190,7 @@ export function Tab({
 						onClick={(e) => {
 							e.stopPropagation()
 							onClose(workspace.id)
-							setShowContext(false)
+							closeContext()
 						}}
 					>
 						Close Tab
@@ -154,14 +216,8 @@ const tabStyle: React.CSSProperties = {
 }
 
 const editInputStyle: React.CSSProperties = {
-	background: 'var(--bg-secondary)',
-	border: '1px solid var(--accent)',
-	borderRadius: 'var(--radius-sm)',
-	color: 'var(--text-primary)',
+	...editInputBaseStyle,
 	fontSize: 12,
-	padding: '1px 4px',
-	outline: 'none',
-	width: 80,
 }
 
 const nameStyle: React.CSSProperties = {
@@ -182,4 +238,20 @@ const closeBtnStyle: React.CSSProperties = {
 	lineHeight: 1,
 	marginLeft: 'auto',
 	flexShrink: 0,
+}
+
+const colorPaletteStyle: React.CSSProperties = {
+	display: 'flex',
+	flexWrap: 'wrap',
+	gap: 4,
+	padding: '4px 12px 8px',
+}
+
+const colorSwatchStyle: React.CSSProperties = {
+	width: 18,
+	height: 18,
+	borderRadius: '50%',
+	border: 'none',
+	cursor: 'pointer',
+	padding: 0,
 }

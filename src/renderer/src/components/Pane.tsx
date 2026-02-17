@@ -2,7 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PaneConfig, PaneTheme } from '../../../shared/types'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useInlineEdit } from '../hooks/useInlineEdit'
-import { contextItemStyle, contextMenuStyle, contextSeparatorStyle } from '../styles/shared'
+import {
+	contextItemStyle,
+	contextMenuStyle,
+	contextSeparatorStyle,
+	editInputBaseStyle,
+} from '../styles/shared'
 import { modKey } from '../utils/platform'
 import { TerminalView } from './Terminal'
 
@@ -34,9 +39,17 @@ export function Pane({
 	onFocus,
 }: PaneProps) {
 	const [showContext, setShowContext] = useState(false)
+	const [contextPanel, setContextPanel] = useState<'cwd' | 'cmd' | 'theme' | null>(null)
 	const contextRef = useRef<HTMLDivElement>(null)
+	const [cwdInput, setCwdInput] = useState(config.cwd)
+	const [cmdInput, setCmdInput] = useState(config.startupCommand ?? '')
+	const [themeInput, setThemeInput] = useState({
+		background: config.themeOverride?.background ?? '',
+		foreground: config.themeOverride?.foreground ?? '',
+		fontSize: config.themeOverride?.fontSize?.toString() ?? '',
+	})
 
-	// Spawn PTY on mount only — cwd/startupCommand captured at creation time
+	// Spawn PTY on mount only — config changes via context menu take effect on next pane creation
 	const initialCwdRef = useRef(config.cwd)
 	const initialCmdRef = useRef(config.startupCommand)
 	useEffect(() => {
@@ -57,7 +70,12 @@ export function Pane({
 		setShowContext(true)
 	}, [])
 
-	useClickOutside(contextRef, () => setShowContext(false), showContext)
+	const closeContext = useCallback(() => {
+		setShowContext(false)
+		setContextPanel(null)
+	}, [])
+
+	useClickOutside(contextRef, closeContext, showContext)
 
 	const shortCwd = config.cwd.replace(/^\/Users\/[^/]+/, '~')
 
@@ -110,13 +128,16 @@ export function Pane({
 					<div
 						ref={contextRef}
 						style={{ ...contextMenuStyle, top: 'var(--pane-header-height)', right: 4 }}
+						onKeyDown={(e) => {
+							if (e.key === 'Escape') closeContext()
+						}}
 					>
 						<button
 							type="button"
 							style={contextItemStyle}
 							onClick={() => {
 								onSplitVertical(paneId)
-								setShowContext(false)
+								closeContext()
 							}}
 						>
 							Split Vertical
@@ -126,7 +147,7 @@ export function Pane({
 							style={contextItemStyle}
 							onClick={() => {
 								onSplitHorizontal(paneId)
-								setShowContext(false)
+								closeContext()
 							}}
 						>
 							Split Horizontal
@@ -137,22 +158,175 @@ export function Pane({
 							style={contextItemStyle}
 							onClick={() => {
 								startEditing()
-								setShowContext(false)
+								closeContext()
 							}}
 						>
 							Rename
 						</button>
-						{canClose && (
-							<button
-								type="button"
-								style={{ ...contextItemStyle, color: 'var(--danger)' }}
-								onClick={() => {
-									onClose(paneId)
-									setShowContext(false)
+						<button
+							type="button"
+							style={contextItemStyle}
+							onClick={() => {
+								setCwdInput(config.cwd)
+								setContextPanel(contextPanel === 'cwd' ? null : 'cwd')
+							}}
+						>
+							Change Directory
+						</button>
+						{contextPanel === 'cwd' && (
+							<form
+								style={contextFormStyle}
+								onSubmit={(e) => {
+									e.preventDefault()
+									const path = cwdInput.trim()
+									if (path && (path.startsWith('/') || path.startsWith('~'))) {
+										onUpdateConfig(paneId, { cwd: path })
+									}
+									closeContext()
 								}}
 							>
-								Close Pane
-							</button>
+								<input
+									type="text"
+									value={cwdInput}
+									onChange={(e) => setCwdInput(e.target.value)}
+									placeholder="/path/to/directory"
+									style={contextInputStyle}
+									ref={(el) => el?.focus()}
+								/>
+								<button type="submit" style={contextSubmitStyle}>
+									Set
+								</button>
+							</form>
+						)}
+						<button
+							type="button"
+							style={contextItemStyle}
+							onClick={() => {
+								setCmdInput(config.startupCommand ?? '')
+								setContextPanel(contextPanel === 'cmd' ? null : 'cmd')
+							}}
+						>
+							Set Startup Command
+						</button>
+						{contextPanel === 'cmd' && (
+							<form
+								style={contextFormStyle}
+								onSubmit={(e) => {
+									e.preventDefault()
+									onUpdateConfig(paneId, {
+										startupCommand: cmdInput.trim() || null,
+									})
+									closeContext()
+								}}
+							>
+								<input
+									type="text"
+									value={cmdInput}
+									onChange={(e) => setCmdInput(e.target.value)}
+									placeholder="npm run dev"
+									style={contextInputStyle}
+									ref={(el) => el?.focus()}
+								/>
+								<button type="submit" style={contextSubmitStyle}>
+									Set
+								</button>
+							</form>
+						)}
+						<button
+							type="button"
+							style={contextItemStyle}
+							onClick={() => {
+								setThemeInput({
+									background: config.themeOverride?.background ?? '',
+									foreground: config.themeOverride?.foreground ?? '',
+									fontSize: config.themeOverride?.fontSize?.toString() ?? '',
+								})
+								setContextPanel(contextPanel === 'theme' ? null : 'theme')
+							}}
+						>
+							Theme Override
+						</button>
+						{contextPanel === 'theme' && (
+							<div style={themeFormStyle}>
+								<label style={themeLabelStyle}>
+									<span>Background</span>
+									<input
+										type="text"
+										value={themeInput.background}
+										onChange={(e) => setThemeInput((t) => ({ ...t, background: e.target.value }))}
+										placeholder={workspaceTheme.background}
+										style={contextInputStyle}
+									/>
+								</label>
+								<label style={themeLabelStyle}>
+									<span>Foreground</span>
+									<input
+										type="text"
+										value={themeInput.foreground}
+										onChange={(e) => setThemeInput((t) => ({ ...t, foreground: e.target.value }))}
+										placeholder={workspaceTheme.foreground}
+										style={contextInputStyle}
+									/>
+								</label>
+								<label style={themeLabelStyle}>
+									<span>Font size</span>
+									<input
+										type="number"
+										value={themeInput.fontSize}
+										onChange={(e) => setThemeInput((t) => ({ ...t, fontSize: e.target.value }))}
+										placeholder={String(workspaceTheme.fontSize)}
+										style={{ ...contextInputStyle, width: 60 }}
+										min={8}
+										max={32}
+									/>
+								</label>
+								<div style={{ display: 'flex', gap: 4 }}>
+									<button
+										type="button"
+										style={contextSubmitStyle}
+										onClick={() => {
+											const override: Partial<PaneTheme> = {}
+											if (themeInput.background) override.background = themeInput.background
+											if (themeInput.foreground) override.foreground = themeInput.foreground
+											if (themeInput.fontSize) {
+												const fs = Number(themeInput.fontSize)
+												if (Number.isFinite(fs) && fs >= 8 && fs <= 32) override.fontSize = fs
+											}
+											onUpdateConfig(paneId, {
+												themeOverride: Object.keys(override).length > 0 ? override : null,
+											})
+											closeContext()
+										}}
+									>
+										Apply
+									</button>
+									<button
+										type="button"
+										style={{ ...contextSubmitStyle, color: 'var(--text-dim)' }}
+										onClick={() => {
+											onUpdateConfig(paneId, { themeOverride: null })
+											closeContext()
+										}}
+									>
+										Reset
+									</button>
+								</div>
+							</div>
+						)}
+						{canClose && (
+							<>
+								<div style={contextSeparatorStyle} />
+								<button
+									type="button"
+									style={{ ...contextItemStyle, color: 'var(--danger)' }}
+									onClick={() => {
+										onClose(paneId)
+										closeContext()
+									}}
+								>
+									Close Pane
+								</button>
+							</>
 						)}
 					</div>
 				)}
@@ -199,14 +373,8 @@ const paneHeaderStyle: React.CSSProperties = {
 }
 
 const editInputStyle: React.CSSProperties = {
-	background: 'var(--bg-secondary)',
-	border: '1px solid var(--accent)',
-	borderRadius: 'var(--radius-sm)',
-	color: 'var(--text-primary)',
+	...editInputBaseStyle,
 	fontSize: 11,
-	padding: '1px 4px',
-	outline: 'none',
-	width: 80,
 }
 
 const cwdStyle: React.CSSProperties = {
@@ -225,4 +393,49 @@ const headerBtnStyle: React.CSSProperties = {
 	padding: '0 3px',
 	fontSize: 11,
 	lineHeight: 1,
+}
+
+const contextFormStyle: React.CSSProperties = {
+	display: 'flex',
+	gap: 4,
+	padding: '4px 12px 8px',
+}
+
+const contextInputStyle: React.CSSProperties = {
+	background: 'var(--bg-primary)',
+	border: '1px solid var(--border)',
+	borderRadius: 'var(--radius-sm)',
+	color: 'var(--text-primary)',
+	fontSize: 11,
+	padding: '3px 6px',
+	outline: 'none',
+	flex: 1,
+	minWidth: 0,
+}
+
+const contextSubmitStyle: React.CSSProperties = {
+	background: 'var(--bg-tertiary)',
+	border: '1px solid var(--border)',
+	borderRadius: 'var(--radius-sm)',
+	color: 'var(--text-primary)',
+	fontSize: 11,
+	padding: '3px 8px',
+	cursor: 'pointer',
+	flexShrink: 0,
+}
+
+const themeFormStyle: React.CSSProperties = {
+	display: 'flex',
+	flexDirection: 'column',
+	gap: 6,
+	padding: '4px 12px 8px',
+}
+
+const themeLabelStyle: React.CSSProperties = {
+	display: 'flex',
+	alignItems: 'center',
+	justifyContent: 'space-between',
+	gap: 8,
+	fontSize: 11,
+	color: 'var(--text-dim)',
 }
