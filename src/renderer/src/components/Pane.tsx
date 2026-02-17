@@ -123,6 +123,9 @@ export function Pane({
 					<div
 						ref={contextRef}
 						style={{ ...contextMenuStyle, top: 'var(--pane-header-height)', right: 4 }}
+						onKeyDown={(e) => {
+							if (e.key === 'Escape') closeContext()
+						}}
 					>
 						<button
 							type="button"

@@ -121,7 +121,13 @@ export function Tab({
 			</button>
 
 			{showContext && (
-				<div ref={contextRef} style={{ ...contextMenuStyle, top: 'var(--tab-height)', left: 0 }}>
+				<div
+					ref={contextRef}
+					style={{ ...contextMenuStyle, top: 'var(--tab-height)', left: 0 }}
+					onKeyDown={(e) => {
+						if (e.key === 'Escape') closeContext()
+					}}
+				>
 					<button
 						type="button"
 						style={contextItemStyle}
