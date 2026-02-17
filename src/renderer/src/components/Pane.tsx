@@ -52,8 +52,9 @@ export function Pane({
 
 	// Ensure PTY exists for this pane. Uses store's activePtyIds to avoid
 	// double-creation on Allotment remounts (e.g. when splitting panes).
-	// PTY kill is handled by store actions (closePane, removeWorkspace, closeWorkspaceTab).
+	// PTY kill is handled by store actions and layout-change helpers.
 	const ensurePty = useStore((s) => s.ensurePty)
+	// Capture initial values so config updates don't re-trigger PTY creation
 	const initialCwdRef = useRef(config.cwd)
 	const initialCmdRef = useRef(config.startupCommand)
 	useEffect(() => {
