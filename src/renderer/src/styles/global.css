@@ -64,6 +64,7 @@
 }
 
 @layer components {
+	/* Context menu */
 	.ctx-menu {
 		@apply absolute bg-elevated border border-edge rounded-md p-1 z-[100] min-w-40 shadow-menu;
 	}
@@ -72,6 +73,20 @@
 	}
 	.ctx-separator {
 		@apply h-px bg-edge my-1;
+	}
+	.ctx-input {
+		@apply bg-canvas border border-edge rounded-sm text-content text-[11px] py-0.5 px-1.5 outline-none focus:border-accent;
+	}
+	.ctx-submit {
+		@apply bg-sunken border border-edge rounded-sm text-content text-[11px] py-0.5 px-2 cursor-pointer shrink-0 hover:bg-overlay;
+	}
+
+	/* Settings panel */
+	.settings-input {
+		@apply bg-sunken border border-edge rounded-sm text-content text-xs py-1 px-2 outline-none focus:border-accent;
+	}
+	.section-label {
+		@apply text-[11px] text-content-secondary uppercase tracking-wider font-semibold;
 	}
 }
 

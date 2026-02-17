@@ -17,9 +17,7 @@ const PRESETS: { value: LayoutPreset; label: string; icon: string }[] = [
 export function LayoutPicker({ current, onSelect }: LayoutPickerProps) {
 	return (
 		<div className="flex flex-col gap-2">
-			<span className="text-[11px] text-content-secondary uppercase tracking-wider font-semibold">
-				Layout
-			</span>
+			<span className="section-label">Layout</span>
 			<div className="grid grid-cols-3 gap-1.5">
 				{PRESETS.map((p) => (
 					<button

@@ -200,13 +200,10 @@ export function Pane({
 									value={cwdInput}
 									onChange={(e) => setCwdInput(e.target.value)}
 									placeholder="/path/to/directory"
-									className="bg-canvas border border-edge rounded-sm text-content text-[11px] py-0.5 px-1.5 outline-none flex-1 min-w-0 focus:border-accent"
+									className="ctx-input flex-1 min-w-0"
 									ref={(el) => el?.focus()}
 								/>
-								<button
-									type="submit"
-									className="bg-sunken border border-edge rounded-sm text-content text-[11px] py-0.5 px-2 cursor-pointer shrink-0 hover:bg-overlay"
-								>
+								<button type="submit" className="ctx-submit">
 									Set
 								</button>
 							</form>
@@ -237,13 +234,10 @@ export function Pane({
 									value={cmdInput}
 									onChange={(e) => setCmdInput(e.target.value)}
 									placeholder="npm run dev"
-									className="bg-canvas border border-edge rounded-sm text-content text-[11px] py-0.5 px-1.5 outline-none flex-1 min-w-0 focus:border-accent"
+									className="ctx-input flex-1 min-w-0"
 									ref={(el) => el?.focus()}
 								/>
-								<button
-									type="submit"
-									className="bg-sunken border border-edge rounded-sm text-content text-[11px] py-0.5 px-2 cursor-pointer shrink-0 hover:bg-overlay"
-								>
+								<button type="submit" className="ctx-submit">
 									Set
 								</button>
 							</form>
@@ -271,7 +265,7 @@ export function Pane({
 										value={themeInput.background}
 										onChange={(e) => setThemeInput((t) => ({ ...t, background: e.target.value }))}
 										placeholder={workspaceTheme.background}
-										className="bg-canvas border border-edge rounded-sm text-content text-[11px] py-0.5 px-1.5 outline-none flex-1 min-w-0 focus:border-accent"
+										className="ctx-input flex-1 min-w-0"
 									/>
 								</label>
 								<label className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
@@ -281,7 +275,7 @@ export function Pane({
 										value={themeInput.foreground}
 										onChange={(e) => setThemeInput((t) => ({ ...t, foreground: e.target.value }))}
 										placeholder={workspaceTheme.foreground}
-										className="bg-canvas border border-edge rounded-sm text-content text-[11px] py-0.5 px-1.5 outline-none flex-1 min-w-0 focus:border-accent"
+										className="ctx-input flex-1 min-w-0"
 									/>
 								</label>
 								<label className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
@@ -291,7 +285,7 @@ export function Pane({
 										value={themeInput.fontSize}
 										onChange={(e) => setThemeInput((t) => ({ ...t, fontSize: e.target.value }))}
 										placeholder={String(workspaceTheme.fontSize)}
-										className="bg-canvas border border-edge rounded-sm text-content text-[11px] py-0.5 px-1.5 outline-none w-15 focus:border-accent"
+										className="ctx-input w-15"
 										min={8}
 										max={32}
 									/>
@@ -299,7 +293,7 @@ export function Pane({
 								<div className="flex gap-1">
 									<button
 										type="button"
-										className="bg-sunken border border-edge rounded-sm text-content text-[11px] py-0.5 px-2 cursor-pointer shrink-0 hover:bg-overlay"
+										className="ctx-submit"
 										onClick={() => {
 											const override: Partial<PaneTheme> = {}
 											if (themeInput.background) override.background = themeInput.background
@@ -318,7 +312,7 @@ export function Pane({
 									</button>
 									<button
 										type="button"
-										className="bg-sunken border border-edge rounded-sm text-content-muted text-[11px] py-0.5 px-2 cursor-pointer shrink-0 hover:bg-overlay"
+										className="ctx-submit text-content-muted"
 										onClick={() => {
 											onUpdateConfig(paneId, { themeOverride: null })
 											closeContext()

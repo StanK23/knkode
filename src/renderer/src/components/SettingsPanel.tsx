@@ -100,15 +100,13 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 				<div className="px-5 py-4 overflow-y-auto flex flex-col gap-5">
 					{/* Name & Color */}
 					<div className="flex flex-col gap-2">
-						<span className="text-[11px] text-content-secondary uppercase tracking-wider font-semibold">
-							General
-						</span>
+						<span className="section-label">General</span>
 						<label className="flex items-center gap-2">
 							<span className="text-xs text-content-secondary w-20 shrink-0">Name</span>
 							<input
 								value={name}
 								onChange={(e) => setName(e.target.value)}
-								className="bg-sunken border border-edge rounded-sm text-content text-xs py-1 px-2 outline-none focus:border-accent"
+								className="settings-input"
 							/>
 						</label>
 						<label className="flex items-center gap-2">
@@ -122,9 +120,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 						</label>
 					</div>
 					<div className="flex flex-col gap-2">
-						<span className="text-[11px] text-content-secondary uppercase tracking-wider font-semibold">
-							Terminal Theme
-						</span>
+						<span className="section-label">Terminal Theme</span>
 						<label className="flex items-center gap-2">
 							<span className="text-xs text-content-secondary w-20 shrink-0">Background</span>
 							<input
@@ -151,7 +147,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								max={32}
 								value={fontSize}
 								onChange={(e) => setFontSize(Number(e.target.value))}
-								className="bg-sunken border border-edge rounded-sm text-content text-xs py-1 px-2 outline-none w-15 focus:border-accent"
+								className="settings-input w-15"
 							/>
 						</label>
 						<label className="flex items-center gap-2">
@@ -174,15 +170,13 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 						<LayoutPicker current={currentPreset} onSelect={handleLayoutChange} />
 					</div>
 					<div className="flex flex-col gap-2">
-						<span className="text-[11px] text-content-secondary uppercase tracking-wider font-semibold">
-							Panes
-						</span>
+						<span className="section-label">Panes</span>
 						{Object.entries(workspace.panes).map(([paneId, pane]) => (
 							<div key={paneId} className="flex gap-1.5">
 								<input
 									value={pane.label}
 									onChange={(e) => handlePaneUpdate(paneId, { label: e.target.value })}
-									className="bg-sunken border border-edge rounded-sm text-content text-xs py-1 px-2 outline-none flex-1 focus:border-accent"
+									className="settings-input flex-1"
 									placeholder="Label"
 									aria-label={`Pane ${pane.label} label`}
 								/>
