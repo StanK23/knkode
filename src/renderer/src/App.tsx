@@ -21,11 +21,11 @@ export function App() {
 	// Listen for CWD changes from the main process
 	useEffect(() => {
 		const unsubscribe = window.api.onPtyCwdChanged((paneId, cwd) => {
-			const ws = workspaces.find((w) => paneId in w.panes)
+			const ws = useStore.getState().workspaces.find((w) => paneId in w.panes)
 			if (ws) updatePaneCwd(ws.id, paneId, cwd)
 		})
 		return unsubscribe
-	}, [workspaces, updatePaneCwd])
+	}, [updatePaneCwd])
 
 	if (!initialized) {
 		return (
