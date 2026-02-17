@@ -9,9 +9,11 @@ interface TerminalProps {
 	paneId: string
 	theme: PaneTheme
 	themeOverride: Partial<PaneTheme> | null
+	isFocused: boolean
+	onFocus: () => void
 }
 
-export function TerminalView({ paneId, theme, themeOverride }: TerminalProps) {
+export function TerminalView({ paneId, theme, themeOverride, isFocused, onFocus }: TerminalProps) {
 	const containerRef = useRef<HTMLDivElement>(null)
 	const termRef = useRef<XTerm | null>(null)
 	const fitAddonRef = useRef<FitAddon | null>(null)
@@ -80,13 +82,25 @@ export function TerminalView({ paneId, theme, themeOverride }: TerminalProps) {
 		})
 		resizeObserver.observe(containerRef.current)
 
+		// Track focus for keyboard shortcut targeting
+		const onTermFocus = () => onFocus()
+		term.textarea?.addEventListener('focus', onTermFocus)
+
 		return () => {
+			term.textarea?.removeEventListener('focus', onTermFocus)
 			resizeObserver.disconnect()
 			removeDataListener()
 			removeExitListener()
 			term.dispose()
 		}
-	}, [paneId])
+	}, [paneId, onFocus])
+
+	// Programmatically focus terminal when selected via keyboard shortcut
+	useEffect(() => {
+		if (isFocused && termRef.current) {
+			termRef.current.focus()
+		}
+	}, [isFocused])
 
 	// Update theme without re-mounting
 	useEffect(() => {

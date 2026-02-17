@@ -63,7 +63,7 @@ export function TabBar() {
 				<button
 					type="button"
 					onClick={handleNewWorkspace}
-					title="New workspace"
+					title="New workspace (Cmd+T)"
 					style={newBtnStyle}
 				>
 					+

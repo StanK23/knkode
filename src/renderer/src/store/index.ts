@@ -5,9 +5,11 @@ import type {
 	LayoutPreset,
 	PaneConfig,
 	PaneTheme,
+	SplitDirection,
 	Workspace,
 	WorkspaceLayout,
 } from '../../../shared/types'
+import { isLayoutBranch } from '../../../shared/types'
 
 function defaultTheme(): PaneTheme {
 	return {
@@ -181,8 +183,10 @@ interface StoreState {
 	// UI state
 	initialized: boolean
 	initError: string | null
+	focusedPaneId: string | null
 
 	// Actions
+	setFocusedPane: (paneId: string | null) => void
 	init: () => Promise<void>
 	createWorkspace: (name: string, color: string, preset: LayoutPreset) => Promise<Workspace>
 	updateWorkspace: (workspace: Workspace) => Promise<void>
@@ -190,6 +194,8 @@ interface StoreState {
 	setActiveWorkspace: (id: string) => void
 	openWorkspace: (id: string) => void
 	closeWorkspaceTab: (id: string) => void
+	splitPane: (workspaceId: string, paneId: string, direction: SplitDirection) => void
+	closePane: (workspaceId: string, paneId: string) => void
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
 	saveState: () => Promise<void>
@@ -205,6 +211,9 @@ export const useStore = create<StoreState>((set, get) => ({
 	homeDir: '/tmp',
 	initialized: false,
 	initError: null,
+	focusedPaneId: null,
+
+	setFocusedPane: (paneId) => set({ focusedPaneId: paneId }),
 
 	init: async () => {
 		try {
@@ -352,6 +361,87 @@ export const useStore = create<StoreState>((set, get) => ({
 		})
 	},
 
+	splitPane: (workspaceId, paneId, direction) => {
+		set((state) => {
+			const workspace = state.workspaces.find((w) => w.id === workspaceId)
+			if (!workspace?.panes[paneId]) return state
+
+			const newPaneId = crypto.randomUUID()
+			const newPane: PaneConfig = {
+				label: 'terminal',
+				cwd: workspace.panes[paneId].cwd,
+				startupCommand: null,
+				themeOverride: null,
+			}
+
+			const replaceInTree = (node: LayoutNode): LayoutNode => {
+				if (isLayoutBranch(node)) {
+					return { ...node, children: node.children.map(replaceInTree) }
+				}
+				if (node.paneId === paneId) {
+					return {
+						direction,
+						size: node.size,
+						children: [
+							{ paneId, size: 50 },
+							{ paneId: newPaneId, size: 50 },
+						],
+					}
+				}
+				return node
+			}
+
+			const updated = {
+				...workspace,
+				layout: { type: 'custom' as const, tree: replaceInTree(workspace.layout.tree) },
+				panes: { ...workspace.panes, [newPaneId]: newPane },
+			}
+			window.api.saveWorkspace(updated).catch((err) => {
+				console.error('[store] Failed to save workspace:', err)
+			})
+			return {
+				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
+			}
+		})
+	},
+
+	closePane: (workspaceId, paneId) => {
+		set((state) => {
+			const workspace = state.workspaces.find((w) => w.id === workspaceId)
+			if (!workspace) return state
+			if (Object.keys(workspace.panes).length <= 1) return state
+
+			const removeFromTree = (node: LayoutNode): LayoutNode | null => {
+				if (!isLayoutBranch(node)) {
+					return node.paneId === paneId ? null : node
+				}
+				const remaining = node.children
+					.map(removeFromTree)
+					.filter((n): n is LayoutNode => n !== null)
+				if (remaining.length === 0) return null
+				if (remaining.length === 1) return { ...remaining[0], size: node.size }
+				return { ...node, children: remaining }
+			}
+
+			const newTree = removeFromTree(workspace.layout.tree)
+			if (!newTree) return state
+
+			const { [paneId]: _, ...remainingPanes } = workspace.panes
+			const updated = {
+				...workspace,
+				layout: { type: 'custom' as const, tree: newTree },
+				panes: remainingPanes,
+			}
+			window.api.saveWorkspace(updated).catch((err) => {
+				console.error('[store] Failed to save workspace:', err)
+			})
+			return {
+				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
+				focusedPaneId: state.focusedPaneId === paneId ? null : state.focusedPaneId,
+			}
+		})
+	},
+
 	updatePaneConfig: (workspaceId, paneId, updates) => {
 		set((state) => {
 			const workspace = state.workspaces.find((w) => w.id === workspaceId)
@@ -397,4 +487,10 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 }))
 
-export { WORKSPACE_COLORS, createLayoutFromPreset }
+/** Get pane IDs in depth-first (left-to-right, top-to-bottom) order. */
+function getPaneIdsInOrder(node: LayoutNode): string[] {
+	if (!isLayoutBranch(node)) return [node.paneId]
+	return node.children.flatMap(getPaneIdsInOrder)
+}
+
+export { WORKSPACE_COLORS, createLayoutFromPreset, getPaneIdsInOrder }

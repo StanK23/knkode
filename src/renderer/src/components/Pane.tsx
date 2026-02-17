@@ -14,6 +14,8 @@ interface PaneProps {
 	onSplitVertical: (paneId: string) => void
 	onClose: (paneId: string) => void
 	canClose: boolean
+	isFocused: boolean
+	onFocus: (paneId: string) => void
 }
 
 export function Pane({
@@ -25,6 +27,8 @@ export function Pane({
 	onSplitVertical,
 	onClose,
 	canClose,
+	isFocused,
+	onFocus,
 }: PaneProps) {
 	const [showContext, setShowContext] = useState(false)
 	const contextRef = useRef<HTMLDivElement>(null)
@@ -54,9 +58,16 @@ export function Pane({
 
 	const shortCwd = config.cwd.replace(/^\/Users\/[^/]+/, '~')
 
+	const handleFocus = useCallback(() => onFocus(paneId), [paneId, onFocus])
+
 	return (
-		<div style={paneContainerStyle}>
-			<div onContextMenu={handleContextMenu} style={paneHeaderStyle}>
+		<div
+			style={{
+				...paneContainerStyle,
+				borderTop: isFocused ? '2px solid var(--accent)' : '2px solid transparent',
+			}}
+		>
+			<div onContextMenu={handleContextMenu} onMouseDown={handleFocus} style={paneHeaderStyle}>
 				{isEditing ? (
 					<input {...inputProps} style={editInputStyle} />
 				) : (
@@ -73,7 +84,7 @@ export function Pane({
 				<button
 					type="button"
 					onClick={() => onSplitVertical(paneId)}
-					title="Split vertical"
+					title="Split vertical (Cmd+D)"
 					style={headerBtnStyle}
 				>
 					┃
@@ -81,7 +92,7 @@ export function Pane({
 				<button
 					type="button"
 					onClick={() => onSplitHorizontal(paneId)}
-					title="Split horizontal"
+					title="Split horizontal (Cmd+Shift+D)"
 					style={headerBtnStyle}
 				>
 					━
@@ -90,7 +101,7 @@ export function Pane({
 					<button
 						type="button"
 						onClick={() => onClose(paneId)}
-						title="Close pane"
+						title="Close pane (Cmd+W)"
 						style={{ ...headerBtnStyle, color: 'var(--danger)' }}
 					>
 						✕
@@ -150,7 +161,13 @@ export function Pane({
 			</div>
 
 			<div style={{ flex: 1, overflow: 'hidden' }}>
-				<TerminalView paneId={paneId} theme={workspaceTheme} themeOverride={config.themeOverride} />
+				<TerminalView
+					paneId={paneId}
+					theme={workspaceTheme}
+					themeOverride={config.themeOverride}
+					isFocused={isFocused}
+					onFocus={handleFocus}
+				/>
 			</div>
 		</div>
 	)

@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { PaneArea } from './components/PaneArea'
 import { SettingsPanel } from './components/SettingsPanel'
 import { TabBar } from './components/TabBar'
-import { useStore } from './store'
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { WORKSPACE_COLORS, useStore } from './store'
 
 export function App() {
 	const initialized = useStore((s) => s.initialized)
@@ -11,8 +12,45 @@ export function App() {
 	const workspaces = useStore((s) => s.workspaces)
 	const appState = useStore((s) => s.appState)
 	const updatePaneCwd = useStore((s) => s.updatePaneCwd)
+	const splitPane = useStore((s) => s.splitPane)
+	const closePane = useStore((s) => s.closePane)
+	const setFocusedPane = useStore((s) => s.setFocusedPane)
 
 	const [showSettings, setShowSettings] = useState(false)
+
+	const handleNewWorkspace = useCallback(async () => {
+		const state = useStore.getState()
+		const colorIndex = state.workspaces.length % WORKSPACE_COLORS.length
+		await state.createWorkspace(
+			`Workspace ${state.workspaces.length + 1}`,
+			WORKSPACE_COLORS[colorIndex],
+			'single',
+		)
+	}, [])
+
+	const shortcutHandlers = useMemo(
+		() => ({
+			onSplitVertical: (paneId: string) => {
+				const ws = useStore.getState().workspaces.find((w) => paneId in w.panes)
+				if (ws) splitPane(ws.id, paneId, 'vertical')
+			},
+			onSplitHorizontal: (paneId: string) => {
+				const ws = useStore.getState().workspaces.find((w) => paneId in w.panes)
+				if (ws) splitPane(ws.id, paneId, 'horizontal')
+			},
+			onClosePane: (paneId: string) => {
+				const ws = useStore.getState().workspaces.find((w) => paneId in w.panes)
+				if (ws) closePane(ws.id, paneId)
+			},
+			onNewWorkspace: handleNewWorkspace,
+			onFocusPane: (paneId: string) => {
+				setFocusedPane(paneId)
+			},
+		}),
+		[splitPane, closePane, handleNewWorkspace, setFocusedPane],
+	)
+
+	useKeyboardShortcuts(shortcutHandlers)
 
 	useEffect(() => {
 		init()
