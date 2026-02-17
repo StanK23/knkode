@@ -16,6 +16,6 @@
 - PTY lifecycle: store-managed (ensurePty/killPtys/removePtyId) — decoupled from React mount
 
 ## What's Next
-- Bug fix: UI layout, accessibility & polish (fix/ui-layout-polish)
+- [in-progress] Bug fix: UI layout, accessibility & polish (fix/ui-layout-polish)
 - Follow-up: Extract `useContextMenu` hook (DRY)
 - Follow-up: Additional test coverage for renderer components
