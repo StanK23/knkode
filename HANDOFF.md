@@ -4,6 +4,7 @@
 - [done] Feature completion plan — `/autopilot` run (PRs #7–#9)
 - [done] Bug fix: PTY lifecycle & crash-on-close (PR #11) — 10-agent review, 73 tests
 - [done] Bug fix: UI layout, accessibility & polish (PR #12) — 8-agent review, 73 tests
+- [done] Bug fix: UI testing bugs — drag region, split dirs, settings shortcut, focus indicator (PR #14) — 9-agent review
 
 ## Active Decisions
 - Tech stack: Electron + React + TypeScript + xterm.js + node-pty + Zustand
