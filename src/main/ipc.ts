@@ -9,49 +9,92 @@ import {
 } from './config-store'
 import { trackPane, untrackPane } from './cwd-tracker'
 import { createPty, killPty, resizePty, writePty } from './pty-manager'
+import type { AppState, Workspace } from '../shared/types'
 import { IPC } from '../shared/types'
 
-/** Register all IPC handlers. Must be called before creating any BrowserWindow. */
+const MAX_PANE_ID_LENGTH = 128
+
+function assertString(value: unknown, name: string): asserts value is string {
+	if (typeof value !== 'string') throw new Error(`Invalid ${name}: expected string`)
+}
+
+function assertNonEmptyString(value: unknown, name: string): asserts value is string {
+	assertString(value, name)
+	if (value.length === 0) throw new Error(`Invalid ${name}: must not be empty`)
+}
+
+function assertPaneId(value: unknown): asserts value is string {
+	assertNonEmptyString(value, 'pane id')
+	if ((value as string).length > MAX_PANE_ID_LENGTH) {
+		throw new Error(`Invalid pane id: exceeds ${MAX_PANE_ID_LENGTH} characters`)
+	}
+}
+
+function assertIntInRange(value: unknown, name: string, min: number, max: number): asserts value is number {
+	if (!Number.isInteger(value) || (value as number) < min || (value as number) > max) {
+		throw new Error(`Invalid ${name}: expected integer in [${min}, ${max}]`)
+	}
+}
+
+function assertWorkspace(value: unknown): asserts value is Workspace {
+	if (!value || typeof value !== 'object') throw new Error('Invalid workspace: expected object')
+	const obj = value as Record<string, unknown>
+	if (typeof obj.id !== 'string') throw new Error('Invalid workspace: missing or invalid id')
+	if (typeof obj.name !== 'string') throw new Error('Invalid workspace: missing or invalid name')
+	if (typeof obj.color !== 'string') throw new Error('Invalid workspace: missing or invalid color')
+	if (!obj.theme || typeof obj.theme !== 'object') throw new Error('Invalid workspace: missing or invalid theme')
+	if (!obj.layout || typeof obj.layout !== 'object') throw new Error('Invalid workspace: missing or invalid layout')
+	const layout = obj.layout as Record<string, unknown>
+	if (layout.type !== 'preset' && layout.type !== 'custom') {
+		throw new Error('Invalid workspace: layout.type must be "preset" or "custom"')
+	}
+	if (!obj.panes || typeof obj.panes !== 'object') throw new Error('Invalid workspace: missing or invalid panes')
+}
+
+function assertAppState(value: unknown): asserts value is AppState {
+	if (!value || typeof value !== 'object') throw new Error('Invalid app state: expected object')
+	const obj = value as Record<string, unknown>
+	if (!Array.isArray(obj.openWorkspaceIds)) throw new Error('Invalid app state: openWorkspaceIds must be an array')
+	if (obj.activeWorkspaceId !== null && typeof obj.activeWorkspaceId !== 'string') {
+		throw new Error('Invalid app state: activeWorkspaceId must be string or null')
+	}
+	if (!obj.windowBounds || typeof obj.windowBounds !== 'object') {
+		throw new Error('Invalid app state: missing or invalid windowBounds')
+	}
+}
+
 export function registerIpcHandlers(): void {
-	// Config handlers
 	ipcMain.handle(IPC.CONFIG_GET_WORKSPACES, () => getWorkspaces())
 
 	ipcMain.handle(IPC.CONFIG_SAVE_WORKSPACE, (_e, workspace: unknown) => {
-		if (!workspace || typeof workspace !== 'object' || !('id' in workspace) || !('name' in workspace)) {
-			throw new Error('Invalid workspace payload')
-		}
-		saveWorkspace(workspace as import('../shared/types').Workspace)
+		assertWorkspace(workspace)
+		saveWorkspace(workspace)
 	})
 
 	ipcMain.handle(IPC.CONFIG_DELETE_WORKSPACE, (_e, id: unknown) => {
-		if (typeof id !== 'string' || id.length === 0) throw new Error('Invalid workspace id')
+		assertNonEmptyString(id, 'workspace id')
 		deleteWorkspace(id)
 	})
 
 	ipcMain.handle(IPC.CONFIG_GET_APP_STATE, () => getAppState())
 
 	ipcMain.handle(IPC.CONFIG_SAVE_APP_STATE, (_e, state: unknown) => {
-		if (!state || typeof state !== 'object' || !('openWorkspaceIds' in state)) {
-			throw new Error('Invalid app state payload')
-		}
-		saveAppState(state as import('../shared/types').AppState)
+		assertAppState(state)
+		saveAppState(state)
 	})
 
-	// PTY handlers
 	ipcMain.handle(
 		IPC.PTY_CREATE,
 		async (_e, id: unknown, cwd: unknown, startupCommand: unknown) => {
-			if (typeof id !== 'string' || id.length === 0 || id.length > 128) {
-				throw new Error('Invalid pane id')
-			}
-			if (typeof cwd !== 'string' || !path.isAbsolute(cwd)) {
-				throw new Error('Invalid cwd — must be an absolute path')
-			}
+			assertPaneId(id)
+			assertString(cwd, 'cwd')
+			if (!path.isAbsolute(cwd)) throw new Error('Invalid cwd: must be an absolute path')
+			if (cwd.includes('\0')) throw new Error('Invalid cwd: contains null byte')
 			if (startupCommand !== null && typeof startupCommand !== 'string') {
 				throw new Error('Invalid startup command')
 			}
 			try {
-				createPty(id, cwd, startupCommand as string | null)
+				createPty(id, path.resolve(cwd), startupCommand as string | null)
 				trackPane(id, cwd)
 			} catch (err) {
 				console.error(`[ipc] PTY_CREATE failed for pane ${id}:`, err)
@@ -61,24 +104,20 @@ export function registerIpcHandlers(): void {
 	)
 
 	ipcMain.handle(IPC.PTY_WRITE, (_e, id: unknown, data: unknown) => {
-		if (typeof id !== 'string') throw new Error('Invalid pane id')
-		if (typeof data !== 'string') throw new Error('Invalid data')
+		assertPaneId(id)
+		assertString(data, 'data')
 		writePty(id, data)
 	})
 
 	ipcMain.handle(IPC.PTY_RESIZE, (_e, id: unknown, cols: unknown, rows: unknown) => {
-		if (typeof id !== 'string') throw new Error('Invalid pane id')
-		if (!Number.isInteger(cols) || (cols as number) < 1 || (cols as number) > 1000) {
-			throw new Error('Invalid cols')
-		}
-		if (!Number.isInteger(rows) || (rows as number) < 1 || (rows as number) > 500) {
-			throw new Error('Invalid rows')
-		}
-		resizePty(id, cols as number, rows as number)
+		assertPaneId(id)
+		assertIntInRange(cols, 'cols', 1, 1000)
+		assertIntInRange(rows, 'rows', 1, 500)
+		resizePty(id, cols, rows)
 	})
 
 	ipcMain.handle(IPC.PTY_KILL, (_e, id: unknown) => {
-		if (typeof id !== 'string') throw new Error('Invalid pane id')
+		assertPaneId(id)
 		killPty(id)
 		untrackPane(id)
 	})
