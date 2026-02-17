@@ -116,6 +116,7 @@ export function Tab({
 					e.stopPropagation()
 					onClose(workspace.id)
 				}}
+				aria-label={`Close ${workspace.name}`}
 				style={closeBtnStyle}
 			>
 				✕

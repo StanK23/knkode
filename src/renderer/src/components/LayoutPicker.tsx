@@ -28,7 +28,7 @@ export function LayoutPicker({ current, onSelect }: LayoutPickerProps) {
 						style={{
 							...presetBtnStyle,
 							borderColor: current === p.value ? 'var(--accent)' : 'var(--border)',
-							background: current === p.value ? 'rgba(108, 99, 255, 0.15)' : 'var(--bg-tertiary)',
+							background: current === p.value ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 'var(--bg-tertiary)',
 						}}
 						title={p.label}
 					>
