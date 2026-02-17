@@ -22,7 +22,6 @@
 
 ## What's Next
 - Task 3 in progress: `fix/launch-and-integration` (PR pending)
-  - Fixed: `term.onFocus` crash (xterm.js v5.5 compat) → DOM focusin event
+  - Fixed: `term.onFocus` does not exist in `@xterm/xterm` v5 → switched to DOM focusin listener
   - Fixed: Tab.tsx recursive closeContext → stack overflow on context dismiss
-  - All integration paths verified via code review
-  - 59 tests pass, lint clean
+  - 59 tests pass, lint clean, app launches without errors
