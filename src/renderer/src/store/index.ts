@@ -330,7 +330,10 @@ export const useStore = create<StoreState>((set, get) => ({
 		const newPanes: Record<string, PaneConfig> = {}
 		for (const [oldId, config] of Object.entries(source.panes)) {
 			const newId = idMap.get(oldId) ?? oldId
-			newPanes[newId] = { ...config }
+			newPanes[newId] = {
+				...config,
+				themeOverride: config.themeOverride ? { ...config.themeOverride } : null,
+			}
 		}
 		const remapTree = (node: LayoutNode): LayoutNode => {
 			if (isLayoutBranch(node)) {
