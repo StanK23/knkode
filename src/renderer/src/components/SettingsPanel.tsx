@@ -71,11 +71,17 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	)
 
 	return (
-		<div style={overlayStyle} onClick={onClose} onKeyDown={() => {}}>
-			<div style={panelStyle} onClick={(e) => e.stopPropagation()} onKeyDown={() => {}}>
+		<div role="presentation" style={overlayStyle} onClick={onClose}>
+			<div
+				role="dialog"
+				aria-modal="true"
+				aria-label="Workspace Settings"
+				style={panelStyle}
+				onClick={(e) => e.stopPropagation()}
+			>
 				<div style={headerStyle}>
 					<h2 style={{ fontSize: 16, fontWeight: 600 }}>Workspace Settings</h2>
-					<button type="button" onClick={onClose} style={closeBtnStyle}>
+					<button type="button" onClick={onClose} aria-label="Close settings" style={closeBtnStyle}>
 						✕
 					</button>
 				</div>

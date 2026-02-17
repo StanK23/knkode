@@ -6,7 +6,11 @@ import { colorDotStyle } from '../styles/shared'
 import { modKey } from '../utils/platform'
 import { Tab } from './Tab'
 
-export function TabBar() {
+interface TabBarProps {
+	onOpenSettings: () => void
+}
+
+export function TabBar({ onOpenSettings }: TabBarProps) {
 	const workspaces = useStore((s) => s.workspaces)
 	const appState = useStore((s) => s.appState)
 	const setActiveWorkspace = useStore((s) => s.setActiveWorkspace)
@@ -123,22 +127,39 @@ export function TabBar() {
 					type="button"
 					onClick={handleNewWorkspace}
 					title={`New workspace (${modKey}+T)`}
+					aria-label="Create new workspace"
 					style={newBtnStyle}
 				>
 					+
 				</button>
 			</div>
 
+			{/* Gear (settings) button — only shown when a workspace is active */}
+			{appState.activeWorkspaceId && (
+				<button
+					type="button"
+					onClick={onOpenSettings}
+					title="Workspace settings"
+					aria-label="Open workspace settings"
+					style={gearBtnStyle}
+					onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
+					onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-dim)' }}
+				>
+					&#9881;
+				</button>
+			)}
+
 			{/* Closed workspaces menu */}
 			{closedWorkspaces.length > 0 && (
 				<div
 					ref={closedMenuRef}
-					style={{ position: 'relative', marginLeft: 'auto', marginRight: 8 }}
+					style={{ position: 'relative', marginRight: 8 }}
 				>
 					<button
 						type="button"
 						onClick={() => setShowClosedMenu((v) => !v)}
 						title="Reopen closed workspace"
+						aria-label={`Reopen closed workspace (${closedWorkspaces.length} available)`}
 						style={reopenBtnStyle}
 					>
 						{closedWorkspaces.length} closed
@@ -188,9 +209,10 @@ const tabsContainerStyle: React.CSSProperties = {
 	display: 'flex',
 	alignItems: 'flex-end',
 	gap: 1,
-	paddingLeft: 78,
+	paddingLeft: 'var(--traffic-light-offset)',
 	paddingTop: 6,
-	overflow: 'hidden',
+	overflowX: 'auto',
+	overflowY: 'hidden',
 	flex: 1,
 }
 
@@ -202,6 +224,19 @@ const newBtnStyle: React.CSSProperties = {
 	fontSize: 18,
 	lineHeight: 1,
 	padding: '0 10px',
+	height: 'var(--tab-height)',
+	display: 'flex',
+	alignItems: 'center',
+	flexShrink: 0,
+}
+
+const gearBtnStyle: React.CSSProperties = {
+	background: 'none',
+	border: 'none',
+	color: 'var(--text-dim)',
+	cursor: 'pointer',
+	fontSize: 14,
+	padding: '0 6px',
 	height: 'var(--tab-height)',
 	display: 'flex',
 	alignItems: 'center',

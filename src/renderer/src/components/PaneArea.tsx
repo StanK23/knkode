@@ -1,9 +1,9 @@
 import { Allotment } from 'allotment'
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import 'allotment/dist/style.css'
 import type { LayoutNode, PaneConfig, Workspace } from '../../../shared/types'
 import { isLayoutBranch } from '../../../shared/types'
-import { useStore } from '../store'
+import { getPaneIdsInOrder, useStore } from '../store'
 import { Pane } from './Pane'
 
 interface PaneAreaProps {
@@ -18,6 +18,10 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 	const focusGeneration = useStore((s) => s.focusGeneration)
 	const setFocusedPane = useStore((s) => s.setFocusedPane)
 	const paneCount = Object.keys(workspace.panes).length
+	const paneIndexMap = useMemo(() => {
+		const order = getPaneIdsInOrder(workspace.layout.tree)
+		return new Map(order.map((id, i) => [id, i + 1]))
+	}, [workspace.layout.tree])
 
 	const handleUpdateConfig = useCallback(
 		(paneId: string, updates: Partial<PaneConfig>) => {
@@ -48,6 +52,7 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 				<Pane
 					key={node.paneId}
 					paneId={node.paneId}
+					paneIndex={paneIndexMap.get(node.paneId) ?? 1}
 					config={config}
 					workspaceTheme={workspace.theme}
 					onUpdateConfig={handleUpdateConfig}
