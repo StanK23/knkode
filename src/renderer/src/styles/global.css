@@ -69,7 +69,7 @@
 		@apply absolute bg-elevated border border-edge rounded-md p-1 z-[100] min-w-40 shadow-menu;
 	}
 	.ctx-item {
-		@apply block w-full text-left bg-transparent border-none text-content text-xs cursor-pointer rounded-sm py-1.5 px-3 hover:bg-overlay;
+		@apply block w-full text-left bg-transparent border-none text-content text-xs cursor-pointer rounded-sm py-1.5 px-3 hover:bg-overlay focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none;
 	}
 	.ctx-separator {
 		@apply h-px bg-edge my-1;

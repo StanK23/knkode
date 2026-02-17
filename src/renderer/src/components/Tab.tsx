@@ -115,7 +115,7 @@ export function Tab({
 					onClose(workspace.id)
 				}}
 				aria-label={`Close ${workspace.name}`}
-				className="bg-transparent border-none text-content-muted cursor-pointer px-0.5 text-[10px] leading-none ml-auto shrink-0 hover:text-content"
+				className="bg-transparent border-none text-content-muted cursor-pointer px-0.5 text-[10px] leading-none ml-auto shrink-0 hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 			>
 				✕
 			</button>

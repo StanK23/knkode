@@ -109,7 +109,7 @@ export function Pane({
 					onClick={() => onSplitVertical(paneId)}
 					title={`Split vertical (${modKey}+D)`}
 					aria-label="Split pane vertically"
-					className="bg-transparent border-none text-content-muted cursor-pointer px-0.5 text-[11px] leading-none hover:text-content"
+					className="bg-transparent border-none text-content-muted cursor-pointer px-0.5 text-[11px] leading-none hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 				>
 					┃
 				</button>
@@ -118,7 +118,7 @@ export function Pane({
 					onClick={() => onSplitHorizontal(paneId)}
 					title={`Split horizontal (${modKey}+Shift+D)`}
 					aria-label="Split pane horizontally"
-					className="bg-transparent border-none text-content-muted cursor-pointer px-0.5 text-[11px] leading-none hover:text-content"
+					className="bg-transparent border-none text-content-muted cursor-pointer px-0.5 text-[11px] leading-none hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 				>
 					━
 				</button>
@@ -128,7 +128,7 @@ export function Pane({
 						onClick={() => onClose(paneId)}
 						title={`Close pane (${modKey}+W)`}
 						aria-label="Close pane"
-						className="bg-transparent border-none text-danger cursor-pointer px-0.5 text-[11px] leading-none hover:brightness-125"
+						className="bg-transparent border-none text-danger cursor-pointer px-0.5 text-[11px] leading-none hover:brightness-125 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 					>
 						✕
 					</button>

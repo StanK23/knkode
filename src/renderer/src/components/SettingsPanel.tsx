@@ -91,7 +91,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 						type="button"
 						onClick={onClose}
 						aria-label="Close settings"
-						className="bg-transparent border-none text-content-muted cursor-pointer text-sm hover:text-content"
+						className="bg-transparent border-none text-content-muted cursor-pointer text-sm hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 					>
 						✕
 					</button>
@@ -207,7 +207,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					<button
 						type="button"
 						onClick={handleDelete}
-						className="bg-transparent border border-danger text-danger cursor-pointer text-xs py-1.5 px-3 rounded-sm hover:bg-danger/10"
+						className="bg-transparent border border-danger text-danger cursor-pointer text-xs py-1.5 px-3 rounded-sm hover:bg-danger/10 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 					>
 						Delete Workspace
 					</button>
@@ -215,14 +215,14 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					<button
 						type="button"
 						onClick={onClose}
-						className="bg-transparent border border-edge text-content-secondary cursor-pointer text-xs py-1.5 px-3 rounded-sm hover:text-content hover:border-content-muted"
+						className="bg-transparent border border-edge text-content-secondary cursor-pointer text-xs py-1.5 px-3 rounded-sm hover:text-content hover:border-content-muted focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 					>
 						Cancel
 					</button>
 					<button
 						type="button"
 						onClick={handleSave}
-						className="bg-accent border-none text-white cursor-pointer text-xs py-1.5 px-4 rounded-sm font-semibold hover:brightness-[1.1]"
+						className="bg-accent border-none text-white cursor-pointer text-xs py-1.5 px-4 rounded-sm font-semibold hover:brightness-[1.1] focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none focus-visible:ring-offset-1 focus-visible:ring-offset-elevated"
 					>
 						Save
 					</button>
