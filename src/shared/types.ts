@@ -81,3 +81,5 @@ export const IPC = {
 	PTY_EXIT: 'pty:exit',
 	PTY_CWD_CHANGED: 'pty:cwd-changed',
 } as const
+
+export type IpcChannel = (typeof IPC)[keyof typeof IPC]

@@ -1,11 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppState, Workspace } from '../shared/types'
+import type { AppState, IpcChannel, Workspace } from '../shared/types'
 import { IPC } from '../shared/types'
 
 type Unsubscribe = () => void
 
 function onIpcEvent<T extends unknown[]>(
-	channel: string,
+	channel: IpcChannel,
 	callback: (...args: T) => void,
 ): Unsubscribe {
 	const listener = (_event: Electron.IpcRendererEvent, ...args: T) =>
