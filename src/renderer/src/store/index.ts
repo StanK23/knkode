@@ -199,6 +199,7 @@ interface StoreState {
 	createWorkspace: (name: string, color: string, preset: LayoutPreset) => Promise<Workspace>
 	createDefaultWorkspace: () => Promise<Workspace>
 	updateWorkspace: (workspace: Workspace) => Promise<void>
+	duplicateWorkspace: (id: string) => Promise<Workspace | null>
 	removeWorkspace: (id: string) => Promise<void>
 	setActiveWorkspace: (id: string) => void
 	openWorkspace: (id: string) => void
@@ -314,6 +315,53 @@ export const useStore = create<StoreState>((set, get) => ({
 		set((state) => ({
 			workspaces: state.workspaces.map((w) => (w.id === workspace.id ? workspace : w)),
 		}))
+	},
+
+	duplicateWorkspace: async (id) => {
+		const state = get()
+		const source = state.workspaces.find((w) => w.id === id)
+		if (!source) return null
+
+		// Remap all pane IDs to fresh UUIDs
+		const idMap = new Map<string, string>()
+		for (const paneId of Object.keys(source.panes)) {
+			idMap.set(paneId, crypto.randomUUID())
+		}
+		const newPanes: Record<string, PaneConfig> = {}
+		for (const [oldId, config] of Object.entries(source.panes)) {
+			const newId = idMap.get(oldId) ?? oldId
+			newPanes[newId] = { ...config }
+		}
+		const remapTree = (node: LayoutNode): LayoutNode => {
+			if (isLayoutBranch(node)) {
+				return { ...node, children: node.children.map(remapTree) }
+			}
+			return { ...node, paneId: idMap.get(node.paneId) ?? node.paneId }
+		}
+		const workspace: Workspace = {
+			id: crypto.randomUUID(),
+			name: `${source.name} (copy)`,
+			color: source.color,
+			theme: { ...source.theme },
+			layout:
+				source.layout.type === 'preset'
+					? { type: 'preset', preset: source.layout.preset, tree: remapTree(source.layout.tree) }
+					: { type: 'custom', tree: remapTree(source.layout.tree) },
+			panes: newPanes,
+		}
+		await window.api.saveWorkspace(workspace)
+		const newAppState = {
+			...state.appState,
+			openWorkspaceIds: [...state.appState.openWorkspaceIds, workspace.id],
+			activeWorkspaceId: workspace.id,
+		}
+		await window.api.saveAppState(newAppState)
+		set({
+			workspaces: [...state.workspaces, workspace],
+			appState: newAppState,
+			visitedWorkspaceIds: addToVisited(state.visitedWorkspaceIds, workspace.id),
+		})
+		return workspace
 	},
 
 	removeWorkspace: async (id) => {
