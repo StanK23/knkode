@@ -90,5 +90,5 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 		)
 	}
 
-	return <div style={{ flex: 1, overflow: 'hidden' }}>{renderNode(workspace.layout.tree)}</div>
+	return <div className="flex-1 overflow-hidden">{renderNode(workspace.layout.tree)}</div>
 }
