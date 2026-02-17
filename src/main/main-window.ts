@@ -19,7 +19,7 @@ export function getMainWindow(): BrowserWindow | null {
  * Returns false if the send fails for any reason (window destroyed, not ready, etc.).
  */
 export function safeSend(channel: IpcChannel, ...args: unknown[]): boolean {
-	if (!mainWindow || mainWindow.isDestroyed()) return false
+	if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) return false
 	try {
 		mainWindow.webContents.send(channel, ...args)
 		return true
