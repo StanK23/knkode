@@ -1,8 +1,8 @@
 import { execFileSync } from 'node:child_process'
 import os from 'node:os'
 import * as pty from 'node-pty'
-import { getMainWindow } from './main-window'
 import { IPC } from '../shared/types'
+import { getMainWindow } from './main-window'
 
 interface PtySession {
 	process: pty.IPty
@@ -112,7 +112,10 @@ export function getPtyCwd(id: string): string | null {
 			}
 		}
 	} catch (err) {
-		console.warn(`[pty] CWD tracking failed for pane ${id}:`, err instanceof Error ? err.message : err)
+		console.warn(
+			`[pty] CWD tracking failed for pane ${id}:`,
+			err instanceof Error ? err.message : err,
+		)
 	}
 	return session.initialCwd
 }

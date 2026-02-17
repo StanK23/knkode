@@ -1,6 +1,6 @@
-import { app } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
+import { app } from 'electron'
 import type { AppState, Workspace } from '../shared/types'
 
 const CONFIG_DIR = path.join(app.getPath('home'), '.knkode')
@@ -19,17 +19,25 @@ function readJson<T>(filePath: string, fallback: T): T {
 		if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
 			return fallback
 		}
-		console.error(`[config-store] Cannot read ${filePath}:`, err instanceof Error ? err.message : err)
+		console.error(
+			`[config-store] Cannot read ${filePath}:`,
+			err instanceof Error ? err.message : err,
+		)
 		return fallback
 	}
 
 	try {
 		return JSON.parse(raw) as T
 	} catch (err) {
-		console.error(`[config-store] Corrupt JSON in ${filePath}, backing up:`, err instanceof Error ? err.message : err)
+		console.error(
+			`[config-store] Corrupt JSON in ${filePath}, backing up:`,
+			err instanceof Error ? err.message : err,
+		)
 		try {
 			fs.copyFileSync(filePath, `${filePath}.corrupt`)
-		} catch { /* best-effort backup */ }
+		} catch {
+			/* best-effort backup */
+		}
 		return fallback
 	}
 }
@@ -39,7 +47,10 @@ function writeJson(filePath: string, data: unknown): void {
 	try {
 		fs.writeFileSync(filePath, JSON.stringify(data, null, 2), { encoding: 'utf-8', mode: 0o600 })
 	} catch (err) {
-		console.error(`[config-store] Failed to write ${filePath}:`, err instanceof Error ? err.message : err)
+		console.error(
+			`[config-store] Failed to write ${filePath}:`,
+			err instanceof Error ? err.message : err,
+		)
 		throw err
 	}
 }

@@ -8,8 +8,7 @@ function onIpcEvent<T extends unknown[]>(
 	channel: IpcChannel,
 	callback: (...args: T) => void,
 ): Unsubscribe {
-	const listener = (_event: Electron.IpcRendererEvent, ...args: T) =>
-		callback(...args)
+	const listener = (_event: Electron.IpcRendererEvent, ...args: T) => callback(...args)
 	ipcRenderer.on(channel, listener as (...args: unknown[]) => void)
 	return () => ipcRenderer.removeListener(channel, listener as (...args: unknown[]) => void)
 }

@@ -1,6 +1,6 @@
+import { IPC } from '../shared/types'
 import { getMainWindow } from './main-window'
 import { getPtyCwd } from './pty-manager'
-import { IPC } from '../shared/types'
 
 const trackedPanes = new Map<string, string>() // paneId -> last observed cwd (polled, may lag)
 let intervalId: ReturnType<typeof setInterval> | null = null
@@ -26,7 +26,10 @@ export function startCwdTracking(): void {
 					getMainWindow()?.webContents.send(IPC.PTY_CWD_CHANGED, paneId, currentCwd)
 				}
 			} catch (err) {
-				console.warn(`[cwd-tracker] Failed to poll pane ${paneId}:`, err instanceof Error ? err.message : err)
+				console.warn(
+					`[cwd-tracker] Failed to poll pane ${paneId}:`,
+					err instanceof Error ? err.message : err,
+				)
 			}
 		}
 	}, 3000)

@@ -31,13 +31,7 @@ export function isLayoutBranch(node: LayoutNode): node is LayoutBranch {
 	return 'children' in node
 }
 
-export type LayoutPreset =
-	| 'single'
-	| '2-column'
-	| '2-row'
-	| '3-panel-l'
-	| '3-panel-t'
-	| '2x2-grid'
+export type LayoutPreset = 'single' | '2-column' | '2-row' | '3-panel-l' | '3-panel-t' | '2x2-grid'
 
 export type WorkspaceLayout =
 	| { type: 'preset'; preset: LayoutPreset; tree: LayoutNode }

@@ -1,5 +1,5 @@
-import { BrowserWindow, app, shell } from 'electron'
 import path from 'node:path'
+import { BrowserWindow, app, shell } from 'electron'
 import { getAppState, saveAppState } from './config-store'
 import { startCwdTracking, stopCwdTracking } from './cwd-tracker'
 import { registerIpcHandlers } from './ipc'
@@ -84,7 +84,8 @@ function cleanup(): void {
 	killAllPtys()
 }
 
-app.whenReady()
+app
+	.whenReady()
 	.then(() => {
 		registerIpcHandlers()
 		createWindow()
