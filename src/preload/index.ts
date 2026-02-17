@@ -14,6 +14,9 @@ function onIpcEvent<T extends unknown[]>(
 }
 
 const api = {
+	// App
+	getHomeDir: (): Promise<string> => ipcRenderer.invoke(IPC.APP_GET_HOME_DIR),
+
 	// Config
 	getWorkspaces: (): Promise<Workspace[]> => ipcRenderer.invoke(IPC.CONFIG_GET_WORKSPACES),
 	saveWorkspace: (workspace: Workspace): Promise<void> =>

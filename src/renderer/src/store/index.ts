@@ -19,14 +19,16 @@ function defaultTheme(): PaneTheme {
 	}
 }
 
-function createLayoutFromPreset(preset: LayoutPreset): {
+function createLayoutFromPreset(
+	preset: LayoutPreset,
+	homeDir: string,
+): {
 	layout: WorkspaceLayout
 	panes: Record<string, PaneConfig>
 } {
-	const home = process.env.HOME || '~'
 	const makePaneConfig = (label: string): PaneConfig => ({
 		label,
-		cwd: home,
+		cwd: homeDir,
 		startupCommand: null,
 		themeOverride: null,
 	})
@@ -175,6 +177,7 @@ interface StoreState {
 	// Data
 	workspaces: Workspace[]
 	appState: AppState
+	homeDir: string
 
 	// UI state
 	initialized: boolean
@@ -198,17 +201,19 @@ export const useStore = create<StoreState>((set, get) => ({
 		activeWorkspaceId: null,
 		windowBounds: { x: 100, y: 100, width: 1200, height: 800 },
 	},
+	homeDir: '/tmp',
 	initialized: false,
 
 	init: async () => {
-		const [workspaces, appState] = await Promise.all([
+		const [workspaces, appState, homeDir] = await Promise.all([
 			window.api.getWorkspaces(),
 			window.api.getAppState(),
+			window.api.getHomeDir(),
 		])
 
 		// If no workspaces exist, create a default one
 		if (workspaces.length === 0) {
-			const { layout, panes } = createLayoutFromPreset('single')
+			const { layout, panes } = createLayoutFromPreset('single', homeDir)
 			const defaultWorkspace: Workspace = {
 				id: uuid(),
 				name: 'Default',
@@ -230,11 +235,11 @@ export const useStore = create<StoreState>((set, get) => ({
 			appState.activeWorkspaceId = workspaces[0].id
 		}
 
-		set({ workspaces, appState, initialized: true })
+		set({ workspaces, appState, homeDir, initialized: true })
 	},
 
 	createWorkspace: async (name, color, preset) => {
-		const { layout, panes } = createLayoutFromPreset(preset)
+		const { layout, panes } = createLayoutFromPreset(preset, get().homeDir)
 		const workspace: Workspace = {
 			id: uuid(),
 			name,

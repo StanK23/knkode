@@ -11,6 +11,7 @@ interface SettingsPanelProps {
 export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const updateWorkspace = useStore((s) => s.updateWorkspace)
 	const removeWorkspace = useStore((s) => s.removeWorkspace)
+	const homeDir = useStore((s) => s.homeDir)
 
 	const [name, setName] = useState(workspace.name)
 	const [color, setColor] = useState(workspace.color)
@@ -37,7 +38,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 			for (const oldPaneId of Object.keys(workspace.panes)) {
 				window.api.killPty(oldPaneId).catch(() => {})
 			}
-			const { layout, panes } = createLayoutFromPreset(preset)
+			const { layout, panes } = createLayoutFromPreset(preset, homeDir)
 			updateWorkspace({
 				...workspace,
 				layout,

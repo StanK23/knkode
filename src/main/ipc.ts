@@ -1,3 +1,4 @@
+import os from 'node:os'
 import path from 'node:path'
 import { ipcMain } from 'electron'
 import type { AppState, Workspace } from '../shared/types'
@@ -73,6 +74,8 @@ function assertAppState(value: unknown): asserts value is AppState {
 }
 
 export function registerIpcHandlers(): void {
+	ipcMain.handle(IPC.APP_GET_HOME_DIR, () => os.homedir())
+
 	ipcMain.handle(IPC.CONFIG_GET_WORKSPACES, () => getWorkspaces())
 
 	ipcMain.handle(IPC.CONFIG_SAVE_WORKSPACE, (_e, workspace: unknown) => {
