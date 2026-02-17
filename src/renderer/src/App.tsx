@@ -52,17 +52,9 @@ export function App() {
 
 	return (
 		<div style={appStyle}>
-			<TabBar />
+			<TabBar onOpenSettings={() => setShowSettings(true)} />
 			{visitedWorkspaces.length > 0 ? (
 				<>
-					<button
-						type="button"
-						onClick={() => setShowSettings(true)}
-						title="Workspace settings"
-						style={gearBtnStyle}
-					>
-						&#9881;
-					</button>
 					{visitedWorkspaces.map((ws) => (
 						<div
 							key={ws.id}
@@ -124,16 +116,3 @@ const paneWrapperHiddenStyle: React.CSSProperties = {
 	overflow: 'hidden',
 }
 
-const gearBtnStyle: React.CSSProperties = {
-	position: 'absolute',
-	top: 'calc(var(--drag-region-height) + var(--tab-height) + 4px)',
-	right: 8,
-	background: 'none',
-	border: 'none',
-	color: 'var(--text-dim)',
-	cursor: 'pointer',
-	fontSize: 16,
-	zIndex: 50,
-	padding: 4,
-	borderRadius: 'var(--radius-sm)',
-}

@@ -6,7 +6,11 @@ import { colorDotStyle } from '../styles/shared'
 import { modKey } from '../utils/platform'
 import { Tab } from './Tab'
 
-export function TabBar() {
+interface TabBarProps {
+	onOpenSettings: () => void
+}
+
+export function TabBar({ onOpenSettings }: TabBarProps) {
 	const workspaces = useStore((s) => s.workspaces)
 	const appState = useStore((s) => s.appState)
 	const setActiveWorkspace = useStore((s) => s.setActiveWorkspace)
@@ -129,11 +133,22 @@ export function TabBar() {
 				</button>
 			</div>
 
+			{/* Gear (settings) button */}
+			<button
+				type="button"
+				onClick={onOpenSettings}
+				title="Workspace settings"
+				aria-label="Open workspace settings"
+				style={gearBtnStyle}
+			>
+				&#9881;
+			</button>
+
 			{/* Closed workspaces menu */}
 			{closedWorkspaces.length > 0 && (
 				<div
 					ref={closedMenuRef}
-					style={{ position: 'relative', marginLeft: 'auto', marginRight: 8 }}
+					style={{ position: 'relative', marginRight: 8 }}
 				>
 					<button
 						type="button"
@@ -190,7 +205,8 @@ const tabsContainerStyle: React.CSSProperties = {
 	gap: 1,
 	paddingLeft: 'var(--traffic-light-offset)',
 	paddingTop: 6,
-	overflow: 'hidden',
+	overflowX: 'auto',
+	overflowY: 'hidden',
 	flex: 1,
 }
 
@@ -206,6 +222,20 @@ const newBtnStyle: React.CSSProperties = {
 	display: 'flex',
 	alignItems: 'center',
 	flexShrink: 0,
+}
+
+const gearBtnStyle: React.CSSProperties = {
+	background: 'none',
+	border: 'none',
+	color: 'var(--text-dim)',
+	cursor: 'pointer',
+	fontSize: 14,
+	padding: '0 6px',
+	height: 'var(--tab-height)',
+	display: 'flex',
+	alignItems: 'center',
+	flexShrink: 0,
+	marginLeft: 'auto',
 }
 
 const reopenBtnStyle: React.CSSProperties = {
