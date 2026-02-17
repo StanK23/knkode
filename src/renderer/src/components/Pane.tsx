@@ -84,8 +84,8 @@ export function Pane({
 	const handleFocus = useCallback(() => onFocus(paneId), [paneId, onFocus])
 
 	return (
-		<div style={isFocused ? focusedContainerStyle : paneContainerStyle}>
-			<div onContextMenu={handleContextMenu} onMouseDown={handleFocus} style={paneHeaderStyle}>
+		<div style={paneContainerStyle}>
+			<div onContextMenu={handleContextMenu} onMouseDown={handleFocus} style={isFocused ? focusedHeaderStyle : paneHeaderStyle}>
 				<span style={paneIndexStyle}>{paneIndex}</span>
 				{isEditing ? (
 					<input {...inputProps} style={editInputStyle} />
@@ -359,11 +359,6 @@ const paneContainerStyle: React.CSSProperties = {
 	width: '100%',
 }
 
-const focusedContainerStyle: React.CSSProperties = {
-	...paneContainerStyle,
-	boxShadow: 'inset 0 2px 0 var(--accent)',
-}
-
 const paneHeaderStyle: React.CSSProperties = {
 	height: 'var(--pane-header-height)',
 	display: 'flex',
@@ -376,6 +371,12 @@ const paneHeaderStyle: React.CSSProperties = {
 	flexShrink: 0,
 	position: 'relative',
 	userSelect: 'none',
+}
+
+const focusedHeaderStyle: React.CSSProperties = {
+	...paneHeaderStyle,
+	background: 'var(--bg-secondary)',
+	borderBottom: '1px solid var(--accent)',
 }
 
 const paneIndexStyle: React.CSSProperties = {
