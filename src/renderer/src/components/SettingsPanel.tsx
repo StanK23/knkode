@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { LayoutPreset, PaneConfig, Workspace } from '../../../shared/types'
 import { createLayoutFromPreset, useStore } from '../store'
 import { sectionLabelStyle } from '../styles/shared'
@@ -24,8 +24,8 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 
 	const currentPreset = workspace.layout.type === 'preset' ? workspace.layout.preset : null
 
-	const handleSave = useCallback(() => {
-		updateWorkspace({
+	const handleSave = useCallback(async () => {
+		await updateWorkspace({
 			...workspace,
 			name: name.trim() || workspace.name,
 			color,
@@ -51,9 +51,19 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	)
 
 	const handleDelete = useCallback(() => {
+		if (!window.confirm(`Delete workspace "${workspace.name}"? This cannot be undone.`)) return
 		removeWorkspace(workspace.id)
 		onClose()
-	}, [workspace.id, removeWorkspace, onClose])
+	}, [workspace.id, workspace.name, removeWorkspace, onClose])
+
+	// Close on Escape key
+	useEffect(() => {
+		const handler = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') onClose()
+		}
+		document.addEventListener('keydown', handler)
+		return () => document.removeEventListener('keydown', handler)
+	}, [onClose])
 
 	const handlePaneUpdate = useCallback(
 		(paneId: string, updates: Partial<PaneConfig>) => {
@@ -63,8 +73,8 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	)
 
 	return (
-		<div style={overlayStyle}>
-			<div style={panelStyle}>
+		<div style={overlayStyle} onClick={onClose} onKeyDown={() => {}}>
+			<div style={panelStyle} onClick={(e) => e.stopPropagation()} onKeyDown={() => {}}>
 				<div style={headerStyle}>
 					<h2 style={{ fontSize: 16, fontWeight: 600 }}>Workspace Settings</h2>
 					<button type="button" onClick={onClose} style={closeBtnStyle}>

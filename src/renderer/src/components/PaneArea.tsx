@@ -35,6 +35,8 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 				themeOverride: null,
 			}
 
+			// Walk layout tree; when the target leaf is found, replace it with a
+			// branch containing the original pane and a new sibling at 50% each.
 			const replaceInTree = (node: LayoutNode): LayoutNode => {
 				if (isLayoutBranch(node)) {
 					return {
@@ -72,7 +74,9 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 
 	const handleClose = useCallback(
 		(paneId: string) => {
-			// PTY cleanup is handled by Pane's unmount effect
+			// Remove pane from tree. If a branch is left with one child, collapse
+			// it upward (promote the child, preserving the parent's size).
+			// PTY cleanup is handled by Pane's unmount effect.
 			const removeFromTree = (node: LayoutNode): LayoutNode | null => {
 				if (!isLayoutBranch(node)) {
 					return node.paneId === paneId ? null : node
@@ -123,7 +127,9 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 		return (
 			<Allotment
 				vertical={isVertical}
-				key={JSON.stringify(node.children.map((c) => (isLayoutBranch(c) ? 'branch' : c.paneId)))}
+				key={node.children
+					.map((c) => (isLayoutBranch(c) ? `b${c.children.length}` : c.paneId))
+					.join('-')}
 			>
 				{node.children.map((child, i) => (
 					<Allotment.Pane
