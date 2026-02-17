@@ -8,16 +8,15 @@
 - [done] Testing — vitest setup + 44 store tests (PR #5)
 - [done] Feature completion brainstorming & planning
 - [done] PTY lifecycle — lazy tab loading & terminal persistence (PR #7, 53 tests)
+- [in-progress] Context menus & closed workspaces (`feature/context-menus`)
 
 ## Active Decisions
 - Tech stack: Electron + React + TypeScript + xterm.js + node-pty + Zustand
 - Package manager: bun | Linter: Biome | Test runner: Vitest
 - Config storage: ~/.knkode/ (JSON files)
-- WorkspaceLayout: discriminated union (`preset` vs `custom` variants)
-- PTY lifecycle: lazy loading with CSS show/hide (not mount/unmount) for tab persistence
+- PTY lifecycle: lazy loading with CSS show/hide for tab persistence
 - Change directory UX: text input, not native folder picker
 
 ## What's Next
-- Implement feature completion plan — see `docs/plans/2026-02-18-feature-completion-plan.md`
-- Task 2: Context menus & closed workspaces (`feature/context-menus`)
+- Complete context menus PR review and merge
 - Task 3: Launch, test & fix (`fix/launch-and-integration`)
