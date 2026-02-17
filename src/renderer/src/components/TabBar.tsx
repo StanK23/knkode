@@ -188,7 +188,7 @@ const tabsContainerStyle: React.CSSProperties = {
 	display: 'flex',
 	alignItems: 'flex-end',
 	gap: 1,
-	paddingLeft: 78,
+	paddingLeft: 'var(--traffic-light-offset)',
 	paddingTop: 6,
 	overflow: 'hidden',
 	flex: 1,
