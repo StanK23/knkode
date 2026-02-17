@@ -56,8 +56,8 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 					config={config}
 					workspaceTheme={workspace.theme}
 					onUpdateConfig={handleUpdateConfig}
-					onSplitHorizontal={(id) => handleSplit(id, 'horizontal')}
-					onSplitVertical={(id) => handleSplit(id, 'vertical')}
+					onSplitHorizontal={(id) => handleSplit(id, 'vertical')}
+					onSplitVertical={(id) => handleSplit(id, 'horizontal')}
 					onClose={handleClose}
 					canClose={paneCount > 1}
 					isFocused={focusedPaneId === node.paneId}

@@ -38,7 +38,7 @@ export function useKeyboardShortcuts() {
 			if (e.key === 'd' || (e.shiftKey && e.key === 'D')) {
 				if (!resolvedFocusId || !activeWs) return
 				e.preventDefault()
-				const direction = e.shiftKey ? 'horizontal' : 'vertical'
+				const direction = e.shiftKey ? 'vertical' : 'horizontal'
 				state.splitPane(activeWs.id, resolvedFocusId, direction)
 				return
 			}
