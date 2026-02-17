@@ -279,7 +279,10 @@ export function Pane({
 											const override: Partial<PaneTheme> = {}
 											if (themeInput.background) override.background = themeInput.background
 											if (themeInput.foreground) override.foreground = themeInput.foreground
-											if (themeInput.fontSize) override.fontSize = Number(themeInput.fontSize)
+											if (themeInput.fontSize) {
+												const fs = Number(themeInput.fontSize)
+												if (Number.isFinite(fs) && fs >= 8 && fs <= 32) override.fontSize = fs
+											}
 											onUpdateConfig(paneId, {
 												themeOverride: Object.keys(override).length > 0 ? override : null,
 											})
