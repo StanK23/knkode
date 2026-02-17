@@ -93,10 +93,12 @@ export function TerminalView({
 		resizeObserver.observe(containerRef.current)
 
 		// Track terminal focus to update pane focus state
-		const focusDisposable = term.onFocus(() => onFocusRef.current())
+		const el = containerRef.current
+		const handleFocusIn = () => onFocusRef.current()
+		el.addEventListener('focusin', handleFocusIn)
 
 		return () => {
-			focusDisposable.dispose()
+			el.removeEventListener('focusin', handleFocusIn)
 			resizeObserver.disconnect()
 			removeDataListener()
 			removeExitListener()
