@@ -70,7 +70,9 @@ export function TerminalView({
 		fitAddonRef.current = fitAddon
 
 		term.onData((data) => {
-			window.api.writePty(paneId, data).catch(() => {})
+			window.api.writePty(paneId, data).catch((err) => {
+				console.error(`[terminal] writePty failed for pane ${paneId}:`, err)
+			})
 		})
 
 		const removeDataListener = window.api.onPtyData((id, data) => {
@@ -84,7 +86,9 @@ export function TerminalView({
 		})
 
 		term.onResize(({ cols, rows }) => {
-			window.api.resizePty(paneId, cols, rows).catch(() => {})
+			window.api.resizePty(paneId, cols, rows).catch((err) => {
+				console.error(`[terminal] resizePty failed for pane ${paneId}:`, err)
+			})
 		})
 
 		const resizeObserver = new ResizeObserver(() => {
@@ -92,11 +96,14 @@ export function TerminalView({
 		})
 		resizeObserver.observe(containerRef.current)
 
-		// Track terminal focus to update pane focus state
-		const focusDisposable = term.onFocus(() => onFocusRef.current())
+		// Track terminal focus to update pane focus state.
+		// Uses DOM focusin because @xterm/xterm v5 does not expose an onFocus event.
+		const containerEl = containerRef.current
+		const handleFocusIn = () => onFocusRef.current()
+		containerEl.addEventListener('focusin', handleFocusIn)
 
 		return () => {
-			focusDisposable.dispose()
+			containerEl.removeEventListener('focusin', handleFocusIn)
 			resizeObserver.disconnect()
 			removeDataListener()
 			removeExitListener()

@@ -6,22 +6,22 @@
 - [done] Keyboard shortcuts & focus tracking (PR #3)
 - [done] Drag-to-reorder workspace tabs (PR #4)
 - [done] Testing — vitest setup + 44 store tests (PR #5)
-- [done] Feature completion brainstorming & planning
 - [done] PTY lifecycle — lazy tab loading & terminal persistence (PR #7, 53 tests)
 - [done] Context menus & closed workspaces (PR #8, 59 tests)
-  - Tab context menu: rename, change color (palette), duplicate, close
-  - Pane context menu: cwd, startup command, theme override, split, close
-  - 10-agent review: 5 must-fix, 10 suggestions, 8 nitpicks — all addressed
+- [done] App launch & terminal integration (PR #9)
+  - Fixed: `term.onFocus` does not exist in `@xterm/xterm` v5 → DOM focusin
+  - Fixed: Tab.tsx recursive closeContext → stack overflow
+  - Fixed: silent `.catch(() => {})` on writePty/resizePty → logged errors
+  - 9-agent review: 2 must-fix, 4 suggestions, 2 nitpicks — all addressed
 
 ## Active Decisions
 - Tech stack: Electron + React + TypeScript + xterm.js + node-pty + Zustand
 - Package manager: bun | Linter: Biome | Test runner: Vitest
 - Config storage: ~/.knkode/ (JSON files)
 - PTY lifecycle: lazy loading with CSS show/hide for tab persistence
-- Change directory UX: text input, not native folder picker
 
 ## What's Next
-- Task 3: Launch, test & fix (`fix/launch-and-integration`)
-  - Debug empty window issue
-  - Verify terminal data pipeline end-to-end
-  - Test workspace/pane lifecycle
+- Feature completion plan fully executed (3/3 tasks merged)
+- Follow-up opportunities:
+  - Extract `useContextMenu` hook from Tab.tsx/Pane.tsx (DRY)
+  - Additional test coverage for renderer components
