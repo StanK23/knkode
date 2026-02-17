@@ -636,3 +636,136 @@ describe('store visitedWorkspaceIds', () => {
 		expect(useStore.getState().appState.activeWorkspaceId).toBe('b')
 	})
 })
+
+describe('store duplicateWorkspace', () => {
+	it('duplicates a workspace with new IDs', async () => {
+		const ws = makeWorkspace()
+		useStore.setState({
+			workspaces: [ws],
+			appState: {
+				openWorkspaceIds: ['ws-1'],
+				activeWorkspaceId: 'ws-1',
+				windowBounds: TEST_BOUNDS,
+			},
+			visitedWorkspaceIds: ['ws-1'],
+		})
+
+		const dup = await useStore.getState().duplicateWorkspace('ws-1')
+		if (!dup) throw new Error('expected duplicate')
+
+		expect(dup.id).not.toBe('ws-1')
+		expect(dup.name).toBe('Test (copy)')
+		expect(dup.color).toBe(ws.color)
+		// Pane IDs should be remapped
+		const origPaneIds = Object.keys(ws.panes)
+		const dupPaneIds = Object.keys(dup.panes)
+		expect(dupPaneIds).toHaveLength(origPaneIds.length)
+		expect(dupPaneIds).not.toEqual(origPaneIds)
+	})
+
+	it('activates the duplicate and adds to visited', async () => {
+		const ws = makeWorkspace()
+		useStore.setState({
+			workspaces: [ws],
+			appState: {
+				openWorkspaceIds: ['ws-1'],
+				activeWorkspaceId: 'ws-1',
+				windowBounds: TEST_BOUNDS,
+			},
+			visitedWorkspaceIds: ['ws-1'],
+		})
+
+		const dup = await useStore.getState().duplicateWorkspace('ws-1')
+		if (!dup) throw new Error('expected duplicate')
+		const state = useStore.getState()
+
+		expect(state.appState.activeWorkspaceId).toBe(dup.id)
+		expect(state.appState.openWorkspaceIds).toContain(dup.id)
+		expect(state.visitedWorkspaceIds).toContain(dup.id)
+	})
+
+	it('returns null for non-existent workspace', async () => {
+		const result = await useStore.getState().duplicateWorkspace('nonexistent')
+		expect(result).toBeNull()
+	})
+
+	it('remaps pane IDs in layout tree', async () => {
+		const ws = makeWorkspace({
+			layout: {
+				type: 'custom',
+				tree: {
+					direction: 'horizontal',
+					size: 100,
+					children: [
+						{ paneId: 'p1', size: 50 },
+						{ paneId: 'p2', size: 50 },
+					],
+				},
+			},
+			panes: {
+				p1: { label: 'left', cwd: '/', startupCommand: null, themeOverride: null },
+				p2: { label: 'right', cwd: '/', startupCommand: null, themeOverride: null },
+			},
+		})
+		useStore.setState({
+			workspaces: [ws],
+			appState: {
+				openWorkspaceIds: ['ws-1'],
+				activeWorkspaceId: 'ws-1',
+				windowBounds: TEST_BOUNDS,
+			},
+		})
+
+		const dup = await useStore.getState().duplicateWorkspace('ws-1')
+		if (!dup) throw new Error('expected duplicate')
+		const dupPaneIds = Object.keys(dup.panes)
+
+		// Layout tree should reference the new pane IDs, not the originals
+		expect(isLayoutBranch(dup.layout.tree)).toBe(true)
+		if (isLayoutBranch(dup.layout.tree)) {
+			for (const child of dup.layout.tree.children) {
+				if (!isLayoutBranch(child)) {
+					expect(dupPaneIds).toContain(child.paneId)
+					expect(['p1', 'p2']).not.toContain(child.paneId)
+				}
+			}
+		}
+	})
+
+	it('preserves preset layout type', async () => {
+		const ws = makeWorkspace()
+		useStore.setState({
+			workspaces: [ws],
+			appState: {
+				openWorkspaceIds: ['ws-1'],
+				activeWorkspaceId: 'ws-1',
+				windowBounds: TEST_BOUNDS,
+			},
+		})
+
+		const dup = await useStore.getState().duplicateWorkspace('ws-1')
+		if (!dup) throw new Error('expected duplicate')
+
+		expect(dup.layout.type).toBe('preset')
+		if (dup.layout.type === 'preset') {
+			expect(dup.layout.preset).toBe('single')
+		}
+	})
+
+	it('propagates error when saveWorkspace rejects', async () => {
+		const ws = makeWorkspace()
+		useStore.setState({
+			workspaces: [ws],
+			appState: {
+				openWorkspaceIds: ['ws-1'],
+				activeWorkspaceId: 'ws-1',
+				windowBounds: TEST_BOUNDS,
+			},
+		})
+		mockApi.saveWorkspace.mockRejectedValue(new Error('disk full'))
+
+		await expect(useStore.getState().duplicateWorkspace('ws-1')).rejects.toThrow('disk full')
+		// Store should not be updated on failure
+		expect(useStore.getState().workspaces).toHaveLength(1)
+	})
+})

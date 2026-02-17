@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import type { Workspace } from '../../../shared/types'
 import { useClickOutside } from '../hooks/useClickOutside'
-import { useStore } from '../store'
+import { WORKSPACE_COLORS, useStore } from '../store'
 import { colorDotStyle } from '../styles/shared'
 import { modKey } from '../utils/platform'
 import { Tab } from './Tab'
@@ -13,6 +13,7 @@ export function TabBar() {
 	const closeWorkspaceTab = useStore((s) => s.closeWorkspaceTab)
 	const createDefaultWorkspace = useStore((s) => s.createDefaultWorkspace)
 	const updateWorkspace = useStore((s) => s.updateWorkspace)
+	const duplicateWorkspace = useStore((s) => s.duplicateWorkspace)
 	const openWorkspace = useStore((s) => s.openWorkspace)
 	const reorderWorkspaceTabs = useStore((s) => s.reorderWorkspaceTabs)
 
@@ -58,12 +59,31 @@ export function TabBar() {
 
 	const closedWorkspaces = workspaces.filter((w) => !appState.openWorkspaceIds.includes(w.id))
 
-	const handleRename = useCallback(
-		(id: string, name: string) => {
+	const updateWorkspaceField = useCallback(
+		(id: string, updates: Partial<Workspace>) => {
 			const ws = workspaces.find((w) => w.id === id)
-			if (ws) updateWorkspace({ ...ws, name })
+			if (ws) updateWorkspace({ ...ws, ...updates })
 		},
 		[workspaces, updateWorkspace],
+	)
+
+	const handleRename = useCallback(
+		(id: string, name: string) => updateWorkspaceField(id, { name }),
+		[updateWorkspaceField],
+	)
+
+	const handleChangeColor = useCallback(
+		(id: string, color: string) => updateWorkspaceField(id, { color }),
+		[updateWorkspaceField],
+	)
+
+	const handleDuplicate = useCallback(
+		(id: string) => {
+			duplicateWorkspace(id).catch((err) => {
+				console.error('[tabbar] Failed to duplicate workspace:', err)
+			})
+		},
+		[duplicateWorkspace],
 	)
 
 	const handleNewWorkspace = useCallback(async () => {
@@ -86,12 +106,15 @@ export function TabBar() {
 						onActivate={setActiveWorkspace}
 						onClose={closeWorkspaceTab}
 						onRename={handleRename}
+						onChangeColor={handleChangeColor}
+						onDuplicate={handleDuplicate}
 						onDragStart={handleDragStart}
 						onDragOver={handleDragOver}
 						onDrop={handleDrop}
 						onDragEnd={handleDragEnd}
 						isDragOver={dragOverIndex === i && dragFromIndex !== i}
 						isDragging={dragFromIndex === i}
+						colors={WORKSPACE_COLORS}
 					/>
 				))}
 
