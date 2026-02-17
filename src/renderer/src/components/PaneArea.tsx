@@ -56,7 +56,9 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 					config={config}
 					workspaceTheme={workspace.theme}
 					onUpdateConfig={handleUpdateConfig}
+					// iTerm2 convention: "Split Horizontal" = horizontal divider = vertical stacking
 					onSplitHorizontal={(id) => handleSplit(id, 'vertical')}
+					// iTerm2 convention: "Split Vertical" = vertical divider = horizontal (side-by-side)
 					onSplitVertical={(id) => handleSplit(id, 'horizontal')}
 					onClose={handleClose}
 					canClose={paneCount > 1}
