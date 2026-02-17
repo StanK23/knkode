@@ -48,7 +48,7 @@ export function TabBar() {
 	return (
 		<div style={barStyle}>
 			{/* Drag region for frameless window */}
-			<div style={dragRegionStyle} />
+			<div className="drag-region" style={dragRegionStyle} />
 
 			{/* Tabs */}
 			<div role="tablist" style={tabsContainerStyle}>
@@ -133,7 +133,6 @@ const dragRegionStyle: React.CSSProperties = {
 	left: 0,
 	right: 0,
 	height: 'var(--drag-region-height)',
-	WebkitAppRegion: 'drag' as string,
 }
 
 const tabsContainerStyle: React.CSSProperties = {

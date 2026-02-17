@@ -50,8 +50,8 @@ export function TerminalView({ paneId, theme, themeOverride }: TerminalProps) {
 			const webglAddon = new WebglAddon()
 			webglAddon.onContextLoss(() => webglAddon.dispose())
 			term.loadAddon(webglAddon)
-		} catch {
-			/* falls back to canvas renderer */
+		} catch (err) {
+			console.warn('[terminal] WebGL unavailable, using canvas renderer:', err)
 		}
 
 		termRef.current = term

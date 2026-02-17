@@ -55,6 +55,11 @@ body,
 	background: var(--text-dim);
 }
 
+/* Electron frameless window drag region */
+.drag-region {
+	-webkit-app-region: drag;
+}
+
 /* Allotment overrides */
 .sash-container .sash {
 	background: var(--border) !important;
