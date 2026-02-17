@@ -3,6 +3,7 @@ import type { PaneConfig, PaneTheme } from '../../../shared/types'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useInlineEdit } from '../hooks/useInlineEdit'
 import { contextItemStyle, contextMenuStyle, contextSeparatorStyle } from '../styles/shared'
+import { modKey } from '../utils/platform'
 import { TerminalView } from './Terminal'
 
 interface PaneProps {
@@ -14,6 +15,9 @@ interface PaneProps {
 	onSplitVertical: (paneId: string) => void
 	onClose: (paneId: string) => void
 	canClose: boolean
+	isFocused: boolean
+	focusGeneration: number
+	onFocus: (paneId: string) => void
 }
 
 export function Pane({
@@ -25,6 +29,9 @@ export function Pane({
 	onSplitVertical,
 	onClose,
 	canClose,
+	isFocused,
+	focusGeneration,
+	onFocus,
 }: PaneProps) {
 	const [showContext, setShowContext] = useState(false)
 	const contextRef = useRef<HTMLDivElement>(null)
@@ -54,9 +61,11 @@ export function Pane({
 
 	const shortCwd = config.cwd.replace(/^\/Users\/[^/]+/, '~')
 
+	const handleFocus = useCallback(() => onFocus(paneId), [paneId, onFocus])
+
 	return (
-		<div style={paneContainerStyle}>
-			<div onContextMenu={handleContextMenu} style={paneHeaderStyle}>
+		<div style={isFocused ? focusedContainerStyle : paneContainerStyle}>
+			<div onContextMenu={handleContextMenu} onMouseDown={handleFocus} style={paneHeaderStyle}>
 				{isEditing ? (
 					<input {...inputProps} style={editInputStyle} />
 				) : (
@@ -73,7 +82,7 @@ export function Pane({
 				<button
 					type="button"
 					onClick={() => onSplitVertical(paneId)}
-					title="Split vertical"
+					title={`Split vertical (${modKey}+D)`}
 					style={headerBtnStyle}
 				>
 					┃
@@ -81,7 +90,7 @@ export function Pane({
 				<button
 					type="button"
 					onClick={() => onSplitHorizontal(paneId)}
-					title="Split horizontal"
+					title={`Split horizontal (${modKey}+Shift+D)`}
 					style={headerBtnStyle}
 				>
 					━
@@ -90,7 +99,7 @@ export function Pane({
 					<button
 						type="button"
 						onClick={() => onClose(paneId)}
-						title="Close pane"
+						title={`Close pane (${modKey}+W)`}
 						style={{ ...headerBtnStyle, color: 'var(--danger)' }}
 					>
 						✕
@@ -150,7 +159,14 @@ export function Pane({
 			</div>
 
 			<div style={{ flex: 1, overflow: 'hidden' }}>
-				<TerminalView paneId={paneId} theme={workspaceTheme} themeOverride={config.themeOverride} />
+				<TerminalView
+					paneId={paneId}
+					theme={workspaceTheme}
+					themeOverride={config.themeOverride}
+					focusGeneration={focusGeneration}
+					isFocused={isFocused}
+					onFocus={handleFocus}
+				/>
 			</div>
 		</div>
 	)
@@ -161,6 +177,11 @@ const paneContainerStyle: React.CSSProperties = {
 	flexDirection: 'column',
 	height: '100%',
 	width: '100%',
+}
+
+const focusedContainerStyle: React.CSSProperties = {
+	...paneContainerStyle,
+	boxShadow: 'inset 0 2px 0 var(--accent)',
 }
 
 const paneHeaderStyle: React.CSSProperties = {

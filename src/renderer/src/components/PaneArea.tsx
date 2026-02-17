@@ -11,8 +11,12 @@ interface PaneAreaProps {
 }
 
 export function PaneArea({ workspace }: PaneAreaProps) {
-	const updateWorkspace = useStore((s) => s.updateWorkspace)
+	const splitPane = useStore((s) => s.splitPane)
+	const closePane = useStore((s) => s.closePane)
 	const updatePaneConfig = useStore((s) => s.updatePaneConfig)
+	const focusedPaneId = useStore((s) => s.focusedPaneId)
+	const focusGeneration = useStore((s) => s.focusGeneration)
+	const setFocusedPane = useStore((s) => s.setFocusedPane)
 	const paneCount = Object.keys(workspace.panes).length
 
 	const handleUpdateConfig = useCallback(
@@ -24,83 +28,16 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 
 	const handleSplit = useCallback(
 		(paneId: string, direction: 'horizontal' | 'vertical') => {
-			const newPaneId = crypto.randomUUID()
-			const sourcePane = workspace.panes[paneId]
-			if (!sourcePane) return
-
-			const newPane: PaneConfig = {
-				label: 'terminal',
-				cwd: sourcePane.cwd,
-				startupCommand: null,
-				themeOverride: null,
-			}
-
-			// Walk layout tree; when the target leaf is found, replace it with a
-			// branch containing the original pane and a new sibling at 50% each.
-			const replaceInTree = (node: LayoutNode): LayoutNode => {
-				if (isLayoutBranch(node)) {
-					return {
-						...node,
-						children: node.children.map(replaceInTree),
-					}
-				}
-				if (node.paneId === paneId) {
-					return {
-						direction,
-						size: node.size,
-						children: [
-							{ paneId, size: 50 },
-							{ paneId: newPaneId, size: 50 },
-						],
-					}
-				}
-				return node
-			}
-
-			updateWorkspace({
-				...workspace,
-				layout: {
-					type: 'custom',
-					tree: replaceInTree(workspace.layout.tree),
-				},
-				panes: {
-					...workspace.panes,
-					[newPaneId]: newPane,
-				},
-			})
+			splitPane(workspace.id, paneId, direction)
 		},
-		[workspace, updateWorkspace],
+		[workspace.id, splitPane],
 	)
 
 	const handleClose = useCallback(
 		(paneId: string) => {
-			// Remove pane from tree. If a branch is left with one child, collapse
-			// it upward (promote the child, preserving the parent's size).
-			// PTY cleanup is handled by Pane's unmount effect.
-			const removeFromTree = (node: LayoutNode): LayoutNode | null => {
-				if (!isLayoutBranch(node)) {
-					return node.paneId === paneId ? null : node
-				}
-				const remaining = node.children
-					.map(removeFromTree)
-					.filter((n): n is LayoutNode => n !== null)
-				if (remaining.length === 0) return null
-				if (remaining.length === 1) return { ...remaining[0], size: node.size }
-				return { ...node, children: remaining }
-			}
-
-			const newTree = removeFromTree(workspace.layout.tree)
-			if (!newTree) return
-
-			const { [paneId]: _, ...remainingPanes } = workspace.panes
-
-			updateWorkspace({
-				...workspace,
-				layout: { type: 'custom', tree: newTree },
-				panes: remainingPanes,
-			})
+			closePane(workspace.id, paneId)
 		},
-		[workspace, updateWorkspace],
+		[workspace.id, closePane],
 	)
 
 	const renderNode = (node: LayoutNode): React.ReactNode => {
@@ -118,6 +55,9 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 					onSplitVertical={(id) => handleSplit(id, 'vertical')}
 					onClose={handleClose}
 					canClose={paneCount > 1}
+					isFocused={focusedPaneId === node.paneId}
+					focusGeneration={focusGeneration}
+					onFocus={setFocusedPane}
 				/>
 			)
 		}

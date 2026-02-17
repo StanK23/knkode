@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { PaneArea } from './components/PaneArea'
 import { SettingsPanel } from './components/SettingsPanel'
 import { TabBar } from './components/TabBar'
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useStore } from './store'
 
 export function App() {
@@ -13,6 +14,8 @@ export function App() {
 	const updatePaneCwd = useStore((s) => s.updatePaneCwd)
 
 	const [showSettings, setShowSettings] = useState(false)
+
+	useKeyboardShortcuts()
 
 	useEffect(() => {
 		init()
