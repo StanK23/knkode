@@ -146,7 +146,7 @@ export function Pane({
 				<button
 					type="button"
 					onClick={() => onSplitVertical(paneId)}
-					title="Split vertical (Cmd+D)"
+					title="Split vertical"
 					style={headerBtnStyle}
 				>
 					┃
@@ -154,7 +154,7 @@ export function Pane({
 				<button
 					type="button"
 					onClick={() => onSplitHorizontal(paneId)}
-					title="Split horizontal (Cmd+Shift+D)"
+					title="Split horizontal"
 					style={headerBtnStyle}
 				>
 					━

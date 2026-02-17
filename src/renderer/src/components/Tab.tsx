@@ -7,7 +7,6 @@ interface TabProps {
 	onActivate: (id: string) => void
 	onClose: (id: string) => void
 	onRename: (id: string, name: string) => void
-	onChangeColor: (id: string, color: string) => void
 }
 
 export function Tab({
@@ -16,7 +15,6 @@ export function Tab({
 	onActivate,
 	onClose,
 	onRename,
-	onChangeColor,
 }: TabProps) {
 	const [isEditing, setIsEditing] = useState(false)
 	const [editValue, setEditValue] = useState(workspace.name)

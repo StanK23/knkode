@@ -28,14 +28,6 @@ export function TabBar() {
 		[workspaces, updateWorkspace],
 	)
 
-	const handleChangeColor = useCallback(
-		(id: string, color: string) => {
-			const ws = workspaces.find((w) => w.id === id)
-			if (ws) updateWorkspace({ ...ws, color })
-		},
-		[workspaces, updateWorkspace],
-	)
-
 	const handleNewWorkspace = useCallback(async () => {
 		const colorIndex = workspaces.length % WORKSPACE_COLORS.length
 		await createWorkspace(
@@ -60,7 +52,6 @@ export function TabBar() {
 						onActivate={setActiveWorkspace}
 						onClose={closeWorkspaceTab}
 						onRename={handleRename}
-						onChangeColor={handleChangeColor}
 					/>
 				))}
 
@@ -68,7 +59,7 @@ export function TabBar() {
 				<button
 					type="button"
 					onClick={handleNewWorkspace}
-					title="New workspace (Cmd+T)"
+					title="New workspace"
 					style={newBtnStyle}
 				>
 					+
