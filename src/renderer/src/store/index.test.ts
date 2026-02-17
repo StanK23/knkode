@@ -62,6 +62,7 @@ function resetStore() {
 		focusedPaneId: null,
 		focusGeneration: 0,
 		visitedWorkspaceIds: [],
+		activePtyIds: new Set(),
 	})
 }
 
@@ -71,6 +72,8 @@ beforeEach(() => {
 	mockApi.saveWorkspace.mockResolvedValue(undefined)
 	mockApi.saveAppState.mockResolvedValue(undefined)
 	mockApi.deleteWorkspace.mockResolvedValue(undefined)
+	mockApi.killPty.mockResolvedValue(undefined)
+	mockApi.createPty.mockResolvedValue(undefined)
 	resetStore()
 })
 

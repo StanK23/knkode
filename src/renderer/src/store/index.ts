@@ -192,9 +192,13 @@ interface StoreState {
 	/** Workspace IDs that have been activated at least once this session.
 	 *  Used for lazy PTY loading — only visited workspaces render PaneAreas. */
 	visitedWorkspaceIds: string[]
+	/** Pane IDs with active PTY sessions — prevents double-creation on remount. */
+	activePtyIds: Set<string>
 
 	// Actions
 	setFocusedPane: (paneId: string | null) => void
+	/** Ensure a PTY exists for the given pane. No-op if already created. */
+	ensurePty: (paneId: string, cwd: string, startupCommand: string | null) => void
 	init: () => Promise<void>
 	createWorkspace: (name: string, color: string, preset: LayoutPreset) => Promise<Workspace>
 	createDefaultWorkspace: () => Promise<Workspace>
@@ -226,9 +230,26 @@ export const useStore = create<StoreState>((set, get) => ({
 	focusedPaneId: null,
 	focusGeneration: 0,
 	visitedWorkspaceIds: [],
+	activePtyIds: new Set(),
 
 	setFocusedPane: (paneId) =>
 		set((state) => ({ focusedPaneId: paneId, focusGeneration: state.focusGeneration + 1 })),
+
+	ensurePty: (paneId, cwd, startupCommand) => {
+		const { activePtyIds } = get()
+		if (activePtyIds.has(paneId)) return
+		const newSet = new Set(activePtyIds)
+		newSet.add(paneId)
+		set({ activePtyIds: newSet })
+		window.api.createPty(paneId, cwd, startupCommand).catch((err) => {
+			console.error(`[store] Failed to create PTY for pane ${paneId}:`, err)
+			// Remove from active set on failure so retry is possible
+			const current = get().activePtyIds
+			const rollback = new Set(current)
+			rollback.delete(paneId)
+			set({ activePtyIds: rollback })
+		})
+	},
 
 	init: async () => {
 		try {
@@ -372,8 +393,15 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 
 	removeWorkspace: async (id) => {
-		await window.api.deleteWorkspace(id)
+		// Kill all PTYs for this workspace before deleting
 		const state = get()
+		const workspace = state.workspaces.find((w) => w.id === id)
+		if (workspace) {
+			for (const paneId of Object.keys(workspace.panes)) {
+				window.api.killPty(paneId).catch(() => {})
+			}
+		}
+		await window.api.deleteWorkspace(id)
 		const newOpen = state.appState.openWorkspaceIds.filter((wid) => wid !== id)
 		const newActive =
 			state.appState.activeWorkspaceId === id
@@ -385,10 +413,17 @@ export const useStore = create<StoreState>((set, get) => ({
 			activeWorkspaceId: newActive,
 		}
 		await window.api.saveAppState(newAppState)
+		const newActivePtys = new Set(state.activePtyIds)
+		if (workspace) {
+			for (const paneId of Object.keys(workspace.panes)) {
+				newActivePtys.delete(paneId)
+			}
+		}
 		set({
 			workspaces: state.workspaces.filter((w) => w.id !== id),
 			appState: newAppState,
 			visitedWorkspaceIds: state.visitedWorkspaceIds.filter((wid) => wid !== id),
+			activePtyIds: newActivePtys,
 		})
 	},
 
@@ -431,6 +466,15 @@ export const useStore = create<StoreState>((set, get) => ({
 
 	closeWorkspaceTab: (id) => {
 		set((state) => {
+			// Kill PTYs for the workspace being closed
+			const workspace = state.workspaces.find((w) => w.id === id)
+			const newActivePtys = new Set(state.activePtyIds)
+			if (workspace) {
+				for (const paneId of Object.keys(workspace.panes)) {
+					window.api.killPty(paneId).catch(() => {})
+					newActivePtys.delete(paneId)
+				}
+			}
 			const newOpen = state.appState.openWorkspaceIds.filter((wid) => wid !== id)
 			const newActive =
 				state.appState.activeWorkspaceId === id
@@ -449,7 +493,7 @@ export const useStore = create<StoreState>((set, get) => ({
 			if (newActive && !newVisited.includes(newActive)) {
 				newVisited.push(newActive)
 			}
-			return { appState: newAppState, visitedWorkspaceIds: newVisited }
+			return { appState: newAppState, visitedWorkspaceIds: newVisited, activePtyIds: newActivePtys }
 		})
 	},
 
@@ -530,9 +574,13 @@ export const useStore = create<StoreState>((set, get) => ({
 			if (!workspace) return state
 			if (Object.keys(workspace.panes).length <= 1) return state
 
+			// Kill the PTY for the closed pane
+			window.api.killPty(paneId).catch(() => {})
+			const newActivePtys = new Set(state.activePtyIds)
+			newActivePtys.delete(paneId)
+
 			// Remove pane from tree. If a branch is left with one child, collapse
 			// it upward (promote the child, preserving the parent's size).
-			// PTY cleanup is handled by Pane's unmount effect.
 			const removeFromTree = (node: LayoutNode): LayoutNode | null => {
 				if (!isLayoutBranch(node)) {
 					return node.paneId === paneId ? null : node
@@ -560,6 +608,7 @@ export const useStore = create<StoreState>((set, get) => ({
 			return {
 				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
 				focusedPaneId: state.focusedPaneId === paneId ? null : state.focusedPaneId,
+				activePtyIds: newActivePtys,
 			}
 		})
 	},
