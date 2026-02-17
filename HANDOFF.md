@@ -7,6 +7,7 @@
 - [done] Drag-to-reorder workspace tabs (PR #4)
 - [done] Testing — vitest setup + 44 store tests (PR #5)
 - [done] Feature completion brainstorming & planning
+- [done] PTY lifecycle — lazy tab loading & terminal persistence (PR #7, 53 tests)
 
 ## Active Decisions
 - Tech stack: Electron + React + TypeScript + xterm.js + node-pty + Zustand
@@ -18,6 +19,5 @@
 
 ## What's Next
 - Implement feature completion plan — see `docs/plans/2026-02-18-feature-completion-plan.md`
-- Task 1: PTY lifecycle — lazy tab loading & terminal persistence (`feature/pty-lifecycle`)
 - Task 2: Context menus & closed workspaces (`feature/context-menus`)
 - Task 3: Launch, test & fix (`fix/launch-and-integration`)
