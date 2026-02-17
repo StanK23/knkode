@@ -3,6 +3,7 @@ import type { PaneConfig, PaneTheme } from '../../../shared/types'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useInlineEdit } from '../hooks/useInlineEdit'
 import { contextItemStyle, contextMenuStyle, contextSeparatorStyle } from '../styles/shared'
+import { modKey } from '../utils/platform'
 import { TerminalView } from './Terminal'
 
 interface PaneProps {
@@ -63,12 +64,7 @@ export function Pane({
 	const handleFocus = useCallback(() => onFocus(paneId), [paneId, onFocus])
 
 	return (
-		<div
-			style={{
-				...paneContainerStyle,
-				boxShadow: isFocused ? 'inset 0 2px 0 var(--accent)' : 'none',
-			}}
-		>
+		<div style={isFocused ? focusedContainerStyle : paneContainerStyle}>
 			<div onContextMenu={handleContextMenu} onMouseDown={handleFocus} style={paneHeaderStyle}>
 				{isEditing ? (
 					<input {...inputProps} style={editInputStyle} />
@@ -86,7 +82,7 @@ export function Pane({
 				<button
 					type="button"
 					onClick={() => onSplitVertical(paneId)}
-					title="Split vertical (Cmd+D)"
+					title={`Split vertical (${modKey}+D)`}
 					style={headerBtnStyle}
 				>
 					┃
@@ -94,7 +90,7 @@ export function Pane({
 				<button
 					type="button"
 					onClick={() => onSplitHorizontal(paneId)}
-					title="Split horizontal (Cmd+Shift+D)"
+					title={`Split horizontal (${modKey}+Shift+D)`}
 					style={headerBtnStyle}
 				>
 					━
@@ -103,7 +99,7 @@ export function Pane({
 					<button
 						type="button"
 						onClick={() => onClose(paneId)}
-						title="Close pane (Cmd+W)"
+						title={`Close pane (${modKey}+W)`}
 						style={{ ...headerBtnStyle, color: 'var(--danger)' }}
 					>
 						✕
@@ -181,6 +177,11 @@ const paneContainerStyle: React.CSSProperties = {
 	flexDirection: 'column',
 	height: '100%',
 	width: '100%',
+}
+
+const focusedContainerStyle: React.CSSProperties = {
+	...paneContainerStyle,
+	boxShadow: 'inset 0 2px 0 var(--accent)',
 }
 
 const paneHeaderStyle: React.CSSProperties = {

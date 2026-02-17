@@ -3,6 +3,7 @@ import type { Workspace } from '../../../shared/types'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useStore } from '../store'
 import { colorDotStyle } from '../styles/shared'
+import { modKey } from '../utils/platform'
 import { Tab } from './Tab'
 
 export function TabBar() {
@@ -58,7 +59,7 @@ export function TabBar() {
 				<button
 					type="button"
 					onClick={handleNewWorkspace}
-					title="New workspace (Cmd+T)"
+					title={`New workspace (${modKey}+T)`}
 					style={newBtnStyle}
 				>
 					+

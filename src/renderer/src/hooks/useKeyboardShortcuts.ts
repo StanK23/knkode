@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { getPaneIdsInOrder, useStore } from '../store'
+import { isMac } from '../utils/platform'
 
 /**
  * Global keyboard shortcuts. Uses Cmd (macOS) or Ctrl (other platforms).
@@ -11,8 +12,6 @@ import { getPaneIdsInOrder, useStore } from '../store'
  * - Mod+Shift+]: next workspace tab
  * - Mod+1-9: focus pane by index
  */
-
-const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform)
 
 export function useKeyboardShortcuts() {
 	useEffect(() => {
