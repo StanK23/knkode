@@ -153,7 +153,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 			{closedWorkspaces.length > 0 && (
 				<div
 					ref={closedMenuRef}
-					style={{ position: 'relative', marginRight: 8 }}
+					style={{ position: 'relative', marginRight: 8, WebkitAppRegion: 'no-drag' as unknown as string }}
 				>
 					<button
 						type="button"
@@ -214,6 +214,7 @@ const tabsContainerStyle: React.CSSProperties = {
 	overflowX: 'auto',
 	overflowY: 'hidden',
 	flex: 1,
+	WebkitAppRegion: 'no-drag' as unknown as string,
 }
 
 const newBtnStyle: React.CSSProperties = {
@@ -241,6 +242,7 @@ const gearBtnStyle: React.CSSProperties = {
 	display: 'flex',
 	alignItems: 'center',
 	flexShrink: 0,
+	WebkitAppRegion: 'no-drag' as unknown as string,
 }
 
 const reopenBtnStyle: React.CSSProperties = {
