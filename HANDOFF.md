@@ -4,7 +4,7 @@
 - [done] Project foundation — configs, shared types, main process, preload (PR #1, merged)
 - [done] Workspace UI — renderer layer with all core components (PR #2, merged)
 - [done] Keyboard shortcuts & focus tracking (PR #3, merged)
-- [active] Drag-to-reorder tabs (feature/drag-reorder-tabs, PR pending)
+- [done] Drag-to-reorder workspace tabs (PR #4, merged)
 
 ## Active Decisions
 - Tech stack: Electron + React + TypeScript + xterm.js + node-pty + Zustand
@@ -13,5 +13,4 @@
 - WorkspaceLayout: discriminated union (`preset` vs `custom` variants)
 
 ## What's Next
-1. Review and merge drag-to-reorder tabs PR
-2. Testing
+1. Testing — unit tests for store actions, integration tests for key workflows
