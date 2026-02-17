@@ -27,7 +27,7 @@
 	--spacing-tab: 38px;
 	--spacing-header: 28px;
 	--spacing-drag: 38px;
-	--spacing-traffic: 78px;
+	--spacing-traffic: 78px; /* macOS window controls (close/minimize/maximize) width + padding */
 
 	/* System font stack */
 	--font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
