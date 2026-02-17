@@ -170,8 +170,9 @@ export function Pane({
 								style={contextFormStyle}
 								onSubmit={(e) => {
 									e.preventDefault()
-									if (cwdInput.trim()) {
-										onUpdateConfig(paneId, { cwd: cwdInput.trim() })
+									const path = cwdInput.trim()
+									if (path && (path.startsWith('/') || path.startsWith('~'))) {
+										onUpdateConfig(paneId, { cwd: path })
 									}
 									closeContext()
 								}}
