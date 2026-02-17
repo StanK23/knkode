@@ -4,8 +4,8 @@ import { isMac } from '../utils/platform'
 
 /**
  * Global keyboard shortcuts. Uses Cmd (macOS) or Ctrl (other platforms).
- * - Mod+D: split focused pane (vertical layout direction)
- * - Mod+Shift+D: split focused pane (horizontal layout direction)
+ * - Mod+D: split pane side-by-side (vertical divider)
+ * - Mod+Shift+D: split pane stacked (horizontal divider)
  * - Mod+W: close focused pane
  * - Mod+T: new workspace
  * - Mod+Shift+[: previous workspace tab
