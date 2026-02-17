@@ -5,7 +5,7 @@
 - [done] Workspace UI — renderer layer with all core components (PR #2, merged)
 - [done] Keyboard shortcuts & focus tracking (PR #3, merged)
 - [done] Drag-to-reorder workspace tabs (PR #4, merged)
-- [active] Testing — vitest setup + store tests (feature/testing, PR pending)
+- [done] Testing — vitest setup + 44 store tests, review fixes applied (PR #5, ready to merge)
 
 ## Active Decisions
 - Tech stack: Electron + React + TypeScript + xterm.js + node-pty + Zustand
@@ -14,4 +14,4 @@
 - WorkspaceLayout: discriminated union (`preset` vs `custom` variants)
 
 ## What's Next
-1. Merge testing PR
+1. Merge testing PR #5
