@@ -6,7 +6,7 @@ import { IPC } from '../shared/types'
 
 interface PtySession {
 	process: pty.IPty
-	cwd: string
+	initialCwd: string
 }
 
 const sessions = new Map<string, PtySession>()
@@ -18,7 +18,7 @@ export function createPty(id: string, cwd: string, startupCommand: string | null
 		killPty(id)
 	}
 
-	const shell = process.env.SHELL || (os.platform() === 'win32' ? 'powershell.exe' : '/bin/zsh')
+	const shell = process.env.SHELL || (os.platform() === 'win32' ? 'powershell.exe' : '/bin/sh')
 
 	const ptyProcess = pty.spawn(shell, [], {
 		name: 'xterm-256color',
@@ -32,7 +32,7 @@ export function createPty(id: string, cwd: string, startupCommand: string | null
 		},
 	})
 
-	const session: PtySession = { process: ptyProcess, cwd }
+	const session: PtySession = { process: ptyProcess, initialCwd: cwd }
 	sessions.set(id, session)
 
 	ptyProcess.onData((data) => {
@@ -44,17 +44,18 @@ export function createPty(id: string, cwd: string, startupCommand: string | null
 		getMainWindow()?.webContents.send(IPC.PTY_EXIT, id, exitCode)
 	})
 
-	// Delay startup command to let the shell finish initializing its prompt.
-	// 300ms is empirically chosen; may need tuning for slow environments.
 	if (startupCommand) {
 		setTimeout(() => {
+			if (!sessions.has(id)) return
 			ptyProcess.write(`${startupCommand}\r`)
 		}, SHELL_READY_DELAY_MS)
 	}
 }
 
 export function writePty(id: string, data: string): void {
-	sessions.get(id)?.process.write(data)
+	const session = sessions.get(id)
+	if (!session) throw new Error(`No PTY session for pane ${id}`)
+	session.process.write(data)
 }
 
 export function resizePty(id: string, cols: number, rows: number): void {
@@ -73,10 +74,13 @@ export function resizePty(id: string, cols: number, rows: number): void {
 
 export function killPty(id: string): void {
 	const session = sessions.get(id)
-	if (session) {
+	if (!session) return
+	try {
 		session.process.kill()
-		sessions.delete(id)
+	} catch (err) {
+		console.warn(`[pty] kill() threw for pane ${id}:`, err instanceof Error ? err.message : err)
 	}
+	sessions.delete(id)
 }
 
 export function killAllPtys(): void {
@@ -90,12 +94,10 @@ export function getPtyCwd(id: string): string | null {
 	const session = sessions.get(id)
 	if (!session) return null
 
-	// On macOS we can read the pty's cwd via lsof on the process PID.
-	// On all other platforms we fall back to the initial cwd, which will
-	// be stale if the user has changed directories.
+	// macOS: read cwd via lsof. Linux: not implemented (falls back to initialCwd).
 	try {
 		const pid = session.process.pid
-		if (!Number.isInteger(pid) || pid <= 0) return session.cwd
+		if (!Number.isInteger(pid) || pid <= 0) return session.initialCwd
 
 		if (os.platform() === 'darwin') {
 			const lsofOutput = execFileSync('lsof', ['-p', String(pid), '-Fn'], {
@@ -112,5 +114,5 @@ export function getPtyCwd(id: string): string | null {
 	} catch (err) {
 		console.warn(`[pty] CWD tracking failed for pane ${id}:`, err instanceof Error ? err.message : err)
 	}
-	return session.cwd
+	return session.initialCwd
 }
