@@ -1,4 +1,5 @@
 import type { BrowserWindow } from 'electron'
+import type { IpcChannel } from '../shared/types'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -15,14 +16,15 @@ export function getMainWindow(): BrowserWindow | null {
 
 /**
  * Safely send an IPC message to the renderer.
- * Returns false if the window is unavailable or destroyed.
+ * Returns false if the send fails for any reason (window destroyed, not ready, etc.).
  */
-export function safeSend(channel: string, ...args: unknown[]): boolean {
+export function safeSend(channel: IpcChannel, ...args: unknown[]): boolean {
 	if (!mainWindow || mainWindow.isDestroyed()) return false
 	try {
 		mainWindow.webContents.send(channel, ...args)
 		return true
-	} catch {
+	} catch (err) {
+		console.warn('[main-window] safeSend failed:', channel, err)
 		return false
 	}
 }
