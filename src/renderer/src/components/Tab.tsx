@@ -59,7 +59,7 @@ export function Tab({
 	}, [])
 
 	const closeContext = useCallback(() => {
-		closeContext()
+		setShowContext(false)
 		setShowColorPicker(false)
 	}, [])
 
