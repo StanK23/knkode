@@ -3,7 +3,7 @@
 ## What Was Done
 - [done] Bug fix: UI layout, accessibility & polish (PR #12)
 - [done] Bug fix: UI testing bugs — drag region, split dirs, settings shortcut, focus indicator (PR #14)
-- [in-progress] Tailwind CSS v4 migration — branch `refactor/tailwind-migration`
+- [done] Tailwind CSS v4 migration — all inline styles → Tailwind classes (PR #16)
 
 ## Active Decisions
 - Tech stack: Electron + React + TypeScript + xterm.js + node-pty + Zustand
@@ -13,6 +13,7 @@
 - PTY lifecycle: store-managed (ensurePty/killPtys/removePtyId) — decoupled from React mount
 
 ## What's Next
+- Follow-up: Extract ghost button pattern (bg-transparent border-none...) to @layer components
 - Follow-up: Focus trap for SettingsPanel modal (`aria-modal` expects containment)
 - Follow-up: Extract `useContextMenu` hook (DRY)
 - Follow-up: Context menu keyboard navigation (arrow keys, role="menu")
