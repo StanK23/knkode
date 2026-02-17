@@ -8,6 +8,7 @@
 - [done] Vitest setup + 44 store tests (PR #5)
 - [done] Feature completion plan — `/autopilot` run (PRs #7–#9)
 - [done] Bug fix: PTY lifecycle & crash-on-close (PR #11) — 10-agent review, 73 tests
+- [done] Bug fix: UI layout, accessibility & polish (PR #12) — 8-agent review, 73 tests
 
 ## Active Decisions
 - Tech stack: Electron + React + TypeScript + xterm.js + node-pty + Zustand
@@ -16,6 +17,8 @@
 - PTY lifecycle: store-managed (ensurePty/killPtys/removePtyId) — decoupled from React mount
 
 ## What's Next
-- [in-progress] Bug fix: UI layout, accessibility & polish (fix/ui-layout-polish)
+- Follow-up: Focus trap for SettingsPanel modal (`aria-modal` expects containment)
 - Follow-up: Extract `useContextMenu` hook (DRY)
+- Follow-up: Extract ghost button base style to shared (5+ duplicates)
+- Follow-up: Context menu keyboard navigation (arrow keys, role="menu")
 - Follow-up: Additional test coverage for renderer components
