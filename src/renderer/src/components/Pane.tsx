@@ -2,7 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PaneConfig, PaneTheme } from '../../../shared/types'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useInlineEdit } from '../hooks/useInlineEdit'
-import { contextItemStyle, contextMenuStyle, contextSeparatorStyle } from '../styles/shared'
+import {
+	contextItemStyle,
+	contextMenuStyle,
+	contextSeparatorStyle,
+	editInputBaseStyle,
+} from '../styles/shared'
 import { modKey } from '../utils/platform'
 import { TerminalView } from './Terminal'
 
@@ -368,14 +373,8 @@ const paneHeaderStyle: React.CSSProperties = {
 }
 
 const editInputStyle: React.CSSProperties = {
-	background: 'var(--bg-secondary)',
-	border: '1px solid var(--accent)',
-	borderRadius: 'var(--radius-sm)',
-	color: 'var(--text-primary)',
+	...editInputBaseStyle,
 	fontSize: 11,
-	padding: '1px 4px',
-	outline: 'none',
-	width: 80,
 }
 
 const cwdStyle: React.CSSProperties = {

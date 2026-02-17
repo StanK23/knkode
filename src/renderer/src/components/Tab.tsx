@@ -7,6 +7,7 @@ import {
 	contextItemStyle,
 	contextMenuStyle,
 	contextSeparatorStyle,
+	editInputBaseStyle,
 } from '../styles/shared'
 
 interface TabProps {
@@ -215,14 +216,8 @@ const tabStyle: React.CSSProperties = {
 }
 
 const editInputStyle: React.CSSProperties = {
-	background: 'var(--bg-secondary)',
-	border: '1px solid var(--accent)',
-	borderRadius: 'var(--radius-sm)',
-	color: 'var(--text-primary)',
+	...editInputBaseStyle,
 	fontSize: 12,
-	padding: '1px 4px',
-	outline: 'none',
-	width: 80,
 }
 
 const nameStyle: React.CSSProperties = {
