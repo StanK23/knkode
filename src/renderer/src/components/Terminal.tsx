@@ -9,15 +9,25 @@ interface TerminalProps {
 	paneId: string
 	theme: PaneTheme
 	themeOverride: Partial<PaneTheme> | null
+	focusGeneration: number
 	isFocused: boolean
 	onFocus: () => void
 }
 
-export function TerminalView({ paneId, theme, themeOverride, isFocused, onFocus }: TerminalProps) {
+export function TerminalView({
+	paneId,
+	theme,
+	themeOverride,
+	focusGeneration,
+	isFocused,
+	onFocus,
+}: TerminalProps) {
 	const containerRef = useRef<HTMLDivElement>(null)
 	const termRef = useRef<XTerm | null>(null)
 	const fitAddonRef = useRef<FitAddon | null>(null)
 	const themeRef = useRef({ ...theme, ...themeOverride })
+	const onFocusRef = useRef(onFocus)
+	onFocusRef.current = onFocus
 
 	const mergedTheme = useMemo(() => ({ ...theme, ...themeOverride }), [theme, themeOverride])
 
@@ -82,25 +92,27 @@ export function TerminalView({ paneId, theme, themeOverride, isFocused, onFocus 
 		})
 		resizeObserver.observe(containerRef.current)
 
-		// Track focus for keyboard shortcut targeting
-		const onTermFocus = () => onFocus()
-		term.textarea?.addEventListener('focus', onTermFocus)
+		// Track terminal focus to update pane focus state
+		const focusDisposable = term.onFocus(() => onFocusRef.current())
 
 		return () => {
-			term.textarea?.removeEventListener('focus', onTermFocus)
+			focusDisposable.dispose()
 			resizeObserver.disconnect()
 			removeDataListener()
 			removeExitListener()
 			term.dispose()
 		}
-	}, [paneId, onFocus])
+	}, [paneId])
 
-	// Programmatically focus terminal when selected via keyboard shortcut
+	// Sync xterm focus with pane focus state (keyboard shortcuts + click).
+	// focusGeneration is an intentional trigger dep — it re-fires the effect
+	// even when isFocused is already true (e.g. re-clicking the same pane).
+	// biome-ignore lint/correctness/useExhaustiveDependencies: focusGeneration is an intentional trigger dependency
 	useEffect(() => {
 		if (isFocused && termRef.current) {
 			termRef.current.focus()
 		}
-	}, [isFocused])
+	}, [isFocused, focusGeneration])
 
 	// Update theme without re-mounting
 	useEffect(() => {

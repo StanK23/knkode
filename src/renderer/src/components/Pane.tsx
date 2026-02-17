@@ -15,6 +15,7 @@ interface PaneProps {
 	onClose: (paneId: string) => void
 	canClose: boolean
 	isFocused: boolean
+	focusGeneration: number
 	onFocus: (paneId: string) => void
 }
 
@@ -28,6 +29,7 @@ export function Pane({
 	onClose,
 	canClose,
 	isFocused,
+	focusGeneration,
 	onFocus,
 }: PaneProps) {
 	const [showContext, setShowContext] = useState(false)
@@ -64,7 +66,7 @@ export function Pane({
 		<div
 			style={{
 				...paneContainerStyle,
-				borderTop: isFocused ? '2px solid var(--accent)' : '2px solid transparent',
+				boxShadow: isFocused ? 'inset 0 2px 0 var(--accent)' : 'none',
 			}}
 		>
 			<div onContextMenu={handleContextMenu} onMouseDown={handleFocus} style={paneHeaderStyle}>
@@ -165,6 +167,7 @@ export function Pane({
 					paneId={paneId}
 					theme={workspaceTheme}
 					themeOverride={config.themeOverride}
+					focusGeneration={focusGeneration}
 					isFocused={isFocused}
 					onFocus={handleFocus}
 				/>
