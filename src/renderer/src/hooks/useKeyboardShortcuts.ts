@@ -84,9 +84,9 @@ export function useKeyboardShortcuts({ toggleSettings }: ShortcutOptions = {}) {
 			}
 
 			// Mod+, — toggle settings panel
-			if (e.key === ',') {
+			if (e.key === ',' && toggleSettings) {
 				e.preventDefault()
-				toggleSettings?.()
+				toggleSettings()
 				return
 			}
 
