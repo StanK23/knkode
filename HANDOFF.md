@@ -18,7 +18,15 @@
 - Config storage: ~/.knkode/ (JSON files)
 - WorkspaceLayout: discriminated union (`preset` vs `custom` variants)
 
+## Active Reviews
+
+### PR #2 — feat: workspace UI — renderer layer with all core components
+- State: `docs/reviews/PR-2/_state.json`
+- Agents: 9/9 completed
+- Phase: done — fixing findings
+
 ## What's Next
-1. Keyboard shortcuts & polish
-2. Drag-to-reorder tabs
-3. Testing
+1. Fix PR #2 review findings (14 must-fix, 17 suggestions, 13 nitpicks)
+2. Keyboard shortcuts & polish
+3. Drag-to-reorder tabs
+4. Testing
