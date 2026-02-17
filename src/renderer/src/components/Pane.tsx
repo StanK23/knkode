@@ -128,7 +128,7 @@ export function Pane({
 						onClick={() => onClose(paneId)}
 						title={`Close pane (${modKey}+W)`}
 						aria-label="Close pane"
-						className="bg-transparent border-none text-danger cursor-pointer px-0.5 text-[11px] leading-none hover:text-content"
+						className="bg-transparent border-none text-danger cursor-pointer px-0.5 text-[11px] leading-none hover:brightness-125"
 					>
 						✕
 					</button>
