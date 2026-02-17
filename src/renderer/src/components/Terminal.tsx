@@ -96,13 +96,14 @@ export function TerminalView({
 		})
 		resizeObserver.observe(containerRef.current)
 
-		// Track terminal focus to update pane focus state
-		const el = containerRef.current
+		// Track terminal focus to update pane focus state.
+		// Uses DOM focusin because @xterm/xterm v5 does not expose an onFocus event.
+		const containerEl = containerRef.current
 		const handleFocusIn = () => onFocusRef.current()
-		el.addEventListener('focusin', handleFocusIn)
+		containerEl.addEventListener('focusin', handleFocusIn)
 
 		return () => {
-			el.removeEventListener('focusin', handleFocusIn)
+			containerEl.removeEventListener('focusin', handleFocusIn)
 			resizeObserver.disconnect()
 			removeDataListener()
 			removeExitListener()
