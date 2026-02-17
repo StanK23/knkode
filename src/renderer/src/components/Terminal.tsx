@@ -4,6 +4,7 @@ import { Terminal as XTerm } from '@xterm/xterm'
 import { useEffect, useMemo, useRef } from 'react'
 import '@xterm/xterm/css/xterm.css'
 import type { PaneTheme } from '../../../shared/types'
+import { useStore } from '../store'
 
 interface TerminalProps {
 	paneId: string
@@ -82,6 +83,8 @@ export function TerminalView({
 		const removeExitListener = window.api.onPtyExit((id, exitCode) => {
 			if (id === paneId) {
 				term.writeln(`\r\n\x1b[90m[Process exited with code ${exitCode}]\x1b[0m`)
+				// Remove from activePtyIds so ensurePty can re-create if needed
+				useStore.getState().removePtyId(paneId)
 			}
 		})
 

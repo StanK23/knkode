@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import os from 'node:os'
 import * as pty from 'node-pty'
 import { IPC } from '../shared/types'
-import { getMainWindow } from './main-window'
+import { safeSend } from './main-window'
 
 interface PtySession {
 	process: pty.IPty
@@ -36,12 +36,12 @@ export function createPty(id: string, cwd: string, startupCommand: string | null
 	sessions.set(id, session)
 
 	ptyProcess.onData((data) => {
-		getMainWindow()?.webContents.send(IPC.PTY_DATA, id, data)
+		safeSend(IPC.PTY_DATA, id, data)
 	})
 
 	ptyProcess.onExit(({ exitCode }) => {
 		sessions.delete(id)
-		getMainWindow()?.webContents.send(IPC.PTY_EXIT, id, exitCode)
+		safeSend(IPC.PTY_EXIT, id, exitCode)
 	})
 
 	if (startupCommand) {
