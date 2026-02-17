@@ -196,6 +196,7 @@ interface StoreState {
 	setActiveWorkspace: (id: string) => void
 	openWorkspace: (id: string) => void
 	closeWorkspaceTab: (id: string) => void
+	reorderWorkspaceTabs: (fromIndex: number, toIndex: number) => void
 	splitPane: (workspaceId: string, paneId: string, direction: SplitDirection) => void
 	closePane: (workspaceId: string, paneId: string) => void
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
@@ -368,6 +369,22 @@ export const useStore = create<StoreState>((set, get) => ({
 				openWorkspaceIds: newOpen,
 				activeWorkspaceId: newActive,
 			}
+			window.api.saveAppState(newAppState).catch((err) => {
+				console.error('[store] Failed to save app state:', err)
+			})
+			return { appState: newAppState }
+		})
+	},
+
+	reorderWorkspaceTabs: (fromIndex, toIndex) => {
+		set((state) => {
+			const ids = [...state.appState.openWorkspaceIds]
+			if (fromIndex < 0 || fromIndex >= ids.length) return state
+			if (toIndex < 0 || toIndex >= ids.length) return state
+			if (fromIndex === toIndex) return state
+			const [moved] = ids.splice(fromIndex, 1)
+			ids.splice(toIndex, 0, moved)
+			const newAppState = { ...state.appState, openWorkspaceIds: ids }
 			window.api.saveAppState(newAppState).catch((err) => {
 				console.error('[store] Failed to save app state:', err)
 			})
