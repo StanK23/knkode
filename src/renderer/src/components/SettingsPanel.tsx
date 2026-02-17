@@ -228,7 +228,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					<button
 						type="button"
 						onClick={handleSave}
-						className="bg-accent border-none text-white cursor-pointer text-xs py-1.5 px-4 rounded-sm font-semibold hover:brightness-110"
+						className="bg-accent border-none text-white cursor-pointer text-xs py-1.5 px-4 rounded-sm font-semibold hover:brightness-[1.1]"
 					>
 						Save
 					</button>
