@@ -59,20 +59,22 @@ export function TabBar() {
 
 	const closedWorkspaces = workspaces.filter((w) => !appState.openWorkspaceIds.includes(w.id))
 
-	const handleRename = useCallback(
-		(id: string, name: string) => {
+	const updateWorkspaceField = useCallback(
+		(id: string, updates: Partial<Workspace>) => {
 			const ws = workspaces.find((w) => w.id === id)
-			if (ws) updateWorkspace({ ...ws, name })
+			if (ws) updateWorkspace({ ...ws, ...updates })
 		},
 		[workspaces, updateWorkspace],
 	)
 
+	const handleRename = useCallback(
+		(id: string, name: string) => updateWorkspaceField(id, { name }),
+		[updateWorkspaceField],
+	)
+
 	const handleChangeColor = useCallback(
-		(id: string, color: string) => {
-			const ws = workspaces.find((w) => w.id === id)
-			if (ws) updateWorkspace({ ...ws, color })
-		},
-		[workspaces, updateWorkspace],
+		(id: string, color: string) => updateWorkspaceField(id, { color }),
+		[updateWorkspaceField],
 	)
 
 	const handleDuplicate = useCallback(
