@@ -380,7 +380,7 @@ const paneHeaderStyle: React.CSSProperties = {
 
 const paneIndexStyle: React.CSSProperties = {
 	color: 'var(--text-dim)',
-	fontSize: 9,
+	fontSize: 10,
 	fontWeight: 600,
 	minWidth: 12,
 	textAlign: 'center',
