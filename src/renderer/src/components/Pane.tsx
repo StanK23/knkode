@@ -308,18 +308,20 @@ export function Pane({
 								</div>
 							</div>
 						)}
-						<div style={contextSeparatorStyle} />
 						{canClose && (
-							<button
-								type="button"
-								style={{ ...contextItemStyle, color: 'var(--danger)' }}
-								onClick={() => {
-									onClose(paneId)
-									closeContext()
-								}}
-							>
-								Close Pane
-							</button>
+							<>
+								<div style={contextSeparatorStyle} />
+								<button
+									type="button"
+									style={{ ...contextItemStyle, color: 'var(--danger)' }}
+									onClick={() => {
+										onClose(paneId)
+										closeContext()
+									}}
+								>
+									Close Pane
+								</button>
+							</>
 						)}
 					</div>
 				)}
