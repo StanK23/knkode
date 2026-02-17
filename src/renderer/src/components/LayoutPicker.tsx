@@ -1,4 +1,5 @@
 import type { LayoutPreset } from '../../../shared/types'
+import { sectionLabelStyle } from '../styles/shared'
 
 interface LayoutPickerProps {
 	current: LayoutPreset | null
@@ -17,7 +18,7 @@ const PRESETS: { value: LayoutPreset; label: string; icon: string }[] = [
 export function LayoutPicker({ current, onSelect }: LayoutPickerProps) {
 	return (
 		<div style={containerStyle}>
-			<span style={labelStyle}>Layout</span>
+			<span style={sectionLabelStyle}>Layout</span>
 			<div style={gridStyle}>
 				{PRESETS.map((p) => (
 					<button
@@ -44,14 +45,6 @@ const containerStyle: React.CSSProperties = {
 	display: 'flex',
 	flexDirection: 'column',
 	gap: 8,
-}
-
-const labelStyle: React.CSSProperties = {
-	fontSize: 11,
-	color: 'var(--text-secondary)',
-	textTransform: 'uppercase',
-	letterSpacing: 1,
-	fontWeight: 600,
 }
 
 const gridStyle: React.CSSProperties = {

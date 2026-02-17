@@ -38,9 +38,7 @@ export function App() {
 	if (initError) {
 		return (
 			<div style={loadingStyle}>
-				<span style={{ color: 'var(--danger, #e74c3c)' }}>
-					Failed to load: {initError}
-				</span>
+				<span style={{ color: 'var(--danger, #e74c3c)' }}>Failed to load: {initError}</span>
 			</div>
 		)
 	}

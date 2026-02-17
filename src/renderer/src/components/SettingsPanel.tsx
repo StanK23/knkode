@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import type { LayoutPreset, PaneConfig, Workspace } from '../../../shared/types'
 import { createLayoutFromPreset, useStore } from '../store'
+import { sectionLabelStyle } from '../styles/shared'
 import { LayoutPicker } from './LayoutPicker'
 
 interface SettingsPanelProps {
@@ -11,6 +12,7 @@ interface SettingsPanelProps {
 export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const updateWorkspace = useStore((s) => s.updateWorkspace)
 	const removeWorkspace = useStore((s) => s.removeWorkspace)
+	const updatePaneConfig = useStore((s) => s.updatePaneConfig)
 	const homeDir = useStore((s) => s.homeDir)
 
 	const [name, setName] = useState(workspace.name)
@@ -45,7 +47,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 				panes,
 			})
 		},
-		[workspace, updateWorkspace],
+		[workspace, updateWorkspace, homeDir],
 	)
 
 	const handleDelete = useCallback(() => {
@@ -55,17 +57,9 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 
 	const handlePaneUpdate = useCallback(
 		(paneId: string, updates: Partial<PaneConfig>) => {
-			const pane = workspace.panes[paneId]
-			if (!pane) return
-			updateWorkspace({
-				...workspace,
-				panes: {
-					...workspace.panes,
-					[paneId]: { ...pane, ...updates },
-				},
-			})
+			updatePaneConfig(workspace.id, paneId, updates)
 		},
-		[workspace, updateWorkspace],
+		[workspace.id, updatePaneConfig],
 	)
 
 	return (
@@ -252,14 +246,6 @@ const sectionStyle: React.CSSProperties = {
 	display: 'flex',
 	flexDirection: 'column',
 	gap: 8,
-}
-
-const sectionLabelStyle: React.CSSProperties = {
-	fontSize: 11,
-	color: 'var(--text-secondary)',
-	textTransform: 'uppercase',
-	letterSpacing: 1,
-	fontWeight: 600,
 }
 
 const fieldRowStyle: React.CSSProperties = {

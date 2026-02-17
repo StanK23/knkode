@@ -12,21 +12,14 @@ interface PaneAreaProps {
 
 export function PaneArea({ workspace }: PaneAreaProps) {
 	const updateWorkspace = useStore((s) => s.updateWorkspace)
+	const updatePaneConfig = useStore((s) => s.updatePaneConfig)
 	const paneCount = Object.keys(workspace.panes).length
 
 	const handleUpdateConfig = useCallback(
 		(paneId: string, updates: Partial<PaneConfig>) => {
-			const pane = workspace.panes[paneId]
-			if (!pane) return
-			updateWorkspace({
-				...workspace,
-				panes: {
-					...workspace.panes,
-					[paneId]: { ...pane, ...updates },
-				},
-			})
+			updatePaneConfig(workspace.id, paneId, updates)
 		},
-		[workspace, updateWorkspace],
+		[workspace.id, updatePaneConfig],
 	)
 
 	const handleSplit = useCallback(

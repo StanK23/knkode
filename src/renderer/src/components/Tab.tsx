@@ -1,5 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { Workspace } from '../../../shared/types'
+import { useClickOutside } from '../hooks/useClickOutside'
+import { useInlineEdit } from '../hooks/useInlineEdit'
+import {
+	colorDotStyle,
+	contextItemStyle,
+	contextMenuStyle,
+	contextSeparatorStyle,
+} from '../styles/shared'
 
 interface TabProps {
 	workspace: Workspace
@@ -9,49 +17,20 @@ interface TabProps {
 	onRename: (id: string, name: string) => void
 }
 
-export function Tab({
-	workspace,
-	isActive,
-	onActivate,
-	onClose,
-	onRename,
-}: TabProps) {
-	const [isEditing, setIsEditing] = useState(false)
-	const [editValue, setEditValue] = useState(workspace.name)
+export function Tab({ workspace, isActive, onActivate, onClose, onRename }: TabProps) {
 	const [showContext, setShowContext] = useState(false)
-	const inputRef = useRef<HTMLInputElement>(null)
 	const contextRef = useRef<HTMLDivElement>(null)
 
-	const handleSubmit = useCallback(() => {
-		const trimmed = editValue.trim()
-		if (trimmed && trimmed !== workspace.name) {
-			onRename(workspace.id, trimmed)
-		}
-		setIsEditing(false)
-	}, [editValue, workspace.id, workspace.name, onRename])
+	const { isEditing, inputProps, startEditing } = useInlineEdit(workspace.name, (name) =>
+		onRename(workspace.id, name),
+	)
 
 	const handleContextMenu = useCallback((e: React.MouseEvent) => {
 		e.preventDefault()
 		setShowContext(true)
 	}, [])
 
-	useEffect(() => {
-		if (!showContext) return
-		const handler = (e: MouseEvent) => {
-			if (contextRef.current && !contextRef.current.contains(e.target as Node)) {
-				setShowContext(false)
-			}
-		}
-		document.addEventListener('mousedown', handler)
-		return () => document.removeEventListener('mousedown', handler)
-	}, [showContext])
-
-	useEffect(() => {
-		if (isEditing && inputRef.current) {
-			inputRef.current.focus()
-			inputRef.current.select()
-		}
-	}, [isEditing])
+	useClickOutside(contextRef, () => setShowContext(false), showContext)
 
 	return (
 		<div
@@ -78,55 +57,14 @@ export function Tab({
 				if (!isActive) e.currentTarget.style.background = 'var(--bg-tab)'
 			}}
 		>
-			{/* Color dot */}
-			<span
-				style={{
-					width: 8,
-					height: 8,
-					borderRadius: '50%',
-					background: workspace.color,
-					flexShrink: 0,
-				}}
-			/>
+			<span aria-hidden="true" style={{ ...colorDotStyle, background: workspace.color }} />
 
-			{/* Name */}
 			{isEditing ? (
-				<input
-					ref={inputRef}
-					value={editValue}
-					onChange={(e) => setEditValue(e.target.value)}
-					onBlur={handleSubmit}
-					onKeyDown={(e) => {
-						if (e.key === 'Enter') handleSubmit()
-						if (e.key === 'Escape') setIsEditing(false)
-					}}
-					onClick={(e) => e.stopPropagation()}
-					style={{
-						background: 'var(--bg-secondary)',
-						border: '1px solid var(--accent)',
-						borderRadius: 'var(--radius-sm)',
-						color: 'var(--text-primary)',
-						fontSize: 12,
-						padding: '1px 4px',
-						outline: 'none',
-						width: 80,
-					}}
-				/>
+				<input {...inputProps} onClick={(e) => e.stopPropagation()} style={editInputStyle} />
 			) : (
-				<span
-					style={{
-						color: 'var(--text-primary)',
-						fontSize: 12,
-						whiteSpace: 'nowrap',
-						overflow: 'hidden',
-						textOverflow: 'ellipsis',
-					}}
-				>
-					{workspace.name}
-				</span>
+				<span style={nameStyle}>{workspace.name}</span>
 			)}
 
-			{/* Close button */}
 			<button
 				type="button"
 				onClick={(e) => {
@@ -138,22 +76,20 @@ export function Tab({
 				✕
 			</button>
 
-			{/* Context menu */}
 			{showContext && (
-				<div ref={contextRef} style={contextMenuStyle}>
+				<div ref={contextRef} style={{ ...contextMenuStyle, top: 'var(--tab-height)', left: 0 }}>
 					<button
 						type="button"
 						style={contextItemStyle}
 						onClick={(e) => {
 							e.stopPropagation()
-							setEditValue(workspace.name)
-							setIsEditing(true)
+							startEditing()
 							setShowContext(false)
 						}}
 					>
 						Rename
 					</button>
-					<div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
+					<div style={contextSeparatorStyle} />
 					<button
 						type="button"
 						style={{ ...contextItemStyle, color: 'var(--danger)' }}
@@ -185,6 +121,25 @@ const tabStyle: React.CSSProperties = {
 	maxWidth: 180,
 }
 
+const editInputStyle: React.CSSProperties = {
+	background: 'var(--bg-secondary)',
+	border: '1px solid var(--accent)',
+	borderRadius: 'var(--radius-sm)',
+	color: 'var(--text-primary)',
+	fontSize: 12,
+	padding: '1px 4px',
+	outline: 'none',
+	width: 80,
+}
+
+const nameStyle: React.CSSProperties = {
+	color: 'var(--text-primary)',
+	fontSize: 12,
+	whiteSpace: 'nowrap',
+	overflow: 'hidden',
+	textOverflow: 'ellipsis',
+}
+
 const closeBtnStyle: React.CSSProperties = {
 	background: 'none',
 	border: 'none',
@@ -195,30 +150,4 @@ const closeBtnStyle: React.CSSProperties = {
 	lineHeight: 1,
 	marginLeft: 'auto',
 	flexShrink: 0,
-}
-
-const contextMenuStyle: React.CSSProperties = {
-	position: 'absolute',
-	top: 'var(--tab-height)',
-	left: 0,
-	background: 'var(--bg-secondary)',
-	border: '1px solid var(--border)',
-	borderRadius: 'var(--radius)',
-	padding: 4,
-	zIndex: 100,
-	minWidth: 140,
-	boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-}
-
-const contextItemStyle: React.CSSProperties = {
-	display: 'block',
-	width: '100%',
-	textAlign: 'left',
-	background: 'none',
-	border: 'none',
-	color: 'var(--text-primary)',
-	padding: '6px 12px',
-	fontSize: 12,
-	cursor: 'pointer',
-	borderRadius: 'var(--radius-sm)',
 }

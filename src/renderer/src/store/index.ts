@@ -170,7 +170,7 @@ const WORKSPACE_COLORS = [
 	'#9b59b6',
 	'#1abc9c',
 	'#e67e22',
-]
+] as const
 
 interface StoreState {
 	// Data
@@ -190,6 +190,7 @@ interface StoreState {
 	setActiveWorkspace: (id: string) => void
 	openWorkspace: (id: string) => void
 	closeWorkspaceTab: (id: string) => void
+	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
 	saveState: () => Promise<void>
 }
@@ -348,6 +349,26 @@ export const useStore = create<StoreState>((set, get) => ({
 				console.error('[store] Failed to save app state:', err)
 			})
 			return { appState: newAppState }
+		})
+	},
+
+	updatePaneConfig: (workspaceId, paneId, updates) => {
+		set((state) => {
+			const workspace = state.workspaces.find((w) => w.id === workspaceId)
+			if (!workspace || !workspace.panes[paneId]) return state
+			const updated = {
+				...workspace,
+				panes: {
+					...workspace.panes,
+					[paneId]: { ...workspace.panes[paneId], ...updates },
+				},
+			}
+			window.api.saveWorkspace(updated).catch((err) => {
+				console.error('[store] Failed to save workspace:', err)
+			})
+			return {
+				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
+			}
 		})
 	},
 

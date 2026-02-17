@@ -1,6 +1,8 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { Workspace } from '../../../shared/types'
+import { useClickOutside } from '../hooks/useClickOutside'
 import { WORKSPACE_COLORS, useStore } from '../store'
+import { colorDotStyle } from '../styles/shared'
 import { Tab } from './Tab'
 
 export function TabBar() {
@@ -13,6 +15,8 @@ export function TabBar() {
 	const openWorkspace = useStore((s) => s.openWorkspace)
 
 	const [showClosedMenu, setShowClosedMenu] = useState(false)
+	const closedMenuRef = useRef<HTMLDivElement>(null)
+	useClickOutside(closedMenuRef, () => setShowClosedMenu(false), showClosedMenu)
 
 	const openTabs: Workspace[] = appState.openWorkspaceIds
 		.map((id) => workspaces.find((w) => w.id === id))
@@ -68,7 +72,10 @@ export function TabBar() {
 
 			{/* Closed workspaces menu */}
 			{closedWorkspaces.length > 0 && (
-				<div style={{ position: 'relative', marginLeft: 'auto', marginRight: 8 }}>
+				<div
+					ref={closedMenuRef}
+					style={{ position: 'relative', marginLeft: 'auto', marginRight: 8 }}
+				>
 					<button
 						type="button"
 						onClick={() => setShowClosedMenu((v) => !v)}
@@ -89,15 +96,7 @@ export function TabBar() {
 										setShowClosedMenu(false)
 									}}
 								>
-									<span
-										style={{
-											width: 8,
-											height: 8,
-											borderRadius: '50%',
-											background: ws.color,
-											flexShrink: 0,
-										}}
-									/>
+									<span aria-hidden="true" style={{ ...colorDotStyle, background: ws.color }} />
 									{ws.name}
 								</button>
 							))}
