@@ -155,6 +155,7 @@ export function Tab({
 								<button
 									type="button"
 									key={c}
+									aria-label={`Color ${c}`}
 									style={{
 										...colorSwatchStyle,
 										background: c,
