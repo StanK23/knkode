@@ -49,7 +49,7 @@ export function Pane({
 		fontSize: config.themeOverride?.fontSize?.toString() ?? '',
 	})
 
-	// Spawn PTY on mount only — cwd/startupCommand captured at creation time
+	// Spawn PTY on mount only — config changes via context menu take effect on next pane creation
 	const initialCwdRef = useRef(config.cwd)
 	const initialCmdRef = useRef(config.startupCommand)
 	useEffect(() => {
