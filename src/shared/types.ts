@@ -1,0 +1,85 @@
+export interface PaneTheme {
+	background: string
+	foreground: string
+	fontSize: number
+	opacity: number
+}
+
+export interface PaneConfig {
+	label: string
+	cwd: string
+	startupCommand: string | null
+	themeOverride: Partial<PaneTheme> | null
+}
+
+export type SplitDirection = 'horizontal' | 'vertical'
+
+export interface LayoutLeaf {
+	paneId: string
+	size: number
+}
+
+export interface LayoutBranch {
+	direction: SplitDirection
+	size: number
+	children: LayoutNode[]
+}
+
+export type LayoutNode = LayoutLeaf | LayoutBranch
+
+export function isLayoutBranch(node: LayoutNode): node is LayoutBranch {
+	return 'children' in node
+}
+
+export type LayoutPreset =
+	| 'single'
+	| '2-column'
+	| '2-row'
+	| '3-panel-l'
+	| '3-panel-t'
+	| '2x2-grid'
+
+export interface WorkspaceLayout {
+	type: 'preset' | 'custom'
+	preset: LayoutPreset | null
+	tree: LayoutNode
+}
+
+export interface Workspace {
+	id: string
+	name: string
+	color: string
+	theme: PaneTheme
+	layout: WorkspaceLayout
+	panes: Record<string, PaneConfig>
+}
+
+export interface AppState {
+	openWorkspaceIds: string[]
+	activeWorkspaceId: string | null
+	windowBounds: {
+		x: number
+		y: number
+		width: number
+		height: number
+	}
+}
+
+// IPC channel names
+export const IPC = {
+	// Config
+	CONFIG_GET_WORKSPACES: 'config:get-workspaces',
+	CONFIG_SAVE_WORKSPACE: 'config:save-workspace',
+	CONFIG_DELETE_WORKSPACE: 'config:delete-workspace',
+	CONFIG_GET_APP_STATE: 'config:get-app-state',
+	CONFIG_SAVE_APP_STATE: 'config:save-app-state',
+
+	// PTY
+	PTY_CREATE: 'pty:create',
+	PTY_WRITE: 'pty:write',
+	PTY_RESIZE: 'pty:resize',
+	PTY_KILL: 'pty:kill',
+	PTY_DATA: 'pty:data',
+	PTY_EXIT: 'pty:exit',
+	PTY_CWD_CHANGED: 'pty:cwd-changed',
+} as const
