@@ -12,6 +12,7 @@ export function App() {
 	const workspaces = useStore((s) => s.workspaces)
 	const appState = useStore((s) => s.appState)
 	const updatePaneCwd = useStore((s) => s.updatePaneCwd)
+	const visitedWorkspaceIds = useStore((s) => s.visitedWorkspaceIds)
 
 	const [showSettings, setShowSettings] = useState(false)
 
@@ -47,13 +48,13 @@ export function App() {
 	}
 
 	const activeWorkspace = workspaces.find((w) => w.id === appState.activeWorkspaceId)
+	const visitedWorkspaces = workspaces.filter((w) => visitedWorkspaceIds.includes(w.id))
 
 	return (
 		<div style={appStyle}>
 			<TabBar />
-			{activeWorkspace ? (
+			{visitedWorkspaces.length > 0 ? (
 				<>
-					{/* Settings gear button */}
 					<button
 						type="button"
 						onClick={() => setShowSettings(true)}
@@ -62,8 +63,19 @@ export function App() {
 					>
 						&#9881;
 					</button>
-					<PaneArea workspace={activeWorkspace} />
-					{showSettings && (
+					{visitedWorkspaces.map((ws) => (
+						<div
+							key={ws.id}
+							style={
+								ws.id === appState.activeWorkspaceId
+									? paneWrapperActiveStyle
+									: paneWrapperHiddenStyle
+							}
+						>
+							<PaneArea workspace={ws} />
+						</div>
+					))}
+					{showSettings && activeWorkspace && (
 						<SettingsPanel workspace={activeWorkspace} onClose={() => setShowSettings(false)} />
 					)}
 				</>
@@ -98,6 +110,18 @@ const emptyStyle: React.CSSProperties = {
 	alignItems: 'center',
 	justifyContent: 'center',
 	flex: 1,
+}
+
+const paneWrapperActiveStyle: React.CSSProperties = {
+	display: 'flex',
+	flex: 1,
+	overflow: 'hidden',
+}
+
+const paneWrapperHiddenStyle: React.CSSProperties = {
+	display: 'none',
+	flex: 1,
+	overflow: 'hidden',
 }
 
 const gearBtnStyle: React.CSSProperties = {

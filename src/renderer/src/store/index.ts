@@ -163,6 +163,10 @@ function createLayoutFromPreset(
 	}
 }
 
+function addToVisited(visited: string[], id: string): string[] {
+	return visited.includes(id) ? visited : [...visited, id]
+}
+
 const WORKSPACE_COLORS = [
 	'#6c63ff',
 	'#e74c3c',
@@ -185,6 +189,9 @@ interface StoreState {
 	initError: string | null
 	focusedPaneId: string | null
 	focusGeneration: number
+	/** Workspace IDs that have been activated at least once this session.
+	 *  Used for lazy PTY loading — only visited workspaces render PaneAreas. */
+	visitedWorkspaceIds: string[]
 
 	// Actions
 	setFocusedPane: (paneId: string | null) => void
@@ -217,6 +224,7 @@ export const useStore = create<StoreState>((set, get) => ({
 	initError: null,
 	focusedPaneId: null,
 	focusGeneration: 0,
+	visitedWorkspaceIds: [],
 
 	setFocusedPane: (paneId) =>
 		set((state) => ({ focusedPaneId: paneId, focusGeneration: state.focusGeneration + 1 })),
@@ -254,7 +262,8 @@ export const useStore = create<StoreState>((set, get) => ({
 				await window.api.saveAppState(appState)
 			}
 
-			set({ workspaces, appState, homeDir, initialized: true })
+			const initialVisited = appState.activeWorkspaceId ? [appState.activeWorkspaceId] : []
+			set({ workspaces, appState, homeDir, initialized: true, visitedWorkspaceIds: initialVisited })
 		} catch (err) {
 			console.error('[store] Failed to initialize:', err)
 			set({ initError: String(err), initialized: true })
@@ -284,6 +293,7 @@ export const useStore = create<StoreState>((set, get) => ({
 		set({
 			workspaces: [...state.workspaces, workspace],
 			appState: newAppState,
+			visitedWorkspaceIds: addToVisited(state.visitedWorkspaceIds, workspace.id),
 		})
 
 		return workspace
@@ -323,6 +333,7 @@ export const useStore = create<StoreState>((set, get) => ({
 		set({
 			workspaces: state.workspaces.filter((w) => w.id !== id),
 			appState: newAppState,
+			visitedWorkspaceIds: state.visitedWorkspaceIds.filter((wid) => wid !== id),
 		})
 	},
 
@@ -332,19 +343,24 @@ export const useStore = create<StoreState>((set, get) => ({
 			window.api.saveAppState(newAppState).catch((err) => {
 				console.error('[store] Failed to save app state:', err)
 			})
-			return { appState: newAppState, focusedPaneId: null }
+			return {
+				appState: newAppState,
+				focusedPaneId: null,
+				visitedWorkspaceIds: addToVisited(state.visitedWorkspaceIds, id),
+			}
 		})
 	},
 
 	openWorkspace: (id) => {
 		set((state) => {
 			const open = state.appState.openWorkspaceIds
+			const visited = addToVisited(state.visitedWorkspaceIds, id)
 			if (open.includes(id)) {
 				const newAppState = { ...state.appState, activeWorkspaceId: id }
 				window.api.saveAppState(newAppState).catch((err) => {
 					console.error('[store] Failed to save app state:', err)
 				})
-				return { appState: newAppState }
+				return { appState: newAppState, visitedWorkspaceIds: visited }
 			}
 			const newAppState = {
 				...state.appState,
@@ -354,7 +370,7 @@ export const useStore = create<StoreState>((set, get) => ({
 			window.api.saveAppState(newAppState).catch((err) => {
 				console.error('[store] Failed to save app state:', err)
 			})
-			return { appState: newAppState }
+			return { appState: newAppState, visitedWorkspaceIds: visited }
 		})
 	},
 
@@ -373,7 +389,12 @@ export const useStore = create<StoreState>((set, get) => ({
 			window.api.saveAppState(newAppState).catch((err) => {
 				console.error('[store] Failed to save app state:', err)
 			})
-			return { appState: newAppState }
+			const newVisited = state.visitedWorkspaceIds.filter((wid) => wid !== id)
+			// Ensure the fallback active workspace is visited so its PaneArea renders
+			if (newActive && !newVisited.includes(newActive)) {
+				newVisited.push(newActive)
+			}
+			return { appState: newAppState, visitedWorkspaceIds: newVisited }
 		})
 	},
 
