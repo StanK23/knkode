@@ -33,6 +33,10 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 
 	const handleLayoutChange = useCallback(
 		(preset: LayoutPreset) => {
+			// Kill old PTYs before replacing panes
+			for (const oldPaneId of Object.keys(workspace.panes)) {
+				window.api.killPty(oldPaneId).catch(() => {})
+			}
 			const { layout, panes } = createLayoutFromPreset(preset)
 			updateWorkspace({
 				...workspace,

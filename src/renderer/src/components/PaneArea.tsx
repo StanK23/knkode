@@ -80,8 +80,7 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 
 	const handleClose = useCallback(
 		(paneId: string) => {
-			window.api.killPty(paneId)
-
+			// PTY cleanup is handled by Pane's unmount effect
 			const removeFromTree = (node: LayoutNode): LayoutNode | null => {
 				if (!isLayoutBranch(node)) {
 					return node.paneId === paneId ? null : node

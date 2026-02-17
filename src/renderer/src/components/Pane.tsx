@@ -29,13 +29,17 @@ export function Pane({
 	const contextRef = useRef<HTMLDivElement>(null)
 	const inputRef = useRef<HTMLInputElement>(null)
 
-	// Spawn PTY on mount
+	// Spawn PTY on mount only — cwd/startupCommand captured at creation time
+	const initialCwdRef = useRef(config.cwd)
+	const initialCmdRef = useRef(config.startupCommand)
 	useEffect(() => {
-		window.api.createPty(paneId, config.cwd, config.startupCommand)
+		window.api
+			.createPty(paneId, initialCwdRef.current, initialCmdRef.current)
+			.catch((err) => console.error(`[pane] Failed to create PTY ${paneId}:`, err))
 		return () => {
-			window.api.killPty(paneId)
+			window.api.killPty(paneId).catch(() => {})
 		}
-	}, [paneId, config.cwd, config.startupCommand])
+	}, [paneId])
 
 	const handleLabelSubmit = useCallback(() => {
 		const trimmed = editValue.trim()
