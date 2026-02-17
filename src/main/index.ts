@@ -1,15 +1,15 @@
 import { BrowserWindow, app, shell } from 'electron'
 import path from 'node:path'
 import { getAppState, saveAppState } from './config-store'
-import { setCwdTrackerWindow, startCwdTracking, stopCwdTracking } from './cwd-tracker'
+import { startCwdTracking, stopCwdTracking } from './cwd-tracker'
 import { registerIpcHandlers } from './ipc'
-import { killAllPtys, setPtyWindow } from './pty-manager'
+import { setMainWindow } from './main-window'
+import { killAllPtys } from './pty-manager'
 
 let mainWindow: BrowserWindow | null = null
 
 function createWindow(): void {
-	const appState = getAppState()
-	const { windowBounds } = appState
+	const { windowBounds } = getAppState()
 
 	mainWindow = new BrowserWindow({
 		x: windowBounds.x,
@@ -25,28 +25,43 @@ function createWindow(): void {
 			preload: path.join(__dirname, '../preload/index.js'),
 			nodeIntegration: false,
 			contextIsolation: true,
-			sandbox: false,
+			sandbox: true,
+			webSecurity: true,
 		},
 	})
 
-	setPtyWindow(mainWindow)
-	setCwdTrackerWindow(mainWindow)
+	setMainWindow(mainWindow)
 
-	// Save window bounds on move/resize
-	const saveBounds = () => {
-		if (!mainWindow) return
-		const bounds = mainWindow.getBounds()
-		const state = getAppState()
-		state.windowBounds = bounds
-		saveAppState(state)
+	// Debounced window bounds save — avoids disk I/O on every resize/move frame
+	let saveBoundsTimer: ReturnType<typeof setTimeout> | null = null
+	function saveBounds(): void {
+		if (saveBoundsTimer) clearTimeout(saveBoundsTimer)
+		saveBoundsTimer = setTimeout(() => {
+			if (!mainWindow) return
+			try {
+				const bounds = mainWindow.getBounds()
+				const state = getAppState()
+				state.windowBounds = bounds
+				saveAppState(state)
+			} catch (err) {
+				console.error('[main] Failed to save window bounds:', err)
+			}
+		}, 500)
 	}
 
 	mainWindow.on('resize', saveBounds)
 	mainWindow.on('move', saveBounds)
 
-	// Open external links in browser
+	// Open external links in browser — only allow http/https
 	mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-		shell.openExternal(url)
+		try {
+			const parsed = new URL(url)
+			if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+				shell.openExternal(url)
+			}
+		} catch {
+			// Invalid URL — ignore
+		}
 		return { action: 'deny' }
 	})
 
@@ -56,6 +71,14 @@ function createWindow(): void {
 	} else {
 		mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
 	}
+}
+
+let cleanedUp = false
+function cleanup(): void {
+	if (cleanedUp) return
+	cleanedUp = true
+	stopCwdTracking()
+	killAllPtys()
 }
 
 app.whenReady().then(() => {
@@ -71,14 +94,10 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
-	stopCwdTracking()
-	killAllPtys()
+	cleanup()
 	if (process.platform !== 'darwin') {
 		app.quit()
 	}
 })
 
-app.on('before-quit', () => {
-	stopCwdTracking()
-	killAllPtys()
-})
+app.on('before-quit', cleanup)

@@ -8,9 +8,7 @@ const WORKSPACES_FILE = path.join(CONFIG_DIR, 'workspaces.json')
 const APP_STATE_FILE = path.join(CONFIG_DIR, 'app-state.json')
 
 function ensureConfigDir(): void {
-	if (!fs.existsSync(CONFIG_DIR)) {
-		fs.mkdirSync(CONFIG_DIR, { recursive: true })
-	}
+	fs.mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 })
 }
 
 function readJson<T>(filePath: string, fallback: T): T {
@@ -19,8 +17,11 @@ function readJson<T>(filePath: string, fallback: T): T {
 			const raw = fs.readFileSync(filePath, 'utf-8')
 			return JSON.parse(raw) as T
 		}
-	} catch {
-		// Corrupted file — use fallback
+	} catch (err) {
+		console.error(
+			`[config-store] Failed to read ${filePath}, using defaults:`,
+			err instanceof Error ? err.message : err
+		)
 	}
 	return fallback
 }

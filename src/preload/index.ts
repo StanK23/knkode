@@ -2,6 +2,18 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { AppState, Workspace } from '../shared/types'
 import { IPC } from '../shared/types'
 
+type Unsubscribe = () => void
+
+function onIpcEvent<T extends unknown[]>(
+	channel: string,
+	callback: (...args: T) => void,
+): Unsubscribe {
+	const listener = (_event: Electron.IpcRendererEvent, ...args: T) =>
+		callback(...args)
+	ipcRenderer.on(channel, listener as (...args: unknown[]) => void)
+	return () => ipcRenderer.removeListener(channel, listener as (...args: unknown[]) => void)
+}
+
 const api = {
 	// Config
 	getWorkspaces: (): Promise<Workspace[]> => ipcRenderer.invoke(IPC.CONFIG_GET_WORKSPACES),
@@ -23,24 +35,12 @@ const api = {
 	killPty: (id: string): Promise<void> => ipcRenderer.invoke(IPC.PTY_KILL, id),
 
 	// PTY events
-	onPtyData: (callback: (id: string, data: string) => void) => {
-		const listener = (_event: Electron.IpcRendererEvent, id: string, data: string) =>
-			callback(id, data)
-		ipcRenderer.on(IPC.PTY_DATA, listener)
-		return () => ipcRenderer.removeListener(IPC.PTY_DATA, listener)
-	},
-	onPtyExit: (callback: (id: string, exitCode: number) => void) => {
-		const listener = (_event: Electron.IpcRendererEvent, id: string, exitCode: number) =>
-			callback(id, exitCode)
-		ipcRenderer.on(IPC.PTY_EXIT, listener)
-		return () => ipcRenderer.removeListener(IPC.PTY_EXIT, listener)
-	},
-	onPtyCwdChanged: (callback: (paneId: string, cwd: string) => void) => {
-		const listener = (_event: Electron.IpcRendererEvent, paneId: string, cwd: string) =>
-			callback(paneId, cwd)
-		ipcRenderer.on(IPC.PTY_CWD_CHANGED, listener)
-		return () => ipcRenderer.removeListener(IPC.PTY_CWD_CHANGED, listener)
-	},
+	onPtyData: (cb: (id: string, data: string) => void): Unsubscribe =>
+		onIpcEvent<[string, string]>(IPC.PTY_DATA, cb),
+	onPtyExit: (cb: (id: string, exitCode: number) => void): Unsubscribe =>
+		onIpcEvent<[string, number]>(IPC.PTY_EXIT, cb),
+	onPtyCwdChanged: (cb: (paneId: string, cwd: string) => void): Unsubscribe =>
+		onIpcEvent<[string, string]>(IPC.PTY_CWD_CHANGED, cb),
 }
 
 contextBridge.exposeInMainWorld('api', api)

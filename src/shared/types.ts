@@ -39,11 +39,9 @@ export type LayoutPreset =
 	| '3-panel-t'
 	| '2x2-grid'
 
-export interface WorkspaceLayout {
-	type: 'preset' | 'custom'
-	preset: LayoutPreset | null
-	tree: LayoutNode
-}
+export type WorkspaceLayout =
+	| { type: 'preset'; preset: LayoutPreset; tree: LayoutNode }
+	| { type: 'custom'; tree: LayoutNode }
 
 export interface Workspace {
 	id: string

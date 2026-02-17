@@ -1,7 +1,7 @@
-import type { BrowserWindow } from 'electron'
-import { execSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import os from 'node:os'
 import * as pty from 'node-pty'
+import { getMainWindow } from './main-window'
 import { IPC } from '../shared/types'
 
 interface PtySession {
@@ -11,11 +11,7 @@ interface PtySession {
 
 const sessions = new Map<string, PtySession>()
 
-let mainWindow: BrowserWindow | null = null
-
-export function setPtyWindow(win: BrowserWindow): void {
-	mainWindow = win
-}
+const SHELL_READY_DELAY_MS = 300
 
 export function createPty(id: string, cwd: string, startupCommand: string | null): void {
 	if (sessions.has(id)) {
@@ -40,19 +36,20 @@ export function createPty(id: string, cwd: string, startupCommand: string | null
 	sessions.set(id, session)
 
 	ptyProcess.onData((data) => {
-		mainWindow?.webContents.send(IPC.PTY_DATA, id, data)
+		getMainWindow()?.webContents.send(IPC.PTY_DATA, id, data)
 	})
 
 	ptyProcess.onExit(({ exitCode }) => {
 		sessions.delete(id)
-		mainWindow?.webContents.send(IPC.PTY_EXIT, id, exitCode)
+		getMainWindow()?.webContents.send(IPC.PTY_EXIT, id, exitCode)
 	})
 
-	// Run startup command if provided
+	// Delay startup command to let the shell finish initializing its prompt.
+	// 300ms is empirically chosen; may need tuning for slow environments.
 	if (startupCommand) {
 		setTimeout(() => {
 			ptyProcess.write(`${startupCommand}\r`)
-		}, 300)
+		}, SHELL_READY_DELAY_MS)
 	}
 }
 
@@ -61,10 +58,16 @@ export function writePty(id: string, data: string): void {
 }
 
 export function resizePty(id: string, cols: number, rows: number): void {
+	const session = sessions.get(id)
+	if (!session) return
+
 	try {
-		sessions.get(id)?.process.resize(cols, rows)
-	} catch {
-		// Ignore resize errors on dead processes
+		session.process.resize(cols, rows)
+	} catch (err) {
+		const msg = err instanceof Error ? err.message : String(err)
+		if (!msg.includes('exited') && !msg.includes('EPERM')) {
+			console.error(`[pty] Unexpected resize error for pane ${id}:`, err)
+		}
 	}
 }
 
@@ -77,7 +80,8 @@ export function killPty(id: string): void {
 }
 
 export function killAllPtys(): void {
-	for (const [id] of sessions) {
+	const ids = [...sessions.keys()]
+	for (const id of ids) {
 		killPty(id)
 	}
 }
@@ -86,21 +90,27 @@ export function getPtyCwd(id: string): string | null {
 	const session = sessions.get(id)
 	if (!session) return null
 
-	// node-pty doesn't expose cwd directly on all platforms,
-	// but we track the initial cwd and can use process.pid for lsof
+	// On macOS we can read the pty's cwd via lsof on the process PID.
+	// On all other platforms we fall back to the initial cwd, which will
+	// be stale if the user has changed directories.
 	try {
 		const pid = session.process.pid
-		if (pid && os.platform() === 'darwin') {
-			const result = execSync(`lsof -p ${pid} -Fn | grep '^fcwd$' -A1 | grep '^n'`, {
+		if (!Number.isInteger(pid) || pid <= 0) return session.cwd
+
+		if (os.platform() === 'darwin') {
+			const lsofOutput = execFileSync('lsof', ['-p', String(pid), '-Fn'], {
 				encoding: 'utf-8',
 				timeout: 1000,
-			}).trim()
-			if (result.startsWith('n')) {
-				return result.slice(1)
+			})
+			const lines = lsofOutput.split('\n')
+			const cwdIndex = lines.indexOf('fcwd')
+			if (cwdIndex >= 0 && cwdIndex + 1 < lines.length) {
+				const nameLine = lines[cwdIndex + 1]
+				if (nameLine.startsWith('n')) return nameLine.slice(1)
 			}
 		}
-	} catch {
-		// Fall back to stored cwd
+	} catch (err) {
+		console.warn(`[pty] CWD tracking failed for pane ${id}:`, err instanceof Error ? err.message : err)
 	}
 	return session.cwd
 }
