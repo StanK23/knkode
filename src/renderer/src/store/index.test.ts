@@ -772,3 +772,205 @@ describe('store duplicateWorkspace', () => {
 		expect(useStore.getState().workspaces).toHaveLength(1)
 	})
 })
+
+describe('store PTY lifecycle', () => {
+	describe('ensurePty', () => {
+		it('creates a PTY and adds paneId to activePtyIds', () => {
+			useStore.getState().ensurePty('p1', '/home', null)
+
+			expect(mockApi.createPty).toHaveBeenCalledWith('p1', '/home', null)
+			expect(useStore.getState().activePtyIds.has('p1')).toBe(true)
+		})
+
+		it('passes startupCommand to createPty', () => {
+			useStore.getState().ensurePty('p1', '/home', 'npm run dev')
+
+			expect(mockApi.createPty).toHaveBeenCalledWith('p1', '/home', 'npm run dev')
+		})
+
+		it('is idempotent — second call is a no-op', () => {
+			useStore.getState().ensurePty('p1', '/home', null)
+			useStore.getState().ensurePty('p1', '/other', 'cmd')
+
+			expect(mockApi.createPty).toHaveBeenCalledTimes(1)
+		})
+
+		it('rolls back activePtyIds on createPty failure', async () => {
+			const error = new Error('spawn failed')
+			mockApi.createPty.mockRejectedValueOnce(error)
+			vi.spyOn(console, 'error').mockImplementation(() => {})
+
+			useStore.getState().ensurePty('p1', '/home', null)
+			expect(useStore.getState().activePtyIds.has('p1')).toBe(true)
+
+			// Wait for the rejected promise to settle
+			await vi.waitFor(() => {
+				expect(useStore.getState().activePtyIds.has('p1')).toBe(false)
+			})
+
+			expect(console.error).toHaveBeenCalled()
+			vi.restoreAllMocks()
+		})
+	})
+
+	describe('killPtys', () => {
+		it('calls killPty for each pane ID', () => {
+			useStore.setState({ activePtyIds: new Set(['p1', 'p2', 'p3']) })
+
+			useStore.getState().killPtys(['p1', 'p2'])
+
+			expect(mockApi.killPty).toHaveBeenCalledWith('p1')
+			expect(mockApi.killPty).toHaveBeenCalledWith('p2')
+			expect(mockApi.killPty).toHaveBeenCalledTimes(2)
+		})
+
+		it('removes pane IDs from activePtyIds', () => {
+			useStore.setState({ activePtyIds: new Set(['p1', 'p2', 'p3']) })
+
+			useStore.getState().killPtys(['p1', 'p3'])
+
+			const active = useStore.getState().activePtyIds
+			expect(active.has('p1')).toBe(false)
+			expect(active.has('p2')).toBe(true)
+			expect(active.has('p3')).toBe(false)
+		})
+
+		it('handles empty array gracefully', () => {
+			useStore.setState({ activePtyIds: new Set(['p1']) })
+
+			useStore.getState().killPtys([])
+
+			expect(mockApi.killPty).not.toHaveBeenCalled()
+			expect(useStore.getState().activePtyIds.has('p1')).toBe(true)
+		})
+	})
+
+	describe('removePtyId', () => {
+		it('removes a single pane ID from activePtyIds', () => {
+			useStore.setState({ activePtyIds: new Set(['p1', 'p2']) })
+
+			useStore.getState().removePtyId('p1')
+
+			expect(useStore.getState().activePtyIds.has('p1')).toBe(false)
+			expect(useStore.getState().activePtyIds.has('p2')).toBe(true)
+		})
+
+		it('is a no-op for non-existent pane ID', () => {
+			const original = new Set(['p1'])
+			useStore.setState({ activePtyIds: original })
+
+			useStore.getState().removePtyId('nonexistent')
+
+			// Should still have p1, and reference should be the same (no unnecessary update)
+			expect(useStore.getState().activePtyIds.has('p1')).toBe(true)
+		})
+	})
+
+	describe('closePane PTY cleanup', () => {
+		const makeTwoPaneWs = () =>
+			makeWorkspace({
+				layout: {
+					type: 'custom',
+					tree: {
+						direction: 'horizontal',
+						size: 100,
+						children: [
+							{ paneId: 'p1', size: 50 },
+							{ paneId: 'p2', size: 50 },
+						],
+					},
+				},
+				panes: {
+					p1: { label: 'left', cwd: '/', startupCommand: null, themeOverride: null },
+					p2: { label: 'right', cwd: '/', startupCommand: null, themeOverride: null },
+				},
+			})
+
+		it('calls killPty when closing a pane', () => {
+			useStore.setState({
+				workspaces: [makeTwoPaneWs()],
+				activePtyIds: new Set(['p1', 'p2']),
+			})
+
+			useStore.getState().closePane('ws-1', 'p1')
+
+			expect(mockApi.killPty).toHaveBeenCalledWith('p1')
+		})
+
+		it('removes closed pane from activePtyIds', () => {
+			useStore.setState({
+				workspaces: [makeTwoPaneWs()],
+				activePtyIds: new Set(['p1', 'p2']),
+			})
+
+			useStore.getState().closePane('ws-1', 'p1')
+
+			expect(useStore.getState().activePtyIds.has('p1')).toBe(false)
+			expect(useStore.getState().activePtyIds.has('p2')).toBe(true)
+		})
+
+		it('does not call killPty when closing the last pane', () => {
+			useStore.setState({
+				workspaces: [makeWorkspace()],
+				activePtyIds: new Set(['p1']),
+			})
+
+			useStore.getState().closePane('ws-1', 'p1')
+
+			expect(mockApi.killPty).not.toHaveBeenCalled()
+			expect(useStore.getState().activePtyIds.has('p1')).toBe(true)
+		})
+	})
+
+	describe('removeWorkspace PTY cleanup', () => {
+		it('calls killPty for all workspace panes', async () => {
+			const ws = makeWorkspace({
+				panes: {
+					p1: { label: 'a', cwd: '/', startupCommand: null, themeOverride: null },
+					p2: { label: 'b', cwd: '/', startupCommand: null, themeOverride: null },
+				},
+			})
+			useStore.setState({
+				workspaces: [ws],
+				appState: {
+					openWorkspaceIds: ['ws-1'],
+					activeWorkspaceId: 'ws-1',
+					windowBounds: TEST_BOUNDS,
+				},
+				activePtyIds: new Set(['p1', 'p2']),
+			})
+
+			await useStore.getState().removeWorkspace('ws-1')
+
+			expect(mockApi.killPty).toHaveBeenCalledWith('p1')
+			expect(mockApi.killPty).toHaveBeenCalledWith('p2')
+			expect(useStore.getState().activePtyIds.size).toBe(0)
+		})
+	})
+
+	describe('closeWorkspaceTab PTY cleanup', () => {
+		it('calls killPty for all workspace panes', () => {
+			const ws = makeWorkspace({
+				panes: {
+					p1: { label: 'a', cwd: '/', startupCommand: null, themeOverride: null },
+					p2: { label: 'b', cwd: '/', startupCommand: null, themeOverride: null },
+				},
+			})
+			useStore.setState({
+				workspaces: [ws],
+				appState: {
+					openWorkspaceIds: ['ws-1'],
+					activeWorkspaceId: 'ws-1',
+					windowBounds: TEST_BOUNDS,
+				},
+				activePtyIds: new Set(['p1', 'p2']),
+			})
+
+			useStore.getState().closeWorkspaceTab('ws-1')
+
+			expect(mockApi.killPty).toHaveBeenCalledWith('p1')
+			expect(mockApi.killPty).toHaveBeenCalledWith('p2')
+			expect(useStore.getState().activePtyIds.size).toBe(0)
+		})
+	})
+})
