@@ -163,6 +163,10 @@ function createLayoutFromPreset(
 	}
 }
 
+function addToVisited(visited: string[], id: string): string[] {
+	return visited.includes(id) ? visited : [...visited, id]
+}
+
 const WORKSPACE_COLORS = [
 	'#6c63ff',
 	'#e74c3c',
@@ -289,7 +293,7 @@ export const useStore = create<StoreState>((set, get) => ({
 		set({
 			workspaces: [...state.workspaces, workspace],
 			appState: newAppState,
-			visitedWorkspaceIds: [...state.visitedWorkspaceIds, workspace.id],
+			visitedWorkspaceIds: addToVisited(state.visitedWorkspaceIds, workspace.id),
 		})
 
 		return workspace
@@ -329,6 +333,7 @@ export const useStore = create<StoreState>((set, get) => ({
 		set({
 			workspaces: state.workspaces.filter((w) => w.id !== id),
 			appState: newAppState,
+			visitedWorkspaceIds: state.visitedWorkspaceIds.filter((wid) => wid !== id),
 		})
 	},
 
@@ -338,19 +343,18 @@ export const useStore = create<StoreState>((set, get) => ({
 			window.api.saveAppState(newAppState).catch((err) => {
 				console.error('[store] Failed to save app state:', err)
 			})
-			const visited = state.visitedWorkspaceIds.includes(id)
-				? state.visitedWorkspaceIds
-				: [...state.visitedWorkspaceIds, id]
-			return { appState: newAppState, focusedPaneId: null, visitedWorkspaceIds: visited }
+			return {
+				appState: newAppState,
+				focusedPaneId: null,
+				visitedWorkspaceIds: addToVisited(state.visitedWorkspaceIds, id),
+			}
 		})
 	},
 
 	openWorkspace: (id) => {
 		set((state) => {
 			const open = state.appState.openWorkspaceIds
-			const visited = state.visitedWorkspaceIds.includes(id)
-				? state.visitedWorkspaceIds
-				: [...state.visitedWorkspaceIds, id]
+			const visited = addToVisited(state.visitedWorkspaceIds, id)
 			if (open.includes(id)) {
 				const newAppState = { ...state.appState, activeWorkspaceId: id }
 				window.api.saveAppState(newAppState).catch((err) => {
@@ -385,10 +389,12 @@ export const useStore = create<StoreState>((set, get) => ({
 			window.api.saveAppState(newAppState).catch((err) => {
 				console.error('[store] Failed to save app state:', err)
 			})
-			return {
-				appState: newAppState,
-				visitedWorkspaceIds: state.visitedWorkspaceIds.filter((wid) => wid !== id),
+			const newVisited = state.visitedWorkspaceIds.filter((wid) => wid !== id)
+			// Ensure the fallback active workspace is visited so its PaneArea renders
+			if (newActive && !newVisited.includes(newActive)) {
+				newVisited.push(newActive)
 			}
+			return { appState: newAppState, visitedWorkspaceIds: newVisited }
 		})
 	},
 
