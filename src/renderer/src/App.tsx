@@ -67,7 +67,9 @@ export function App() {
 						<div
 							key={ws.id}
 							style={
-								ws.id === appState.activeWorkspaceId ? paneWrapperActiveStyle : paneWrapperHiddenStyle
+								ws.id === appState.activeWorkspaceId
+									? paneWrapperActiveStyle
+									: paneWrapperHiddenStyle
 							}
 						>
 							<PaneArea workspace={ws} />
