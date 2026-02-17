@@ -19,10 +19,14 @@ export function startCwdTracking(): void {
 	// 3s balances UI responsiveness against lsof subprocess cost per pane
 	intervalId = setInterval(() => {
 		for (const [paneId, lastCwd] of trackedPanes) {
-			const currentCwd = getPtyCwd(paneId)
-			if (currentCwd && currentCwd !== lastCwd) {
-				trackedPanes.set(paneId, currentCwd)
-				getMainWindow()?.webContents.send(IPC.PTY_CWD_CHANGED, paneId, currentCwd)
+			try {
+				const currentCwd = getPtyCwd(paneId)
+				if (currentCwd && currentCwd !== lastCwd) {
+					trackedPanes.set(paneId, currentCwd)
+					getMainWindow()?.webContents.send(IPC.PTY_CWD_CHANGED, paneId, currentCwd)
+				}
+			} catch (err) {
+				console.warn(`[cwd-tracker] Failed to poll pane ${paneId}:`, err instanceof Error ? err.message : err)
 			}
 		}
 	}, 3000)
