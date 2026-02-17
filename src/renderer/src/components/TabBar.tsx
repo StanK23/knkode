@@ -139,7 +139,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 				<button
 					type="button"
 					onClick={onOpenSettings}
-					title="Workspace settings"
+					title={`Workspace settings (${modKey}+,)`}
 					aria-label="Open workspace settings"
 					style={gearBtnStyle}
 					onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
@@ -153,7 +153,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 			{closedWorkspaces.length > 0 && (
 				<div
 					ref={closedMenuRef}
-					style={{ position: 'relative', marginRight: 8 }}
+					style={closedMenuWrapperStyle}
 				>
 					<button
 						type="button"
@@ -214,6 +214,7 @@ const tabsContainerStyle: React.CSSProperties = {
 	overflowX: 'auto',
 	overflowY: 'hidden',
 	flex: 1,
+	WebkitAppRegion: 'no-drag',
 }
 
 const newBtnStyle: React.CSSProperties = {
@@ -241,6 +242,13 @@ const gearBtnStyle: React.CSSProperties = {
 	display: 'flex',
 	alignItems: 'center',
 	flexShrink: 0,
+	WebkitAppRegion: 'no-drag',
+}
+
+const closedMenuWrapperStyle: React.CSSProperties = {
+	position: 'relative',
+	marginRight: 8,
+	WebkitAppRegion: 'no-drag',
 }
 
 const reopenBtnStyle: React.CSSProperties = {

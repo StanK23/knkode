@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { PaneArea } from './components/PaneArea'
 import { SettingsPanel } from './components/SettingsPanel'
 import { TabBar } from './components/TabBar'
@@ -15,8 +15,9 @@ export function App() {
 	const visitedWorkspaceIds = useStore((s) => s.visitedWorkspaceIds)
 
 	const [showSettings, setShowSettings] = useState(false)
+	const toggleSettings = useCallback(() => setShowSettings((v) => !v), [])
 
-	useKeyboardShortcuts()
+	useKeyboardShortcuts({ toggleSettings })
 
 	useEffect(() => {
 		init()
