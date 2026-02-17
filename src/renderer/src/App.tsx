@@ -34,16 +34,18 @@ export function App() {
 
 	if (!initialized) {
 		return (
-			<div style={loadingStyle}>
-				<span style={{ color: 'var(--text-dim)' }}>Loading...</span>
+			<div className="flex items-center justify-center h-full">
+				<span className="text-content-muted">Loading...</span>
 			</div>
 		)
 	}
 
 	if (initError) {
 		return (
-			<div style={loadingStyle}>
-				<span style={{ color: 'var(--danger, #e74c3c)' }}>Failed to load: {initError}</span>
+			<div className="flex items-center justify-center h-full">
+				<span className="text-danger" style={{ color: '#e74c3c' }}>
+					Failed to load: {initError}
+				</span>
 			</div>
 		)
 	}
@@ -52,17 +54,15 @@ export function App() {
 	const visitedWorkspaces = workspaces.filter((w) => visitedWorkspaceIds.includes(w.id))
 
 	return (
-		<div style={appStyle}>
+		<div className="flex flex-col h-full w-full relative">
 			<TabBar onOpenSettings={() => setShowSettings(true)} />
 			{visitedWorkspaces.length > 0 ? (
 				<>
 					{visitedWorkspaces.map((ws) => (
 						<div
 							key={ws.id}
-							style={
-								ws.id === appState.activeWorkspaceId
-									? paneWrapperActiveStyle
-									: paneWrapperHiddenStyle
+							className={
+								ws.id === appState.activeWorkspaceId ? 'flex flex-1 overflow-hidden' : 'hidden'
 							}
 						>
 							<PaneArea workspace={ws} />
@@ -73,47 +73,10 @@ export function App() {
 					)}
 				</>
 			) : (
-				<div style={emptyStyle}>
-					<p style={{ color: 'var(--text-dim)', fontSize: 14 }}>
-						No workspace open. Click + to create one.
-					</p>
+				<div className="flex items-center justify-center flex-1">
+					<p className="text-content-muted text-sm">No workspace open. Click + to create one.</p>
 				</div>
 			)}
 		</div>
 	)
 }
-
-const appStyle: React.CSSProperties = {
-	display: 'flex',
-	flexDirection: 'column',
-	height: '100%',
-	width: '100%',
-	position: 'relative',
-}
-
-const loadingStyle: React.CSSProperties = {
-	display: 'flex',
-	alignItems: 'center',
-	justifyContent: 'center',
-	height: '100%',
-}
-
-const emptyStyle: React.CSSProperties = {
-	display: 'flex',
-	alignItems: 'center',
-	justifyContent: 'center',
-	flex: 1,
-}
-
-const paneWrapperActiveStyle: React.CSSProperties = {
-	display: 'flex',
-	flex: 1,
-	overflow: 'hidden',
-}
-
-const paneWrapperHiddenStyle: React.CSSProperties = {
-	display: 'none',
-	flex: 1,
-	overflow: 'hidden',
-}
-

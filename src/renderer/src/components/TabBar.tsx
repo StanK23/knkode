@@ -2,7 +2,6 @@ import { useCallback, useRef, useState } from 'react'
 import type { Workspace } from '../../../shared/types'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { WORKSPACE_COLORS, useStore } from '../store'
-import { colorDotStyle } from '../styles/shared'
 import { modKey } from '../utils/platform'
 import { Tab } from './Tab'
 
@@ -95,12 +94,16 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 	}, [createDefaultWorkspace])
 
 	return (
-		<div style={barStyle}>
+		<div className="flex items-end bg-sunken border-b border-edge relative shrink-0">
 			{/* Window title-bar drag region */}
-			<div className="drag-region" style={dragRegionStyle} />
+			<div className="drag-region absolute top-0 left-0 right-0 h-drag" />
 
 			{/* Tabs */}
-			<div role="tablist" style={tabsContainerStyle}>
+			<div
+				role="tablist"
+				className="flex items-end gap-px pl-traffic pt-1.5 overflow-x-auto overflow-y-hidden flex-1"
+				style={{ WebkitAppRegion: 'no-drag' }}
+			>
 				{openTabs.map((ws, i) => (
 					<Tab
 						key={ws.id}
@@ -128,7 +131,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 					onClick={handleNewWorkspace}
 					title={`New workspace (${modKey}+T)`}
 					aria-label="Create new workspace"
-					style={newBtnStyle}
+					className="bg-transparent border-none text-content-muted cursor-pointer text-lg leading-none px-2.5 h-tab flex items-center shrink-0 hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 				>
 					+
 				</button>
@@ -141,9 +144,8 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 					onClick={onOpenSettings}
 					title={`Workspace settings (${modKey}+,)`}
 					aria-label="Open workspace settings"
-					style={gearBtnStyle}
-					onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
-					onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-dim)' }}
+					className="bg-transparent border-none text-content-muted cursor-pointer text-sm px-1.5 h-tab flex items-center shrink-0 hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+					style={{ WebkitAppRegion: 'no-drag' }}
 				>
 					&#9881;
 				</button>
@@ -151,32 +153,33 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 
 			{/* Closed workspaces menu */}
 			{closedWorkspaces.length > 0 && (
-				<div
-					ref={closedMenuRef}
-					style={closedMenuWrapperStyle}
-				>
+				<div ref={closedMenuRef} className="relative mr-2" style={{ WebkitAppRegion: 'no-drag' }}>
 					<button
 						type="button"
 						onClick={() => setShowClosedMenu((v) => !v)}
 						title="Reopen closed workspace"
 						aria-label={`Reopen closed workspace (${closedWorkspaces.length} available)`}
-						style={reopenBtnStyle}
+						className="bg-transparent border border-edge text-content-muted cursor-pointer text-[11px] py-0.5 px-2 rounded-sm hover:text-content hover:border-content-muted focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 					>
 						{closedWorkspaces.length} closed
 					</button>
 					{showClosedMenu && (
-						<div style={closedMenuStyle}>
+						<div className="ctx-menu top-full right-0 mt-1">
 							{closedWorkspaces.map((ws) => (
 								<button
 									type="button"
 									key={ws.id}
-									style={closedItemStyle}
+									className="ctx-item flex items-center gap-2"
 									onClick={() => {
 										openWorkspace(ws.id)
 										setShowClosedMenu(false)
 									}}
 								>
-									<span aria-hidden="true" style={{ ...colorDotStyle, background: ws.color }} />
+									<span
+										aria-hidden="true"
+										className="w-2 h-2 rounded-full shrink-0"
+										style={{ background: ws.color }}
+									/>
 									{ws.name}
 								</button>
 							))}
@@ -186,106 +189,4 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 			)}
 		</div>
 	)
-}
-
-const barStyle: React.CSSProperties = {
-	display: 'flex',
-	alignItems: 'flex-end',
-	background: 'var(--bg-tertiary)',
-	borderBottom: '1px solid var(--border)',
-	position: 'relative',
-	flexShrink: 0,
-}
-
-const dragRegionStyle: React.CSSProperties = {
-	position: 'absolute',
-	top: 0,
-	left: 0,
-	right: 0,
-	height: 'var(--drag-region-height)',
-}
-
-const tabsContainerStyle: React.CSSProperties = {
-	display: 'flex',
-	alignItems: 'flex-end',
-	gap: 1,
-	paddingLeft: 'var(--traffic-light-offset)',
-	paddingTop: 6,
-	overflowX: 'auto',
-	overflowY: 'hidden',
-	flex: 1,
-	WebkitAppRegion: 'no-drag',
-}
-
-const newBtnStyle: React.CSSProperties = {
-	background: 'none',
-	border: 'none',
-	color: 'var(--text-dim)',
-	cursor: 'pointer',
-	fontSize: 18,
-	lineHeight: 1,
-	padding: '0 10px',
-	height: 'var(--tab-height)',
-	display: 'flex',
-	alignItems: 'center',
-	flexShrink: 0,
-}
-
-const gearBtnStyle: React.CSSProperties = {
-	background: 'none',
-	border: 'none',
-	color: 'var(--text-dim)',
-	cursor: 'pointer',
-	fontSize: 14,
-	padding: '0 6px',
-	height: 'var(--tab-height)',
-	display: 'flex',
-	alignItems: 'center',
-	flexShrink: 0,
-	WebkitAppRegion: 'no-drag',
-}
-
-const closedMenuWrapperStyle: React.CSSProperties = {
-	position: 'relative',
-	marginRight: 8,
-	WebkitAppRegion: 'no-drag',
-}
-
-const reopenBtnStyle: React.CSSProperties = {
-	background: 'none',
-	border: '1px solid var(--border)',
-	color: 'var(--text-dim)',
-	cursor: 'pointer',
-	fontSize: 11,
-	padding: '3px 8px',
-	borderRadius: 'var(--radius-sm)',
-}
-
-const closedMenuStyle: React.CSSProperties = {
-	position: 'absolute',
-	top: '100%',
-	right: 0,
-	marginTop: 4,
-	background: 'var(--bg-secondary)',
-	border: '1px solid var(--border)',
-	borderRadius: 'var(--radius)',
-	padding: 4,
-	zIndex: 100,
-	minWidth: 160,
-	boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-}
-
-const closedItemStyle: React.CSSProperties = {
-	display: 'flex',
-	alignItems: 'center',
-	gap: 8,
-	width: '100%',
-	textAlign: 'left',
-	background: 'none',
-	border: 'none',
-	color: 'var(--text-primary)',
-	padding: '6px 12px',
-	fontSize: 12,
-	cursor: 'pointer',
-	borderRadius: 'var(--radius-sm)',
 }
