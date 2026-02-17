@@ -1,9 +1,12 @@
 # knkode — Handoff
 
 ## What Was Done
-- [done] Bug fix: UI layout, accessibility & polish (PR #12)
-- [done] Bug fix: UI testing bugs — drag region, split dirs, settings shortcut, focus indicator (PR #14)
 - [done] Tailwind CSS v4 migration — all inline styles → Tailwind classes (PR #16)
+  - Installed `tailwindcss@4.1.18` + `@tailwindcss/vite@4.1.18`
+  - Semantic design tokens in `@theme`: surfaces, content tiers, functional colors, spacing, shadows
+  - Converted 8 component files, deleted `shared.ts`, removed all imperative hover handlers
+  - Extracted `.ctx-menu`, `.ctx-item`, `.ctx-input`, `.ctx-submit`, `.settings-input`, `.section-label` to `@layer components`
+  - Added `focus-visible:ring` to all action buttons
 
 ## Active Decisions
 - Tech stack: Electron + React + TypeScript + xterm.js + node-pty + Zustand
