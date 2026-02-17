@@ -185,6 +185,9 @@ interface StoreState {
 	initError: string | null
 	focusedPaneId: string | null
 	focusGeneration: number
+	/** Workspace IDs that have been activated at least once this session.
+	 *  Used for lazy PTY loading — only visited workspaces render PaneAreas. */
+	visitedWorkspaceIds: string[]
 
 	// Actions
 	setFocusedPane: (paneId: string | null) => void
@@ -217,6 +220,7 @@ export const useStore = create<StoreState>((set, get) => ({
 	initError: null,
 	focusedPaneId: null,
 	focusGeneration: 0,
+	visitedWorkspaceIds: [],
 
 	setFocusedPane: (paneId) =>
 		set((state) => ({ focusedPaneId: paneId, focusGeneration: state.focusGeneration + 1 })),
@@ -254,7 +258,8 @@ export const useStore = create<StoreState>((set, get) => ({
 				await window.api.saveAppState(appState)
 			}
 
-			set({ workspaces, appState, homeDir, initialized: true })
+			const initialVisited = appState.activeWorkspaceId ? [appState.activeWorkspaceId] : []
+			set({ workspaces, appState, homeDir, initialized: true, visitedWorkspaceIds: initialVisited })
 		} catch (err) {
 			console.error('[store] Failed to initialize:', err)
 			set({ initError: String(err), initialized: true })
@@ -284,6 +289,7 @@ export const useStore = create<StoreState>((set, get) => ({
 		set({
 			workspaces: [...state.workspaces, workspace],
 			appState: newAppState,
+			visitedWorkspaceIds: [...state.visitedWorkspaceIds, workspace.id],
 		})
 
 		return workspace
@@ -332,19 +338,25 @@ export const useStore = create<StoreState>((set, get) => ({
 			window.api.saveAppState(newAppState).catch((err) => {
 				console.error('[store] Failed to save app state:', err)
 			})
-			return { appState: newAppState, focusedPaneId: null }
+			const visited = state.visitedWorkspaceIds.includes(id)
+				? state.visitedWorkspaceIds
+				: [...state.visitedWorkspaceIds, id]
+			return { appState: newAppState, focusedPaneId: null, visitedWorkspaceIds: visited }
 		})
 	},
 
 	openWorkspace: (id) => {
 		set((state) => {
 			const open = state.appState.openWorkspaceIds
+			const visited = state.visitedWorkspaceIds.includes(id)
+				? state.visitedWorkspaceIds
+				: [...state.visitedWorkspaceIds, id]
 			if (open.includes(id)) {
 				const newAppState = { ...state.appState, activeWorkspaceId: id }
 				window.api.saveAppState(newAppState).catch((err) => {
 					console.error('[store] Failed to save app state:', err)
 				})
-				return { appState: newAppState }
+				return { appState: newAppState, visitedWorkspaceIds: visited }
 			}
 			const newAppState = {
 				...state.appState,
@@ -354,7 +366,7 @@ export const useStore = create<StoreState>((set, get) => ({
 			window.api.saveAppState(newAppState).catch((err) => {
 				console.error('[store] Failed to save app state:', err)
 			})
-			return { appState: newAppState }
+			return { appState: newAppState, visitedWorkspaceIds: visited }
 		})
 	},
 
@@ -373,7 +385,10 @@ export const useStore = create<StoreState>((set, get) => ({
 			window.api.saveAppState(newAppState).catch((err) => {
 				console.error('[store] Failed to save app state:', err)
 			})
-			return { appState: newAppState }
+			return {
+				appState: newAppState,
+				visitedWorkspaceIds: state.visitedWorkspaceIds.filter((wid) => wid !== id),
+			}
 		})
 	},
 

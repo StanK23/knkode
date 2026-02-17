@@ -46,12 +46,14 @@ export function App() {
 		)
 	}
 
+	const visitedWorkspaceIds = useStore((s) => s.visitedWorkspaceIds)
 	const activeWorkspace = workspaces.find((w) => w.id === appState.activeWorkspaceId)
+	const visitedWorkspaces = workspaces.filter((w) => visitedWorkspaceIds.includes(w.id))
 
 	return (
 		<div style={appStyle}>
 			<TabBar />
-			{activeWorkspace ? (
+			{visitedWorkspaces.length > 0 ? (
 				<>
 					{/* Settings gear button */}
 					<button
@@ -62,8 +64,19 @@ export function App() {
 					>
 						&#9881;
 					</button>
-					<PaneArea workspace={activeWorkspace} />
-					{showSettings && (
+					{visitedWorkspaces.map((ws) => (
+						<div
+							key={ws.id}
+							style={{
+								display: ws.id === appState.activeWorkspaceId ? 'flex' : 'none',
+								flex: 1,
+								overflow: 'hidden',
+							}}
+						>
+							<PaneArea workspace={ws} />
+						</div>
+					))}
+					{showSettings && activeWorkspace && (
 						<SettingsPanel workspace={activeWorkspace} onClose={() => setShowSettings(false)} />
 					)}
 				</>

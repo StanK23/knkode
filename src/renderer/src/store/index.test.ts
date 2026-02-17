@@ -61,6 +61,7 @@ function resetStore() {
 		initError: null,
 		focusedPaneId: null,
 		focusGeneration: 0,
+		visitedWorkspaceIds: [],
 	})
 }
 
@@ -498,5 +499,108 @@ describe('store pane config', () => {
 		useStore.setState({ workspaces: [makeWorkspace()] })
 		useStore.getState().updatePaneConfig('ws-1', 'nonexistent', { label: 'test' })
 		expect(useStore.getState().workspaces[0].panes.p1.label).toBe('term')
+	})
+})
+
+describe('store visitedWorkspaceIds', () => {
+	it('init adds activeWorkspaceId to visited', async () => {
+		const ws = makeWorkspace()
+		mockApi.getWorkspaces.mockResolvedValue([ws])
+		mockApi.getAppState.mockResolvedValue({
+			openWorkspaceIds: ['ws-1'],
+			activeWorkspaceId: 'ws-1',
+			windowBounds: TEST_BOUNDS,
+		})
+		mockApi.getHomeDir.mockResolvedValue('/home')
+
+		await useStore.getState().init()
+
+		expect(useStore.getState().visitedWorkspaceIds).toEqual(['ws-1'])
+	})
+
+	it('init with no active workspace leaves visited empty', async () => {
+		mockApi.getWorkspaces.mockResolvedValue([])
+		mockApi.getAppState.mockResolvedValue({
+			openWorkspaceIds: [],
+			activeWorkspaceId: null,
+			windowBounds: TEST_BOUNDS,
+		})
+		mockApi.getHomeDir.mockResolvedValue('/home')
+
+		await useStore.getState().init()
+
+		// A default workspace is created and becomes active
+		const state = useStore.getState()
+		expect(state.visitedWorkspaceIds).toHaveLength(1)
+		expect(state.visitedWorkspaceIds[0]).toBe(state.appState.activeWorkspaceId)
+	})
+
+	it('setActiveWorkspace adds to visited', () => {
+		useStore.setState({
+			appState: {
+				openWorkspaceIds: ['a', 'b'],
+				activeWorkspaceId: 'a',
+				windowBounds: TEST_BOUNDS,
+			},
+			visitedWorkspaceIds: ['a'],
+		})
+
+		useStore.getState().setActiveWorkspace('b')
+
+		expect(useStore.getState().visitedWorkspaceIds).toEqual(['a', 'b'])
+	})
+
+	it('setActiveWorkspace does not duplicate visited ids', () => {
+		useStore.setState({
+			appState: {
+				openWorkspaceIds: ['a', 'b'],
+				activeWorkspaceId: 'a',
+				windowBounds: TEST_BOUNDS,
+			},
+			visitedWorkspaceIds: ['a', 'b'],
+		})
+
+		useStore.getState().setActiveWorkspace('b')
+
+		expect(useStore.getState().visitedWorkspaceIds).toEqual(['a', 'b'])
+	})
+
+	it('openWorkspace adds to visited', () => {
+		useStore.setState({
+			appState: {
+				openWorkspaceIds: ['a'],
+				activeWorkspaceId: 'a',
+				windowBounds: TEST_BOUNDS,
+			},
+			visitedWorkspaceIds: ['a'],
+		})
+
+		useStore.getState().openWorkspace('b')
+
+		expect(useStore.getState().visitedWorkspaceIds).toEqual(['a', 'b'])
+	})
+
+	it('closeWorkspaceTab removes from visited', () => {
+		useStore.setState({
+			appState: {
+				openWorkspaceIds: ['a', 'b'],
+				activeWorkspaceId: 'a',
+				windowBounds: TEST_BOUNDS,
+			},
+			visitedWorkspaceIds: ['a', 'b'],
+		})
+
+		useStore.getState().closeWorkspaceTab('b')
+
+		expect(useStore.getState().visitedWorkspaceIds).toEqual(['a'])
+	})
+
+	it('createWorkspace adds new workspace to visited', async () => {
+		useStore.setState({ homeDir: '/home', visitedWorkspaceIds: ['existing'] })
+
+		const ws = await useStore.getState().createWorkspace('New', '#ff0000', 'single')
+
+		expect(useStore.getState().visitedWorkspaceIds).toContain(ws.id)
+		expect(useStore.getState().visitedWorkspaceIds).toContain('existing')
 	})
 })
