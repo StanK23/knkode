@@ -43,7 +43,9 @@ export function App() {
 	if (initError) {
 		return (
 			<div className="flex items-center justify-center h-full">
-				<span className="text-danger">Failed to load: {initError}</span>
+				<span className="text-danger" style={{ color: '#e74c3c' }}>
+					Failed to load: {initError}
+				</span>
 			</div>
 		)
 	}
