@@ -1,11 +1,6 @@
 # knkode — Handoff
 
 ## What Was Done
-- [done] Project foundation — configs, shared types, main process, preload (PR #1)
-- [done] Workspace UI — renderer layer with all core components (PR #2)
-- [done] Keyboard shortcuts & focus tracking (PR #3)
-- [done] Drag-to-reorder workspace tabs (PR #4)
-- [done] Vitest setup + 44 store tests (PR #5)
 - [done] Feature completion plan — `/autopilot` run (PRs #7–#9)
 - [done] Bug fix: PTY lifecycle & crash-on-close (PR #11) — 10-agent review, 73 tests
 - [done] Bug fix: UI layout, accessibility & polish (PR #12) — 8-agent review, 73 tests
