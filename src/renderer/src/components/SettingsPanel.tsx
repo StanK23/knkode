@@ -4,17 +4,6 @@ import { createLayoutFromPreset, useStore } from '../store'
 import { sectionLabelStyle } from '../styles/shared'
 import { LayoutPicker } from './LayoutPicker'
 
-/** Kill all PTYs for a workspace and remove them from the active set. */
-function killWorkspacePtys(paneIds: string[]): void {
-	const { activePtyIds } = useStore.getState()
-	const newSet = new Set(activePtyIds)
-	for (const id of paneIds) {
-		window.api.killPty(id).catch(() => {})
-		newSet.delete(id)
-	}
-	useStore.setState({ activePtyIds: newSet })
-}
-
 interface SettingsPanelProps {
 	workspace: Workspace
 	onClose: () => void
@@ -24,6 +13,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const updateWorkspace = useStore((s) => s.updateWorkspace)
 	const removeWorkspace = useStore((s) => s.removeWorkspace)
 	const updatePaneConfig = useStore((s) => s.updatePaneConfig)
+	const killPtys = useStore((s) => s.killPtys)
 	const homeDir = useStore((s) => s.homeDir)
 
 	const [name, setName] = useState(workspace.name)
@@ -47,7 +37,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 
 	const handleLayoutChange = useCallback(
 		(preset: LayoutPreset) => {
-			killWorkspacePtys(Object.keys(workspace.panes))
+			killPtys(Object.keys(workspace.panes))
 			const { layout, panes } = createLayoutFromPreset(preset, homeDir)
 			updateWorkspace({
 				...workspace,
@@ -55,7 +45,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 				panes,
 			})
 		},
-		[workspace, updateWorkspace, homeDir],
+		[workspace, updateWorkspace, killPtys, homeDir],
 	)
 
 	const handleDelete = useCallback(() => {
