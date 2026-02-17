@@ -21,6 +21,7 @@ interface TabProps {
 	onDrop: (index: number) => void
 	onDragEnd: () => void
 	isDragOver: boolean
+	isDragging: boolean
 }
 
 export function Tab({
@@ -35,6 +36,7 @@ export function Tab({
 	onDrop,
 	onDragEnd,
 	isDragOver,
+	isDragging,
 }: TabProps) {
 	const [showContext, setShowContext] = useState(false)
 	const contextRef = useRef<HTMLDivElement>(null)
@@ -55,7 +57,8 @@ export function Tab({
 			role="tab"
 			tabIndex={0}
 			aria-selected={isActive}
-			draggable
+			aria-roledescription="draggable tab"
+			draggable={!isEditing}
 			onClick={() => onActivate(workspace.id)}
 			onKeyDown={(e) => {
 				if (e.key === 'Enter' || e.key === ' ') {
@@ -66,6 +69,7 @@ export function Tab({
 			onContextMenu={handleContextMenu}
 			onDragStart={(e) => {
 				e.dataTransfer.effectAllowed = 'move'
+				e.dataTransfer.setData('text/plain', workspace.id)
 				onDragStart(index)
 			}}
 			onDragOver={(e) => onDragOver(e, index)}
@@ -75,7 +79,8 @@ export function Tab({
 				...tabStyle,
 				background: isActive ? 'var(--bg-tab-active)' : 'var(--bg-tab)',
 				borderBottom: isActive ? `2px solid ${workspace.color}` : '2px solid transparent',
-				borderLeft: isDragOver ? '2px solid var(--accent)' : '2px solid transparent',
+				boxShadow: isDragOver ? 'inset 2px 0 0 var(--accent)' : 'none',
+				opacity: isDragging ? 0.4 : 1,
 			}}
 			onMouseEnter={(e) => {
 				if (!isActive) e.currentTarget.style.background = 'var(--bg-tab-hover)'

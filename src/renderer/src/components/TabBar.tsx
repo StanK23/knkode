@@ -19,29 +19,38 @@ export function TabBar() {
 	const [showClosedMenu, setShowClosedMenu] = useState(false)
 	const [dragFromIndex, setDragFromIndex] = useState<number | null>(null)
 	const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+	const dragFromRef = useRef<number | null>(null)
 	const closedMenuRef = useRef<HTMLDivElement>(null)
 	useClickOutside(closedMenuRef, () => setShowClosedMenu(false), showClosedMenu)
 
-	const handleDragStart = useCallback((index: number) => setDragFromIndex(index), [])
+	const resetDragState = useCallback(() => {
+		setDragFromIndex(null)
+		setDragOverIndex(null)
+		dragFromRef.current = null
+	}, [])
+
+	const handleDragStart = useCallback((index: number) => {
+		setDragFromIndex(index)
+		dragFromRef.current = index
+	}, [])
 	const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
 		e.preventDefault()
 		e.dataTransfer.dropEffect = 'move'
-		setDragOverIndex(index)
+		setDragOverIndex((prev) => (prev === index ? prev : index))
 	}, [])
 	const handleDrop = useCallback(
 		(toIndex: number) => {
-			if (dragFromIndex !== null && dragFromIndex !== toIndex) {
-				reorderWorkspaceTabs(dragFromIndex, toIndex)
+			const from = dragFromRef.current
+			if (from !== null && from !== toIndex) {
+				reorderWorkspaceTabs(from, toIndex)
 			}
-			setDragFromIndex(null)
-			setDragOverIndex(null)
+			resetDragState()
 		},
-		[dragFromIndex, reorderWorkspaceTabs],
+		[reorderWorkspaceTabs, resetDragState],
 	)
 	const handleDragEnd = useCallback(() => {
-		setDragFromIndex(null)
-		setDragOverIndex(null)
-	}, [])
+		resetDragState()
+	}, [resetDragState])
 
 	const openTabs: Workspace[] = appState.openWorkspaceIds
 		.map((id) => workspaces.find((w) => w.id === id))
@@ -63,7 +72,7 @@ export function TabBar() {
 
 	return (
 		<div style={barStyle}>
-			{/* Drag region for frameless window */}
+			{/* Window title-bar drag region */}
 			<div className="drag-region" style={dragRegionStyle} />
 
 			{/* Tabs */}
@@ -82,6 +91,7 @@ export function TabBar() {
 						onDrop={handleDrop}
 						onDragEnd={handleDragEnd}
 						isDragOver={dragOverIndex === i && dragFromIndex !== i}
+						isDragging={dragFromIndex === i}
 					/>
 				))}
 

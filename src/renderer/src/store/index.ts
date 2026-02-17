@@ -196,6 +196,7 @@ interface StoreState {
 	setActiveWorkspace: (id: string) => void
 	openWorkspace: (id: string) => void
 	closeWorkspaceTab: (id: string) => void
+	/** Move the tab at fromIndex to toIndex within openWorkspaceIds (splice-remove then insert). */
 	reorderWorkspaceTabs: (fromIndex: number, toIndex: number) => void
 	splitPane: (workspaceId: string, paneId: string, direction: SplitDirection) => void
 	closePane: (workspaceId: string, paneId: string) => void
@@ -379,10 +380,17 @@ export const useStore = create<StoreState>((set, get) => ({
 	reorderWorkspaceTabs: (fromIndex, toIndex) => {
 		set((state) => {
 			const ids = [...state.appState.openWorkspaceIds]
-			if (fromIndex < 0 || fromIndex >= ids.length) return state
-			if (toIndex < 0 || toIndex >= ids.length) return state
+			if (fromIndex < 0 || fromIndex >= ids.length || toIndex < 0 || toIndex >= ids.length) {
+				console.warn('[store] reorderWorkspaceTabs: index out of range', {
+					fromIndex,
+					toIndex,
+					length: ids.length,
+				})
+				return state
+			}
 			if (fromIndex === toIndex) return state
 			const [moved] = ids.splice(fromIndex, 1)
+			if (!moved) return state
 			ids.splice(toIndex, 0, moved)
 			const newAppState = { ...state.appState, openWorkspaceIds: ids }
 			window.api.saveAppState(newAppState).catch((err) => {
