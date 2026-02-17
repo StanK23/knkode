@@ -2,15 +2,14 @@
 
 ## What Was Done
 - [done] Project foundation — configs, shared types, main process, preload (`feature/project-foundation`)
-- [done] PR-1 round 1 review fixes — security, error handling, IPC validation, DRY
-
-## Active Reviews
-
-### PR #1 — feat: project foundation — configs, backend, preload
-- State: `docs/reviews/PR-1/_state.json`
-- Agents: 8/8 completed
-- Phase: done — compiled report at `docs/reviews/PR-1/compiled-report.md`
-- **7 must-fix items** remaining (duplicate mainWindow, shallow IPC validation, unsafe readJson, writeJson errors, writePty no-op, tsconfig include, Biome lint)
+- [done] PR-1 round 2 review — 8 agents, all 7 must-fix items resolved:
+  - Removed duplicate mainWindow, use singleton exclusively
+  - Full IPC validation with assertion helpers (assertWorkspace, assertAppState, assertPaneId, etc.)
+  - Config-store: ENOENT vs corruption distinction, .corrupt backup, mode 0o600, error handling
+  - PTY: throw on missing write session, kill error handling, startup guard, /bin/sh fallback
+  - CWD tracker: try/catch per-pane in polling loop
+  - IpcChannel union type constraining preload
+  - tsconfig.node.json include fix, Biome formatting
 
 ## Active Decisions
 - Tech stack: Electron + React + TypeScript + xterm.js + node-pty + Zustand
@@ -19,6 +18,5 @@
 - WorkspaceLayout: discriminated union (`preset` vs `custom` variants)
 
 ## What's Next
-1. Fix PR-1 must-fix findings (on `feature/project-foundation`)
-2. Workspace UI — TabBar, App.tsx, SettingsPanel, LayoutPicker, store (new branch)
-3. Keyboard shortcuts & polish
+1. Workspace UI — TabBar, App.tsx, SettingsPanel, LayoutPicker, store (new branch)
+2. Keyboard shortcuts & polish
