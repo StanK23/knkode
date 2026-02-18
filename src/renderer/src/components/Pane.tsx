@@ -90,6 +90,8 @@ export function Pane({
 		setContextPanel(null)
 	}, [])
 
+	const stopPropagation = useCallback((e: React.MouseEvent) => e.stopPropagation(), [])
+
 	useClickOutside(contextRef, closeContext, showContext)
 
 	// Close context menu on Escape — uses global listener so the menu
@@ -201,7 +203,7 @@ export function Pane({
 						/* Prevent header's onMouseDown (handleFocus) from firing — without this,
 						   the zustand store update triggers a synchronous re-render that disrupts
 						   click events on menu buttons (the "stuck dismiss" bug). */
-						onMouseDown={(e) => e.stopPropagation()}
+						onMouseDown={stopPropagation}
 					>
 						<button
 							type="button"

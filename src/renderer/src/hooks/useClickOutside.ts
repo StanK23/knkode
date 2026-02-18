@@ -31,5 +31,6 @@ export function useClickOutside(
 		// via stopPropagation in the bubble phase (e.g. xterm's canvas).
 		document.addEventListener('mousedown', handler, true)
 		return () => document.removeEventListener('mousedown', handler, true)
-	}, [ref, onClose, active])
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- ref is stable (useRef)
+	}, [onClose, active])
 }
