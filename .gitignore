@@ -6,5 +6,5 @@ dist/
 .env
 .env.*
 docs/reviews/
-main.js
+/main.js
 .playwright-mcp/
