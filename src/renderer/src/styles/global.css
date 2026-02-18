@@ -150,7 +150,9 @@
 }
 
 @layer components {
-	/* Context menu */
+	/* Context menu — uses absolute by default (Tab, TabBar position via Tailwind
+	   utilities like top-tab left-0). Pane overrides to position:fixed via inline
+	   style to escape allotment's overflow:hidden. */
 	.ctx-menu {
 		@apply absolute bg-elevated border border-edge rounded-md p-1 z-[100] min-w-40 shadow-menu;
 	}
