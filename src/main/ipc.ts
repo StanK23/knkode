@@ -78,11 +78,17 @@ export function registerIpcHandlers(): void {
 
 	ipcMain.handle(IPC.APP_OPEN_EXTERNAL, (_e, url: unknown) => {
 		assertString(url, 'url')
-		const parsed = new URL(url)
+		if (url.length > 2048) throw new Error('URL too long')
+		let parsed: URL
+		try {
+			parsed = new URL(url)
+		} catch {
+			throw new Error('Invalid URL')
+		}
 		if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
 			throw new Error('Only http/https URLs are allowed')
 		}
-		return shell.openExternal(url)
+		return shell.openExternal(parsed.href)
 	})
 
 	ipcMain.handle(IPC.CONFIG_GET_WORKSPACES, () => getWorkspaces())
