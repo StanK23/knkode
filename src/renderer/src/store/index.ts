@@ -10,11 +10,12 @@ import type {
 	WorkspaceLayout,
 } from '../../../shared/types'
 import { isLayoutBranch } from '../../../shared/types'
+import { THEME_PRESETS } from '../data/theme-presets'
 
 function defaultTheme(): PaneTheme {
 	return {
-		background: '#1a1a2e',
-		foreground: '#e0e0e0',
+		background: THEME_PRESETS[0].background,
+		foreground: THEME_PRESETS[0].foreground,
 		fontSize: 14,
 		opacity: 1.0,
 	}
