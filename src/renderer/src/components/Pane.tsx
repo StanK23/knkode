@@ -4,7 +4,24 @@ import { useClickOutside } from '../hooks/useClickOutside'
 import { useInlineEdit } from '../hooks/useInlineEdit'
 import { useStore } from '../store'
 import { modKey } from '../utils/platform'
+import { FontPicker } from './FontPicker'
 import { TerminalView } from './Terminal'
+
+interface ThemeInputFields {
+	background: string
+	foreground: string
+	fontSize: string
+	fontFamily: string
+}
+
+function initThemeInput(override: Partial<PaneTheme> | null): ThemeInputFields {
+	return {
+		background: override?.background ?? '',
+		foreground: override?.foreground ?? '',
+		fontSize: override?.fontSize?.toString() ?? '',
+		fontFamily: override?.fontFamily ?? '',
+	}
+}
 
 interface PaneProps {
 	paneId: string
@@ -40,11 +57,7 @@ export function Pane({
 	const contextRef = useRef<HTMLDivElement>(null)
 	const [cwdInput, setCwdInput] = useState(config.cwd)
 	const [cmdInput, setCmdInput] = useState(config.startupCommand ?? '')
-	const [themeInput, setThemeInput] = useState({
-		background: config.themeOverride?.background ?? '',
-		foreground: config.themeOverride?.foreground ?? '',
-		fontSize: config.themeOverride?.fontSize?.toString() ?? '',
-	})
+	const [themeInput, setThemeInput] = useState(() => initThemeInput(config.themeOverride))
 
 	// Ensure PTY exists for this pane. Uses store's activePtyIds to avoid
 	// double-creation on Allotment remounts (e.g. when splitting panes).
@@ -246,11 +259,7 @@ export function Pane({
 							type="button"
 							className="ctx-item"
 							onClick={() => {
-								setThemeInput({
-									background: config.themeOverride?.background ?? '',
-									foreground: config.themeOverride?.foreground ?? '',
-									fontSize: config.themeOverride?.fontSize?.toString() ?? '',
-								})
+								setThemeInput(initThemeInput(config.themeOverride))
 								setContextPanel(contextPanel === 'theme' ? null : 'theme')
 							}}
 						>
@@ -278,18 +287,46 @@ export function Pane({
 										className="ctx-input flex-1 min-w-0"
 									/>
 								</label>
-								<label className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
+								<span className="text-[11px] text-content-muted">Font</span>
+								<FontPicker
+									value={themeInput.fontFamily}
+									onChange={(font) => setThemeInput((t) => ({ ...t, fontFamily: font }))}
+									size="sm"
+								/>
+								<div className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
 									<span>Font size</span>
-									<input
-										type="number"
-										value={themeInput.fontSize}
-										onChange={(e) => setThemeInput((t) => ({ ...t, fontSize: e.target.value }))}
-										placeholder={String(workspaceTheme.fontSize)}
-										className="ctx-input w-15"
-										min={8}
-										max={32}
-									/>
-								</label>
+									<div className="flex items-center gap-1">
+										<button
+											type="button"
+											onClick={() =>
+												setThemeInput((t) => {
+													const cur = Number(t.fontSize) || workspaceTheme.fontSize
+													return { ...t, fontSize: String(Math.max(8, cur - 1)) }
+												})
+											}
+											aria-label="Decrease font size"
+											className="bg-canvas border border-edge rounded-sm text-content cursor-pointer w-5 h-5 flex items-center justify-center text-[10px] hover:bg-overlay"
+										>
+											-
+										</button>
+										<span className="tabular-nums w-4 text-center">
+											{themeInput.fontSize || workspaceTheme.fontSize}
+										</span>
+										<button
+											type="button"
+											onClick={() =>
+												setThemeInput((t) => {
+													const cur = Number(t.fontSize) || workspaceTheme.fontSize
+													return { ...t, fontSize: String(Math.min(32, cur + 1)) }
+												})
+											}
+											aria-label="Increase font size"
+											className="bg-canvas border border-edge rounded-sm text-content cursor-pointer w-5 h-5 flex items-center justify-center text-[10px] hover:bg-overlay"
+										>
+											+
+										</button>
+									</div>
+								</div>
 								<div className="flex gap-1">
 									<button
 										type="button"
@@ -302,6 +339,7 @@ export function Pane({
 												const fs = Number(themeInput.fontSize)
 												if (Number.isFinite(fs) && fs >= 8 && fs <= 32) override.fontSize = fs
 											}
+											if (themeInput.fontFamily) override.fontFamily = themeInput.fontFamily
 											onUpdateConfig(paneId, {
 												themeOverride: Object.keys(override).length > 0 ? override : null,
 											})

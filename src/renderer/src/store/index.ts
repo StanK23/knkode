@@ -10,11 +10,12 @@ import type {
 	WorkspaceLayout,
 } from '../../../shared/types'
 import { isLayoutBranch } from '../../../shared/types'
+import { THEME_PRESETS } from '../data/theme-presets'
 
 function defaultTheme(): PaneTheme {
 	return {
-		background: '#1a1a2e',
-		foreground: '#e0e0e0',
+		background: THEME_PRESETS[0].background,
+		foreground: THEME_PRESETS[0].foreground,
 		fontSize: 14,
 		opacity: 1.0,
 	}
@@ -220,6 +221,9 @@ interface StoreState {
 	closePane: (workspaceId: string, paneId: string) => void
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
+	/** Update workspace theme in-memory only (no disk write). Used for live preview.
+	 *  Caller must revert to the original theme on cancel. */
+	previewWorkspaceTheme: (wsId: string, theme: PaneTheme) => void
 	saveState: () => Promise<void>
 }
 
@@ -672,6 +676,11 @@ export const useStore = create<StoreState>((set, get) => ({
 			}
 		})
 	},
+
+	previewWorkspaceTheme: (wsId, theme) =>
+		set((s) => ({
+			workspaces: s.workspaces.map((w) => (w.id === wsId ? { ...w, theme } : w)),
+		})),
 
 	saveState: async () => {
 		await window.api.saveAppState(get().appState)

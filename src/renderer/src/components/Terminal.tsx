@@ -4,6 +4,7 @@ import { Terminal as XTerm } from '@xterm/xterm'
 import { useEffect, useMemo, useRef } from 'react'
 import '@xterm/xterm/css/xterm.css'
 import type { PaneTheme } from '../../../shared/types'
+import { buildFontFamily, buildXtermTheme } from '../data/theme-presets'
 import { useStore } from '../store'
 
 interface TerminalProps {
@@ -29,6 +30,9 @@ export function TerminalView({
 	const themeRef = useRef({ ...theme, ...themeOverride })
 	const onFocusRef = useRef(onFocus)
 	onFocusRef.current = onFocus
+	// Ref allows the theme-update effect to re-focus without adding isFocused to its deps
+	const isFocusedRef = useRef(isFocused)
+	isFocusedRef.current = isFocused
 
 	const mergedTheme = useMemo(() => ({ ...theme, ...themeOverride }), [theme, themeOverride])
 
@@ -41,13 +45,8 @@ export function TerminalView({
 		const t = themeRef.current
 		const term = new XTerm({
 			fontSize: t.fontSize,
-			fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, monospace',
-			theme: {
-				background: t.background,
-				foreground: t.foreground,
-				cursor: t.foreground,
-				selectionBackground: `${t.foreground}33`,
-			},
+			fontFamily: buildFontFamily(t.fontFamily),
+			theme: buildXtermTheme(t),
 			cursorBlink: true,
 			cursorStyle: 'bar',
 			allowProposedApi: true,
@@ -70,7 +69,19 @@ export function TerminalView({
 		termRef.current = term
 		fitAddonRef.current = fitAddon
 
+		let ptyExited = false
+
 		term.onData((data) => {
+			if (ptyExited) {
+				// Restart PTY on any keypress after exit
+				ptyExited = false
+				term.clear()
+				const state = useStore.getState()
+				const ws = state.workspaces.find((w) => paneId in w.panes)
+				const cwd = ws?.panes[paneId]?.cwd ?? state.homeDir
+				state.ensurePty(paneId, cwd, null)
+				return
+			}
 			window.api.writePty(paneId, data).catch((err) => {
 				console.error(`[terminal] writePty failed for pane ${paneId}:`, err)
 			})
@@ -82,8 +93,10 @@ export function TerminalView({
 
 		const removeExitListener = window.api.onPtyExit((id, exitCode) => {
 			if (id === paneId) {
-				term.writeln(`\r\n\x1b[90m[Process exited with code ${exitCode}]\x1b[0m`)
-				// Remove from activePtyIds so ensurePty can re-create if needed
+				ptyExited = true
+				term.writeln(
+					`\r\n\x1b[90m[Process exited with code ${exitCode}. Press any key to restart.]\x1b[0m`,
+				)
 				useStore.getState().removePtyId(paneId)
 			}
 		})
@@ -95,7 +108,13 @@ export function TerminalView({
 		})
 
 		const resizeObserver = new ResizeObserver(() => {
-			requestAnimationFrame(() => fitAddon.fit())
+			requestAnimationFrame(() => {
+				try {
+					fitAddon.fit()
+				} catch (err) {
+					console.warn('[terminal] fit() failed during resize:', err)
+				}
+			})
 		})
 		resizeObserver.observe(containerRef.current)
 
@@ -124,16 +143,26 @@ export function TerminalView({
 		}
 	}, [isFocused, focusGeneration])
 
-	// Update theme without re-mounting
+	// Update xterm theme options without re-mounting. Only calls fit() when font size or
+	// font family change (fit recalculates cell metrics). Restores focus after fit() since
+	// it can cause DOM focus loss.
 	useEffect(() => {
-		if (!termRef.current) return
-		termRef.current.options.theme = {
-			background: mergedTheme.background,
-			foreground: mergedTheme.foreground,
-			cursor: mergedTheme.foreground,
-			selectionBackground: `${mergedTheme.foreground}33`,
-		}
+		if (!termRef.current || !fitAddonRef.current) return
+		termRef.current.options.theme = buildXtermTheme(mergedTheme)
+		const newFontFamily = buildFontFamily(mergedTheme.fontFamily)
+		const metricsChanged =
+			termRef.current.options.fontSize !== mergedTheme.fontSize ||
+			termRef.current.options.fontFamily !== newFontFamily
 		termRef.current.options.fontSize = mergedTheme.fontSize
+		termRef.current.options.fontFamily = newFontFamily
+		if (metricsChanged) {
+			try {
+				fitAddonRef.current.fit()
+			} catch (err) {
+				console.warn('[terminal] fit() failed during theme update:', err)
+			}
+			if (isFocusedRef.current) termRef.current.focus()
+		}
 	}, [mergedTheme])
 
 	return (
