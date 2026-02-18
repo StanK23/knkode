@@ -53,8 +53,10 @@ export function Pane({
 	onFocus,
 }: PaneProps) {
 	const [showContext, setShowContext] = useState(false)
+	const [contextPos, setContextPos] = useState({ x: 0, y: 0 })
 	const [contextPanel, setContextPanel] = useState<'cwd' | 'cmd' | 'theme' | null>(null)
 	const contextRef = useRef<HTMLDivElement>(null)
+	const headerRef = useRef<HTMLDivElement>(null)
 	const [cwdInput, setCwdInput] = useState(config.cwd)
 	const [cmdInput, setCmdInput] = useState(config.startupCommand ?? '')
 	const [themeInput, setThemeInput] = useState(() => initThemeInput(config.themeOverride))
@@ -76,6 +78,11 @@ export function Pane({
 
 	const handleContextMenu = useCallback((e: React.MouseEvent) => {
 		e.preventDefault()
+		const rect = headerRef.current?.getBoundingClientRect()
+		setContextPos({
+			x: rect ? e.clientX - rect.left : e.nativeEvent.offsetX,
+			y: rect ? e.clientY - rect.top : e.nativeEvent.offsetY,
+		})
 		setShowContext(true)
 	}, [])
 
@@ -93,6 +100,7 @@ export function Pane({
 	return (
 		<div className="flex flex-col h-full w-full">
 			<div
+				ref={headerRef}
 				onContextMenu={handleContextMenu}
 				onMouseDown={handleFocus}
 				className={`h-header flex items-center gap-2 px-2 text-[11px] shrink-0 relative select-none ${
@@ -150,7 +158,8 @@ export function Pane({
 				{showContext && (
 					<div
 						ref={contextRef}
-						className="ctx-menu top-header right-1"
+						className="ctx-menu"
+						style={{ left: contextPos.x, top: contextPos.y }}
 						onKeyDown={(e) => {
 							if (e.key === 'Escape') closeContext()
 						}}
