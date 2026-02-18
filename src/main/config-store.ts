@@ -94,15 +94,13 @@ export function migrateTheme(ws: Workspace): Workspace {
 		dim = Math.max(0, Math.min(0.7, 1 - raw.opacity))
 	}
 
+	const { opacity: _, ...themeWithoutLegacy } = raw as Record<string, unknown> & typeof ws.theme
 	return {
 		...ws,
 		theme: {
-			background: ws.theme.background,
-			foreground: ws.theme.foreground,
-			fontSize: ws.theme.fontSize,
-			fontFamily: ws.theme.fontFamily,
+			...themeWithoutLegacy,
 			unfocusedDim: dim,
-		},
+		} as typeof ws.theme,
 	}
 }
 
