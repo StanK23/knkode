@@ -3,7 +3,12 @@ import type { AppState, PaneTheme, Workspace } from '../../../shared/types'
 import { isLayoutBranch } from '../../../shared/types'
 import { createLayoutFromPreset, getPaneIdsInOrder, useStore } from './index'
 
-const TEST_THEME: PaneTheme = { background: '#000', foreground: '#fff', fontSize: 14, opacity: 1 }
+const TEST_THEME: PaneTheme = {
+	background: '#000',
+	foreground: '#fff',
+	fontSize: 14,
+	unfocusedDim: 0.3,
+}
 const TEST_BOUNDS = { x: 0, y: 0, width: 1200, height: 800 }
 
 // Mock window.api — defineProperty is needed because jsdom

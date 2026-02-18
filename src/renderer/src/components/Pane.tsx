@@ -91,7 +91,7 @@ export function Pane({
 	const handleFocus = useCallback(() => onFocus(paneId), [paneId, onFocus])
 
 	return (
-		<div className="flex flex-col h-full w-full">
+		<div className="flex flex-col h-full w-full relative">
 			<div
 				onContextMenu={handleContextMenu}
 				onMouseDown={handleFocus}
@@ -390,6 +390,12 @@ export function Pane({
 					onFocus={handleFocus}
 				/>
 			</div>
+			{!isFocused && workspaceTheme.unfocusedDim > 0 && (
+				<div
+					className="absolute inset-0 bg-black pointer-events-none"
+					style={{ opacity: workspaceTheme.unfocusedDim }}
+				/>
+			)}
 		</div>
 	)
 }

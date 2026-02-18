@@ -8,7 +8,7 @@ interface FontPickerProps {
 
 const SIZES = {
 	sm: { grid: 'gap-1', btn: 'py-1 px-1.5 rounded-sm text-[10px]' },
-	md: { grid: 'gap-1.5', btn: 'py-2 px-2 rounded-md text-xs' },
+	md: { grid: 'gap-1.5', btn: 'py-1.5 px-2 rounded-md text-xs' },
 } as const
 
 export function FontPicker({ value, onChange, size = 'md' }: FontPickerProps) {
@@ -18,7 +18,7 @@ export function FontPicker({ value, onChange, size = 'md' }: FontPickerProps) {
 	const focusClass = 'focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none'
 
 	return (
-		<div className={`grid grid-cols-2 ${s.grid}`}>
+		<div className={`grid grid-cols-3 ${s.grid}`}>
 			<button
 				type="button"
 				onClick={() => onChange('')}

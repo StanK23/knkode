@@ -2,7 +2,8 @@ export interface PaneTheme {
 	background: string
 	foreground: string
 	fontSize: number
-	opacity: number
+	/** How much to dim unfocused panes (0 = no dimming, 0.7 = heavily dimmed) */
+	unfocusedDim: number
 	fontFamily?: string
 }
 

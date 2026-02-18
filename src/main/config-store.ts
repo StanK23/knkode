@@ -55,8 +55,21 @@ function writeJson(filePath: string, data: unknown): void {
 	}
 }
 
+/** Migrate workspace themes from legacy `opacity` field to `unfocusedDim`. */
+function migrateTheme(ws: Workspace): Workspace {
+	const theme = ws.theme as Record<string, unknown>
+	if ('opacity' in theme && !('unfocusedDim' in theme)) {
+		const { opacity: _, ...rest } = theme
+		return { ...ws, theme: { ...rest, unfocusedDim: 0.3 } as Workspace['theme'] }
+	}
+	if (!('unfocusedDim' in theme)) {
+		return { ...ws, theme: { ...ws.theme, unfocusedDim: 0.3 } }
+	}
+	return ws
+}
+
 export function getWorkspaces(): Workspace[] {
-	return readJson<Workspace[]>(WORKSPACES_FILE, [])
+	return readJson<Workspace[]>(WORKSPACES_FILE, []).map(migrateTheme)
 }
 
 export function saveWorkspace(workspace: Workspace): void {

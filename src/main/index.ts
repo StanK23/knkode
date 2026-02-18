@@ -1,13 +1,17 @@
 import path from 'node:path'
-import { BrowserWindow, app, shell } from 'electron'
+import { BrowserWindow, app, nativeImage, shell } from 'electron'
 import { getAppState, saveAppState } from './config-store'
 import { startCwdTracking, stopCwdTracking } from './cwd-tracker'
 import { registerIpcHandlers } from './ipc'
 import { getMainWindow, setMainWindow } from './main-window'
 import { killAllPtys } from './pty-manager'
 
+const APP_ICON_PATH = path.join(__dirname, '../../resources/icon.png')
+
 function createWindow(): void {
 	const { windowBounds } = getAppState()
+
+	const appIcon = nativeImage.createFromPath(APP_ICON_PATH)
 
 	const win = new BrowserWindow({
 		x: windowBounds.x,
@@ -16,6 +20,8 @@ function createWindow(): void {
 		height: windowBounds.height,
 		minWidth: 600,
 		minHeight: 400,
+		icon: appIcon,
+		title: 'knkode',
 		titleBarStyle: 'hiddenInset',
 		trafficLightPosition: { x: 12, y: 12 },
 		backgroundColor: '#1a1a2e',
@@ -27,6 +33,11 @@ function createWindow(): void {
 			webSecurity: true,
 		},
 	})
+
+	// Set dock icon on macOS (overrides default Electron icon during development)
+	if (process.platform === 'darwin' && app.dock) {
+		app.dock.setIcon(appIcon)
+	}
 
 	setMainWindow(win)
 

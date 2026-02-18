@@ -17,7 +17,7 @@ function defaultTheme(): PaneTheme {
 		background: THEME_PRESETS[0].background,
 		foreground: THEME_PRESETS[0].foreground,
 		fontSize: 14,
-		opacity: 1.0,
+		unfocusedDim: 0.3,
 	}
 }
 
