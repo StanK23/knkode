@@ -1,15 +1,18 @@
 # knkode — Handoff
 
 ## What Was Done
-- [done] Release reliability fixes (PR #26) — 9-agent review, all 17 findings addressed
-  - ErrorBoundary wrapping each PaneArea with Try Again + Reload, role="alert", autoFocus
-  - Atomic config writes (write .tmp → rename) with cleanup logging
-  - CwdInput with tilde→homeDir resolution, shared isValidCwd utility, error text, Escape handling
-  - Extracted validation.ts shared utility (DRY with Pane.tsx context menu)
+- [done] Terminal addons (PR #27) — SearchAddon + Cmd+F, WebLinksAddon + IPC URL opening, 13 findings addressed
+- [done] Release reliability fixes (PR #26) — ErrorBoundary, atomic config writes, CwdInput validation
 - [done] Tab bar button hit areas (PR #25)
 - [done] Drag-and-drop pane reordering (PR #24)
 - [done] Move panes between workspaces (PR #23)
-- [done] Layout preservation + auto-apply settings (PR #22)
+
+## Active Reviews
+
+### PR #28 — feat: keyboard shortcuts (close tab, pane navigation)
+- State: `docs/reviews/PR-28/_state.json`
+- Agents: 9/9 completed
+- Phase: done — compiled report ready, fixing findings
 
 ## Active Decisions
 - Tech stack: Electron + React + TypeScript + xterm.js + node-pty + Zustand
@@ -19,8 +22,7 @@
 - PTY lifecycle: store-managed (ensurePty/killPtys/removePtyId) — decoupled from React mount
 
 ## What's Next
-- PR #2: Find in terminal (SearchAddon + Cmd+F) + clickable URLs (WebLinksAddon)
-- PR #3: Pane navigation shortcuts (Cmd+Arrow) + close workspace tab (Cmd+Shift+W)
+- PR #3: Keyboard shortcuts v2 — under review (PR #28)
 - PR #4: Dynamic window title ("workspace name — knkode")
 - PR #5: Terminal settings (scrollback length + cursor style, persisted per-workspace)
 - Follow-up: Unit tests for `swapPanes` + `applyPresetWithRemap`
