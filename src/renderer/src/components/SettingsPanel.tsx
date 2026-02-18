@@ -68,9 +68,7 @@ function CwdInput({ value, homeDir, onChange, 'aria-label': ariaLabel }: CwdInpu
 				aria-label={ariaLabel}
 				aria-invalid={invalid}
 			/>
-			{invalid && (
-				<span className="text-danger text-[10px]">Path must start with / or ~</span>
-			)}
+			{invalid && <span className="text-danger text-[10px]">Path must start with / or ~</span>}
 		</div>
 	)
 }

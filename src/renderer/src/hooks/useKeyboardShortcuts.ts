@@ -7,9 +7,11 @@ import { isMac } from '../utils/platform'
  * - Mod+D: split pane side-by-side (vertical divider)
  * - Mod+Shift+D: split pane stacked (horizontal divider)
  * - Mod+W: close focused pane
+ * - Mod+Shift+W: close workspace tab
  * - Mod+T: new workspace
  * - Mod+Shift+[: previous workspace tab
  * - Mod+Shift+]: next workspace tab
+ * - Mod+Option+Arrow: focus pane in direction (prev/next in layout order)
  * - Mod+1-9: focus pane by index
  * - Mod+,: toggle settings panel
  */
@@ -57,6 +59,14 @@ export function useKeyboardShortcuts({ toggleSettings }: ShortcutOptions = {}) {
 				return
 			}
 
+			// Mod+Shift+W — close workspace tab
+			if ((e.key === 'w' || e.key === 'W') && e.shiftKey) {
+				if (!activeWs) return
+				e.preventDefault()
+				state.closeWorkspaceTab(activeWs.id)
+				return
+			}
+
 			// Mod+T — new workspace
 			if (e.key === 't' && !e.shiftKey) {
 				e.preventDefault()
@@ -80,6 +90,27 @@ export function useKeyboardShortcuts({ toggleSettings }: ShortcutOptions = {}) {
 				const next = (idx + delta + openWorkspaceIds.length) % openWorkspaceIds.length
 				const targetId = openWorkspaceIds[next]
 				if (targetId) state.setActiveWorkspace(targetId)
+				return
+			}
+
+			// Mod+Option+Arrow — focus prev/next pane in layout order
+			if (
+				e.altKey &&
+				(e.key === 'ArrowLeft' ||
+					e.key === 'ArrowRight' ||
+					e.key === 'ArrowUp' ||
+					e.key === 'ArrowDown')
+			) {
+				if (!activeWs) return
+				const paneIds = getPaneIdsInOrder(activeWs.layout.tree)
+				if (paneIds.length < 2) return
+				const currentIdx = resolvedFocusId ? paneIds.indexOf(resolvedFocusId) : -1
+				const delta = e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 1
+				const nextIdx = (currentIdx + delta + paneIds.length) % paneIds.length
+				const targetId = paneIds[nextIdx]
+				if (!targetId) return
+				e.preventDefault()
+				state.setFocusedPane(targetId)
 				return
 			}
 
