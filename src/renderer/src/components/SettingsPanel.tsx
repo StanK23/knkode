@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { LayoutPreset, PaneConfig, PaneTheme, Workspace } from '../../../shared/types'
+import type {
+	CursorStyle,
+	LayoutPreset,
+	PaneConfig,
+	PaneTheme,
+	Workspace,
+} from '../../../shared/types'
 import { THEME_PRESETS } from '../data/theme-presets'
 import { applyPresetWithRemap, useStore } from '../store'
 import { isValidCwd } from '../utils/validation'
@@ -92,6 +98,8 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const [fontSize, setFontSize] = useState(workspace.theme.fontSize)
 	const [unfocusedDim, setUnfocusedDim] = useState(workspace.theme.unfocusedDim)
 	const [fontFamily, setFontFamily] = useState(workspace.theme.fontFamily ?? '')
+	const [scrollback, setScrollback] = useState(workspace.theme.scrollback ?? 5000)
+	const [cursorStyle, setCursorStyle] = useState<CursorStyle>(workspace.theme.cursorStyle ?? 'bar')
 
 	const currentPreset = workspace.layout.type === 'preset' ? workspace.layout.preset : null
 
@@ -102,8 +110,10 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 			fontSize,
 			unfocusedDim,
 			fontFamily: fontFamily || undefined,
+			scrollback,
+			cursorStyle,
 		}),
-		[bg, fg, fontSize, unfocusedDim, fontFamily],
+		[bg, fg, fontSize, unfocusedDim, fontFamily, scrollback, cursorStyle],
 	)
 
 	// Auto-persist: save full workspace with updated color/theme whenever those fields change.
@@ -354,6 +364,35 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 							<span className="text-[11px] text-content-muted w-7">
 								{Math.round(unfocusedDim * 100)}%
 							</span>
+						</label>
+						{/* Cursor style */}
+						<label className="flex items-center gap-2">
+							<span className="text-xs text-content-secondary w-20 shrink-0">Cursor</span>
+							<select
+								value={cursorStyle}
+								onChange={(e) => setCursorStyle(e.target.value as CursorStyle)}
+								className="settings-input"
+							>
+								<option value="bar">Bar</option>
+								<option value="block">Block</option>
+								<option value="underline">Underline</option>
+							</select>
+						</label>
+						{/* Scrollback */}
+						<label className="flex items-center gap-2">
+							<span className="text-xs text-content-secondary w-20 shrink-0">Scrollback</span>
+							<input
+								type="number"
+								min={500}
+								max={50000}
+								step={500}
+								value={scrollback}
+								onChange={(e) =>
+									setScrollback(Math.max(500, Math.min(50000, Number(e.target.value))))
+								}
+								className="settings-input w-24"
+							/>
+							<span className="text-[11px] text-content-muted">lines</span>
 						</label>
 					</div>
 					{/* Layout */}

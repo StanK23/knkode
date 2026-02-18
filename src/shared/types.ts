@@ -1,6 +1,8 @@
 /** Default unfocused pane dimming (moderate). UI range: [0, 0.7]. */
 export const DEFAULT_UNFOCUSED_DIM = 0.3
 
+export type CursorStyle = 'block' | 'bar' | 'underline'
+
 export interface PaneTheme {
 	background: string
 	foreground: string
@@ -8,6 +10,10 @@ export interface PaneTheme {
 	/** Black overlay opacity on unfocused panes. Clamped to [0, 0.7] by the UI. */
 	unfocusedDim: number
 	fontFamily?: string
+	/** Terminal scrollback buffer size. Defaults to 5000 if omitted. */
+	scrollback?: number
+	/** Terminal cursor style. Defaults to 'bar' if omitted. */
+	cursorStyle?: CursorStyle
 }
 
 export interface PaneConfig {

@@ -61,9 +61,9 @@ export function TerminalView({
 			fontFamily: buildFontFamily(t.fontFamily),
 			theme: buildXtermTheme(t),
 			cursorBlink: true,
-			cursorStyle: 'bar',
+			cursorStyle: t.cursorStyle ?? 'bar',
 			allowProposedApi: true,
-			scrollback: 5000,
+			scrollback: t.scrollback ?? 5000,
 		})
 
 		const fitAddon = new FitAddon()
@@ -179,6 +179,8 @@ export function TerminalView({
 	useEffect(() => {
 		if (!termRef.current || !fitAddonRef.current) return
 		termRef.current.options.theme = buildXtermTheme(mergedTheme)
+		termRef.current.options.cursorStyle = mergedTheme.cursorStyle ?? 'bar'
+		termRef.current.options.scrollback = mergedTheme.scrollback ?? 5000
 		const newFontFamily = buildFontFamily(mergedTheme.fontFamily)
 		const metricsChanged =
 			termRef.current.options.fontSize !== mergedTheme.fontSize ||
