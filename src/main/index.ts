@@ -6,6 +6,9 @@ import { registerIpcHandlers } from './ipc'
 import { getMainWindow, setMainWindow } from './main-window'
 import { killAllPtys } from './pty-manager'
 
+// Override the default "Electron" name shown in macOS dock tooltip during development
+app.setName('knkode')
+
 // __dirname resolves to out/main/ at runtime; in packaged builds, resources are in process.resourcesPath
 const APP_ICON_PATH = app.isPackaged
 	? path.join(process.resourcesPath, 'icon.png')
