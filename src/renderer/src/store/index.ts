@@ -631,79 +631,116 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 
 	movePaneToWorkspace: (fromWsId, paneId, toWsId) => {
-		const state = get()
-		const fromWs = state.workspaces.find((w) => w.id === fromWsId)
-		const toWs = state.workspaces.find((w) => w.id === toWsId)
-		if (!fromWs || !toWs) return
-		if (Object.keys(fromWs.panes).length <= 1) return
-		const config = fromWs.panes[paneId]
-		if (!config) return
+		// PTY intentionally NOT killed — it stays alive in the destination workspace
+		if (fromWsId === toWsId) return
 
-		// Remove from source tree
-		const newSourceTree = removeLeafFromTree(fromWs.layout.tree, paneId)
-		if (!newSourceTree) return
-		const { [paneId]: _, ...remainingPanes } = fromWs.panes
-		const updatedFrom: Workspace = {
-			...fromWs,
-			layout: { type: 'custom', tree: newSourceTree },
-			panes: remainingPanes,
-		}
-
-		// Add to destination tree: append to root if horizontal branch, else wrap
-		let newDestTree: LayoutNode
-		if (isLayoutBranch(toWs.layout.tree) && toWs.layout.tree.direction === 'horizontal') {
-			const count = toWs.layout.tree.children.length + 1
-			const size = Math.round(100 / count)
-			newDestTree = {
-				...toWs.layout.tree,
-				children: [...toWs.layout.tree.children.map((c) => ({ ...c, size })), { paneId, size }],
+		set((state) => {
+			const fromWs = state.workspaces.find((w) => w.id === fromWsId)
+			const toWs = state.workspaces.find((w) => w.id === toWsId)
+			if (!fromWs || !toWs) {
+				console.error('[store] movePaneToWorkspace: workspace not found', { fromWsId, toWsId })
+				return state
 			}
-		} else {
-			newDestTree = {
-				direction: 'horizontal',
-				size: 100,
-				children: [
-					{ ...toWs.layout.tree, size: 50 },
-					{ paneId, size: 50 },
-				],
+			if (Object.keys(fromWs.panes).length <= 1) {
+				console.warn('[store] movePaneToWorkspace: cannot move last pane', fromWsId)
+				return state
 			}
-		}
-		const updatedTo: Workspace = {
-			...toWs,
-			layout: { type: 'custom', tree: newDestTree },
-			panes: { ...toWs.panes, [paneId]: config },
-		}
+			const config = fromWs.panes[paneId]
+			if (!config) {
+				console.error('[store] movePaneToWorkspace: pane config not found', { paneId, fromWsId })
+				return state
+			}
+			if (toWs.panes[paneId]) {
+				console.error('[store] movePaneToWorkspace: pane ID already exists in destination', {
+					paneId,
+					toWsId,
+				})
+				return state
+			}
 
-		// Save both workspaces
-		window.api.saveWorkspace(updatedFrom).catch((err) => {
-			console.error('[store] Failed to save source workspace:', err)
-		})
-		window.api.saveWorkspace(updatedTo).catch((err) => {
-			console.error('[store] Failed to save destination workspace:', err)
-		})
+			const newSourceTree = removeLeafFromTree(fromWs.layout.tree, paneId)
+			if (!newSourceTree) {
+				console.error('[store] movePaneToWorkspace: removeLeafFromTree returned null', {
+					paneId,
+					fromWsId,
+				})
+				return state
+			}
+			const { [paneId]: _, ...remainingPanes } = fromWs.panes
+			const updatedFrom: Workspace = {
+				...fromWs,
+				layout: { type: 'custom' as const, tree: newSourceTree },
+				panes: remainingPanes,
+			}
 
-		// Ensure destination is open, switch to it
-		const openIds = state.appState.openWorkspaceIds
-		const newOpen = openIds.includes(toWsId) ? openIds : [...openIds, toWsId]
-		const newAppState = {
-			...state.appState,
-			openWorkspaceIds: newOpen,
-			activeWorkspaceId: toWsId,
-		}
-		window.api.saveAppState(newAppState).catch((err) => {
-			console.error('[store] Failed to save app state:', err)
-		})
+			// Add to destination tree: if root is a horizontal branch, append as a new
+			// equal-width child (resets existing size ratios). Otherwise wrap the entire
+			// tree in a new horizontal split at 50/50.
+			const destRoot = toWs.layout.tree
+			let newDestTree: LayoutNode
+			if (isLayoutBranch(destRoot) && destRoot.direction === 'horizontal') {
+				const count = destRoot.children.length + 1
+				const size = Math.round(100 / count)
+				const lastSize = 100 - size * (count - 1)
+				newDestTree = {
+					...destRoot,
+					children: [...destRoot.children.map((c) => ({ ...c, size })), { paneId, size: lastSize }],
+				}
+			} else {
+				newDestTree = {
+					direction: 'horizontal',
+					size: 100,
+					children: [
+						{ ...destRoot, size: 50 },
+						{ paneId, size: 50 },
+					],
+				}
+			}
+			const updatedTo: Workspace = {
+				...toWs,
+				layout: { type: 'custom' as const, tree: newDestTree },
+				panes: { ...toWs.panes, [paneId]: config },
+			}
 
-		set({
-			workspaces: state.workspaces.map((w) => {
-				if (w.id === fromWsId) return updatedFrom
-				if (w.id === toWsId) return updatedTo
-				return w
-			}),
-			appState: newAppState,
-			focusedPaneId: paneId,
-			focusGeneration: state.focusGeneration + 1,
-			visitedWorkspaceIds: addToVisited(state.visitedWorkspaceIds, toWsId),
+			// Persist both workspaces and app state. Grouped so partial failure is detectable.
+			Promise.all([
+				window.api.saveWorkspace(updatedFrom),
+				window.api.saveWorkspace(updatedTo),
+			]).catch((err) => {
+				console.error('[store] movePaneToWorkspace: failed to save workspaces', {
+					fromWsId,
+					toWsId,
+					err,
+				})
+			})
+
+			// Ensure destination is open, switch to it, and mark as visited
+			// (required for lazy PaneArea rendering)
+			const openIds = state.appState.openWorkspaceIds
+			const newOpen = openIds.includes(toWsId) ? openIds : [...openIds, toWsId]
+			const newAppState = {
+				...state.appState,
+				openWorkspaceIds: newOpen,
+				activeWorkspaceId: toWsId,
+			}
+			window.api.saveAppState(newAppState).catch((err) => {
+				console.error('[store] movePaneToWorkspace: failed to save app state', {
+					toWsId,
+					err,
+				})
+			})
+
+			return {
+				workspaces: state.workspaces.map((w) => {
+					if (w.id === fromWsId) return updatedFrom
+					if (w.id === toWsId) return updatedTo
+					return w
+				}),
+				appState: newAppState,
+				focusedPaneId: paneId,
+				focusGeneration: state.focusGeneration + 1,
+				visitedWorkspaceIds: addToVisited(state.visitedWorkspaceIds, toWsId),
+			}
 		})
 	},
 
@@ -754,7 +791,8 @@ export const useStore = create<StoreState>((set, get) => ({
 
 /** Remove a leaf from a layout tree by pane ID.
  *  If a branch is left with one child, collapse it upward
- *  (promote the child, preserving the parent's size). */
+ *  (promote the child, preserving the parent's size).
+ *  Returns null if the target was the only node (callers should guard against this). */
 function removeLeafFromTree(node: LayoutNode, targetPaneId: string): LayoutNode | null {
 	if (!isLayoutBranch(node)) {
 		return node.paneId === targetPaneId ? null : node

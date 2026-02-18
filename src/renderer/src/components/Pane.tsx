@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { PaneConfig, PaneTheme } from '../../../shared/types'
 
+type ContextPanelKind = 'cwd' | 'cmd' | 'theme' | 'move'
 const VIEWPORT_MARGIN = 8
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useInlineEdit } from '../hooks/useInlineEdit'
@@ -59,7 +60,7 @@ export function Pane({
 	const [showContext, setShowContext] = useState(false)
 	const [contextPos, setContextPos] = useState({ x: 0, y: 0 })
 	const [clampedPos, setClampedPos] = useState<{ x: number; y: number } | null>(null)
-	const [contextPanel, setContextPanel] = useState<'cwd' | 'cmd' | 'theme' | 'move' | null>(null)
+	const [contextPanel, setContextPanel] = useState<ContextPanelKind | null>(null)
 	const contextRef = useRef<HTMLDivElement>(null)
 	const [cwdInput, setCwdInput] = useState(config.cwd)
 	const [cmdInput, setCmdInput] = useState(config.startupCommand ?? '')
@@ -68,8 +69,10 @@ export function Pane({
 	const movePaneToWorkspace = useStore((s) => s.movePaneToWorkspace)
 	const workspaces = useStore((s) => s.workspaces)
 	const openWorkspaceIds = useStore((s) => s.appState.openWorkspaceIds)
-	const otherOpenWorkspaces = workspaces.filter(
-		(w) => openWorkspaceIds.includes(w.id) && w.id !== workspaceId,
+	// Only show workspaces that are currently open as tabs (not all workspaces)
+	const otherOpenWorkspaces = useMemo(
+		() => workspaces.filter((w) => openWorkspaceIds.includes(w.id) && w.id !== workspaceId),
+		[workspaces, openWorkspaceIds, workspaceId],
 	)
 
 	// Ensure PTY exists for this pane. Uses store's activePtyIds to avoid
@@ -241,6 +244,7 @@ export function Pane({
 						>
 							Split Horizontal
 						</button>
+						{/* canClose ensures the source workspace keeps at least one pane after the move */}
 						{canClose && otherOpenWorkspaces.length > 0 && (
 							<>
 								<div className="ctx-separator" />
@@ -257,7 +261,7 @@ export function Pane({
 											<button
 												type="button"
 												key={ws.id}
-												className="flex items-center gap-2 px-2 py-1 rounded-sm text-[11px] text-content-secondary cursor-pointer bg-transparent border-none text-left hover:bg-overlay hover:text-content"
+												className="ctx-item flex items-center gap-2"
 												onClick={() => {
 													movePaneToWorkspace(workspaceId, paneId, ws.id)
 													closeContext()
@@ -265,6 +269,7 @@ export function Pane({
 											>
 												<span
 													className="w-2 h-2 rounded-full shrink-0"
+													aria-hidden="true"
 													style={{ background: ws.color }}
 												/>
 												<span className="truncate">{ws.name}</span>
