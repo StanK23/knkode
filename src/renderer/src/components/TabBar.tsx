@@ -94,9 +94,10 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 	}, [createDefaultWorkspace])
 
 	return (
-		<div className="flex items-end bg-sunken border-b border-edge relative shrink-0">
-			{/* Window title-bar drag region */}
-			<div className="drag-region absolute top-0 left-0 right-0 h-drag" />
+		<div
+			className="flex items-end bg-sunken border-b border-edge relative shrink-0"
+			style={{ WebkitAppRegion: 'drag' }}
+		>
 
 			{/* Tabs */}
 			<div
@@ -132,7 +133,6 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 					title={`New workspace (${modKey}+T)`}
 					aria-label="Create new workspace"
 					className="bg-transparent border-none text-content-muted cursor-pointer text-lg leading-none px-2.5 h-tab flex items-center shrink-0 hover:text-content hover:bg-overlay rounded-sm focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
-					style={{ WebkitAppRegion: 'no-drag' }}
 				>
 					+
 				</button>
