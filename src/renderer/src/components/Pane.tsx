@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { PaneConfig, PaneTheme } from '../../../shared/types'
+
+const VIEWPORT_MARGIN = 8
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useInlineEdit } from '../hooks/useInlineEdit'
 import { useStore } from '../store'
@@ -53,6 +55,8 @@ export function Pane({
 	onFocus,
 }: PaneProps) {
 	const [showContext, setShowContext] = useState(false)
+	const [contextPos, setContextPos] = useState({ x: 0, y: 0 })
+	const [clampedPos, setClampedPos] = useState<{ x: number; y: number } | null>(null)
 	const [contextPanel, setContextPanel] = useState<'cwd' | 'cmd' | 'theme' | null>(null)
 	const contextRef = useRef<HTMLDivElement>(null)
 	const [cwdInput, setCwdInput] = useState(config.cwd)
@@ -76,6 +80,8 @@ export function Pane({
 
 	const handleContextMenu = useCallback((e: React.MouseEvent) => {
 		e.preventDefault()
+		setContextPos({ x: e.clientX, y: e.clientY })
+		setClampedPos(null)
 		setShowContext(true)
 	}, [])
 
@@ -84,7 +90,41 @@ export function Pane({
 		setContextPanel(null)
 	}, [])
 
+	const stopPropagation = useCallback((e: React.MouseEvent) => e.stopPropagation(), [])
+
 	useClickOutside(contextRef, closeContext, showContext)
+
+	// Close context menu on Escape — uses global listener so the menu
+	// doesn't need tabIndex/focus (which would add a visible outline on open).
+	useEffect(() => {
+		if (!showContext) return
+		const handler = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') closeContext()
+		}
+		document.addEventListener('keydown', handler)
+		return () => document.removeEventListener('keydown', handler)
+	}, [showContext, closeContext])
+
+	// Clamp context menu to viewport edges after measuring its rendered size.
+	// Stores clamped coordinates in state so React owns the style prop (no
+	// imperative DOM mutation). Runs before paint via useLayoutEffect so the
+	// user never sees the unclamped position. Re-runs when contextPanel
+	// changes because sub-panel expansion alters menu height.
+	// Also listens for window resize to re-clamp while the menu is open.
+	useLayoutEffect(() => {
+		const el = contextRef.current
+		if (!showContext || !el) return
+		const clamp = () => {
+			const { width, height } = el.getBoundingClientRect()
+			setClampedPos({
+				x: Math.max(VIEWPORT_MARGIN, Math.min(contextPos.x, window.innerWidth - width - VIEWPORT_MARGIN)),
+				y: Math.max(VIEWPORT_MARGIN, Math.min(contextPos.y, window.innerHeight - height - VIEWPORT_MARGIN)),
+			})
+		}
+		clamp()
+		window.addEventListener('resize', clamp)
+		return () => window.removeEventListener('resize', clamp)
+	}, [showContext, contextPos.x, contextPos.y, contextPanel])
 
 	const shortCwd = config.cwd.replace(/^\/Users\/[^/]+/, '~')
 
@@ -150,10 +190,20 @@ export function Pane({
 				{showContext && (
 					<div
 						ref={contextRef}
-						className="ctx-menu top-header right-1"
-						onKeyDown={(e) => {
-							if (e.key === 'Escape') closeContext()
+						className="ctx-menu"
+						/* Inline style required: position fixed escapes allotment's overflow:hidden,
+						   and dynamic cursor coordinates cannot be expressed as Tailwind classes.
+						   Overrides the `absolute` from .ctx-menu (Tab/TabBar still use absolute). */
+						style={{
+							position: 'fixed',
+							left: clampedPos?.x ?? 0,
+							top: clampedPos?.y ?? 0,
+							visibility: clampedPos ? 'visible' : 'hidden',
 						}}
+						/* Prevent header's onMouseDown (handleFocus) from firing — without this,
+						   the zustand store update triggers a synchronous re-render that disrupts
+						   click events on menu buttons (the "stuck dismiss" bug). */
+						onMouseDown={stopPropagation}
 					>
 						<button
 							type="button"
