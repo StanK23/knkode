@@ -1,11 +1,16 @@
 import { FitAddon } from '@xterm/addon-fit'
+import { SearchAddon } from '@xterm/addon-search'
+import { WebLinksAddon } from '@xterm/addon-web-links'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal as XTerm } from '@xterm/xterm'
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import '@xterm/xterm/css/xterm.css'
 import type { PaneTheme } from '../../../shared/types'
 import { buildFontFamily, buildXtermTheme } from '../data/theme-presets'
 import { useStore } from '../store'
+
+const SEARCH_BTN =
+	'bg-transparent border-none text-content-muted cursor-pointer text-xs min-w-[28px] min-h-[28px] flex items-center justify-center hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none rounded-sm'
 
 interface TerminalProps {
 	paneId: string
@@ -24,9 +29,11 @@ export function TerminalView({
 	isFocused,
 	onFocus,
 }: TerminalProps) {
+	const wrapperRef = useRef<HTMLDivElement>(null)
 	const containerRef = useRef<HTMLDivElement>(null)
 	const termRef = useRef<XTerm | null>(null)
 	const fitAddonRef = useRef<FitAddon | null>(null)
+	const searchAddonRef = useRef<SearchAddon | null>(null)
 	const themeRef = useRef({ ...theme, ...themeOverride })
 	const onFocusRef = useRef(onFocus)
 	onFocusRef.current = onFocus
@@ -34,13 +41,19 @@ export function TerminalView({
 	const isFocusedRef = useRef(isFocused)
 	isFocusedRef.current = isFocused
 
+	const [showSearch, setShowSearch] = useState(false)
+	const [searchQuery, setSearchQuery] = useState('')
+	const searchInputRef = useRef<HTMLInputElement>(null)
+	const showSearchRef = useRef(false)
+	showSearchRef.current = showSearch
+
 	const mergedTheme = useMemo(() => ({ ...theme, ...themeOverride }), [theme, themeOverride])
 
 	// Keep themeRef in sync for the mount effect's initial render
 	themeRef.current = mergedTheme
 
 	useEffect(() => {
-		if (!containerRef.current) return
+		if (!containerRef.current || !wrapperRef.current) return
 
 		const t = themeRef.current
 		const term = new XTerm({
@@ -55,6 +68,19 @@ export function TerminalView({
 
 		const fitAddon = new FitAddon()
 		term.loadAddon(fitAddon)
+
+		const searchAddon = new SearchAddon()
+		term.loadAddon(searchAddon)
+		searchAddonRef.current = searchAddon
+
+		term.loadAddon(
+			new WebLinksAddon((_event, url) => {
+				window.api.openExternal(url).catch((err) => {
+					console.error('[terminal] Failed to open URL:', err)
+				})
+			}),
+		)
+
 		term.open(containerRef.current)
 		fitAddon.fit()
 
@@ -119,16 +145,18 @@ export function TerminalView({
 		resizeObserver.observe(containerRef.current)
 
 		// Track terminal focus to update pane focus state.
-		// Uses DOM focusin because @xterm/xterm v5 does not expose an onFocus event.
-		const containerEl = containerRef.current
+		// Uses DOM focusin on the wrapper so both the xterm container and
+		// the search bar trigger pane focus (prevents dim overlay on search).
+		const wrapperEl = wrapperRef.current
 		const handleFocusIn = () => onFocusRef.current()
-		containerEl.addEventListener('focusin', handleFocusIn)
+		wrapperEl.addEventListener('focusin', handleFocusIn)
 
 		return () => {
-			containerEl.removeEventListener('focusin', handleFocusIn)
+			wrapperEl.removeEventListener('focusin', handleFocusIn)
 			resizeObserver.disconnect()
 			removeDataListener()
 			removeExitListener()
+			searchAddonRef.current = null
 			term.dispose()
 		}
 	}, [paneId])
@@ -136,9 +164,11 @@ export function TerminalView({
 	// Sync xterm focus with pane focus state (keyboard shortcuts + click).
 	// focusGeneration is an intentional trigger dep — it re-fires the effect
 	// even when isFocused is already true (e.g. re-clicking the same pane).
+	// Skips when search bar is open so clicking the search input doesn't
+	// steal focus back to the terminal.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: focusGeneration is an intentional trigger dependency
 	useEffect(() => {
-		if (isFocused && termRef.current) {
+		if (isFocused && termRef.current && !showSearchRef.current) {
 			termRef.current.focus()
 		}
 	}, [isFocused, focusGeneration])
@@ -165,5 +195,120 @@ export function TerminalView({
 		}
 	}, [mergedTheme])
 
-	return <div ref={containerRef} className="w-full h-full" />
+	// Cmd+F to open search (captured at terminal level to prevent browser find)
+	useEffect(() => {
+		const containerEl = containerRef.current
+		if (!containerEl) return
+		const handler = (e: KeyboardEvent) => {
+			const isMod = e.metaKey || e.ctrlKey
+			if (isMod && e.key === 'f') {
+				e.preventDefault()
+				e.stopPropagation()
+				setShowSearch(true)
+			}
+		}
+		containerEl.addEventListener('keydown', handler)
+		return () => containerEl.removeEventListener('keydown', handler)
+	}, [])
+
+	// Auto-focus search input when search bar opens
+	useEffect(() => {
+		if (showSearch && searchInputRef.current) {
+			searchInputRef.current.focus()
+			searchInputRef.current.select()
+		}
+	}, [showSearch])
+
+	// Reads from refs only — stable empty deps
+	const handleSearchChange = useCallback((query: string) => {
+		setSearchQuery(query)
+		if (searchAddonRef.current) {
+			if (query) {
+				searchAddonRef.current.findNext(query)
+			} else {
+				searchAddonRef.current.clearDecorations()
+			}
+		}
+	}, [])
+
+	const handleSearchNav = useCallback(
+		(direction: 'next' | 'prev') => {
+			if (searchAddonRef.current && searchQuery) {
+				if (direction === 'next') searchAddonRef.current.findNext(searchQuery)
+				else searchAddonRef.current.findPrevious(searchQuery)
+			}
+		},
+		[searchQuery],
+	)
+
+	const closeSearch = useCallback(() => {
+		setShowSearch(false)
+		setSearchQuery('')
+		searchAddonRef.current?.clearDecorations()
+		termRef.current?.focus()
+	}, [])
+
+	const handleSearchKeyDown = useCallback(
+		(e: React.KeyboardEvent) => {
+			if (e.key === 'Enter') {
+				e.preventDefault()
+				handleSearchNav(e.shiftKey ? 'prev' : 'next')
+			}
+			if (e.key === 'Escape') {
+				e.preventDefault()
+				e.stopPropagation()
+				closeSearch()
+			}
+			// Allow Cmd+F to close search when input has focus
+			const isMod = e.metaKey || e.ctrlKey
+			if (isMod && e.key === 'f') {
+				e.preventDefault()
+				closeSearch()
+			}
+		},
+		[handleSearchNav, closeSearch],
+	)
+
+	return (
+		<div ref={wrapperRef} className="relative w-full h-full">
+			{showSearch && (
+				<search className="absolute top-1 right-2 z-10 flex items-center gap-1 bg-elevated border border-edge rounded-sm px-2 py-1 shadow-panel">
+					<input
+						ref={searchInputRef}
+						value={searchQuery}
+						onChange={(e) => handleSearchChange(e.target.value)}
+						onKeyDown={handleSearchKeyDown}
+						placeholder="Find..."
+						className="bg-sunken border border-edge rounded-sm text-content text-xs py-0.5 px-1.5 outline-none w-40 focus:border-accent"
+						aria-label="Search terminal"
+					/>
+					<button
+						type="button"
+						onClick={() => handleSearchNav('prev')}
+						aria-label="Previous match"
+						className={SEARCH_BTN}
+					>
+						&#x25B2;
+					</button>
+					<button
+						type="button"
+						onClick={() => handleSearchNav('next')}
+						aria-label="Next match"
+						className={SEARCH_BTN}
+					>
+						&#x25BC;
+					</button>
+					<button
+						type="button"
+						onClick={closeSearch}
+						aria-label="Close search"
+						className={SEARCH_BTN}
+					>
+						&#x2715;
+					</button>
+				</search>
+			)}
+			<div ref={containerRef} className="w-full h-full" />
+		</div>
+	)
 }
