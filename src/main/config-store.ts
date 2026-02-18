@@ -42,15 +42,28 @@ function readJson<T>(filePath: string, fallback: T): T {
 	}
 }
 
+// Atomic write: write to .tmp then rename. Safe because all calls are synchronous
+// (no interleaving). If this ever becomes async, use unique temp file names.
 function writeJson(filePath: string, data: unknown): void {
 	ensureConfigDir()
+	const tmpPath = `${filePath}.tmp`
 	try {
-		fs.writeFileSync(filePath, JSON.stringify(data, null, 2), { encoding: 'utf-8', mode: 0o600 })
+		fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), { encoding: 'utf-8', mode: 0o600 })
+		fs.renameSync(tmpPath, filePath)
 	} catch (err) {
 		console.error(
 			`[config-store] Failed to write ${filePath}:`,
 			err instanceof Error ? err.message : err,
 		)
+		try {
+			fs.unlinkSync(tmpPath)
+		} catch (cleanupErr) {
+			console.warn(
+				'[config-store] Failed to clean up temp file:',
+				tmpPath,
+				cleanupErr instanceof Error ? cleanupErr.message : cleanupErr,
+			)
+		}
 		throw err
 	}
 }
