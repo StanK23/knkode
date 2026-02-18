@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PaneConfig, PaneTheme } from '../../../shared/types'
-import { TERMINAL_FONTS } from '../data/theme-presets'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useInlineEdit } from '../hooks/useInlineEdit'
 import { useStore } from '../store'
 import { modKey } from '../utils/platform'
+import { FontPicker } from './FontPicker'
 import { TerminalView } from './Terminal'
 
 function initThemeInput(override: Partial<PaneTheme> | null) {
@@ -281,34 +281,11 @@ export function Pane({
 									/>
 								</label>
 								<span className="text-[11px] text-content-muted">Font</span>
-								<div className="grid grid-cols-2 gap-1 px-0">
-									<button
-										type="button"
-										onClick={() => setThemeInput((t) => ({ ...t, fontFamily: '' }))}
-										className={`py-1 px-1.5 rounded-sm cursor-pointer border text-[10px] ${
-											themeInput.fontFamily === ''
-												? 'border-accent bg-accent/15'
-												: 'border-edge bg-sunken hover:border-content-muted'
-										}`}
-									>
-										Default
-									</button>
-									{TERMINAL_FONTS.map((font) => (
-										<button
-											type="button"
-											key={font}
-											onClick={() => setThemeInput((t) => ({ ...t, fontFamily: font }))}
-											className={`py-1 px-1.5 rounded-sm cursor-pointer border text-[10px] truncate ${
-												themeInput.fontFamily === font
-													? 'border-accent bg-accent/15'
-													: 'border-edge bg-sunken hover:border-content-muted'
-											}`}
-											style={{ fontFamily: font }}
-										>
-											{font}
-										</button>
-									))}
-								</div>
+								<FontPicker
+									value={themeInput.fontFamily}
+									onChange={(font) => setThemeInput((t) => ({ ...t, fontFamily: font }))}
+									size="sm"
+								/>
 								<label className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
 									<span>Font size</span>
 									<input

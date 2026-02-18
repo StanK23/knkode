@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { LayoutPreset, PaneConfig, PaneTheme, Workspace } from '../../../shared/types'
-import { TERMINAL_FONTS, THEME_PRESETS } from '../data/theme-presets'
+import { THEME_PRESETS } from '../data/theme-presets'
 import { createLayoutFromPreset, useStore } from '../store'
+import { FontPicker } from './FontPicker'
 import { LayoutPicker } from './LayoutPicker'
 
 interface SettingsPanelProps {
@@ -166,7 +167,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 										type="button"
 										key={preset.name}
 										onClick={() => handlePresetClick(preset.background, preset.foreground)}
-										className={`flex flex-col items-center gap-0.5 py-3 px-2 rounded-md cursor-pointer border ${
+										className={`flex flex-col items-center gap-0.5 py-3 px-2 rounded-md cursor-pointer border focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
 											isActive
 												? 'border-accent ring-1 ring-accent'
 												: 'border-transparent hover:border-content-muted'
@@ -202,34 +203,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 						</label>
 						{/* Font family — visual grid */}
 						<span className="text-xs text-content-secondary">Font</span>
-						<div className="grid grid-cols-2 gap-1.5">
-							<button
-								type="button"
-								onClick={() => setFontFamily('')}
-								className={`py-2 px-2 rounded-md cursor-pointer border text-xs ${
-									fontFamily === ''
-										? 'border-accent bg-accent/15'
-										: 'border-edge bg-sunken hover:border-content-muted'
-								}`}
-							>
-								Default
-							</button>
-							{TERMINAL_FONTS.map((font) => (
-								<button
-									type="button"
-									key={font}
-									onClick={() => setFontFamily(font)}
-									className={`py-2 px-2 rounded-md cursor-pointer border text-xs truncate ${
-										fontFamily === font
-											? 'border-accent bg-accent/15'
-											: 'border-edge bg-sunken hover:border-content-muted'
-									}`}
-									style={{ fontFamily: font }}
-								>
-									{font}
-								</button>
-							))}
-						</div>
+						<FontPicker value={fontFamily} onChange={setFontFamily} />
 						{/* Font size */}
 						<label className="flex items-center gap-2">
 							<span className="text-xs text-content-secondary w-20 shrink-0">Font Size</span>
