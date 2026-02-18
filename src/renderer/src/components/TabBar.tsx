@@ -144,7 +144,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 					onClick={onOpenSettings}
 					title={`Workspace settings (${modKey}+,)`}
 					aria-label="Open workspace settings"
-					className="bg-transparent border-none text-content-muted cursor-pointer min-w-[44px] px-2.5 h-tab flex items-center justify-center shrink-0 hover:text-content hover:bg-overlay rounded-sm focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+					className="relative bg-transparent border-none text-content-muted cursor-pointer min-w-[44px] px-2.5 h-tab flex items-center justify-center shrink-0 hover:text-content hover:bg-overlay rounded-sm focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 					style={{ WebkitAppRegion: 'no-drag' }}
 				>
 					<svg
