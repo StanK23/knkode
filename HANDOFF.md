@@ -1,11 +1,11 @@
 # knkode — Handoff
 
 ## What Was Done
-- [in-progress] Move panes between workspaces (PR #23) — branch: `feat/move-pane-to-workspace`
-  - Store action `movePaneToWorkspace`: removes from source tree, adds to dest, PTY stays alive
+- [done] Move panes between workspaces (PR #23) — 9-agent review, all findings addressed
+  - Store action `movePaneToWorkspace`: set() callback pattern, self-move guard, collision guard
   - Extracted `removeLeafFromTree` shared helper (DRY with closePane)
-  - "Move to Workspace" context menu submenu with color dot + name
-  - Smart destination insertion: appends to horizontal root or wraps in new split
+  - "Move to Workspace" context menu submenu with memoized selector, ctx-item styling
+  - Persistence grouped with Promise.all, all early returns logged
 - [done] Layout preservation + auto-apply settings (PR #22)
 - [done] Pane context menu bugfixes (PR #21)
 - [done] Settings polish round 2 (PR #20)
