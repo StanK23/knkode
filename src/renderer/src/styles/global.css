@@ -177,6 +177,10 @@
 	}
 }
 
+/* Electron frameless window — interactive elements inside a drag region */
+.no-drag {
+	-webkit-app-region: no-drag;
+}
 
 /* Allotment sash overrides — CSS custom property controls visual width */
 :root {
