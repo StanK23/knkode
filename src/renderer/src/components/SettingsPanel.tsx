@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { LayoutPreset, PaneConfig, PaneTheme, Workspace } from '../../../shared/types'
 import { THEME_PRESETS } from '../data/theme-presets'
 import { applyPresetWithRemap, useStore } from '../store'
+import { isValidCwd } from '../utils/validation'
 import { FontPicker } from './FontPicker'
 import { LayoutPicker } from './LayoutPicker'
 
@@ -11,15 +12,14 @@ function getLatestWorkspace(wsId: string): Workspace | undefined {
 	return useStore.getState().workspaces.find((w) => w.id === wsId)
 }
 
-function isValidCwd(path: string): boolean {
-	return path === '' || path.startsWith('/') || path.startsWith('~')
+interface CwdInputProps {
+	value: string
+	homeDir: string
+	onChange: (resolved: string) => void
+	'aria-label': string
 }
 
-function CwdInput({
-	value,
-	onChange,
-	'aria-label': ariaLabel,
-}: { value: string; onChange: (v: string) => void; 'aria-label': string }) {
+function CwdInput({ value, homeDir, onChange, 'aria-label': ariaLabel }: CwdInputProps) {
 	const [local, setLocal] = useState(value)
 	const [invalid, setInvalid] = useState(false)
 
@@ -29,34 +29,49 @@ function CwdInput({
 		setInvalid(false)
 	}, [value])
 
+	const commit = useCallback(() => {
+		let trimmed = local.trim()
+		// Resolve tilde to absolute path before validation
+		if (trimmed === '~') trimmed = homeDir
+		else if (trimmed.startsWith('~/')) trimmed = `${homeDir}${trimmed.slice(1)}`
+
+		if (isValidCwd(trimmed)) {
+			if (trimmed !== value) onChange(trimmed)
+			setLocal(trimmed)
+			setInvalid(false)
+		} else {
+			setInvalid(true)
+		}
+	}, [local, homeDir, value, onChange])
+
 	return (
-		<input
-			value={local}
-			onChange={(e) => {
-				setLocal(e.target.value)
-				setInvalid(false)
-			}}
-			onBlur={() => {
-				const trimmed = local.trim()
-				if (isValidCwd(trimmed)) {
-					if (trimmed !== value) onChange(trimmed)
+		<div className="flex flex-col flex-[2] gap-0.5">
+			<input
+				value={local}
+				onChange={(e) => {
+					setLocal(e.target.value)
 					setInvalid(false)
-				} else {
-					setInvalid(true)
-				}
-			}}
-			onKeyDown={(e) => {
-				if (e.key === 'Enter') {
-					e.currentTarget.blur()
-				}
-			}}
-			className={`bg-sunken border rounded-sm text-content text-xs py-1 px-2 outline-none flex-[2] focus:border-accent ${
-				invalid ? 'border-danger' : 'border-edge'
-			}`}
-			placeholder="Working directory"
-			aria-label={ariaLabel}
-			aria-invalid={invalid || undefined}
-		/>
+				}}
+				onBlur={commit}
+				onKeyDown={(e) => {
+					if (e.key === 'Enter') {
+						e.currentTarget.blur()
+					}
+					if (e.key === 'Escape') {
+						e.stopPropagation()
+						setLocal(value)
+						setInvalid(false)
+					}
+				}}
+				className={`settings-input ${invalid ? '!border-danger' : ''}`}
+				placeholder="Working directory"
+				aria-label={ariaLabel}
+				aria-invalid={invalid}
+			/>
+			{invalid && (
+				<span className="text-danger text-[10px]">Path must start with / or ~</span>
+			)}
+		</div>
 	)
 }
 
@@ -234,7 +249,8 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								/>
 								<CwdInput
 									value={pane.cwd}
-									onChange={(path) => handlePaneUpdate(paneId, { cwd: path })}
+									homeDir={homeDir}
+									onChange={(cwd) => handlePaneUpdate(paneId, { cwd })}
 									aria-label={`Pane ${pane.label} working directory`}
 								/>
 								<input
@@ -244,7 +260,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 											startupCommand: e.target.value || null,
 										})
 									}
-									className="bg-sunken border border-edge rounded-sm text-content text-xs py-1 px-2 outline-none flex-[2] focus:border-accent"
+									className="settings-input flex-[2]"
 									placeholder="Startup command"
 									aria-label={`Pane ${pane.label} startup command`}
 								/>
