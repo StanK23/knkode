@@ -106,10 +106,10 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		[workspace.id, updatePaneConfig],
 	)
 
-	const handlePresetClick = (presetBg: string, presetFg: string) => {
+	const handlePresetClick = useCallback((presetBg: string, presetFg: string) => {
 		setBg(presetBg)
 		setFg(presetFg)
-	}
+	}, [])
 
 	return (
 		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape key handled via document listener above
@@ -165,7 +165,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					<div className="flex flex-col gap-2">
 						<span className="section-label">Terminal Theme</span>
 						{/* Theme preset grid — name rendered in theme colors as preview */}
-						<div className="grid grid-cols-4 gap-1">
+						<div className="grid grid-cols-4 gap-1.5">
 							{THEME_PRESETS.map((preset) => {
 								const isActive = bg === preset.background && fg === preset.foreground
 								return (
@@ -174,7 +174,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 										key={preset.name}
 										onClick={() => handlePresetClick(preset.background, preset.foreground)}
 										aria-pressed={isActive}
-										className={`py-1.5 px-1 rounded cursor-pointer border text-center focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
+										className={`py-1.5 px-1 rounded-md cursor-pointer border text-center focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
 											isActive
 												? 'border-accent ring-1 ring-accent'
 												: 'border-transparent hover:border-content-muted'
@@ -183,7 +183,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 										aria-label={preset.name}
 										style={{ background: preset.background, color: preset.foreground }}
 									>
-										<span className="text-[10px] font-medium leading-tight block truncate">
+										<span className="text-[11px] font-medium leading-tight block truncate">
 											{preset.name}
 										</span>
 									</button>
