@@ -221,7 +221,8 @@ interface StoreState {
 	closePane: (workspaceId: string, paneId: string) => void
 	/** Move a pane from one workspace to another. PTY stays alive. */
 	movePaneToWorkspace: (fromWsId: string, paneId: string, toWsId: string) => void
-	/** Swap two panes' positions within a workspace layout tree. No PTY changes. */
+	/** Swap two panes' positions within a workspace layout tree.
+	 *  Only swaps leaf paneId values; pane configs and PTYs are untouched. */
 	swapPanes: (workspaceId: string, paneIdA: string, paneIdB: string) => void
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
@@ -758,17 +759,12 @@ export const useStore = create<StoreState>((set, get) => ({
 				console.error('[store] swapPanes: pane not found', { paneIdA, paneIdB, workspaceId })
 				return state
 			}
-			const swapInTree = (node: LayoutNode): LayoutNode => {
-				if (isLayoutBranch(node)) {
-					return { ...node, children: node.children.map(swapInTree) }
-				}
-				if (node.paneId === paneIdA) return { ...node, paneId: paneIdB }
-				if (node.paneId === paneIdB) return { ...node, paneId: paneIdA }
-				return node
-			}
+			const swappedTree = remapLayoutTree(workspace.layout.tree, (id) =>
+				id === paneIdA ? paneIdB : id === paneIdB ? paneIdA : id,
+			)
 			const updated = {
 				...workspace,
-				layout: { type: 'custom' as const, tree: swapInTree(workspace.layout.tree) },
+				layout: { type: 'custom' as const, tree: swappedTree },
 			}
 			window.api.saveWorkspace(updated).catch((err) => {
 				console.error('[store] Failed to save workspace:', err)
