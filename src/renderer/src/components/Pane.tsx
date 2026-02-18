@@ -7,6 +7,15 @@ import { useStore } from '../store'
 import { modKey } from '../utils/platform'
 import { TerminalView } from './Terminal'
 
+function initThemeInput(override: Partial<PaneTheme> | null) {
+	return {
+		background: override?.background ?? '',
+		foreground: override?.foreground ?? '',
+		fontSize: override?.fontSize?.toString() ?? '',
+		fontFamily: override?.fontFamily ?? '',
+	}
+}
+
 interface PaneProps {
 	paneId: string
 	paneIndex: number
@@ -41,12 +50,7 @@ export function Pane({
 	const contextRef = useRef<HTMLDivElement>(null)
 	const [cwdInput, setCwdInput] = useState(config.cwd)
 	const [cmdInput, setCmdInput] = useState(config.startupCommand ?? '')
-	const [themeInput, setThemeInput] = useState({
-		background: config.themeOverride?.background ?? '',
-		foreground: config.themeOverride?.foreground ?? '',
-		fontSize: config.themeOverride?.fontSize?.toString() ?? '',
-		fontFamily: config.themeOverride?.fontFamily ?? '',
-	})
+	const [themeInput, setThemeInput] = useState(() => initThemeInput(config.themeOverride))
 
 	// Ensure PTY exists for this pane. Uses store's activePtyIds to avoid
 	// double-creation on Allotment remounts (e.g. when splitting panes).
@@ -248,12 +252,7 @@ export function Pane({
 							type="button"
 							className="ctx-item"
 							onClick={() => {
-								setThemeInput({
-									background: config.themeOverride?.background ?? '',
-									foreground: config.themeOverride?.foreground ?? '',
-									fontSize: config.themeOverride?.fontSize?.toString() ?? '',
-									fontFamily: config.themeOverride?.fontFamily ?? '',
-								})
+								setThemeInput(initThemeInput(config.themeOverride))
 								setContextPanel(contextPanel === 'theme' ? null : 'theme')
 							}}
 						>
