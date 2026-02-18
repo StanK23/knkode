@@ -29,32 +29,35 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 
 	const currentPreset = workspace.layout.type === 'preset' ? workspace.layout.preset : null
 
-	// Live preview: push theme changes to store (in-memory only) on every field change
-	useEffect(() => {
-		previewWorkspaceTheme(workspace.id, {
+	const buildThemeFromInputs = useCallback(
+		(): PaneTheme => ({
 			background: bg,
 			foreground: fg,
 			fontSize,
 			opacity,
 			fontFamily: fontFamily || undefined,
-		})
-	}, [workspace.id, bg, fg, fontSize, opacity, fontFamily, previewWorkspaceTheme])
+		}),
+		[bg, fg, fontSize, opacity, fontFamily],
+	)
+
+	// Live preview: push theme to store (without persisting to disk) on every field change
+	useEffect(() => {
+		previewWorkspaceTheme(workspace.id, buildThemeFromInputs())
+	}, [workspace.id, buildThemeFromInputs, previewWorkspaceTheme])
 
 	const handleSave = useCallback(async () => {
-		await updateWorkspace({
-			...workspace,
-			name: name.trim() || workspace.name,
-			color,
-			theme: {
-				background: bg,
-				foreground: fg,
-				fontSize,
-				opacity,
-				fontFamily: fontFamily || undefined,
-			},
-		})
-		onClose()
-	}, [workspace, name, color, bg, fg, fontSize, opacity, fontFamily, updateWorkspace, onClose])
+		try {
+			await updateWorkspace({
+				...workspace,
+				name: name.trim() || workspace.name,
+				color,
+				theme: buildThemeFromInputs(),
+			})
+			onClose()
+		} catch (err) {
+			console.error('[settings] Failed to save workspace:', err)
+		}
+	}, [workspace, name, color, buildThemeFromInputs, updateWorkspace, onClose])
 
 	const handleCancel = useCallback(() => {
 		previewWorkspaceTheme(workspace.id, originalTheme.current)
