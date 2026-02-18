@@ -65,8 +65,12 @@ export function Pane({
 	const [cwdInput, setCwdInput] = useState(config.cwd)
 	const [cmdInput, setCmdInput] = useState(config.startupCommand ?? '')
 	const [themeInput, setThemeInput] = useState(() => initThemeInput(config.themeOverride))
+	const [isDragging, setIsDragging] = useState(false)
+	const [isDragOver, setIsDragOver] = useState(false)
+	const dragCounterRef = useRef(0)
 
 	const movePaneToWorkspace = useStore((s) => s.movePaneToWorkspace)
+	const swapPanes = useStore((s) => s.swapPanes)
 	const workspaces = useStore((s) => s.workspaces)
 	const openWorkspaceIds = useStore((s) => s.appState.openWorkspaceIds)
 	// Only show workspaces that are currently open as tabs (not all workspaces)
@@ -149,14 +153,63 @@ export function Pane({
 
 	const handleFocus = useCallback(() => onFocus(paneId), [paneId, onFocus])
 
+	const handleDragStart = useCallback(
+		(e: React.DragEvent) => {
+			e.dataTransfer.effectAllowed = 'move'
+			e.dataTransfer.setData('application/x-knkode-pane', JSON.stringify({ paneId, workspaceId }))
+			setIsDragging(true)
+		},
+		[paneId, workspaceId],
+	)
+	const handleDragEnd = useCallback(() => setIsDragging(false), [])
+	const handlePaneDragOver = useCallback((e: React.DragEvent) => {
+		if (e.dataTransfer.types.includes('application/x-knkode-pane')) {
+			e.preventDefault()
+			e.dataTransfer.dropEffect = 'move'
+		}
+	}, [])
+	const handlePaneDragEnter = useCallback((e: React.DragEvent) => {
+		if (e.dataTransfer.types.includes('application/x-knkode-pane')) {
+			dragCounterRef.current++
+			if (dragCounterRef.current === 1) setIsDragOver(true)
+		}
+	}, [])
+	const handlePaneDragLeave = useCallback(() => {
+		dragCounterRef.current--
+		if (dragCounterRef.current === 0) setIsDragOver(false)
+	}, [])
+	const handlePaneDrop = useCallback(
+		(e: React.DragEvent) => {
+			e.preventDefault()
+			dragCounterRef.current = 0
+			setIsDragOver(false)
+			try {
+				const data = JSON.parse(e.dataTransfer.getData('application/x-knkode-pane'))
+				if (data.workspaceId === workspaceId && data.paneId !== paneId) {
+					swapPanes(workspaceId, data.paneId, paneId)
+				}
+			} catch {
+				/* ignore malformed drag data */
+			}
+		},
+		[paneId, workspaceId, swapPanes],
+	)
+
 	return (
 		<div className="flex flex-col h-full w-full">
 			<div
+				draggable
+				onDragStart={handleDragStart}
+				onDragEnd={handleDragEnd}
+				onDragOver={handlePaneDragOver}
+				onDragEnter={handlePaneDragEnter}
+				onDragLeave={handlePaneDragLeave}
+				onDrop={handlePaneDrop}
 				onContextMenu={handleContextMenu}
 				onMouseDown={handleFocus}
 				className={`h-header flex items-center gap-2 px-2 text-[11px] shrink-0 relative select-none ${
 					isFocused ? 'bg-elevated border-b border-accent' : 'bg-sunken border-b border-edge'
-				}`}
+				} ${isDragOver ? 'shadow-[inset_0_2px_0_var(--color-accent)]' : ''} ${isDragging ? 'opacity-40' : ''}`}
 			>
 				<span className="text-content-muted text-[10px] font-semibold min-w-3 text-center shrink-0">
 					{paneIndex}
