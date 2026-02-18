@@ -13,11 +13,14 @@
   "extraResources": [
     { "from": "resources/icon.png", "to": "icon.png" }
   ],
+  "asarUnpack": ["**/node-pty/**"],
   "mac": {
     "target": ["dmg", "zip"],
     "category": "public.app-category.developer-tools",
     "icon": "resources/icon.icns",
     "hardenedRuntime": true,
-    "gatekeeperAssess": false
+    "gatekeeperAssess": false,
+    "entitlements": "resources/entitlements.mac.plist",
+    "entitlementsInherit": "resources/entitlements.mac.plist"
   }
 }
