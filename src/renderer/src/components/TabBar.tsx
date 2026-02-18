@@ -98,7 +98,6 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 			className="flex items-end bg-sunken border-b border-edge relative shrink-0"
 			style={{ WebkitAppRegion: 'drag' }}
 		>
-
 			{/* Tabs */}
 			<div
 				role="tablist"
