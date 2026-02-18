@@ -2,6 +2,11 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { PaneConfig, PaneTheme } from '../../../shared/types'
 
 type ContextPanelKind = 'cwd' | 'cmd' | 'theme' | 'move'
+interface PaneDragPayload {
+	paneId: string
+	workspaceId: string
+}
+const PANE_DRAG_MIME = 'application/x-knkode-pane'
 const VIEWPORT_MARGIN = 8
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useInlineEdit } from '../hooks/useInlineEdit'
@@ -65,8 +70,12 @@ export function Pane({
 	const [cwdInput, setCwdInput] = useState(config.cwd)
 	const [cmdInput, setCmdInput] = useState(config.startupCommand ?? '')
 	const [themeInput, setThemeInput] = useState(() => initThemeInput(config.themeOverride))
+	const [isDragging, setIsDragging] = useState(false)
+	const [isDragOver, setIsDragOver] = useState(false)
+	const dragCounterRef = useRef(0)
 
 	const movePaneToWorkspace = useStore((s) => s.movePaneToWorkspace)
+	const swapPanes = useStore((s) => s.swapPanes)
 	const workspaces = useStore((s) => s.workspaces)
 	const openWorkspaceIds = useStore((s) => s.appState.openWorkspaceIds)
 	// Only show workspaces that are currently open as tabs (not all workspaces)
@@ -149,14 +158,75 @@ export function Pane({
 
 	const handleFocus = useCallback(() => onFocus(paneId), [paneId, onFocus])
 
+	const handleDragStart = useCallback(
+		(e: React.DragEvent) => {
+			e.dataTransfer.effectAllowed = 'move'
+			e.dataTransfer.setData(
+				PANE_DRAG_MIME,
+				JSON.stringify({ paneId, workspaceId } satisfies PaneDragPayload),
+			)
+			setIsDragging(true)
+		},
+		[paneId, workspaceId],
+	)
+	const handleDragEnd = useCallback(() => {
+		setIsDragging(false)
+		dragCounterRef.current = 0
+	}, [])
+	const handlePaneDragOver = useCallback((e: React.DragEvent) => {
+		if (e.dataTransfer.types.includes(PANE_DRAG_MIME)) {
+			e.preventDefault()
+			e.dataTransfer.dropEffect = 'move'
+		}
+	}, [])
+	const handlePaneDragEnter = useCallback((e: React.DragEvent) => {
+		if (e.dataTransfer.types.includes(PANE_DRAG_MIME)) {
+			dragCounterRef.current++
+			if (dragCounterRef.current === 1) setIsDragOver(true)
+		}
+	}, [])
+	const handlePaneDragLeave = useCallback((e: React.DragEvent) => {
+		if (!e.dataTransfer.types.includes(PANE_DRAG_MIME)) return
+		dragCounterRef.current--
+		if (dragCounterRef.current === 0) setIsDragOver(false)
+	}, [])
+	const handlePaneDrop = useCallback(
+		(e: React.DragEvent) => {
+			e.preventDefault()
+			dragCounterRef.current = 0
+			setIsDragOver(false)
+			const raw = e.dataTransfer.getData(PANE_DRAG_MIME)
+			if (!raw) return
+			let data: PaneDragPayload
+			try {
+				data = JSON.parse(raw)
+			} catch {
+				return
+			}
+			if (typeof data.paneId !== 'string' || typeof data.workspaceId !== 'string') return
+			if (data.workspaceId === workspaceId && data.paneId !== paneId) {
+				swapPanes(workspaceId, data.paneId, paneId)
+			}
+		},
+		[paneId, workspaceId, swapPanes],
+	)
+
 	return (
 		<div className="flex flex-col h-full w-full">
 			<div
+				draggable={!isEditing}
+				aria-roledescription="draggable pane"
+				onDragStart={handleDragStart}
+				onDragEnd={handleDragEnd}
+				onDragOver={handlePaneDragOver}
+				onDragEnter={handlePaneDragEnter}
+				onDragLeave={handlePaneDragLeave}
+				onDrop={handlePaneDrop}
 				onContextMenu={handleContextMenu}
 				onMouseDown={handleFocus}
 				className={`h-header flex items-center gap-2 px-2 text-[11px] shrink-0 relative select-none ${
 					isFocused ? 'bg-elevated border-b border-accent' : 'bg-sunken border-b border-edge'
-				}`}
+				} ${isDragOver ? 'shadow-[inset_0_0_0_2px_var(--color-accent)]' : ''} ${isDragging ? 'opacity-40' : ''}`}
 			>
 				<span className="text-content-muted text-[10px] font-semibold min-w-3 text-center shrink-0">
 					{paneIndex}
