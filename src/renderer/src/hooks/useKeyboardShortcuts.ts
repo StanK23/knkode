@@ -59,9 +59,10 @@ export function useKeyboardShortcuts({ toggleSettings }: ShortcutOptions = {}) {
 				return
 			}
 
-			// Mod+Shift+W — close workspace tab
-			if ((e.key === 'w' || e.key === 'W') && e.shiftKey) {
+			// Mod+Shift+W — close workspace tab (keep at least one open)
+			if (e.key === 'W' && e.shiftKey) {
 				if (!activeWs) return
+				if (state.appState.openWorkspaceIds.length <= 1) return
 				e.preventDefault()
 				state.closeWorkspaceTab(activeWs.id)
 				return
