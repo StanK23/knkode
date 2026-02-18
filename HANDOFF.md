@@ -1,13 +1,14 @@
 # knkode — Handoff
 
 ## What Was Done
-- [done] Settings polish round 2 (PR #20)
-  - Theme presets: 16 themes (8 dark + 4 light + Catppuccin/Gruvbox/Rosé Pine/Kanagawa), smaller cards, name-as-preview (no "Aa")
-  - FontPicker: 14 fonts (added IBM Plex Mono, Hack, Inconsolata, Ubuntu Mono, Roboto Mono, Victor Mono), 3-column grid
+- [done] Settings polish round 2 (PR #20) — reviewed by 10-agent swarm, all findings addressed
+  - Theme presets: 16 themes (12 dark + 4 light), smaller cards, name-as-preview (no "Aa")
+  - FontPicker: 14 fonts, 3-column grid
   - BG/FG color pickers on same row
   - Replaced `opacity` with `unfocusedDim` — black overlay on unfocused panes, slider 0-70%
-  - Config migration: `opacity` → `unfocusedDim` in config-store.ts
-  - App icon: custom terminal-workspace icon (resources/icon.png + icon.icns), dock icon set in main process
+  - Config migration: `migrateTheme()` with null guard, type-safe reconstruction, 7 unit tests
+  - App icon: custom terminal-workspace icon, production-safe paths
+  - Review fixes: DEFAULT_UNFOCUSED_DIM constant, aria-pressed, dim overlay scoped + transitioned + clamped
 - [done] Settings redesign + UI testing bugfixes + review fixes (PR #19)
 - [done] UI polish — terminal padding, thinner separators, larger gear button (PR #18)
 
