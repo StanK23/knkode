@@ -55,17 +55,42 @@ function writeJson(filePath: string, data: unknown): void {
 	}
 }
 
-/** Migrate workspace themes from legacy `opacity` field to `unfocusedDim`. */
-function migrateTheme(ws: Workspace): Workspace {
-	const theme = ws.theme as Record<string, unknown>
-	if ('opacity' in theme && !('unfocusedDim' in theme)) {
-		const { opacity: _, ...rest } = theme
-		return { ...ws, theme: { ...rest, unfocusedDim: DEFAULT_UNFOCUSED_DIM } as Workspace['theme'] }
+/** Migrate workspace themes from legacy `opacity` field to `unfocusedDim`.
+ *  Converts opacity (0.3-1.0, higher = more visible) to unfocusedDim
+ *  (0-0.7, higher = more dimmed). Missing values default to DEFAULT_UNFOCUSED_DIM. */
+export function migrateTheme(ws: Workspace): Workspace {
+	if (!ws.theme || typeof ws.theme !== 'object') {
+		console.error('[config-store] Workspace has invalid theme, using defaults:', ws.id)
+		return {
+			...ws,
+			theme: {
+				background: '#1a1a2e',
+				foreground: '#e0e0e0',
+				fontSize: 14,
+				unfocusedDim: DEFAULT_UNFOCUSED_DIM,
+			},
+		}
 	}
-	if (!('unfocusedDim' in theme)) {
-		return { ...ws, theme: { ...ws.theme, unfocusedDim: DEFAULT_UNFOCUSED_DIM } }
+
+	const raw = ws.theme as Record<string, unknown>
+	if ('unfocusedDim' in raw) return ws
+
+	// Convert legacy opacity (0.3-1.0) to unfocusedDim (0-0.7)
+	let dim = DEFAULT_UNFOCUSED_DIM
+	if ('opacity' in raw && typeof raw.opacity === 'number' && Number.isFinite(raw.opacity)) {
+		dim = Math.max(0, Math.min(0.7, 1 - raw.opacity))
 	}
-	return ws
+
+	return {
+		...ws,
+		theme: {
+			background: ws.theme.background,
+			foreground: ws.theme.foreground,
+			fontSize: ws.theme.fontSize,
+			fontFamily: ws.theme.fontFamily,
+			unfocusedDim: dim,
+		},
+	}
 }
 
 export function getWorkspaces(): Workspace[] {
