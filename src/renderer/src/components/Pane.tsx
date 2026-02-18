@@ -293,18 +293,40 @@ export function Pane({
 									onChange={(font) => setThemeInput((t) => ({ ...t, fontFamily: font }))}
 									size="sm"
 								/>
-								<label className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
+								<div className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
 									<span>Font size</span>
-									<input
-										type="number"
-										value={themeInput.fontSize}
-										onChange={(e) => setThemeInput((t) => ({ ...t, fontSize: e.target.value }))}
-										placeholder={String(workspaceTheme.fontSize)}
-										className="ctx-input w-15"
-										min={8}
-										max={32}
-									/>
-								</label>
+									<div className="flex items-center gap-1">
+										<button
+											type="button"
+											onClick={() =>
+												setThemeInput((t) => {
+													const cur = Number(t.fontSize) || workspaceTheme.fontSize
+													return { ...t, fontSize: String(Math.max(8, cur - 1)) }
+												})
+											}
+											aria-label="Decrease font size"
+											className="bg-canvas border border-edge rounded-sm text-content cursor-pointer w-5 h-5 flex items-center justify-center text-[10px] hover:bg-overlay"
+										>
+											-
+										</button>
+										<span className="tabular-nums w-4 text-center">
+											{themeInput.fontSize || workspaceTheme.fontSize}
+										</span>
+										<button
+											type="button"
+											onClick={() =>
+												setThemeInput((t) => {
+													const cur = Number(t.fontSize) || workspaceTheme.fontSize
+													return { ...t, fontSize: String(Math.min(32, cur + 1)) }
+												})
+											}
+											aria-label="Increase font size"
+											className="bg-canvas border border-edge rounded-sm text-content cursor-pointer w-5 h-5 flex items-center justify-center text-[10px] hover:bg-overlay"
+										>
+											+
+										</button>
+									</div>
+								</div>
 								<div className="flex gap-1">
 									<button
 										type="button"

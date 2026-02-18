@@ -211,17 +211,28 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 						<span className="text-xs text-content-secondary">Font</span>
 						<FontPicker value={fontFamily} onChange={setFontFamily} />
 						{/* Font size */}
-						<label className="flex items-center gap-2">
+						<div className="flex items-center gap-2">
 							<span className="text-xs text-content-secondary w-20 shrink-0">Font Size</span>
-							<input
-								type="number"
-								min={8}
-								max={32}
-								value={fontSize}
-								onChange={(e) => setFontSize(Number(e.target.value))}
-								className="settings-input w-15"
-							/>
-						</label>
+							<button
+								type="button"
+								onClick={() => setFontSize((s) => Math.max(8, s - 1))}
+								aria-label="Decrease font size"
+								className="bg-sunken border border-edge rounded-sm text-content cursor-pointer w-7 h-7 flex items-center justify-center hover:bg-overlay focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+							>
+								-
+							</button>
+							<span className="text-xs text-content tabular-nums w-5 text-center">
+								{fontSize}
+							</span>
+							<button
+								type="button"
+								onClick={() => setFontSize((s) => Math.min(32, s + 1))}
+								aria-label="Increase font size"
+								className="bg-sunken border border-edge rounded-sm text-content cursor-pointer w-7 h-7 flex items-center justify-center hover:bg-overlay focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+							>
+								+
+							</button>
+						</div>
 						{/* Opacity */}
 						<label className="flex items-center gap-2">
 							<span className="text-xs text-content-secondary w-20 shrink-0">Opacity</span>
