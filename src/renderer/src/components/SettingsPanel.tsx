@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import type { LayoutPreset, PaneConfig, Workspace } from '../../../shared/types'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { LayoutPreset, PaneConfig, PaneTheme, Workspace } from '../../../shared/types'
 import { TERMINAL_FONTS, THEME_PRESETS } from '../data/theme-presets'
 import { createLayoutFromPreset, useStore } from '../store'
 import { LayoutPicker } from './LayoutPicker'
@@ -13,8 +13,11 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const updateWorkspace = useStore((s) => s.updateWorkspace)
 	const removeWorkspace = useStore((s) => s.removeWorkspace)
 	const updatePaneConfig = useStore((s) => s.updatePaneConfig)
+	const previewWorkspaceTheme = useStore((s) => s.previewWorkspaceTheme)
 	const killPtys = useStore((s) => s.killPtys)
 	const homeDir = useStore((s) => s.homeDir)
+
+	const originalTheme = useRef<PaneTheme>({ ...workspace.theme })
 
 	const [name, setName] = useState(workspace.name)
 	const [color, setColor] = useState(workspace.color)
@@ -25,6 +28,17 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const [fontFamily, setFontFamily] = useState(workspace.theme.fontFamily ?? '')
 
 	const currentPreset = workspace.layout.type === 'preset' ? workspace.layout.preset : null
+
+	// Live preview: push theme changes to store (in-memory only) on every field change
+	useEffect(() => {
+		previewWorkspaceTheme(workspace.id, {
+			background: bg,
+			foreground: fg,
+			fontSize,
+			opacity,
+			fontFamily: fontFamily || undefined,
+		})
+	}, [workspace.id, bg, fg, fontSize, opacity, fontFamily, previewWorkspaceTheme])
 
 	const handleSave = useCallback(async () => {
 		await updateWorkspace({
@@ -41,6 +55,11 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		})
 		onClose()
 	}, [workspace, name, color, bg, fg, fontSize, opacity, fontFamily, updateWorkspace, onClose])
+
+	const handleCancel = useCallback(() => {
+		previewWorkspaceTheme(workspace.id, originalTheme.current)
+		onClose()
+	}, [workspace.id, previewWorkspaceTheme, onClose])
 
 	const handleLayoutChange = useCallback(
 		(preset: LayoutPreset) => {
@@ -61,14 +80,14 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		onClose()
 	}, [workspace.id, workspace.name, removeWorkspace, onClose])
 
-	// Close on Escape key
+	// Close on Escape key — cancel reverts theme
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
-			if (e.key === 'Escape') onClose()
+			if (e.key === 'Escape') handleCancel()
 		}
 		document.addEventListener('keydown', handler)
 		return () => document.removeEventListener('keydown', handler)
-	}, [onClose])
+	}, [handleCancel])
 
 	const handlePaneUpdate = useCallback(
 		(paneId: string, updates: Partial<PaneConfig>) => {
@@ -77,20 +96,17 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		[workspace.id, updatePaneConfig],
 	)
 
-	const handlePresetClick = useCallback(
-		(presetBg: string, presetFg: string) => {
-			setBg(presetBg)
-			setFg(presetFg)
-		},
-		[],
-	)
+	const handlePresetClick = useCallback((presetBg: string, presetFg: string) => {
+		setBg(presetBg)
+		setFg(presetFg)
+	}, [])
 
 	return (
 		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape key handled via document listener above
 		<div
 			role="presentation"
 			className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
-			onClick={onClose}
+			onClick={handleCancel}
 		>
 			{/* biome-ignore lint/a11y/useKeyWithClickEvents: stopPropagation only, keyboard handled by overlay */}
 			{/* biome-ignore lint/a11y/useSemanticElements: native dialog has styling/focus-trap limitations in Electron */}
@@ -105,7 +121,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					<h2 className="text-base font-semibold">Workspace Settings</h2>
 					<button
 						type="button"
-						onClick={onClose}
+						onClick={handleCancel}
 						aria-label="Close settings"
 						className="bg-transparent border-none text-content-muted cursor-pointer text-sm hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 					>
@@ -138,7 +154,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					{/* Theme */}
 					<div className="flex flex-col gap-2">
 						<span className="section-label">Terminal Theme</span>
-						{/* Theme preset grid */}
+						{/* Theme preset grid — each button is a fully themed card */}
 						<div className="grid grid-cols-4 gap-1.5">
 							{THEME_PRESETS.map((preset) => {
 								const isActive = bg === preset.background && fg === preset.foreground
@@ -147,27 +163,17 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 										type="button"
 										key={preset.name}
 										onClick={() => handlePresetClick(preset.background, preset.foreground)}
-										className={`flex flex-col items-center gap-1 py-2 px-1.5 border rounded-md cursor-pointer ${
+										className={`flex flex-col items-center gap-0.5 py-3 px-2 rounded-md cursor-pointer border ${
 											isActive
-												? 'border-accent bg-accent/15'
-												: 'border-edge bg-sunken hover:border-content-muted'
+												? 'border-accent ring-1 ring-accent'
+												: 'border-transparent hover:border-content-muted'
 										}`}
 										title={preset.name}
 										aria-label={preset.name}
+										style={{ background: preset.background, color: preset.foreground }}
 									>
-										{/* Dynamic preset colors — cannot use Tailwind */}
-										<span
-											className="text-xs font-semibold rounded-sm px-1.5 py-0.5"
-											style={{
-												background: preset.background,
-												color: preset.foreground,
-											}}
-										>
-											Aa
-										</span>
-										<span className="text-[10px] text-content-muted truncate w-full text-center">
-											{preset.name}
-										</span>
+										<span className="text-sm font-semibold">Aa</span>
+										<span className="text-[10px] opacity-70">{preset.name}</span>
 									</button>
 								)
 							})}
@@ -191,22 +197,36 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								className="bg-sunken border border-edge rounded-sm w-10 h-7 p-0.5 cursor-pointer"
 							/>
 						</label>
-						{/* Font family */}
-						<label className="flex items-center gap-2">
-							<span className="text-xs text-content-secondary w-20 shrink-0">Font</span>
-							<select
-								value={fontFamily}
-								onChange={(e) => setFontFamily(e.target.value)}
-								className="settings-input flex-1"
+						{/* Font family — visual grid */}
+						<span className="text-xs text-content-secondary">Font</span>
+						<div className="grid grid-cols-2 gap-1.5">
+							<button
+								type="button"
+								onClick={() => setFontFamily('')}
+								className={`py-2 px-2 rounded-md cursor-pointer border text-xs ${
+									fontFamily === ''
+										? 'border-accent bg-accent/15'
+										: 'border-edge bg-sunken hover:border-content-muted'
+								}`}
 							>
-								<option value="">Default</option>
-								{TERMINAL_FONTS.map((font) => (
-									<option key={font} value={font}>
-										{font}
-									</option>
-								))}
-							</select>
-						</label>
+								Default
+							</button>
+							{TERMINAL_FONTS.map((font) => (
+								<button
+									type="button"
+									key={font}
+									onClick={() => setFontFamily(font)}
+									className={`py-2 px-2 rounded-md cursor-pointer border text-xs truncate ${
+										fontFamily === font
+											? 'border-accent bg-accent/15'
+											: 'border-edge bg-sunken hover:border-content-muted'
+									}`}
+									style={{ fontFamily: font }}
+								>
+									{font}
+								</button>
+							))}
+						</div>
 						{/* Font size */}
 						<label className="flex items-center gap-2">
 							<span className="text-xs text-content-secondary w-20 shrink-0">Font Size</span>
@@ -286,7 +306,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					<div className="flex-1" />
 					<button
 						type="button"
-						onClick={onClose}
+						onClick={handleCancel}
 						className="bg-transparent border border-edge text-content-secondary cursor-pointer text-xs py-1.5 px-3 rounded-sm hover:text-content hover:border-content-muted focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 					>
 						Cancel

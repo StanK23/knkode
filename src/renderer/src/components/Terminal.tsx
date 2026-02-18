@@ -30,6 +30,8 @@ export function TerminalView({
 	const themeRef = useRef({ ...theme, ...themeOverride })
 	const onFocusRef = useRef(onFocus)
 	onFocusRef.current = onFocus
+	const isFocusedRef = useRef(isFocused)
+	isFocusedRef.current = isFocused
 
 	const mergedTheme = useMemo(() => ({ ...theme, ...themeOverride }), [theme, themeOverride])
 
@@ -141,6 +143,8 @@ export function TerminalView({
 		} catch {
 			// fit() can throw when container has zero dimensions during layout transitions
 		}
+		// Re-focus terminal after fit() — fit() can cause DOM focus loss
+		if (isFocusedRef.current) termRef.current.focus()
 	}, [mergedTheme])
 
 	return (

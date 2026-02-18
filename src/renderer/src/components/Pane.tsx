@@ -280,23 +280,35 @@ export function Pane({
 										className="ctx-input flex-1 min-w-0"
 									/>
 								</label>
-								<label className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
-									<span>Font</span>
-									<select
-										value={themeInput.fontFamily}
-										onChange={(e) =>
-											setThemeInput((t) => ({ ...t, fontFamily: e.target.value }))
-										}
-										className="ctx-input flex-1 min-w-0"
+								<span className="text-[11px] text-content-muted">Font</span>
+								<div className="grid grid-cols-2 gap-1 px-0">
+									<button
+										type="button"
+										onClick={() => setThemeInput((t) => ({ ...t, fontFamily: '' }))}
+										className={`py-1 px-1.5 rounded-sm cursor-pointer border text-[10px] ${
+											themeInput.fontFamily === ''
+												? 'border-accent bg-accent/15'
+												: 'border-edge bg-sunken hover:border-content-muted'
+										}`}
 									>
-										<option value="">Default</option>
-										{TERMINAL_FONTS.map((font) => (
-											<option key={font} value={font}>
-												{font}
-											</option>
-										))}
-									</select>
-								</label>
+										Default
+									</button>
+									{TERMINAL_FONTS.map((font) => (
+										<button
+											type="button"
+											key={font}
+											onClick={() => setThemeInput((t) => ({ ...t, fontFamily: font }))}
+											className={`py-1 px-1.5 rounded-sm cursor-pointer border text-[10px] truncate ${
+												themeInput.fontFamily === font
+													? 'border-accent bg-accent/15'
+													: 'border-edge bg-sunken hover:border-content-muted'
+											}`}
+											style={{ fontFamily: font }}
+										>
+											{font}
+										</button>
+									))}
+								</div>
 								<label className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
 									<span>Font size</span>
 									<input
