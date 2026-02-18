@@ -403,12 +403,7 @@ export const useStore = create<StoreState>((set, get) => ({
 				themeOverride: config.themeOverride ? { ...config.themeOverride } : null,
 			}
 		}
-		const remapTree = (node: LayoutNode): LayoutNode => {
-			if (isLayoutBranch(node)) {
-				return { ...node, children: node.children.map(remapTree) }
-			}
-			return { ...node, paneId: requireMapped(node.paneId) }
-		}
+		const remappedTree = remapLayoutTree(source.layout.tree, requireMapped)
 		const workspace: Workspace = {
 			id: crypto.randomUUID(),
 			name: `${source.name} (copy)`,
@@ -416,8 +411,8 @@ export const useStore = create<StoreState>((set, get) => ({
 			theme: { ...source.theme },
 			layout:
 				source.layout.type === 'preset'
-					? { type: 'preset', preset: source.layout.preset, tree: remapTree(source.layout.tree) }
-					: { type: 'custom', tree: remapTree(source.layout.tree) },
+					? { type: 'preset', preset: source.layout.preset, tree: remappedTree }
+					: { type: 'custom', tree: remappedTree },
 			panes: newPanes,
 		}
 		await window.api.saveWorkspace(workspace)
@@ -692,10 +687,19 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 }))
 
-/** Get pane IDs in depth-first tree order, matching visual layout reading order. */
+/** Get pane IDs in depth-first, left-child-first order
+ *  (left-to-right for horizontal splits, top-to-bottom for vertical). */
 function getPaneIdsInOrder(node: LayoutNode): string[] {
 	if (!isLayoutBranch(node)) return [node.paneId]
 	return node.children.flatMap(getPaneIdsInOrder)
+}
+
+/** Walk a layout tree and remap every leaf's paneId via the given function. */
+function remapLayoutTree(node: LayoutNode, mapId: (id: string) => string): LayoutNode {
+	if (isLayoutBranch(node)) {
+		return { ...node, children: node.children.map((c) => remapLayoutTree(c, mapId)) }
+	}
+	return { ...node, paneId: mapId(node.paneId) }
 }
 
 /** Apply a layout preset while preserving existing panes by position.
@@ -721,8 +725,10 @@ function applyPresetWithRemap(
 
 	for (let i = 0; i < freshIds.length; i++) {
 		if (i < existingIds.length) {
+			const config = workspace.panes[existingIds[i]]
+			if (!config) throw new Error(`[applyPresetWithRemap] missing pane config for "${existingIds[i]}"`)
 			idMap.set(freshIds[i], existingIds[i])
-			panes[existingIds[i]] = workspace.panes[existingIds[i]]
+			panes[existingIds[i]] = config
 		} else {
 			idMap.set(freshIds[i], freshIds[i])
 			panes[freshIds[i]] = freshPanes[freshIds[i]]
@@ -733,16 +739,14 @@ function applyPresetWithRemap(
 		killedPaneIds.push(existingIds[i])
 	}
 
-	const remapTree = (node: LayoutNode): LayoutNode => {
-		if (isLayoutBranch(node)) {
-			return { ...node, children: node.children.map(remapTree) }
-		}
-		const mappedId = idMap.get(node.paneId)
-		return mappedId ? { ...node, paneId: mappedId } : node
+	const requireMapped = (id: string): string => {
+		const mapped = idMap.get(id)
+		if (!mapped) throw new Error(`[applyPresetWithRemap] unmapped pane ID "${id}"`)
+		return mapped
 	}
 
 	return {
-		layout: { type: 'preset', preset, tree: remapTree(freshLayout.tree) },
+		layout: { type: 'preset', preset, tree: remapLayoutTree(freshLayout.tree, requireMapped) },
 		panes,
 		killedPaneIds,
 	}
