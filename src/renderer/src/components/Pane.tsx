@@ -7,7 +7,14 @@ import { modKey } from '../utils/platform'
 import { FontPicker } from './FontPicker'
 import { TerminalView } from './Terminal'
 
-function initThemeInput(override: Partial<PaneTheme> | null) {
+interface ThemeInputFields {
+	background: string
+	foreground: string
+	fontSize: string
+	fontFamily: string
+}
+
+function initThemeInput(override: Partial<PaneTheme> | null): ThemeInputFields {
 	return {
 		background: override?.background ?? '',
 		foreground: override?.foreground ?? '',

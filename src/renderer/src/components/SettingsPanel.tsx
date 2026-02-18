@@ -41,8 +41,14 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		[bg, fg, fontSize, opacity, fontFamily],
 	)
 
-	// Live preview: push theme to store (without persisting to disk) on every field change
+	// Live preview: push theme to store (without persisting to disk) on every field change.
+	// Skip mount to avoid unnecessary store write with unchanged values.
+	const mountedRef = useRef(false)
 	useEffect(() => {
+		if (!mountedRef.current) {
+			mountedRef.current = true
+			return
+		}
 		previewWorkspaceTheme(workspace.id, buildThemeFromInputs())
 	}, [workspace.id, buildThemeFromInputs, previewWorkspaceTheme])
 
@@ -100,10 +106,10 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		[workspace.id, updatePaneConfig],
 	)
 
-	const handlePresetClick = useCallback((presetBg: string, presetFg: string) => {
+	const handlePresetClick = (presetBg: string, presetFg: string) => {
 		setBg(presetBg)
 		setFg(presetFg)
-	}, [])
+	}
 
 	return (
 		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape key handled via document listener above

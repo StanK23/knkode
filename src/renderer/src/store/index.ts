@@ -221,7 +221,8 @@ interface StoreState {
 	closePane: (workspaceId: string, paneId: string) => void
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
-	/** Update workspace theme in-memory only (no disk write). Used for live preview. */
+	/** Update workspace theme in-memory only (no disk write). Used for live preview.
+	 *  Caller must revert to the original theme on cancel. */
 	previewWorkspaceTheme: (wsId: string, theme: PaneTheme) => void
 	saveState: () => Promise<void>
 }

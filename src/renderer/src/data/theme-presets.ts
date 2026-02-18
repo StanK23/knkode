@@ -1,6 +1,6 @@
 import type { PaneTheme } from '../../../shared/types'
 
-export type ThemePreset = Pick<PaneTheme, 'background' | 'foreground'> & { name: string }
+type ThemePreset = Pick<PaneTheme, 'background' | 'foreground'> & { name: string }
 
 export const THEME_PRESETS = [
 	{ name: 'Default Dark', background: '#1a1a2e', foreground: '#e0e0e0' },
@@ -24,6 +24,7 @@ export const TERMINAL_FONTS = [
 	'Consolas',
 ] as const
 
+// Fallbacks intentionally overlap with TERMINAL_FONTS; browsers deduplicate font names
 const FONT_FALLBACKS = 'Menlo, Monaco, Consolas, monospace'
 
 export const DEFAULT_FONT_FAMILY = `${TERMINAL_FONTS[0]}, ${FONT_FALLBACKS}`
