@@ -342,7 +342,7 @@ export function Pane({
 				)}
 			</div>
 
-			<div className="flex-1 overflow-hidden">
+			<div className="flex-1 overflow-hidden p-1">
 				<TerminalView
 					paneId={paneId}
 					theme={workspaceTheme}

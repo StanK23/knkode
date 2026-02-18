@@ -96,6 +96,10 @@
 }
 
 /* Allotment sash overrides */
+:root {
+	--sash-size: 2px;
+}
+
 .sash-container .sash {
 	background: var(--color-edge) !important;
 }
