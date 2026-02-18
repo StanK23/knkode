@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { LayoutPreset, PaneConfig, Workspace } from '../../../shared/types'
+import { TERMINAL_FONTS, THEME_PRESETS } from '../data/theme-presets'
 import { createLayoutFromPreset, useStore } from '../store'
 import { LayoutPicker } from './LayoutPicker'
 
@@ -21,6 +22,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const [fg, setFg] = useState(workspace.theme.foreground)
 	const [fontSize, setFontSize] = useState(workspace.theme.fontSize)
 	const [opacity, setOpacity] = useState(workspace.theme.opacity)
+	const [fontFamily, setFontFamily] = useState(workspace.theme.fontFamily ?? '')
 
 	const currentPreset = workspace.layout.type === 'preset' ? workspace.layout.preset : null
 
@@ -29,10 +31,16 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 			...workspace,
 			name: name.trim() || workspace.name,
 			color,
-			theme: { background: bg, foreground: fg, fontSize, opacity },
+			theme: {
+				background: bg,
+				foreground: fg,
+				fontSize,
+				opacity,
+				fontFamily: fontFamily || undefined,
+			},
 		})
 		onClose()
-	}, [workspace, name, color, bg, fg, fontSize, opacity, updateWorkspace, onClose])
+	}, [workspace, name, color, bg, fg, fontSize, opacity, fontFamily, updateWorkspace, onClose])
 
 	const handleLayoutChange = useCallback(
 		(preset: LayoutPreset) => {
@@ -67,6 +75,14 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 			updatePaneConfig(workspace.id, paneId, updates)
 		},
 		[workspace.id, updatePaneConfig],
+	)
+
+	const handlePresetClick = useCallback(
+		(presetBg: string, presetFg: string) => {
+			setBg(presetBg)
+			setFg(presetFg)
+		},
+		[],
 	)
 
 	return (
@@ -120,8 +136,41 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 						</label>
 					</div>
 					{/* Theme */}
-					<div className="flex flex-col gap-2">
+					<div className="flex flex-col gap-3">
 						<span className="section-label">Terminal Theme</span>
+						{/* Theme preset grid */}
+						<div className="grid grid-cols-4 gap-1.5">
+							{THEME_PRESETS.map((preset) => {
+								const isActive = bg === preset.background && fg === preset.foreground
+								return (
+									<button
+										type="button"
+										key={preset.name}
+										onClick={() => handlePresetClick(preset.background, preset.foreground)}
+										className={`flex flex-col items-center gap-1 py-2 px-1.5 border rounded-md cursor-pointer ${
+											isActive
+												? 'border-accent bg-accent/15'
+												: 'border-edge bg-sunken hover:border-content-muted'
+										}`}
+										title={preset.name}
+									>
+										<span
+											className="text-xs font-semibold rounded-sm px-1.5 py-0.5"
+											style={{
+												background: preset.background,
+												color: preset.foreground,
+											}}
+										>
+											Aa
+										</span>
+										<span className="text-[9px] text-content-muted truncate w-full text-center">
+											{preset.name}
+										</span>
+									</button>
+								)
+							})}
+						</div>
+						{/* Custom colors */}
 						<label className="flex items-center gap-2">
 							<span className="text-xs text-content-secondary w-20 shrink-0">Background</span>
 							<input
@@ -140,6 +189,23 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								className="bg-sunken border border-edge rounded-sm w-10 h-7 p-0.5 cursor-pointer"
 							/>
 						</label>
+						{/* Font family */}
+						<label className="flex items-center gap-2">
+							<span className="text-xs text-content-secondary w-20 shrink-0">Font</span>
+							<select
+								value={fontFamily}
+								onChange={(e) => setFontFamily(e.target.value)}
+								className="settings-input flex-1"
+							>
+								<option value="">Default</option>
+								{TERMINAL_FONTS.map((font) => (
+									<option key={font} value={font}>
+										{font}
+									</option>
+								))}
+							</select>
+						</label>
+						{/* Font size */}
 						<label className="flex items-center gap-2">
 							<span className="text-xs text-content-secondary w-20 shrink-0">Font Size</span>
 							<input
@@ -151,6 +217,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								className="settings-input w-15"
 							/>
 						</label>
+						{/* Opacity */}
 						<label className="flex items-center gap-2">
 							<span className="text-xs text-content-secondary w-20 shrink-0">Opacity</span>
 							<input

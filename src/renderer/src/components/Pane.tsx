@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PaneConfig, PaneTheme } from '../../../shared/types'
+import { TERMINAL_FONTS } from '../data/theme-presets'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useInlineEdit } from '../hooks/useInlineEdit'
 import { useStore } from '../store'
@@ -44,6 +45,7 @@ export function Pane({
 		background: config.themeOverride?.background ?? '',
 		foreground: config.themeOverride?.foreground ?? '',
 		fontSize: config.themeOverride?.fontSize?.toString() ?? '',
+		fontFamily: config.themeOverride?.fontFamily ?? '',
 	})
 
 	// Ensure PTY exists for this pane. Uses store's activePtyIds to avoid
@@ -250,6 +252,7 @@ export function Pane({
 									background: config.themeOverride?.background ?? '',
 									foreground: config.themeOverride?.foreground ?? '',
 									fontSize: config.themeOverride?.fontSize?.toString() ?? '',
+									fontFamily: config.themeOverride?.fontFamily ?? '',
 								})
 								setContextPanel(contextPanel === 'theme' ? null : 'theme')
 							}}
@@ -279,6 +282,23 @@ export function Pane({
 									/>
 								</label>
 								<label className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
+									<span>Font</span>
+									<select
+										value={themeInput.fontFamily}
+										onChange={(e) =>
+											setThemeInput((t) => ({ ...t, fontFamily: e.target.value }))
+										}
+										className="ctx-input flex-1 min-w-0"
+									>
+										<option value="">Default</option>
+										{TERMINAL_FONTS.map((font) => (
+											<option key={font} value={font}>
+												{font}
+											</option>
+										))}
+									</select>
+								</label>
+								<label className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
 									<span>Font size</span>
 									<input
 										type="number"
@@ -302,6 +322,7 @@ export function Pane({
 												const fs = Number(themeInput.fontSize)
 												if (Number.isFinite(fs) && fs >= 8 && fs <= 32) override.fontSize = fs
 											}
+											if (themeInput.fontFamily) override.fontFamily = themeInput.fontFamily
 											onUpdateConfig(paneId, {
 												themeOverride: Object.keys(override).length > 0 ? override : null,
 											})

@@ -4,6 +4,7 @@ import { Terminal as XTerm } from '@xterm/xterm'
 import { useEffect, useMemo, useRef } from 'react'
 import '@xterm/xterm/css/xterm.css'
 import type { PaneTheme } from '../../../shared/types'
+import { DEFAULT_FONT_FAMILY } from '../data/theme-presets'
 import { useStore } from '../store'
 
 interface TerminalProps {
@@ -41,7 +42,9 @@ export function TerminalView({
 		const t = themeRef.current
 		const term = new XTerm({
 			fontSize: t.fontSize,
-			fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, monospace',
+			fontFamily: t.fontFamily
+				? `${t.fontFamily}, Menlo, Monaco, Consolas, monospace`
+				: DEFAULT_FONT_FAMILY,
 			theme: {
 				background: t.background,
 				foreground: t.foreground,
@@ -126,7 +129,7 @@ export function TerminalView({
 
 	// Update theme without re-mounting
 	useEffect(() => {
-		if (!termRef.current) return
+		if (!termRef.current || !fitAddonRef.current) return
 		termRef.current.options.theme = {
 			background: mergedTheme.background,
 			foreground: mergedTheme.foreground,
@@ -134,6 +137,10 @@ export function TerminalView({
 			selectionBackground: `${mergedTheme.foreground}33`,
 		}
 		termRef.current.options.fontSize = mergedTheme.fontSize
+		termRef.current.options.fontFamily = mergedTheme.fontFamily
+			? `${mergedTheme.fontFamily}, Menlo, Monaco, Consolas, monospace`
+			: DEFAULT_FONT_FAMILY
+		fitAddonRef.current.fit()
 	}, [mergedTheme])
 
 	return (

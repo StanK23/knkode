@@ -3,6 +3,7 @@ export interface PaneTheme {
 	foreground: string
 	fontSize: number
 	opacity: number
+	fontFamily?: string
 }
 
 export interface PaneConfig {
