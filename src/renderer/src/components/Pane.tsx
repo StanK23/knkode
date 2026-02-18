@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { PaneConfig, PaneTheme } from '../../../shared/types'
 
+type ContextPanelKind = 'cwd' | 'cmd' | 'theme' | 'move'
 const VIEWPORT_MARGIN = 8
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useInlineEdit } from '../hooks/useInlineEdit'
@@ -28,6 +29,7 @@ function initThemeInput(override: Partial<PaneTheme> | null): ThemeInputFields {
 interface PaneProps {
 	paneId: string
 	paneIndex: number
+	workspaceId: string
 	config: PaneConfig
 	workspaceTheme: PaneTheme
 	onUpdateConfig: (paneId: string, updates: Partial<PaneConfig>) => void
@@ -43,6 +45,7 @@ interface PaneProps {
 export function Pane({
 	paneId,
 	paneIndex,
+	workspaceId,
 	config,
 	workspaceTheme,
 	onUpdateConfig,
@@ -57,11 +60,20 @@ export function Pane({
 	const [showContext, setShowContext] = useState(false)
 	const [contextPos, setContextPos] = useState({ x: 0, y: 0 })
 	const [clampedPos, setClampedPos] = useState<{ x: number; y: number } | null>(null)
-	const [contextPanel, setContextPanel] = useState<'cwd' | 'cmd' | 'theme' | null>(null)
+	const [contextPanel, setContextPanel] = useState<ContextPanelKind | null>(null)
 	const contextRef = useRef<HTMLDivElement>(null)
 	const [cwdInput, setCwdInput] = useState(config.cwd)
 	const [cmdInput, setCmdInput] = useState(config.startupCommand ?? '')
 	const [themeInput, setThemeInput] = useState(() => initThemeInput(config.themeOverride))
+
+	const movePaneToWorkspace = useStore((s) => s.movePaneToWorkspace)
+	const workspaces = useStore((s) => s.workspaces)
+	const openWorkspaceIds = useStore((s) => s.appState.openWorkspaceIds)
+	// Only show workspaces that are currently open as tabs (not all workspaces)
+	const otherOpenWorkspaces = useMemo(
+		() => workspaces.filter((w) => openWorkspaceIds.includes(w.id) && w.id !== workspaceId),
+		[workspaces, openWorkspaceIds, workspaceId],
+	)
 
 	// Ensure PTY exists for this pane. Uses store's activePtyIds to avoid
 	// double-creation on Allotment remounts (e.g. when splitting panes).
@@ -111,14 +123,21 @@ export function Pane({
 	// user never sees the unclamped position. Re-runs when contextPanel
 	// changes because sub-panel expansion alters menu height.
 	// Also listens for window resize to re-clamp while the menu is open.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: contextPanel intentionally triggers re-clamp on sub-panel toggle
 	useLayoutEffect(() => {
 		const el = contextRef.current
 		if (!showContext || !el) return
 		const clamp = () => {
 			const { width, height } = el.getBoundingClientRect()
 			setClampedPos({
-				x: Math.max(VIEWPORT_MARGIN, Math.min(contextPos.x, window.innerWidth - width - VIEWPORT_MARGIN)),
-				y: Math.max(VIEWPORT_MARGIN, Math.min(contextPos.y, window.innerHeight - height - VIEWPORT_MARGIN)),
+				x: Math.max(
+					VIEWPORT_MARGIN,
+					Math.min(contextPos.x, window.innerWidth - width - VIEWPORT_MARGIN),
+				),
+				y: Math.max(
+					VIEWPORT_MARGIN,
+					Math.min(contextPos.y, window.innerHeight - height - VIEWPORT_MARGIN),
+				),
 			})
 		}
 		clamp()
@@ -225,6 +244,41 @@ export function Pane({
 						>
 							Split Horizontal
 						</button>
+						{/* canClose ensures the source workspace keeps at least one pane after the move */}
+						{canClose && otherOpenWorkspaces.length > 0 && (
+							<>
+								<div className="ctx-separator" />
+								<button
+									type="button"
+									className="ctx-item"
+									onClick={() => setContextPanel(contextPanel === 'move' ? null : 'move')}
+								>
+									Move to Workspace
+								</button>
+								{contextPanel === 'move' && (
+									<div className="flex flex-col gap-0.5 px-1 py-1">
+										{otherOpenWorkspaces.map((ws) => (
+											<button
+												type="button"
+												key={ws.id}
+												className="ctx-item flex items-center gap-2"
+												onClick={() => {
+													movePaneToWorkspace(workspaceId, paneId, ws.id)
+													closeContext()
+												}}
+											>
+												<span
+													className="w-2 h-2 rounded-full shrink-0"
+													aria-hidden="true"
+													style={{ background: ws.color }}
+												/>
+												<span className="truncate">{ws.name}</span>
+											</button>
+										))}
+									</div>
+								)}
+							</>
+						)}
 						<div className="ctx-separator" />
 						<button
 							type="button"
