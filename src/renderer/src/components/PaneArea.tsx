@@ -1,6 +1,4 @@
-import { Allotment, setSashSize } from 'allotment'
-
-setSashSize(2)
+import { Allotment } from 'allotment'
 import { useCallback, useMemo } from 'react'
 import 'allotment/dist/style.css'
 import type { LayoutNode, PaneConfig, Workspace } from '../../../shared/types'
