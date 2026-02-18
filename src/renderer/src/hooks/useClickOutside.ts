@@ -8,6 +8,7 @@ export function useClickOutside(
 	useEffect(() => {
 		if (!active) return
 		const handler = (e: MouseEvent) => {
+			if (!e.target) return
 			if (ref.current && !ref.current.contains(e.target as Node)) {
 				onClose()
 			}
