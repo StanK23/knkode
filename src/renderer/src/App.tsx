@@ -30,6 +30,12 @@ export function App() {
 		init()
 	}, [init])
 
+	// Dynamic window title — shows active workspace name
+	const activeWorkspaceName = workspaces.find((w) => w.id === appState.activeWorkspaceId)?.name
+	useEffect(() => {
+		document.title = activeWorkspaceName ? `${activeWorkspaceName} — knkode` : 'knkode'
+	}, [activeWorkspaceName])
+
 	// Listen for CWD changes from the main process
 	useEffect(() => {
 		const unsubscribe = window.api.onPtyCwdChanged((paneId, cwd) => {
