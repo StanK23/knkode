@@ -1,8 +1,12 @@
+/** Default unfocused pane dimming (moderate). UI range: [0, 0.7]. */
+export const DEFAULT_UNFOCUSED_DIM = 0.3
+
 export interface PaneTheme {
 	background: string
 	foreground: string
 	fontSize: number
-	opacity: number
+	/** Black overlay opacity on unfocused panes. Clamped to [0, 0.7] by the UI. */
+	unfocusedDim: number
 	fontFamily?: string
 }
 

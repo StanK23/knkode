@@ -12,7 +12,7 @@
     "test:watch": "vitest",
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "electron-builder install-app-deps && ./scripts/patch-electron-name.sh"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.10.0",

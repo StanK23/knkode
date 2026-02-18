@@ -25,7 +25,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const [bg, setBg] = useState(workspace.theme.background)
 	const [fg, setFg] = useState(workspace.theme.foreground)
 	const [fontSize, setFontSize] = useState(workspace.theme.fontSize)
-	const [opacity, setOpacity] = useState(workspace.theme.opacity)
+	const [unfocusedDim, setUnfocusedDim] = useState(workspace.theme.unfocusedDim)
 	const [fontFamily, setFontFamily] = useState(workspace.theme.fontFamily ?? '')
 
 	const currentPreset = workspace.layout.type === 'preset' ? workspace.layout.preset : null
@@ -35,10 +35,10 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 			background: bg,
 			foreground: fg,
 			fontSize,
-			opacity,
+			unfocusedDim,
 			fontFamily: fontFamily || undefined,
 		}),
-		[bg, fg, fontSize, opacity, fontFamily],
+		[bg, fg, fontSize, unfocusedDim, fontFamily],
 	)
 
 	// Live preview: push theme to store (without persisting to disk) on every field change.
@@ -106,10 +106,10 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		[workspace.id, updatePaneConfig],
 	)
 
-	const handlePresetClick = (presetBg: string, presetFg: string) => {
+	const handlePresetClick = useCallback((presetBg: string, presetFg: string) => {
 		setBg(presetBg)
 		setFg(presetFg)
-	}
+	}, [])
 
 	return (
 		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape key handled via document listener above
@@ -164,7 +164,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					{/* Theme */}
 					<div className="flex flex-col gap-2">
 						<span className="section-label">Terminal Theme</span>
-						{/* Theme preset grid — each button is a fully themed card */}
+						{/* Theme preset grid — name rendered in theme colors as preview */}
 						<div className="grid grid-cols-4 gap-1.5">
 							{THEME_PRESETS.map((preset) => {
 								const isActive = bg === preset.background && fg === preset.foreground
@@ -173,7 +173,8 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 										type="button"
 										key={preset.name}
 										onClick={() => handlePresetClick(preset.background, preset.foreground)}
-										className={`flex flex-col items-center gap-0.5 py-3 px-2 rounded-md cursor-pointer border focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
+										aria-pressed={isActive}
+										className={`py-1.5 px-1 rounded-md cursor-pointer border text-center focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
 											isActive
 												? 'border-accent ring-1 ring-accent'
 												: 'border-transparent hover:border-content-muted'
@@ -182,31 +183,34 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 										aria-label={preset.name}
 										style={{ background: preset.background, color: preset.foreground }}
 									>
-										<span className="text-sm font-semibold">Aa</span>
-										<span className="text-[10px] opacity-70">{preset.name}</span>
+										<span className="text-[11px] font-medium leading-tight block truncate">
+											{preset.name}
+										</span>
 									</button>
 								)
 							})}
 						</div>
-						{/* Custom colors */}
-						<label className="flex items-center gap-2">
-							<span className="text-xs text-content-secondary w-20 shrink-0">Background</span>
-							<input
-								type="color"
-								value={bg}
-								onChange={(e) => setBg(e.target.value)}
-								className="bg-sunken border border-edge rounded-sm w-10 h-7 p-0.5 cursor-pointer"
-							/>
-						</label>
-						<label className="flex items-center gap-2">
-							<span className="text-xs text-content-secondary w-20 shrink-0">Foreground</span>
-							<input
-								type="color"
-								value={fg}
-								onChange={(e) => setFg(e.target.value)}
-								className="bg-sunken border border-edge rounded-sm w-10 h-7 p-0.5 cursor-pointer"
-							/>
-						</label>
+						{/* Custom colors — BG and FG on same row */}
+						<div className="flex items-center gap-4">
+							<label className="flex items-center gap-2">
+								<span className="text-xs text-content-secondary shrink-0">Background</span>
+								<input
+									type="color"
+									value={bg}
+									onChange={(e) => setBg(e.target.value)}
+									className="bg-sunken border border-edge rounded-sm w-10 h-7 p-0.5 cursor-pointer"
+								/>
+							</label>
+							<label className="flex items-center gap-2">
+								<span className="text-xs text-content-secondary shrink-0">Foreground</span>
+								<input
+									type="color"
+									value={fg}
+									onChange={(e) => setFg(e.target.value)}
+									className="bg-sunken border border-edge rounded-sm w-10 h-7 p-0.5 cursor-pointer"
+								/>
+							</label>
+						</div>
 						{/* Font family — visual grid */}
 						<span className="text-xs text-content-secondary">Font</span>
 						<FontPicker value={fontFamily} onChange={setFontFamily} />
@@ -221,9 +225,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 							>
 								-
 							</button>
-							<span className="text-xs text-content tabular-nums w-5 text-center">
-								{fontSize}
-							</span>
+							<span className="text-xs text-content tabular-nums w-5 text-center">{fontSize}</span>
 							<button
 								type="button"
 								onClick={() => setFontSize((s) => Math.min(32, s + 1))}
@@ -233,20 +235,20 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								+
 							</button>
 						</div>
-						{/* Opacity */}
+						{/* Unfocused pane dimming */}
 						<label className="flex items-center gap-2">
-							<span className="text-xs text-content-secondary w-20 shrink-0">Opacity</span>
+							<span className="text-xs text-content-secondary w-20 shrink-0">Dim unfocused</span>
 							<input
 								type="range"
-								min={0.3}
-								max={1}
+								min={0}
+								max={0.7}
 								step={0.05}
-								value={opacity}
-								onChange={(e) => setOpacity(Number(e.target.value))}
+								value={unfocusedDim}
+								onChange={(e) => setUnfocusedDim(Number(e.target.value))}
 								className="flex-1"
 							/>
 							<span className="text-[11px] text-content-muted w-7">
-								{Math.round(opacity * 100)}%
+								{Math.round(unfocusedDim * 100)}%
 							</span>
 						</label>
 					</div>
