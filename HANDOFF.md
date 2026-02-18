@@ -1,23 +1,15 @@
 # knkode — Handoff
 
 ## What Was Done
+- [done] Pane context menu bugfixes (PR #21) — 9-agent review, all findings addressed
+  - Context menu now opens at mouse cursor position (was hardcoded top-right)
+  - Fixed stuck-dismiss: capture-phase mousedown escapes xterm's stopPropagation
+  - position:fixed escapes allotment's overflow:hidden, useLayoutEffect clamps to viewport
+  - Auto-focus context menu on open so Escape key works immediately
+  - Null guard for e.target in useClickOutside
 - [done] Settings polish round 2 (PR #20) — reviewed by 10-agent swarm, all findings addressed
-  - Theme presets: 16 themes (12 dark + 4 light), smaller cards, name-as-preview (no "Aa")
-  - FontPicker: 14 fonts, 3-column grid
-  - BG/FG color pickers on same row
-  - Replaced `opacity` with `unfocusedDim` — black overlay on unfocused panes, slider 0-70%
-  - Config migration: `migrateTheme()` with null guard, type-safe reconstruction, 7 unit tests
-  - App icon: custom terminal-workspace icon, production-safe paths
-  - Review fixes: DEFAULT_UNFOCUSED_DIM constant, aria-pressed, dim overlay scoped + transitioned + clamped
 - [done] Settings redesign + UI testing bugfixes + review fixes (PR #19)
 - [done] UI polish — terminal padding, thinner separators, larger gear button (PR #18)
-
-## Active Reviews
-
-### PR #21 — fix: pane context menu positioning and stuck dismiss
-- State: `docs/reviews/PR-21/_state.json`
-- Agents: 9/9 completed
-- Phase: done — compiling fixes
 
 ## Active Decisions
 - Tech stack: Electron + React + TypeScript + xterm.js + node-pty + Zustand
@@ -29,6 +21,7 @@
 ## What's Next
 - Follow-up: Extract ghost button pattern (bg-transparent border-none...) to @layer components
 - Follow-up: Focus trap for SettingsPanel modal (`aria-modal` expects containment)
-- Follow-up: Extract `useContextMenu` hook (DRY)
+- Follow-up: Extract `useContextMenu` hook (DRY — shared boilerplate in Pane/Tab)
 - Follow-up: Context menu keyboard navigation (arrow keys, role="menu")
+- Follow-up: Named `Point` type for context menu position state
 - Follow-up: Additional test coverage for renderer components
