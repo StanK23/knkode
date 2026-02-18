@@ -131,7 +131,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 					onClick={handleNewWorkspace}
 					title={`New workspace (${modKey}+T)`}
 					aria-label="Create new workspace"
-					className="bg-transparent border-none text-content-muted cursor-pointer text-lg leading-none px-2.5 h-tab flex items-center shrink-0 hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+					className="bg-transparent border-none text-content-muted cursor-pointer text-lg leading-none px-2.5 h-tab flex items-center shrink-0 hover:text-content hover:bg-overlay rounded-sm focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 				>
 					+
 				</button>
@@ -144,7 +144,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 					onClick={onOpenSettings}
 					title={`Workspace settings (${modKey}+,)`}
 					aria-label="Open workspace settings"
-					className="bg-transparent border-none text-content-muted cursor-pointer text-sm px-1.5 h-tab flex items-center shrink-0 hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+					className="bg-transparent border-none text-content-muted cursor-pointer text-lg px-2.5 h-tab flex items-center shrink-0 hover:text-content hover:bg-overlay rounded-sm focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 					style={{ WebkitAppRegion: 'no-drag' }}
 				>
 					&#9881;

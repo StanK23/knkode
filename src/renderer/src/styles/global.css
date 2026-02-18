@@ -95,7 +95,10 @@
 	-webkit-app-region: drag;
 }
 
-/* Allotment sash overrides */
+/* Allotment sash overrides — CSS custom property controls visual width */
+:root {
+	--sash-size: 2px;
+}
 .sash-container .sash {
 	background: var(--color-edge) !important;
 }
