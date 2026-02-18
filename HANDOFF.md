@@ -1,15 +1,15 @@
 # knkode — Handoff
 
 ## What Was Done
-- [done] Drag-and-drop pane reordering (PR #24) — 9-agent review, all findings addressed
-  - Store action `swapPanes`: reuses `remapLayoutTree` with swap lambda
-  - HTML5 DnD on pane headers: typed `PaneDragPayload`, `PANE_DRAG_MIME` constant
-  - Visual: opacity-40 drag, full-border accent shadow drop target, a11y attributes
-  - Review fixes: narrow catch, runtime type guard, counter symmetry, draggable={!isEditing}
+- [done] Tab bar button hit areas (PR #25) — 8-agent review, all findings addressed
+  - Replaced drag-region overlay with standard Electron drag pattern (drag on parent, no-drag on children)
+  - Extracted `.no-drag` CSS utility class, removed `.drag-region` class + `--spacing-drag` token
+  - Added `min-w-[44px]` to "+" button, `min-h-[28px]` to closed-workspaces button (accessibility)
+  - Added `self-center` to gear button + closed-workspaces menu for consistent vertical alignment
+- [done] Drag-and-drop pane reordering (PR #24)
 - [done] Move panes between workspaces (PR #23)
 - [done] Layout preservation + auto-apply settings (PR #22)
 - [done] Pane context menu bugfixes (PR #21)
-- [done] Settings polish round 2 (PR #20)
 
 ## Active Decisions
 - Tech stack: Electron + React + TypeScript + xterm.js + node-pty + Zustand
