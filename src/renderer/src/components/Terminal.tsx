@@ -165,7 +165,5 @@ export function TerminalView({
 		}
 	}, [mergedTheme])
 
-	return (
-		<div ref={containerRef} className="w-full h-full" style={{ opacity: mergedTheme.opacity }} />
-	)
+	return <div ref={containerRef} className="w-full h-full" />
 }

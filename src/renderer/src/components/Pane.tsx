@@ -380,7 +380,10 @@ export function Pane({
 				)}
 			</div>
 
-			<div className="flex-1 overflow-hidden p-px">
+			{/* Dim overlay scoped to terminal area only (not the header).
+			    Always rendered to enable CSS transition; opacity toggled via class.
+			    Inline style required: Tailwind cannot express dynamic runtime opacity. */}
+			<div className="flex-1 overflow-hidden p-px relative">
 				<TerminalView
 					paneId={paneId}
 					theme={workspaceTheme}
@@ -388,6 +391,16 @@ export function Pane({
 					focusGeneration={focusGeneration}
 					isFocused={isFocused}
 					onFocus={handleFocus}
+				/>
+				<div
+					className={`absolute inset-0 bg-black pointer-events-none transition-opacity duration-150 ${
+						!isFocused && workspaceTheme.unfocusedDim > 0 ? '' : 'opacity-0'
+					}`}
+					style={
+						!isFocused && workspaceTheme.unfocusedDim > 0
+							? { opacity: Math.max(0, Math.min(0.7, workspaceTheme.unfocusedDim)) }
+							: undefined
+					}
 				/>
 			</div>
 		</div>
