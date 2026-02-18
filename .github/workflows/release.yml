@@ -38,25 +38,24 @@ jobs:
 
       - run: bun run test
 
-      - name: Build, sign, and package
+      - name: Build and package
         run: bun run build && bun x electron-builder --$ARCH
         env:
           ARCH: ${{ matrix.arch }}
-          # Code-signing secrets (sign the app binary):
+          # Skip code signing — no Apple Developer account configured yet.
+          # To enable signing + notarization, add these repo secrets:
           #   CSC_LINK: base64-encoded .p12 certificate (or file path)
           #   CSC_KEY_PASSWORD: certificate password
-          #
-          # Notarization secrets (submit to Apple for notarization):
           #   APPLE_ID: your Apple ID email
           #   APPLE_APP_SPECIFIC_PASSWORD: app-specific password (generate at appleid.apple.com)
           #   APPLE_TEAM_ID: 10-character Apple Developer Team ID
-          #
-          # Builds work unsigned when secrets are absent.
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Then uncomment the env vars below and remove CSC_IDENTITY_AUTO_DISCOVERY.
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          # CSC_LINK: ${{ secrets.CSC_LINK }}
+          # CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # APPLE_ID: ${{ secrets.APPLE_ID }}
+          # APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
