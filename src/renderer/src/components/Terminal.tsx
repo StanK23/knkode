@@ -1,7 +1,9 @@
 import { FitAddon } from '@xterm/addon-fit'
+import { SearchAddon } from '@xterm/addon-search'
+import { WebLinksAddon } from '@xterm/addon-web-links'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal as XTerm } from '@xterm/xterm'
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import '@xterm/xterm/css/xterm.css'
 import type { PaneTheme } from '../../../shared/types'
 import { buildFontFamily, buildXtermTheme } from '../data/theme-presets'
@@ -27,12 +29,17 @@ export function TerminalView({
 	const containerRef = useRef<HTMLDivElement>(null)
 	const termRef = useRef<XTerm | null>(null)
 	const fitAddonRef = useRef<FitAddon | null>(null)
+	const searchAddonRef = useRef<SearchAddon | null>(null)
 	const themeRef = useRef({ ...theme, ...themeOverride })
 	const onFocusRef = useRef(onFocus)
 	onFocusRef.current = onFocus
 	// Ref allows the theme-update effect to re-focus without adding isFocused to its deps
 	const isFocusedRef = useRef(isFocused)
 	isFocusedRef.current = isFocused
+
+	const [showSearch, setShowSearch] = useState(false)
+	const [searchQuery, setSearchQuery] = useState('')
+	const searchInputRef = useRef<HTMLInputElement>(null)
 
 	const mergedTheme = useMemo(() => ({ ...theme, ...themeOverride }), [theme, themeOverride])
 
@@ -55,6 +62,19 @@ export function TerminalView({
 
 		const fitAddon = new FitAddon()
 		term.loadAddon(fitAddon)
+
+		const searchAddon = new SearchAddon()
+		term.loadAddon(searchAddon)
+		searchAddonRef.current = searchAddon
+
+		term.loadAddon(
+			new WebLinksAddon((_e, url) => {
+				window.api.openExternal(url).catch((err) => {
+					console.error('[terminal] Failed to open URL:', err)
+				})
+			}),
+		)
+
 		term.open(containerRef.current)
 		fitAddon.fit()
 
@@ -129,6 +149,7 @@ export function TerminalView({
 			resizeObserver.disconnect()
 			removeDataListener()
 			removeExitListener()
+			searchAddonRef.current = null
 			term.dispose()
 		}
 	}, [paneId])
@@ -165,5 +186,111 @@ export function TerminalView({
 		}
 	}, [mergedTheme])
 
-	return <div ref={containerRef} className="w-full h-full" />
+	// Cmd+F to open search (captured at terminal level to prevent browser find)
+	useEffect(() => {
+		const containerEl = containerRef.current
+		if (!containerEl) return
+		const handler = (e: KeyboardEvent) => {
+			const isMod = e.metaKey || e.ctrlKey
+			if (isMod && e.key === 'f') {
+				e.preventDefault()
+				e.stopPropagation()
+				setShowSearch(true)
+			}
+		}
+		containerEl.addEventListener('keydown', handler)
+		return () => containerEl.removeEventListener('keydown', handler)
+	}, [])
+
+	// Auto-focus search input when search bar opens
+	useEffect(() => {
+		if (showSearch && searchInputRef.current) {
+			searchInputRef.current.focus()
+			searchInputRef.current.select()
+		}
+	}, [showSearch])
+
+	const handleSearchChange = useCallback((query: string) => {
+		setSearchQuery(query)
+		if (searchAddonRef.current) {
+			if (query) {
+				searchAddonRef.current.findNext(query)
+			} else {
+				searchAddonRef.current.clearDecorations()
+			}
+		}
+	}, [])
+
+	const handleSearchNext = useCallback(() => {
+		if (searchAddonRef.current && searchQuery) {
+			searchAddonRef.current.findNext(searchQuery)
+		}
+	}, [searchQuery])
+
+	const handleSearchPrev = useCallback(() => {
+		if (searchAddonRef.current && searchQuery) {
+			searchAddonRef.current.findPrevious(searchQuery)
+		}
+	}, [searchQuery])
+
+	const closeSearch = useCallback(() => {
+		setShowSearch(false)
+		setSearchQuery('')
+		searchAddonRef.current?.clearDecorations()
+		termRef.current?.focus()
+	}, [])
+
+	return (
+		<div className="relative w-full h-full">
+			{showSearch && (
+				<div className="absolute top-1 right-2 z-10 flex items-center gap-1 bg-elevated border border-edge rounded-sm px-2 py-1 shadow-panel">
+					<input
+						ref={searchInputRef}
+						value={searchQuery}
+						onChange={(e) => handleSearchChange(e.target.value)}
+						onKeyDown={(e) => {
+							if (e.key === 'Enter') {
+								e.preventDefault()
+								if (e.shiftKey) handleSearchPrev()
+								else handleSearchNext()
+							}
+							if (e.key === 'Escape') {
+								e.preventDefault()
+								e.stopPropagation()
+								closeSearch()
+							}
+						}}
+						placeholder="Find..."
+						className="bg-sunken border border-edge rounded-sm text-content text-xs py-0.5 px-1.5 outline-none w-40 focus:border-accent"
+						aria-label="Search terminal"
+					/>
+					<button
+						type="button"
+						onClick={handleSearchPrev}
+						aria-label="Previous match"
+						className="bg-transparent border-none text-content-muted cursor-pointer text-xs px-1 hover:text-content"
+					>
+						&#x25B2;
+					</button>
+					<button
+						type="button"
+						onClick={handleSearchNext}
+						aria-label="Next match"
+						className="bg-transparent border-none text-content-muted cursor-pointer text-xs px-1 hover:text-content"
+					>
+						&#x25BC;
+					</button>
+					<button
+						type="button"
+						onClick={closeSearch}
+						aria-label="Close search"
+						className="bg-transparent border-none text-content-muted cursor-pointer text-xs px-1 hover:text-content"
+					>
+						&#x2715;
+					</button>
+				</div>
+			)}
+			<div ref={containerRef} className="w-full h-full" />
+		</div>
+	)
 }

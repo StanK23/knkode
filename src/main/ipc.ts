@@ -1,6 +1,6 @@
 import os from 'node:os'
 import path from 'node:path'
-import { ipcMain } from 'electron'
+import { ipcMain, shell } from 'electron'
 import type { AppState, Workspace } from '../shared/types'
 import { IPC } from '../shared/types'
 import {
@@ -75,6 +75,15 @@ function assertAppState(value: unknown): asserts value is AppState {
 
 export function registerIpcHandlers(): void {
 	ipcMain.handle(IPC.APP_GET_HOME_DIR, () => os.homedir())
+
+	ipcMain.handle(IPC.APP_OPEN_EXTERNAL, (_e, url: unknown) => {
+		assertString(url, 'url')
+		const parsed = new URL(url)
+		if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+			throw new Error('Only http/https URLs are allowed')
+		}
+		return shell.openExternal(url)
+	})
 
 	ipcMain.handle(IPC.CONFIG_GET_WORKSPACES, () => getWorkspaces())
 

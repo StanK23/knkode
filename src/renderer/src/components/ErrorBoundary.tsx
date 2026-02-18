@@ -42,6 +42,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 						<button
 							type="button"
 							onClick={this.handleRetry}
+							// biome-ignore lint/a11y/noAutofocus: intentional — focus recovery after error boundary triggers
 							autoFocus
 							className="bg-sunken border border-edge text-content text-xs py-1.5 px-4 rounded-sm cursor-pointer hover:bg-overlay focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 						>
