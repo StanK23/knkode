@@ -108,14 +108,20 @@ export function Pane({
 	// imperative DOM mutation). Runs before paint via useLayoutEffect so the
 	// user never sees the unclamped position. Re-runs when contextPanel
 	// changes because sub-panel expansion alters menu height.
+	// Also listens for window resize to re-clamp while the menu is open.
 	useLayoutEffect(() => {
 		const el = contextRef.current
 		if (!showContext || !el) return
-		const { width, height } = el.getBoundingClientRect()
-		setClampedPos({
-			x: Math.max(VIEWPORT_MARGIN, Math.min(contextPos.x, window.innerWidth - width - VIEWPORT_MARGIN)),
-			y: Math.max(VIEWPORT_MARGIN, Math.min(contextPos.y, window.innerHeight - height - VIEWPORT_MARGIN)),
-		})
+		const clamp = () => {
+			const { width, height } = el.getBoundingClientRect()
+			setClampedPos({
+				x: Math.max(VIEWPORT_MARGIN, Math.min(contextPos.x, window.innerWidth - width - VIEWPORT_MARGIN)),
+				y: Math.max(VIEWPORT_MARGIN, Math.min(contextPos.y, window.innerHeight - height - VIEWPORT_MARGIN)),
+			})
+		}
+		clamp()
+		window.addEventListener('resize', clamp)
+		return () => window.removeEventListener('resize', clamp)
 	}, [showContext, contextPos.x, contextPos.y, contextPanel])
 
 	const shortCwd = config.cwd.replace(/^\/Users\/[^/]+/, '~')
