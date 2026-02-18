@@ -1,15 +1,16 @@
 # knkode — Handoff
 
 ## What Was Done
-- [done] Pane context menu bugfixes (PR #21) — two rounds of 9-agent review, all findings addressed
-  - Context menu opens at cursor via position:fixed (escapes allotment overflow:hidden)
-  - Stuck-dismiss fix: capture-phase click-outside + stopPropagation on menu mousedown
-  - State-based viewport clamping (no imperative DOM mutation), re-clamps on resize/sub-panel
-  - Safe instanceof Node check in useClickOutside, defensive onClose on non-Node targets
-  - Capture-phase contract documented with portal caveat
-- [done] Settings polish round 2 (PR #20) — reviewed by 10-agent swarm, all findings addressed
-- [done] Settings redesign + UI testing bugfixes + review fixes (PR #19)
-- [done] UI polish — terminal padding, thinner separators, larger gear button (PR #18)
+- [done] Layout preservation + auto-apply settings (PR #22) — 9-agent review, all must-fix items addressed
+  - Layout preset changes preserve existing panes by position (remap, not kill-all)
+  - Settings auto-persist immediately (Save/Cancel removed, Done button added)
+  - Race condition fixed: getState() reads latest workspace, not stale ref
+  - Separate mount guards per effect, .catch() on all updateWorkspace calls
+  - Shared remapLayoutTree utility extracted (DRY with duplicateWorkspace)
+  - Defensive guards: throw on unmapped pane IDs and missing pane configs
+- [done] Pane context menu bugfixes (PR #21)
+- [done] Settings polish round 2 (PR #20)
+- [done] Settings redesign + UI testing bugfixes (PR #19)
 
 ## Active Decisions
 - Tech stack: Electron + React + TypeScript + xterm.js + node-pty + Zustand
@@ -19,11 +20,10 @@
 - PTY lifecycle: store-managed (ensurePty/killPtys/removePtyId) — decoupled from React mount
 
 ## What's Next
-- Follow-up: Extract ghost button pattern (bg-transparent border-none...) to @layer components
-- Follow-up: Focus trap for SettingsPanel modal (`aria-modal` expects containment)
-- Follow-up: Extract `useContextMenu` hook (DRY — shared boilerplate in Pane/Tab)
-- Follow-up: Extract `useEscapeKey` hook (DRY — same pattern in Pane/Tab/SettingsPanel)
-- Follow-up: Apply global Escape listener to Tab.tsx (currently uses fragile onKeyDown)
+- Plan: `docs/plans/2026-02-18-polish-round3-plan.md` — PR #2 (move panes between workspaces), PR #3 (reorder panes within workspace)
+- Follow-up: Unit tests for `applyPresetWithRemap` (3 cases: same count, fewer, more)
+- Follow-up: Debounce theme/color auto-persist if disk write perf becomes an issue
+- Follow-up: Extract ghost button pattern to @layer components
+- Follow-up: Focus trap for SettingsPanel modal
+- Follow-up: Extract `useContextMenu` hook (DRY — Pane/Tab)
 - Follow-up: Context menu keyboard navigation (arrow keys, role="menu")
-- Follow-up: Named `Point` type for context menu position state
-- Follow-up: Additional test coverage for renderer components
