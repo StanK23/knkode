@@ -13,6 +13,7 @@ function LayoutIcon({ children }: { children: React.ReactNode }) {
 			strokeWidth={1.5}
 			strokeLinecap="round"
 			strokeLinejoin="round"
+			aria-hidden="true"
 		>
 			{children}
 		</svg>
@@ -101,6 +102,7 @@ export function LayoutPicker({ current, onSelect }: LayoutPickerProps) {
 								: 'border-edge bg-sunken hover:border-content-muted'
 						}`}
 						title={p.label}
+						aria-label={p.label}
 					>
 						{p.icon}
 						<span className="text-[10px] text-content-muted">{p.label}</span>

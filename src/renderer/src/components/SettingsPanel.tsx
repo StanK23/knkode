@@ -136,7 +136,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 						</label>
 					</div>
 					{/* Theme */}
-					<div className="flex flex-col gap-3">
+					<div className="flex flex-col gap-2">
 						<span className="section-label">Terminal Theme</span>
 						{/* Theme preset grid */}
 						<div className="grid grid-cols-4 gap-1.5">
@@ -153,7 +153,9 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 												: 'border-edge bg-sunken hover:border-content-muted'
 										}`}
 										title={preset.name}
+										aria-label={preset.name}
 									>
+										{/* Dynamic preset colors — cannot use Tailwind */}
 										<span
 											className="text-xs font-semibold rounded-sm px-1.5 py-0.5"
 											style={{
@@ -163,7 +165,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 										>
 											Aa
 										</span>
-										<span className="text-[9px] text-content-muted truncate w-full text-center">
+										<span className="text-[10px] text-content-muted truncate w-full text-center">
 											{preset.name}
 										</span>
 									</button>
