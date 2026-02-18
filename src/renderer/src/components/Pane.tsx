@@ -12,6 +12,7 @@ import { useClickOutside } from '../hooks/useClickOutside'
 import { useInlineEdit } from '../hooks/useInlineEdit'
 import { useStore } from '../store'
 import { modKey } from '../utils/platform'
+import { isValidCwd } from '../utils/validation'
 import { FontPicker } from './FontPicker'
 import { TerminalView } from './Terminal'
 
@@ -375,9 +376,9 @@ export function Pane({
 								className="flex gap-1 px-3 py-1 pb-2"
 								onSubmit={(e) => {
 									e.preventDefault()
-									const path = cwdInput.trim()
-									if (path && (path.startsWith('/') || path.startsWith('~'))) {
-										onUpdateConfig(paneId, { cwd: path })
+									const cwd = cwdInput.trim()
+									if (cwd && isValidCwd(cwd)) {
+										onUpdateConfig(paneId, { cwd })
 									}
 									closeContext()
 								}}
