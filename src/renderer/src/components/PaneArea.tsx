@@ -53,6 +53,7 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 					key={node.paneId}
 					paneId={node.paneId}
 					paneIndex={paneIndexMap.get(node.paneId) ?? 1}
+					workspaceId={workspace.id}
 					config={config}
 					workspaceTheme={workspace.theme}
 					onUpdateConfig={handleUpdateConfig}
