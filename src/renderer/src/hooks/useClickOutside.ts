@@ -12,6 +12,8 @@ export function useClickOutside(
 				onClose()
 			}
 		}
+		// Capture phase: fires before xterm (or other stopPropagation consumers)
+		// can swallow the event in the bubble phase.
 		document.addEventListener('mousedown', handler, true)
 		return () => document.removeEventListener('mousedown', handler, true)
 	}, [ref, onClose, active])
