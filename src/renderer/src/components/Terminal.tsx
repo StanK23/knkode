@@ -4,7 +4,7 @@ import { Terminal as XTerm } from '@xterm/xterm'
 import { useEffect, useMemo, useRef } from 'react'
 import '@xterm/xterm/css/xterm.css'
 import type { PaneTheme } from '../../../shared/types'
-import { DEFAULT_FONT_FAMILY } from '../data/theme-presets'
+import { buildFontFamily } from '../data/theme-presets'
 import { useStore } from '../store'
 
 interface TerminalProps {
@@ -42,9 +42,7 @@ export function TerminalView({
 		const t = themeRef.current
 		const term = new XTerm({
 			fontSize: t.fontSize,
-			fontFamily: t.fontFamily
-				? `${t.fontFamily}, Menlo, Monaco, Consolas, monospace`
-				: DEFAULT_FONT_FAMILY,
+			fontFamily: buildFontFamily(t.fontFamily),
 			theme: {
 				background: t.background,
 				foreground: t.foreground,
@@ -127,7 +125,7 @@ export function TerminalView({
 		}
 	}, [isFocused, focusGeneration])
 
-	// Update theme without re-mounting
+	// Update theme (colors, font, size) without re-mounting; fit() recalculates cell metrics after font changes
 	useEffect(() => {
 		if (!termRef.current || !fitAddonRef.current) return
 		termRef.current.options.theme = {
@@ -137,10 +135,12 @@ export function TerminalView({
 			selectionBackground: `${mergedTheme.foreground}33`,
 		}
 		termRef.current.options.fontSize = mergedTheme.fontSize
-		termRef.current.options.fontFamily = mergedTheme.fontFamily
-			? `${mergedTheme.fontFamily}, Menlo, Monaco, Consolas, monospace`
-			: DEFAULT_FONT_FAMILY
-		fitAddonRef.current.fit()
+		termRef.current.options.fontFamily = buildFontFamily(mergedTheme.fontFamily)
+		try {
+			fitAddonRef.current.fit()
+		} catch {
+			// fit() can throw when container has zero dimensions during layout transitions
+		}
 	}, [mergedTheme])
 
 	return (
