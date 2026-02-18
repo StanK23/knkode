@@ -321,7 +321,17 @@ export const useStore = create<StoreState>((set, get) => ({
 			}
 
 			const initialVisited = appState.activeWorkspaceId ? [appState.activeWorkspaceId] : []
-			set({ workspaces, appState, homeDir, initialized: true, visitedWorkspaceIds: initialVisited })
+			const activeWs = workspaces.find((w) => w.id === appState.activeWorkspaceId)
+			const initialFocusedPaneId = activeWs ? (Object.keys(activeWs.panes)[0] ?? null) : null
+			set({
+				workspaces,
+				appState,
+				homeDir,
+				initialized: true,
+				visitedWorkspaceIds: initialVisited,
+				focusedPaneId: initialFocusedPaneId,
+				focusGeneration: initialFocusedPaneId ? 1 : 0,
+			})
 		} catch (err) {
 			console.error('[store] Failed to initialize:', err)
 			set({ initError: String(err), initialized: true })
@@ -462,9 +472,12 @@ export const useStore = create<StoreState>((set, get) => ({
 			window.api.saveAppState(newAppState).catch((err) => {
 				console.error('[store] Failed to save app state:', err)
 			})
+			const ws = state.workspaces.find((w) => w.id === id)
+			const firstPaneId = ws ? (Object.keys(ws.panes)[0] ?? null) : null
 			return {
 				appState: newAppState,
-				focusedPaneId: null,
+				focusedPaneId: firstPaneId,
+				focusGeneration: state.focusGeneration + 1,
 				visitedWorkspaceIds: addToVisited(state.visitedWorkspaceIds, id),
 			}
 		})
