@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { LayoutPreset, PaneConfig, PaneTheme, Workspace } from '../../../shared/types'
 import { THEME_PRESETS } from '../data/theme-presets'
-import { createLayoutFromPreset, useStore } from '../store'
+import { applyPresetWithRemap, useStore } from '../store'
 import { FontPicker } from './FontPicker'
 import { LayoutPicker } from './LayoutPicker'
 
@@ -14,11 +14,8 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const updateWorkspace = useStore((s) => s.updateWorkspace)
 	const removeWorkspace = useStore((s) => s.removeWorkspace)
 	const updatePaneConfig = useStore((s) => s.updatePaneConfig)
-	const previewWorkspaceTheme = useStore((s) => s.previewWorkspaceTheme)
 	const killPtys = useStore((s) => s.killPtys)
 	const homeDir = useStore((s) => s.homeDir)
-
-	const originalTheme = useRef<PaneTheme>({ ...workspace.theme })
 
 	const [name, setName] = useState(workspace.name)
 	const [color, setColor] = useState(workspace.color)
@@ -29,6 +26,12 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const [fontFamily, setFontFamily] = useState(workspace.theme.fontFamily ?? '')
 
 	const currentPreset = workspace.layout.type === 'preset' ? workspace.layout.preset : null
+
+	// Refs to avoid triggering effects on every workspace/store prop change
+	const wsRef = useRef(workspace)
+	wsRef.current = workspace
+	const updateWsRef = useRef(updateWorkspace)
+	updateWsRef.current = updateWorkspace
 
 	const buildThemeFromInputs = useCallback(
 		(): PaneTheme => ({
@@ -41,45 +44,35 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		[bg, fg, fontSize, unfocusedDim, fontFamily],
 	)
 
-	// Live preview: push theme to store (without persisting to disk) on every field change.
-	// Skip mount to avoid unnecessary store write with unchanged values.
+	// Auto-persist: save workspace whenever theme/color fields change.
+	// Skip mount to avoid unnecessary write with unchanged values.
 	const mountedRef = useRef(false)
 	useEffect(() => {
 		if (!mountedRef.current) {
 			mountedRef.current = true
 			return
 		}
-		previewWorkspaceTheme(workspace.id, buildThemeFromInputs())
-	}, [workspace.id, buildThemeFromInputs, previewWorkspaceTheme])
+		updateWsRef.current({ ...wsRef.current, color, theme: buildThemeFromInputs() })
+	}, [color, buildThemeFromInputs])
 
-	const handleSave = useCallback(async () => {
-		try {
-			await updateWorkspace({
-				...workspace,
-				name: name.trim() || workspace.name,
-				color,
-				theme: buildThemeFromInputs(),
-			})
-			onClose()
-		} catch (err) {
-			console.error('[settings] Failed to save workspace:', err)
-		}
-	}, [workspace, name, color, buildThemeFromInputs, updateWorkspace, onClose])
-
-	const handleCancel = useCallback(() => {
-		previewWorkspaceTheme(workspace.id, originalTheme.current)
-		onClose()
-	}, [workspace.id, previewWorkspaceTheme, onClose])
+	// Auto-persist name with debounce to avoid excessive disk writes on every keystroke.
+	useEffect(() => {
+		if (!mountedRef.current) return
+		const trimmed = name.trim()
+		if (!trimmed || trimmed === wsRef.current.name) return
+		const timer = setTimeout(() => {
+			updateWsRef.current({ ...wsRef.current, name: trimmed })
+		}, 300)
+		return () => clearTimeout(timer)
+	}, [name])
 
 	const handleLayoutChange = useCallback(
 		(preset: LayoutPreset) => {
-			killPtys(Object.keys(workspace.panes))
-			const { layout, panes } = createLayoutFromPreset(preset, homeDir)
-			updateWorkspace({
-				...workspace,
-				layout,
-				panes,
-			})
+			const { layout, panes, killedPaneIds } = applyPresetWithRemap(workspace, preset, homeDir)
+			if (killedPaneIds.length > 0) {
+				killPtys(killedPaneIds)
+			}
+			updateWorkspace({ ...workspace, layout, panes })
 		},
 		[workspace, updateWorkspace, killPtys, homeDir],
 	)
@@ -90,14 +83,14 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		onClose()
 	}, [workspace.id, workspace.name, removeWorkspace, onClose])
 
-	// Close on Escape key — cancel reverts theme
+	// Close on Escape key
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
-			if (e.key === 'Escape') handleCancel()
+			if (e.key === 'Escape') onClose()
 		}
 		document.addEventListener('keydown', handler)
 		return () => document.removeEventListener('keydown', handler)
-	}, [handleCancel])
+	}, [onClose])
 
 	const handlePaneUpdate = useCallback(
 		(paneId: string, updates: Partial<PaneConfig>) => {
@@ -116,7 +109,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		<div
 			role="presentation"
 			className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
-			onClick={handleCancel}
+			onClick={onClose}
 		>
 			{/* biome-ignore lint/a11y/useKeyWithClickEvents: stopPropagation only, keyboard handled by overlay */}
 			{/* biome-ignore lint/a11y/useSemanticElements: native dialog has styling/focus-trap limitations in Electron */}
@@ -131,7 +124,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					<h2 className="text-base font-semibold">Workspace Settings</h2>
 					<button
 						type="button"
-						onClick={handleCancel}
+						onClick={onClose}
 						aria-label="Close settings"
 						className="bg-transparent border-none text-content-muted cursor-pointer text-sm hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 					>
@@ -289,28 +282,13 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					</div>
 				</div>
 
-				<div className="flex items-center gap-2 px-5 py-3 border-t border-edge">
+				<div className="flex items-center px-5 py-3 border-t border-edge">
 					<button
 						type="button"
 						onClick={handleDelete}
 						className="bg-transparent border border-danger text-danger cursor-pointer text-xs py-1.5 px-3 rounded-sm hover:bg-danger/10 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 					>
 						Delete Workspace
-					</button>
-					<div className="flex-1" />
-					<button
-						type="button"
-						onClick={handleCancel}
-						className="bg-transparent border border-edge text-content-secondary cursor-pointer text-xs py-1.5 px-3 rounded-sm hover:text-content hover:border-content-muted focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
-					>
-						Cancel
-					</button>
-					<button
-						type="button"
-						onClick={handleSave}
-						className="bg-accent border-none text-white cursor-pointer text-xs py-1.5 px-4 rounded-sm font-semibold hover:brightness-[1.1] focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none focus-visible:ring-offset-1 focus-visible:ring-offset-elevated"
-					>
-						Save
 					</button>
 				</div>
 			</div>

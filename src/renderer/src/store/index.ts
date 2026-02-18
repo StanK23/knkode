@@ -221,9 +221,6 @@ interface StoreState {
 	closePane: (workspaceId: string, paneId: string) => void
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
-	/** Update workspace theme in-memory only (no disk write). Used for live preview.
-	 *  Caller must revert to the original theme on cancel. */
-	previewWorkspaceTheme: (wsId: string, theme: PaneTheme) => void
 	saveState: () => Promise<void>
 }
 
@@ -690,11 +687,6 @@ export const useStore = create<StoreState>((set, get) => ({
 		})
 	},
 
-	previewWorkspaceTheme: (wsId, theme) =>
-		set((s) => ({
-			workspaces: s.workspaces.map((w) => (w.id === wsId ? { ...w, theme } : w)),
-		})),
-
 	saveState: async () => {
 		await window.api.saveAppState(get().appState)
 	},
@@ -706,4 +698,54 @@ function getPaneIdsInOrder(node: LayoutNode): string[] {
 	return node.children.flatMap(getPaneIdsInOrder)
 }
 
-export { WORKSPACE_COLORS, createLayoutFromPreset, getPaneIdsInOrder }
+/** Apply a layout preset while preserving existing panes by position.
+ *  - Same slot count: 1:1 remap, all PTYs survive.
+ *  - Fewer slots: first N panes kept, excess returned in `killedPaneIds`.
+ *  - More slots: existing panes fill first slots, fresh empty panes fill the rest. */
+function applyPresetWithRemap(
+	workspace: Workspace,
+	preset: LayoutPreset,
+	homeDir: string,
+): {
+	layout: WorkspaceLayout
+	panes: Record<string, PaneConfig>
+	killedPaneIds: string[]
+} {
+	const existingIds = getPaneIdsInOrder(workspace.layout.tree)
+	const { layout: freshLayout, panes: freshPanes } = createLayoutFromPreset(preset, homeDir)
+	const freshIds = getPaneIdsInOrder(freshLayout.tree)
+
+	const idMap = new Map<string, string>()
+	const panes: Record<string, PaneConfig> = {}
+	const killedPaneIds: string[] = []
+
+	for (let i = 0; i < freshIds.length; i++) {
+		if (i < existingIds.length) {
+			idMap.set(freshIds[i], existingIds[i])
+			panes[existingIds[i]] = workspace.panes[existingIds[i]]
+		} else {
+			idMap.set(freshIds[i], freshIds[i])
+			panes[freshIds[i]] = freshPanes[freshIds[i]]
+		}
+	}
+
+	for (let i = freshIds.length; i < existingIds.length; i++) {
+		killedPaneIds.push(existingIds[i])
+	}
+
+	const remapTree = (node: LayoutNode): LayoutNode => {
+		if (isLayoutBranch(node)) {
+			return { ...node, children: node.children.map(remapTree) }
+		}
+		const mappedId = idMap.get(node.paneId)
+		return mappedId ? { ...node, paneId: mappedId } : node
+	}
+
+	return {
+		layout: { type: 'preset', preset, tree: remapTree(freshLayout.tree) },
+		panes,
+		killedPaneIds,
+	}
+}
+
+export { WORKSPACE_COLORS, applyPresetWithRemap, createLayoutFromPreset, getPaneIdsInOrder }
