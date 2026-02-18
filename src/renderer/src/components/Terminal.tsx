@@ -44,6 +44,8 @@ export function TerminalView({
 	const [showSearch, setShowSearch] = useState(false)
 	const [searchQuery, setSearchQuery] = useState('')
 	const searchInputRef = useRef<HTMLInputElement>(null)
+	const showSearchRef = useRef(false)
+	showSearchRef.current = showSearch
 
 	const mergedTheme = useMemo(() => ({ ...theme, ...themeOverride }), [theme, themeOverride])
 
@@ -162,9 +164,11 @@ export function TerminalView({
 	// Sync xterm focus with pane focus state (keyboard shortcuts + click).
 	// focusGeneration is an intentional trigger dep — it re-fires the effect
 	// even when isFocused is already true (e.g. re-clicking the same pane).
+	// Skips when search bar is open so clicking the search input doesn't
+	// steal focus back to the terminal.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: focusGeneration is an intentional trigger dependency
 	useEffect(() => {
-		if (isFocused && termRef.current) {
+		if (isFocused && termRef.current && !showSearchRef.current) {
 			termRef.current.focus()
 		}
 	}, [isFocused, focusGeneration])
