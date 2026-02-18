@@ -162,7 +162,11 @@ export function Pane({
 
 				{showContext && (
 					<div
-						ref={contextRef}
+						ref={(el) => {
+							contextRef.current = el
+							el?.focus()
+						}}
+						tabIndex={-1}
 						className="ctx-menu"
 						/* Inline style required: position fixed escapes allotment's overflow:hidden,
 						   and dynamic cursor coordinates cannot be expressed as Tailwind classes. */
