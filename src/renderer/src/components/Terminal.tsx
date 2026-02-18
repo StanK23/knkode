@@ -4,7 +4,7 @@ import { Terminal as XTerm } from '@xterm/xterm'
 import { useEffect, useMemo, useRef } from 'react'
 import '@xterm/xterm/css/xterm.css'
 import type { PaneTheme } from '../../../shared/types'
-import { buildFontFamily } from '../data/theme-presets'
+import { buildFontFamily, buildXtermTheme } from '../data/theme-presets'
 import { useStore } from '../store'
 
 interface TerminalProps {
@@ -30,6 +30,7 @@ export function TerminalView({
 	const themeRef = useRef({ ...theme, ...themeOverride })
 	const onFocusRef = useRef(onFocus)
 	onFocusRef.current = onFocus
+	// Ref allows the theme-update effect to re-focus without adding isFocused to its deps
 	const isFocusedRef = useRef(isFocused)
 	isFocusedRef.current = isFocused
 
@@ -45,12 +46,7 @@ export function TerminalView({
 		const term = new XTerm({
 			fontSize: t.fontSize,
 			fontFamily: buildFontFamily(t.fontFamily),
-			theme: {
-				background: t.background,
-				foreground: t.foreground,
-				cursor: t.foreground,
-				selectionBackground: `${t.foreground}33`,
-			},
+			theme: buildXtermTheme(t),
 			cursorBlink: true,
 			cursorStyle: 'bar',
 			allowProposedApi: true,
@@ -98,7 +94,13 @@ export function TerminalView({
 		})
 
 		const resizeObserver = new ResizeObserver(() => {
-			requestAnimationFrame(() => fitAddon.fit())
+			requestAnimationFrame(() => {
+				try {
+					fitAddon.fit()
+				} catch (err) {
+					console.warn('[terminal] fit() failed during resize:', err)
+				}
+			})
 		})
 		resizeObserver.observe(containerRef.current)
 
@@ -127,24 +129,26 @@ export function TerminalView({
 		}
 	}, [isFocused, focusGeneration])
 
-	// Update theme (colors, font, size) without re-mounting; fit() recalculates cell metrics after font changes
+	// Update xterm theme options without re-mounting. Only calls fit() when font size or
+	// font family change (fit recalculates cell metrics). Restores focus after fit() since
+	// it can cause DOM focus loss.
 	useEffect(() => {
 		if (!termRef.current || !fitAddonRef.current) return
-		termRef.current.options.theme = {
-			background: mergedTheme.background,
-			foreground: mergedTheme.foreground,
-			cursor: mergedTheme.foreground,
-			selectionBackground: `${mergedTheme.foreground}33`,
-		}
+		termRef.current.options.theme = buildXtermTheme(mergedTheme)
+		const newFontFamily = buildFontFamily(mergedTheme.fontFamily)
+		const metricsChanged =
+			termRef.current.options.fontSize !== mergedTheme.fontSize ||
+			termRef.current.options.fontFamily !== newFontFamily
 		termRef.current.options.fontSize = mergedTheme.fontSize
-		termRef.current.options.fontFamily = buildFontFamily(mergedTheme.fontFamily)
-		try {
-			fitAddonRef.current.fit()
-		} catch {
-			// fit() can throw when container has zero dimensions during layout transitions
+		termRef.current.options.fontFamily = newFontFamily
+		if (metricsChanged) {
+			try {
+				fitAddonRef.current.fit()
+			} catch (err) {
+				console.warn('[terminal] fit() failed during theme update:', err)
+			}
+			if (isFocusedRef.current) termRef.current.focus()
 		}
-		// Re-focus terminal after fit() — fit() can cause DOM focus loss
-		if (isFocusedRef.current) termRef.current.focus()
 	}, [mergedTheme])
 
 	return (

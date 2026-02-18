@@ -31,3 +31,13 @@ export const DEFAULT_FONT_FAMILY = `${TERMINAL_FONTS[0]}, ${FONT_FALLBACKS}`
 export function buildFontFamily(family?: string): string {
 	return family ? `${family}, ${FONT_FALLBACKS}` : DEFAULT_FONT_FAMILY
 }
+
+/** Build xterm.js theme options from a PaneTheme's color fields. */
+export function buildXtermTheme(t: Pick<PaneTheme, 'background' | 'foreground'>) {
+	return {
+		background: t.background,
+		foreground: t.foreground,
+		cursor: t.foreground,
+		selectionBackground: `${t.foreground}33`,
+	}
+}
