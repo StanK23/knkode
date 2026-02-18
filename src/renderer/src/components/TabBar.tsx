@@ -102,8 +102,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 			{/* Tabs */}
 			<div
 				role="tablist"
-				className="flex items-end gap-px pl-traffic pt-1.5 overflow-x-auto overflow-y-hidden flex-1"
-				style={{ WebkitAppRegion: 'no-drag' }}
+				className="no-drag flex items-end gap-px pl-traffic pt-1.5 overflow-x-auto overflow-y-hidden flex-1"
 			>
 				{openTabs.map((ws, i) => (
 					<Tab
@@ -132,7 +131,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 					onClick={handleNewWorkspace}
 					title={`New workspace (${modKey}+T)`}
 					aria-label="Create new workspace"
-					className="bg-transparent border-none text-content-muted cursor-pointer text-lg leading-none px-2.5 h-tab flex items-center shrink-0 hover:text-content hover:bg-overlay rounded-sm focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+					className="bg-transparent border-none text-content-muted cursor-pointer text-lg leading-none min-w-[44px] px-2.5 h-tab flex items-center justify-center shrink-0 hover:text-content hover:bg-overlay rounded-sm focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 				>
 					+
 				</button>
@@ -145,8 +144,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 					onClick={onOpenSettings}
 					title={`Workspace settings (${modKey}+,)`}
 					aria-label="Open workspace settings"
-					className="relative bg-transparent border-none text-content-muted cursor-pointer min-w-[44px] px-2.5 h-tab flex items-center justify-center shrink-0 hover:text-content hover:bg-overlay rounded-sm focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
-					style={{ WebkitAppRegion: 'no-drag' }}
+					className="no-drag relative bg-transparent border-none text-content-muted cursor-pointer min-w-[44px] px-2.5 h-tab self-center flex items-center justify-center shrink-0 hover:text-content hover:bg-overlay rounded-sm focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 				>
 					<svg
 						width="16"
@@ -167,13 +165,13 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 
 			{/* Closed workspaces menu */}
 			{closedWorkspaces.length > 0 && (
-				<div ref={closedMenuRef} className="relative mr-2 self-center" style={{ WebkitAppRegion: 'no-drag' }}>
+				<div ref={closedMenuRef} className="no-drag relative mr-2 self-center">
 					<button
 						type="button"
 						onClick={() => setShowClosedMenu((v) => !v)}
 						title="Reopen closed workspace"
 						aria-label={`Reopen closed workspace (${closedWorkspaces.length} available)`}
-						className="bg-transparent border border-edge text-content-muted cursor-pointer text-[11px] py-0.5 px-2 rounded-sm hover:text-content hover:border-content-muted focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+						className="bg-transparent border border-edge text-content-muted cursor-pointer text-[11px] min-h-[28px] py-0.5 px-2 rounded-sm hover:text-content hover:border-content-muted focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 					>
 						{closedWorkspaces.length} closed
 					</button>
