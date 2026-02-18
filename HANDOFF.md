@@ -1,6 +1,7 @@
 # knkode — Handoff
 
 ## What Was Done
+- [in-review] GitHub Actions CI + release workflows (PR #31) — lint/test on PRs, macOS dmg+zip on tags, review fixes applied
 - [in-review] Terminal settings (PR #30) — scrollback + cursor style, review fixes applied
 - [done] Dynamic window title (PR #29) — "workspace name — knkode" in dock/Mission Control/Cmd+Tab
 - [done] Keyboard shortcuts v2 (PR #28) — Cmd+Shift+W close tab, Cmd+Alt+Arrow pane nav
