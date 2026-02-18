@@ -88,10 +88,16 @@ export function Pane({
 
 	useClickOutside(contextRef, closeContext, showContext)
 
-	// Focus the context menu once on open so Escape key works immediately.
+	// Close context menu on Escape — uses global listener so the menu
+	// doesn't need tabIndex/focus (which causes focus-ring style issues).
 	useEffect(() => {
-		if (showContext) contextRef.current?.focus()
-	}, [showContext])
+		if (!showContext) return
+		const handler = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') closeContext()
+		}
+		document.addEventListener('keydown', handler)
+		return () => document.removeEventListener('keydown', handler)
+	}, [showContext, closeContext])
 
 	// Clamp context menu to viewport edges after measuring its dimensions.
 	// Runs before paint so the user never sees the unclamped position.
@@ -168,14 +174,11 @@ export function Pane({
 				{showContext && (
 					<div
 						ref={contextRef}
-						tabIndex={-1}
-						className="ctx-menu outline-none"
+						className="ctx-menu"
 						/* Inline style required: position fixed escapes allotment's overflow:hidden,
 						   and dynamic cursor coordinates cannot be expressed as Tailwind classes. */
 						style={{ position: 'fixed', left: contextPos.x, top: contextPos.y }}
-						onKeyDown={(e) => {
-							if (e.key === 'Escape') closeContext()
-						}}
+						onMouseDown={(e) => e.stopPropagation()}
 					>
 						<button
 							type="button"
