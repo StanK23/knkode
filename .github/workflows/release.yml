@@ -32,7 +32,7 @@ jobs:
       - run: bun run test
 
       - name: Build and package
-        run: bun run build && bun x electron-builder --arm64
+        run: bun run build && bun x electron-builder --arm64 --publish never
         env:
           # Skip code signing — no Apple Developer account configured yet.
           # To enable signing + notarization, add these repo secrets:
