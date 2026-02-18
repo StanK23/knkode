@@ -2,16 +2,21 @@ import { useEffect } from 'react'
 import { getPaneIdsInOrder, useStore } from '../store'
 import { isMac } from '../utils/platform'
 
+/** Delta lookup for pane navigation arrows (Left = prev, Right = next). */
+const PANE_NAV_DELTAS: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1 }
+
 /**
  * Global keyboard shortcuts. Uses Cmd (macOS) or Ctrl (other platforms).
  * - Mod+D: split pane side-by-side (vertical divider)
  * - Mod+Shift+D: split pane stacked (horizontal divider)
  * - Mod+W: close focused pane
+ * - Mod+Shift+W: close workspace tab
  * - Mod+T: new workspace
  * - Mod+Shift+[: previous workspace tab
  * - Mod+Shift+]: next workspace tab
- * - Mod+1-9: focus pane by index
+ * - Mod+Alt/Option+Left/Right: cycle focus to prev/next pane in layout order
  * - Mod+,: toggle settings panel
+ * - Mod+1-9: focus pane by index
  */
 
 interface ShortcutOptions {
@@ -30,14 +35,13 @@ export function useKeyboardShortcuts({ toggleSettings }: ShortcutOptions = {}) {
 			const state = useStore.getState()
 			const activeWs = state.workspaces.find((w) => w.id === state.appState.activeWorkspaceId)
 
+			// Compute pane list once for all shortcuts that need it
+			const paneIds = activeWs ? getPaneIdsInOrder(activeWs.layout.tree) : []
+
 			// Resolve focused pane — auto-focus first pane if none focused
 			const focusedId = state.focusedPaneId
 			const resolvedFocusId =
-				focusedId && activeWs?.panes[focusedId]
-					? focusedId
-					: activeWs
-						? (getPaneIdsInOrder(activeWs.layout.tree)[0] ?? null)
-						: null
+				focusedId && activeWs?.panes[focusedId] ? focusedId : (paneIds[0] ?? null)
 
 			// Mod+D / Mod+Shift+D — split pane
 			if (e.key === 'd' || (e.shiftKey && e.key === 'D')) {
@@ -54,6 +58,15 @@ export function useKeyboardShortcuts({ toggleSettings }: ShortcutOptions = {}) {
 				if (Object.keys(activeWs.panes).length <= 1) return
 				e.preventDefault()
 				state.closePane(activeWs.id, resolvedFocusId)
+				return
+			}
+
+			// Mod+Shift+W — close workspace tab (keep at least one open)
+			if (e.key === 'W' && e.shiftKey) {
+				if (!activeWs) return
+				if (state.appState.openWorkspaceIds.length <= 1) return
+				e.preventDefault()
+				state.closeWorkspaceTab(activeWs.id)
 				return
 			}
 
@@ -83,6 +96,21 @@ export function useKeyboardShortcuts({ toggleSettings }: ShortcutOptions = {}) {
 				return
 			}
 
+			// Mod+Alt/Option+Left/Right — cycle focus to prev/next pane in layout order
+			const paneDelta = PANE_NAV_DELTAS[e.key]
+			if (e.altKey && paneDelta !== undefined) {
+				if (!activeWs || paneIds.length < 2) return
+				e.preventDefault()
+				if (!resolvedFocusId) {
+					state.setFocusedPane(paneIds[0] as string)
+					return
+				}
+				const currentIdx = paneIds.indexOf(resolvedFocusId)
+				const nextIdx = (currentIdx + paneDelta + paneIds.length) % paneIds.length
+				state.setFocusedPane(paneIds[nextIdx] as string)
+				return
+			}
+
 			// Mod+, — toggle settings panel
 			if (e.key === ',' && toggleSettings) {
 				e.preventDefault()
@@ -93,7 +121,6 @@ export function useKeyboardShortcuts({ toggleSettings }: ShortcutOptions = {}) {
 			// Mod+1-9 — focus pane by index
 			if (e.key >= '1' && e.key <= '9' && !e.shiftKey) {
 				if (!activeWs) return
-				const paneIds = getPaneIdsInOrder(activeWs.layout.tree)
 				const targetId = paneIds[Number(e.key) - 1]
 				if (!targetId) return
 				e.preventDefault()
