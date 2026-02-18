@@ -1,13 +1,13 @@
 # knkode — Handoff
 
 ## What Was Done
-- [done] Settings redesign — theme presets, font selector, SVG layout icons (PR #19)
-  - `fontFamily?` added to PaneTheme (backward compatible)
-  - 8 theme presets (Default Dark, Dracula, One Dark, Solarized Dark, Tokyo Night, GitHub Dark, Monokai, Nord)
-  - Font family dropdown (8 monospace fonts) in settings + pane context menu
-  - SVG layout icons replacing Unicode characters
-  - `buildFontFamily()` helper, `as const` arrays, `Pick<PaneTheme>` for ThemePreset
-  - Review: 9 agents, all findings addressed (DRY, accessibility, error handling, type safety)
+- [done] Settings redesign + UI testing bugfixes + review fixes (PR #19)
+  - Live theme preview via `previewWorkspaceTheme` (in-memory only, cancel reverts)
+  - Fully themed preset cards, font picker as visual grid (shared `FontPicker` component)
+  - Proper gear/cog SVG icon + min-w-[44px] touch target
+  - Terminal: conditional fit() (only on metric changes), error logging in catch blocks
+  - Helpers: `buildThemeFromInputs`, `buildXtermTheme`, `ThemeInputFields` interface
+  - Review: 9 agents, all 17 findings addressed (5 must-fix, 7 suggestions, 5 nitpicks)
 - [done] UI polish — terminal padding, thinner separators, larger gear button (PR #18)
 
 ## Active Decisions
