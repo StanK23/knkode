@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { PaneConfig, PaneTheme } from '../../../shared/types'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useInlineEdit } from '../hooks/useInlineEdit'
@@ -56,7 +56,6 @@ export function Pane({
 	const [contextPos, setContextPos] = useState({ x: 0, y: 0 })
 	const [contextPanel, setContextPanel] = useState<'cwd' | 'cmd' | 'theme' | null>(null)
 	const contextRef = useRef<HTMLDivElement>(null)
-	const headerRef = useRef<HTMLDivElement>(null)
 	const [cwdInput, setCwdInput] = useState(config.cwd)
 	const [cmdInput, setCmdInput] = useState(config.startupCommand ?? '')
 	const [themeInput, setThemeInput] = useState(() => initThemeInput(config.themeOverride))
@@ -78,11 +77,7 @@ export function Pane({
 
 	const handleContextMenu = useCallback((e: React.MouseEvent) => {
 		e.preventDefault()
-		const rect = headerRef.current?.getBoundingClientRect()
-		setContextPos({
-			x: rect ? e.clientX - rect.left : e.nativeEvent.offsetX,
-			y: rect ? e.clientY - rect.top : e.nativeEvent.offsetY,
-		})
+		setContextPos({ x: e.clientX, y: e.clientY })
 		setShowContext(true)
 	}, [])
 
@@ -93,6 +88,17 @@ export function Pane({
 
 	useClickOutside(contextRef, closeContext, showContext)
 
+	// Clamp context menu to viewport edges after measuring its dimensions.
+	// Runs before paint so the user never sees the unclamped position.
+	useLayoutEffect(() => {
+		const el = contextRef.current
+		if (!showContext || !el) return
+		const { width, height } = el.getBoundingClientRect()
+		const margin = 8
+		el.style.left = `${Math.max(margin, Math.min(contextPos.x, window.innerWidth - width - margin))}px`
+		el.style.top = `${Math.max(margin, Math.min(contextPos.y, window.innerHeight - height - margin))}px`
+	}, [showContext, contextPos.x, contextPos.y])
+
 	const shortCwd = config.cwd.replace(/^\/Users\/[^/]+/, '~')
 
 	const handleFocus = useCallback(() => onFocus(paneId), [paneId, onFocus])
@@ -100,7 +106,6 @@ export function Pane({
 	return (
 		<div className="flex flex-col h-full w-full">
 			<div
-				ref={headerRef}
 				onContextMenu={handleContextMenu}
 				onMouseDown={handleFocus}
 				className={`h-header flex items-center gap-2 px-2 text-[11px] shrink-0 relative select-none ${
@@ -159,7 +164,9 @@ export function Pane({
 					<div
 						ref={contextRef}
 						className="ctx-menu"
-						style={{ left: contextPos.x, top: contextPos.y }}
+						/* Inline style required: position fixed escapes allotment's overflow:hidden,
+						   and dynamic cursor coordinates cannot be expressed as Tailwind classes. */
+						style={{ position: 'fixed', left: contextPos.x, top: contextPos.y }}
 						onKeyDown={(e) => {
 							if (e.key === 'Escape') closeContext()
 						}}
