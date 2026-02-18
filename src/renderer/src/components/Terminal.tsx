@@ -5,7 +5,7 @@ import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import '@xterm/xterm/css/xterm.css'
-import type { PaneTheme } from '../../../shared/types'
+import { DEFAULT_CURSOR_STYLE, DEFAULT_SCROLLBACK, type PaneTheme } from '../../../shared/types'
 import { buildFontFamily, buildXtermTheme } from '../data/theme-presets'
 import { useStore } from '../store'
 
@@ -61,9 +61,9 @@ export function TerminalView({
 			fontFamily: buildFontFamily(t.fontFamily),
 			theme: buildXtermTheme(t),
 			cursorBlink: true,
-			cursorStyle: t.cursorStyle ?? 'bar',
+			cursorStyle: t.cursorStyle ?? DEFAULT_CURSOR_STYLE,
 			allowProposedApi: true,
-			scrollback: t.scrollback ?? 5000,
+			scrollback: t.scrollback ?? DEFAULT_SCROLLBACK,
 		})
 
 		const fitAddon = new FitAddon()
@@ -173,14 +173,14 @@ export function TerminalView({
 		}
 	}, [isFocused, focusGeneration])
 
-	// Update xterm theme options without re-mounting. Only calls fit() when font size or
-	// font family change (fit recalculates cell metrics). Restores focus after fit() since
-	// it can cause DOM focus loss.
+	// Update xterm theme colors, cursor style, scrollback, and font metrics without
+	// re-mounting. Only calls fit() when font size or font family change (fit recalculates
+	// cell metrics). Restores focus after fit() since it can cause DOM focus loss.
 	useEffect(() => {
 		if (!termRef.current || !fitAddonRef.current) return
 		termRef.current.options.theme = buildXtermTheme(mergedTheme)
-		termRef.current.options.cursorStyle = mergedTheme.cursorStyle ?? 'bar'
-		termRef.current.options.scrollback = mergedTheme.scrollback ?? 5000
+		termRef.current.options.cursorStyle = mergedTheme.cursorStyle ?? DEFAULT_CURSOR_STYLE
+		termRef.current.options.scrollback = mergedTheme.scrollback ?? DEFAULT_SCROLLBACK
 		const newFontFamily = buildFontFamily(mergedTheme.fontFamily)
 		const metricsChanged =
 			termRef.current.options.fontSize !== mergedTheme.fontSize ||

@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type {
-	CursorStyle,
-	LayoutPreset,
-	PaneConfig,
-	PaneTheme,
-	Workspace,
+import {
+	CURSOR_STYLES,
+	DEFAULT_CURSOR_STYLE,
+	DEFAULT_SCROLLBACK,
+	type LayoutPreset,
+	MAX_SCROLLBACK,
+	MIN_SCROLLBACK,
+	type PaneConfig,
+	type PaneTheme,
+	type Workspace,
+	isCursorStyle,
 } from '../../../shared/types'
 import { THEME_PRESETS } from '../data/theme-presets'
 import { applyPresetWithRemap, useStore } from '../store'
@@ -98,8 +103,10 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const [fontSize, setFontSize] = useState(workspace.theme.fontSize)
 	const [unfocusedDim, setUnfocusedDim] = useState(workspace.theme.unfocusedDim)
 	const [fontFamily, setFontFamily] = useState(workspace.theme.fontFamily ?? '')
-	const [scrollback, setScrollback] = useState(workspace.theme.scrollback ?? 5000)
-	const [cursorStyle, setCursorStyle] = useState<CursorStyle>(workspace.theme.cursorStyle ?? 'bar')
+	const [scrollback, setScrollback] = useState(workspace.theme.scrollback ?? DEFAULT_SCROLLBACK)
+	const [cursorStyle, setCursorStyle] = useState(
+		workspace.theme.cursorStyle ?? DEFAULT_CURSOR_STYLE,
+	)
 
 	const currentPreset = workspace.layout.type === 'preset' ? workspace.layout.preset : null
 
@@ -367,15 +374,19 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 						</label>
 						{/* Cursor style */}
 						<label className="flex items-center gap-2">
-							<span className="text-xs text-content-secondary w-20 shrink-0">Cursor</span>
+							<span className="text-xs text-content-secondary w-20 shrink-0">Cursor style</span>
 							<select
 								value={cursorStyle}
-								onChange={(e) => setCursorStyle(e.target.value as CursorStyle)}
+								onChange={(e) => {
+									if (isCursorStyle(e.target.value)) setCursorStyle(e.target.value)
+								}}
 								className="settings-input"
 							>
-								<option value="bar">Bar</option>
-								<option value="block">Block</option>
-								<option value="underline">Underline</option>
+								{CURSOR_STYLES.map((s) => (
+									<option key={s} value={s}>
+										{s[0].toUpperCase() + s.slice(1)}
+									</option>
+								))}
 							</select>
 						</label>
 						{/* Scrollback */}
@@ -383,16 +394,18 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 							<span className="text-xs text-content-secondary w-20 shrink-0">Scrollback</span>
 							<input
 								type="number"
-								min={500}
-								max={50000}
+								min={MIN_SCROLLBACK}
+								max={MAX_SCROLLBACK}
 								step={500}
 								value={scrollback}
-								onChange={(e) =>
-									setScrollback(Math.max(500, Math.min(50000, Number(e.target.value))))
-								}
+								onChange={(e) => {
+									const n = Number(e.target.value)
+									if (!Number.isFinite(n)) return
+									setScrollback(Math.max(MIN_SCROLLBACK, Math.min(MAX_SCROLLBACK, n)))
+								}}
 								className="settings-input w-24"
 							/>
-							<span className="text-[11px] text-content-muted">lines</span>
+							<span className="text-[11px] text-content-muted w-10">lines</span>
 						</label>
 					</div>
 					{/* Layout */}
