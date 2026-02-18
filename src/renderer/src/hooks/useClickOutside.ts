@@ -18,12 +18,13 @@ export function useClickOutside(
 ): void {
 	useEffect(() => {
 		if (!active) return
+		const el = ref.current
 		const handler = (e: MouseEvent) => {
 			if (!e.target || !(e.target instanceof Node)) {
 				onClose()
 				return
 			}
-			if (ref.current && !ref.current.contains(e.target)) {
+			if (el && !el.contains(e.target)) {
 				onClose()
 			}
 		}
@@ -31,6 +32,5 @@ export function useClickOutside(
 		// via stopPropagation in the bubble phase (e.g. xterm's canvas).
 		document.addEventListener('mousedown', handler, true)
 		return () => document.removeEventListener('mousedown', handler, true)
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- ref is stable (useRef)
-	}, [onClose, active])
+	}, [ref, onClose, active])
 }
