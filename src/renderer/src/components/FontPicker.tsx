@@ -23,6 +23,7 @@ export function FontPicker({ value, onChange, size = 'md' }: FontPickerProps) {
 				type="button"
 				onClick={() => onChange('')}
 				aria-label="Default font"
+				aria-pressed={value === ''}
 				className={`cursor-pointer border ${s.btn} ${focusClass} ${
 					value === '' ? activeClass : inactiveClass
 				}`}
@@ -34,6 +35,7 @@ export function FontPicker({ value, onChange, size = 'md' }: FontPickerProps) {
 					type="button"
 					key={font}
 					onClick={() => onChange(font)}
+					aria-pressed={value === font}
 					className={`cursor-pointer border truncate ${s.btn} ${focusClass} ${
 						value === font ? activeClass : inactiveClass
 					}`}

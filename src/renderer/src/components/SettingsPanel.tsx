@@ -173,6 +173,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 										type="button"
 										key={preset.name}
 										onClick={() => handlePresetClick(preset.background, preset.foreground)}
+										aria-pressed={isActive}
 										className={`py-1.5 px-1 rounded cursor-pointer border text-center focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
 											isActive
 												? 'border-accent ring-1 ring-accent'
