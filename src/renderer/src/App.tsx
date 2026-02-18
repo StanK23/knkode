@@ -15,6 +15,12 @@ export function App() {
 	const visitedWorkspaceIds = useStore((s) => s.visitedWorkspaceIds)
 
 	const [showSettings, setShowSettings] = useState(false)
+	const closeSettings = useCallback(() => {
+		setShowSettings(false)
+		// Restore terminal focus after the settings panel unmounts
+		const { focusedPaneId, setFocusedPane } = useStore.getState()
+		if (focusedPaneId) setFocusedPane(focusedPaneId)
+	}, [])
 	const toggleSettings = useCallback(() => setShowSettings((v) => !v), [])
 
 	useKeyboardShortcuts({ toggleSettings })
@@ -69,7 +75,7 @@ export function App() {
 						</div>
 					))}
 					{showSettings && activeWorkspace && (
-						<SettingsPanel workspace={activeWorkspace} onClose={() => setShowSettings(false)} />
+						<SettingsPanel workspace={activeWorkspace} onClose={closeSettings} />
 					)}
 				</>
 			) : (

@@ -69,7 +69,19 @@ export function TerminalView({
 		termRef.current = term
 		fitAddonRef.current = fitAddon
 
+		let ptyExited = false
+
 		term.onData((data) => {
+			if (ptyExited) {
+				// Restart PTY on any keypress after exit
+				ptyExited = false
+				term.clear()
+				const state = useStore.getState()
+				const ws = state.workspaces.find((w) => paneId in w.panes)
+				const cwd = ws?.panes[paneId]?.cwd ?? state.homeDir
+				state.ensurePty(paneId, cwd, null)
+				return
+			}
 			window.api.writePty(paneId, data).catch((err) => {
 				console.error(`[terminal] writePty failed for pane ${paneId}:`, err)
 			})
@@ -81,8 +93,10 @@ export function TerminalView({
 
 		const removeExitListener = window.api.onPtyExit((id, exitCode) => {
 			if (id === paneId) {
-				term.writeln(`\r\n\x1b[90m[Process exited with code ${exitCode}]\x1b[0m`)
-				// Remove from activePtyIds so ensurePty can re-create if needed
+				ptyExited = true
+				term.writeln(
+					`\r\n\x1b[90m[Process exited with code ${exitCode}. Press any key to restart.]\x1b[0m`,
+				)
 				useStore.getState().removePtyId(paneId)
 			}
 		})
