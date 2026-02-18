@@ -1,11 +1,11 @@
 # knkode — Handoff
 
 ## What Was Done
-- [done] Move panes between workspaces (PR #23) — 9-agent review, all findings addressed
-  - Store action `movePaneToWorkspace`: set() callback pattern, self-move guard, collision guard
-  - Extracted `removeLeafFromTree` shared helper (DRY with closePane)
-  - "Move to Workspace" context menu submenu with memoized selector, ctx-item styling
-  - Persistence grouped with Promise.all, all early returns logged
+- [in-progress] Drag-and-drop pane reordering (PR #24) — branch: `feat/reorder-panes`
+  - Store action `swapPanes`: walks layout tree, swaps leaf paneId values
+  - HTML5 DnD on pane headers with `application/x-knkode-pane` MIME type
+  - Visual: opacity-40 drag, inset accent shadow drop target (matches tab DnD)
+- [done] Move panes between workspaces (PR #23)
 - [done] Layout preservation + auto-apply settings (PR #22)
 - [done] Pane context menu bugfixes (PR #21)
 - [done] Settings polish round 2 (PR #20)
@@ -18,7 +18,6 @@
 - PTY lifecycle: store-managed (ensurePty/killPtys/removePtyId) — decoupled from React mount
 
 ## What's Next
-- Plan: `docs/plans/2026-02-18-polish-round3-plan.md` — PR #3 (reorder panes within workspace)
 - Follow-up: Unit tests for `applyPresetWithRemap` (3 cases: same count, fewer, more)
 - Follow-up: Debounce theme/color auto-persist if disk write perf becomes an issue
 - Follow-up: Extract ghost button pattern to @layer components
