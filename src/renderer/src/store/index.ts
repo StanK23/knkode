@@ -219,6 +219,8 @@ interface StoreState {
 	reorderWorkspaceTabs: (fromIndex: number, toIndex: number) => void
 	splitPane: (workspaceId: string, paneId: string, direction: SplitDirection) => void
 	closePane: (workspaceId: string, paneId: string) => void
+	/** Move a pane from one workspace to another. PTY stays alive. */
+	movePaneToWorkspace: (fromWsId: string, paneId: string, toWsId: string) => void
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
 	saveState: () => Promise<void>
@@ -609,21 +611,7 @@ export const useStore = create<StoreState>((set, get) => ({
 			if (!workspace) return state
 			if (Object.keys(workspace.panes).length <= 1) return state
 
-			// Remove pane from tree. If a branch is left with one child, collapse
-			// it upward (promote the child, preserving the parent's size).
-			const removeFromTree = (node: LayoutNode): LayoutNode | null => {
-				if (!isLayoutBranch(node)) {
-					return node.paneId === paneId ? null : node
-				}
-				const remaining = node.children
-					.map(removeFromTree)
-					.filter((n): n is LayoutNode => n !== null)
-				if (remaining.length === 0) return null
-				if (remaining.length === 1) return { ...remaining[0], size: node.size }
-				return { ...node, children: remaining }
-			}
-
-			const newTree = removeFromTree(workspace.layout.tree)
+			const newTree = removeLeafFromTree(workspace.layout.tree, paneId)
 			if (!newTree) return state
 
 			const { [paneId]: _, ...remainingPanes } = workspace.panes
@@ -638,6 +626,120 @@ export const useStore = create<StoreState>((set, get) => ({
 			return {
 				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
 				focusedPaneId: state.focusedPaneId === paneId ? null : state.focusedPaneId,
+			}
+		})
+	},
+
+	movePaneToWorkspace: (fromWsId, paneId, toWsId) => {
+		// PTY intentionally NOT killed — it stays alive in the destination workspace
+		if (fromWsId === toWsId) return
+
+		set((state) => {
+			const fromWs = state.workspaces.find((w) => w.id === fromWsId)
+			const toWs = state.workspaces.find((w) => w.id === toWsId)
+			if (!fromWs || !toWs) {
+				console.error('[store] movePaneToWorkspace: workspace not found', { fromWsId, toWsId })
+				return state
+			}
+			if (Object.keys(fromWs.panes).length <= 1) {
+				console.warn('[store] movePaneToWorkspace: cannot move last pane', fromWsId)
+				return state
+			}
+			const config = fromWs.panes[paneId]
+			if (!config) {
+				console.error('[store] movePaneToWorkspace: pane config not found', { paneId, fromWsId })
+				return state
+			}
+			if (toWs.panes[paneId]) {
+				console.error('[store] movePaneToWorkspace: pane ID already exists in destination', {
+					paneId,
+					toWsId,
+				})
+				return state
+			}
+
+			const newSourceTree = removeLeafFromTree(fromWs.layout.tree, paneId)
+			if (!newSourceTree) {
+				console.error('[store] movePaneToWorkspace: removeLeafFromTree returned null', {
+					paneId,
+					fromWsId,
+				})
+				return state
+			}
+			const { [paneId]: _, ...remainingPanes } = fromWs.panes
+			const updatedFrom: Workspace = {
+				...fromWs,
+				layout: { type: 'custom' as const, tree: newSourceTree },
+				panes: remainingPanes,
+			}
+
+			// Add to destination tree: if root is a horizontal branch, append as a new
+			// equal-width child (resets existing size ratios). Otherwise wrap the entire
+			// tree in a new horizontal split at 50/50.
+			const destRoot = toWs.layout.tree
+			let newDestTree: LayoutNode
+			if (isLayoutBranch(destRoot) && destRoot.direction === 'horizontal') {
+				const count = destRoot.children.length + 1
+				const size = Math.round(100 / count)
+				const lastSize = 100 - size * (count - 1)
+				newDestTree = {
+					...destRoot,
+					children: [...destRoot.children.map((c) => ({ ...c, size })), { paneId, size: lastSize }],
+				}
+			} else {
+				newDestTree = {
+					direction: 'horizontal',
+					size: 100,
+					children: [
+						{ ...destRoot, size: 50 },
+						{ paneId, size: 50 },
+					],
+				}
+			}
+			const updatedTo: Workspace = {
+				...toWs,
+				layout: { type: 'custom' as const, tree: newDestTree },
+				panes: { ...toWs.panes, [paneId]: config },
+			}
+
+			// Persist both workspaces and app state. Grouped so partial failure is detectable.
+			Promise.all([
+				window.api.saveWorkspace(updatedFrom),
+				window.api.saveWorkspace(updatedTo),
+			]).catch((err) => {
+				console.error('[store] movePaneToWorkspace: failed to save workspaces', {
+					fromWsId,
+					toWsId,
+					err,
+				})
+			})
+
+			// Ensure destination is open, switch to it, and mark as visited
+			// (required for lazy PaneArea rendering)
+			const openIds = state.appState.openWorkspaceIds
+			const newOpen = openIds.includes(toWsId) ? openIds : [...openIds, toWsId]
+			const newAppState = {
+				...state.appState,
+				openWorkspaceIds: newOpen,
+				activeWorkspaceId: toWsId,
+			}
+			window.api.saveAppState(newAppState).catch((err) => {
+				console.error('[store] movePaneToWorkspace: failed to save app state', {
+					toWsId,
+					err,
+				})
+			})
+
+			return {
+				workspaces: state.workspaces.map((w) => {
+					if (w.id === fromWsId) return updatedFrom
+					if (w.id === toWsId) return updatedTo
+					return w
+				}),
+				appState: newAppState,
+				focusedPaneId: paneId,
+				focusGeneration: state.focusGeneration + 1,
+				visitedWorkspaceIds: addToVisited(state.visitedWorkspaceIds, toWsId),
 			}
 		})
 	},
@@ -687,6 +789,22 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 }))
 
+/** Remove a leaf from a layout tree by pane ID.
+ *  If a branch is left with one child, collapse it upward
+ *  (promote the child, preserving the parent's size).
+ *  Returns null if the target was the only node (callers should guard against this). */
+function removeLeafFromTree(node: LayoutNode, targetPaneId: string): LayoutNode | null {
+	if (!isLayoutBranch(node)) {
+		return node.paneId === targetPaneId ? null : node
+	}
+	const remaining = node.children
+		.map((child) => removeLeafFromTree(child, targetPaneId))
+		.filter((n): n is LayoutNode => n !== null)
+	if (remaining.length === 0) return null
+	if (remaining.length === 1) return { ...remaining[0], size: node.size }
+	return { ...node, children: remaining }
+}
+
 /** Get pane IDs in depth-first, left-child-first order
  *  (left-to-right for horizontal splits, top-to-bottom for vertical). */
 function getPaneIdsInOrder(node: LayoutNode): string[] {
@@ -726,7 +844,8 @@ function applyPresetWithRemap(
 	for (let i = 0; i < freshIds.length; i++) {
 		if (i < existingIds.length) {
 			const config = workspace.panes[existingIds[i]]
-			if (!config) throw new Error(`[applyPresetWithRemap] missing pane config for "${existingIds[i]}"`)
+			if (!config)
+				throw new Error(`[applyPresetWithRemap] missing pane config for "${existingIds[i]}"`)
 			idMap.set(freshIds[i], existingIds[i])
 			panes[existingIds[i]] = config
 		} else {
