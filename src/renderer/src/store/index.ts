@@ -221,9 +221,6 @@ interface StoreState {
 	closePane: (workspaceId: string, paneId: string) => void
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
-	/** Update workspace theme in-memory only (no disk write). Used for live preview.
-	 *  Caller must revert to the original theme on cancel. */
-	previewWorkspaceTheme: (wsId: string, theme: PaneTheme) => void
 	saveState: () => Promise<void>
 }
 
@@ -406,12 +403,7 @@ export const useStore = create<StoreState>((set, get) => ({
 				themeOverride: config.themeOverride ? { ...config.themeOverride } : null,
 			}
 		}
-		const remapTree = (node: LayoutNode): LayoutNode => {
-			if (isLayoutBranch(node)) {
-				return { ...node, children: node.children.map(remapTree) }
-			}
-			return { ...node, paneId: requireMapped(node.paneId) }
-		}
+		const remappedTree = remapLayoutTree(source.layout.tree, requireMapped)
 		const workspace: Workspace = {
 			id: crypto.randomUUID(),
 			name: `${source.name} (copy)`,
@@ -419,8 +411,8 @@ export const useStore = create<StoreState>((set, get) => ({
 			theme: { ...source.theme },
 			layout:
 				source.layout.type === 'preset'
-					? { type: 'preset', preset: source.layout.preset, tree: remapTree(source.layout.tree) }
-					: { type: 'custom', tree: remapTree(source.layout.tree) },
+					? { type: 'preset', preset: source.layout.preset, tree: remappedTree }
+					: { type: 'custom', tree: remappedTree },
 			panes: newPanes,
 		}
 		await window.api.saveWorkspace(workspace)
@@ -690,20 +682,74 @@ export const useStore = create<StoreState>((set, get) => ({
 		})
 	},
 
-	previewWorkspaceTheme: (wsId, theme) =>
-		set((s) => ({
-			workspaces: s.workspaces.map((w) => (w.id === wsId ? { ...w, theme } : w)),
-		})),
-
 	saveState: async () => {
 		await window.api.saveAppState(get().appState)
 	},
 }))
 
-/** Get pane IDs in depth-first tree order, matching visual layout reading order. */
+/** Get pane IDs in depth-first, left-child-first order
+ *  (left-to-right for horizontal splits, top-to-bottom for vertical). */
 function getPaneIdsInOrder(node: LayoutNode): string[] {
 	if (!isLayoutBranch(node)) return [node.paneId]
 	return node.children.flatMap(getPaneIdsInOrder)
 }
 
-export { WORKSPACE_COLORS, createLayoutFromPreset, getPaneIdsInOrder }
+/** Walk a layout tree and remap every leaf's paneId via the given function. */
+function remapLayoutTree(node: LayoutNode, mapId: (id: string) => string): LayoutNode {
+	if (isLayoutBranch(node)) {
+		return { ...node, children: node.children.map((c) => remapLayoutTree(c, mapId)) }
+	}
+	return { ...node, paneId: mapId(node.paneId) }
+}
+
+/** Apply a layout preset while preserving existing panes by position.
+ *  - Same slot count: 1:1 remap, all PTYs survive.
+ *  - Fewer slots: first N panes kept, excess returned in `killedPaneIds`.
+ *  - More slots: existing panes fill first slots, fresh empty panes fill the rest. */
+function applyPresetWithRemap(
+	workspace: Workspace,
+	preset: LayoutPreset,
+	homeDir: string,
+): {
+	layout: WorkspaceLayout
+	panes: Record<string, PaneConfig>
+	killedPaneIds: string[]
+} {
+	const existingIds = getPaneIdsInOrder(workspace.layout.tree)
+	const { layout: freshLayout, panes: freshPanes } = createLayoutFromPreset(preset, homeDir)
+	const freshIds = getPaneIdsInOrder(freshLayout.tree)
+
+	const idMap = new Map<string, string>()
+	const panes: Record<string, PaneConfig> = {}
+	const killedPaneIds: string[] = []
+
+	for (let i = 0; i < freshIds.length; i++) {
+		if (i < existingIds.length) {
+			const config = workspace.panes[existingIds[i]]
+			if (!config) throw new Error(`[applyPresetWithRemap] missing pane config for "${existingIds[i]}"`)
+			idMap.set(freshIds[i], existingIds[i])
+			panes[existingIds[i]] = config
+		} else {
+			idMap.set(freshIds[i], freshIds[i])
+			panes[freshIds[i]] = freshPanes[freshIds[i]]
+		}
+	}
+
+	for (let i = freshIds.length; i < existingIds.length; i++) {
+		killedPaneIds.push(existingIds[i])
+	}
+
+	const requireMapped = (id: string): string => {
+		const mapped = idMap.get(id)
+		if (!mapped) throw new Error(`[applyPresetWithRemap] unmapped pane ID "${id}"`)
+		return mapped
+	}
+
+	return {
+		layout: { type: 'preset', preset, tree: remapLayoutTree(freshLayout.tree, requireMapped) },
+		panes,
+		killedPaneIds,
+	}
+}
+
+export { WORKSPACE_COLORS, applyPresetWithRemap, createLayoutFromPreset, getPaneIdsInOrder }

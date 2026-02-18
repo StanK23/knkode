@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { LayoutPreset, PaneConfig, PaneTheme, Workspace } from '../../../shared/types'
 import { THEME_PRESETS } from '../data/theme-presets'
-import { createLayoutFromPreset, useStore } from '../store'
+import { applyPresetWithRemap, useStore } from '../store'
 import { FontPicker } from './FontPicker'
 import { LayoutPicker } from './LayoutPicker'
+
+/** Read the latest workspace from the store to avoid stale-snapshot races
+ *  when multiple auto-persist effects fire in close succession. */
+function getLatestWorkspace(wsId: string): Workspace | undefined {
+	return useStore.getState().workspaces.find((w) => w.id === wsId)
+}
 
 interface SettingsPanelProps {
 	workspace: Workspace
@@ -14,11 +20,8 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const updateWorkspace = useStore((s) => s.updateWorkspace)
 	const removeWorkspace = useStore((s) => s.removeWorkspace)
 	const updatePaneConfig = useStore((s) => s.updatePaneConfig)
-	const previewWorkspaceTheme = useStore((s) => s.previewWorkspaceTheme)
 	const killPtys = useStore((s) => s.killPtys)
 	const homeDir = useStore((s) => s.homeDir)
-
-	const originalTheme = useRef<PaneTheme>({ ...workspace.theme })
 
 	const [name, setName] = useState(workspace.name)
 	const [color, setColor] = useState(workspace.color)
@@ -41,47 +44,55 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		[bg, fg, fontSize, unfocusedDim, fontFamily],
 	)
 
-	// Live preview: push theme to store (without persisting to disk) on every field change.
-	// Skip mount to avoid unnecessary store write with unchanged values.
-	const mountedRef = useRef(false)
+	// Auto-persist: save full workspace with updated color/theme whenever those fields change.
+	// Reads latest workspace from store (not a ref) to avoid overwriting concurrent updates.
+	const themeMountedRef = useRef(false)
 	useEffect(() => {
-		if (!mountedRef.current) {
-			mountedRef.current = true
+		if (!themeMountedRef.current) {
+			themeMountedRef.current = true
 			return
 		}
-		previewWorkspaceTheme(workspace.id, buildThemeFromInputs())
-	}, [workspace.id, buildThemeFromInputs, previewWorkspaceTheme])
+		const latest = getLatestWorkspace(workspace.id)
+		if (!latest) return
+		updateWorkspace({ ...latest, color, theme: buildThemeFromInputs() }).catch((err) => {
+			console.error('[settings] auto-persist theme failed:', err)
+		})
+	}, [workspace.id, color, buildThemeFromInputs, updateWorkspace])
 
-	const handleSave = useCallback(async () => {
-		try {
-			await updateWorkspace({
-				...workspace,
-				name: name.trim() || workspace.name,
-				color,
-				theme: buildThemeFromInputs(),
-			})
-			onClose()
-		} catch (err) {
-			console.error('[settings] Failed to save workspace:', err)
+	// Auto-persist name with debounce to avoid excessive disk writes on every keystroke.
+	const nameMountedRef = useRef(false)
+	useEffect(() => {
+		if (!nameMountedRef.current) {
+			nameMountedRef.current = true
+			return
 		}
-	}, [workspace, name, color, buildThemeFromInputs, updateWorkspace, onClose])
-
-	const handleCancel = useCallback(() => {
-		previewWorkspaceTheme(workspace.id, originalTheme.current)
-		onClose()
-	}, [workspace.id, previewWorkspaceTheme, onClose])
+		const trimmed = name.trim()
+		if (!trimmed) return
+		const latest = getLatestWorkspace(workspace.id)
+		if (!latest || trimmed === latest.name) return
+		const timer = setTimeout(() => {
+			const current = getLatestWorkspace(workspace.id)
+			if (!current) return
+			updateWorkspace({ ...current, name: trimmed }).catch((err) => {
+				console.error('[settings] auto-persist name failed:', err)
+			})
+		}, 300)
+		return () => clearTimeout(timer)
+	}, [workspace.id, name, updateWorkspace])
 
 	const handleLayoutChange = useCallback(
 		(preset: LayoutPreset) => {
-			killPtys(Object.keys(workspace.panes))
-			const { layout, panes } = createLayoutFromPreset(preset, homeDir)
-			updateWorkspace({
-				...workspace,
-				layout,
-				panes,
+			const latest = getLatestWorkspace(workspace.id)
+			if (!latest) return
+			const { layout, panes, killedPaneIds } = applyPresetWithRemap(latest, preset, homeDir)
+			if (killedPaneIds.length > 0) {
+				killPtys(killedPaneIds)
+			}
+			updateWorkspace({ ...latest, layout, panes }).catch((err) => {
+				console.error('[settings] layout change failed:', err)
 			})
 		},
-		[workspace, updateWorkspace, killPtys, homeDir],
+		[workspace.id, updateWorkspace, killPtys, homeDir],
 	)
 
 	const handleDelete = useCallback(() => {
@@ -90,14 +101,14 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		onClose()
 	}, [workspace.id, workspace.name, removeWorkspace, onClose])
 
-	// Close on Escape key — cancel reverts theme
+	// Close on Escape key
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
-			if (e.key === 'Escape') handleCancel()
+			if (e.key === 'Escape') onClose()
 		}
 		document.addEventListener('keydown', handler)
 		return () => document.removeEventListener('keydown', handler)
-	}, [handleCancel])
+	}, [onClose])
 
 	const handlePaneUpdate = useCallback(
 		(paneId: string, updates: Partial<PaneConfig>) => {
@@ -116,7 +127,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		<div
 			role="presentation"
 			className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
-			onClick={handleCancel}
+			onClick={onClose}
 		>
 			{/* biome-ignore lint/a11y/useKeyWithClickEvents: stopPropagation only, keyboard handled by overlay */}
 			{/* biome-ignore lint/a11y/useSemanticElements: native dialog has styling/focus-trap limitations in Electron */}
@@ -131,7 +142,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					<h2 className="text-base font-semibold">Workspace Settings</h2>
 					<button
 						type="button"
-						onClick={handleCancel}
+						onClick={onClose}
 						aria-label="Close settings"
 						className="bg-transparent border-none text-content-muted cursor-pointer text-sm hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 					>
@@ -148,6 +159,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 							<input
 								value={name}
 								onChange={(e) => setName(e.target.value)}
+								maxLength={128}
 								className="settings-input"
 							/>
 						</label>
@@ -300,17 +312,10 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					<div className="flex-1" />
 					<button
 						type="button"
-						onClick={handleCancel}
+						onClick={onClose}
 						className="bg-transparent border border-edge text-content-secondary cursor-pointer text-xs py-1.5 px-3 rounded-sm hover:text-content hover:border-content-muted focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 					>
-						Cancel
-					</button>
-					<button
-						type="button"
-						onClick={handleSave}
-						className="bg-accent border-none text-white cursor-pointer text-xs py-1.5 px-4 rounded-sm font-semibold hover:brightness-[1.1] focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none focus-visible:ring-offset-1 focus-visible:ring-offset-elevated"
-					>
-						Save
+						Done
 					</button>
 				</div>
 			</div>
