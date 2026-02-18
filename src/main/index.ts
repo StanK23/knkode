@@ -6,12 +6,18 @@ import { registerIpcHandlers } from './ipc'
 import { getMainWindow, setMainWindow } from './main-window'
 import { killAllPtys } from './pty-manager'
 
-const APP_ICON_PATH = path.join(__dirname, '../../resources/icon.png')
+// __dirname resolves to out/main/ at runtime; in packaged builds, resources are in process.resourcesPath
+const APP_ICON_PATH = app.isPackaged
+	? path.join(process.resourcesPath, 'icon.png')
+	: path.join(__dirname, '../../resources/icon.png')
 
 function createWindow(): void {
 	const { windowBounds } = getAppState()
 
 	const appIcon = nativeImage.createFromPath(APP_ICON_PATH)
+	if (appIcon.isEmpty()) {
+		console.warn('[main] App icon not found at', APP_ICON_PATH)
+	}
 
 	const win = new BrowserWindow({
 		x: windowBounds.x,
@@ -34,7 +40,7 @@ function createWindow(): void {
 		},
 	})
 
-	// Set dock icon on macOS (overrides default Electron icon during development)
+	// Set dock icon on macOS (ensures custom icon during development; production uses bundled .icns)
 	if (process.platform === 'darwin' && app.dock) {
 		app.dock.setIcon(appIcon)
 	}

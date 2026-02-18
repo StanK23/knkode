@@ -10,7 +10,9 @@
     "out/**/*",
     "!node_modules/**/*"
   ],
-  "extraResources": [],
+  "extraResources": [
+    { "from": "resources/icon.png", "to": "icon.png" }
+  ],
   "mac": {
     "target": ["dmg"],
     "category": "public.app-category.developer-tools",
