@@ -160,6 +160,37 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								className="bg-sunken border border-edge rounded-sm w-10 h-7 p-0.5 cursor-pointer"
 							/>
 						</label>
+						{/* Panes */}
+						<span className="text-xs text-content-secondary mt-1">Panes</span>
+						{Object.entries(workspace.panes).map(([paneId, pane]) => (
+							<div key={paneId} className="flex gap-1.5">
+								<input
+									value={pane.label}
+									onChange={(e) => handlePaneUpdate(paneId, { label: e.target.value })}
+									className="settings-input flex-1"
+									placeholder="Label"
+									aria-label={`Pane ${pane.label} label`}
+								/>
+								<input
+									value={pane.cwd}
+									onChange={(e) => handlePaneUpdate(paneId, { cwd: e.target.value })}
+									className="bg-sunken border border-edge rounded-sm text-content text-xs py-1 px-2 outline-none flex-[2] focus:border-accent"
+									placeholder="Working directory"
+									aria-label={`Pane ${pane.label} working directory`}
+								/>
+								<input
+									value={pane.startupCommand || ''}
+									onChange={(e) =>
+										handlePaneUpdate(paneId, {
+											startupCommand: e.target.value || null,
+										})
+									}
+									className="bg-sunken border border-edge rounded-sm text-content text-xs py-1 px-2 outline-none flex-[2] focus:border-accent"
+									placeholder="Startup command"
+									aria-label={`Pane ${pane.label} startup command`}
+								/>
+							</div>
+						))}
 					</div>
 					{/* Theme */}
 					<div className="flex flex-col gap-2">
@@ -255,39 +286,6 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					{/* Layout */}
 					<div className="flex flex-col gap-2">
 						<LayoutPicker current={currentPreset} onSelect={handleLayoutChange} />
-					</div>
-					{/* Pane list */}
-					<div className="flex flex-col gap-2">
-						<span className="section-label">Panes</span>
-						{Object.entries(workspace.panes).map(([paneId, pane]) => (
-							<div key={paneId} className="flex gap-1.5">
-								<input
-									value={pane.label}
-									onChange={(e) => handlePaneUpdate(paneId, { label: e.target.value })}
-									className="settings-input flex-1"
-									placeholder="Label"
-									aria-label={`Pane ${pane.label} label`}
-								/>
-								<input
-									value={pane.cwd}
-									onChange={(e) => handlePaneUpdate(paneId, { cwd: e.target.value })}
-									className="bg-sunken border border-edge rounded-sm text-content text-xs py-1 px-2 outline-none flex-[2] focus:border-accent"
-									placeholder="Working directory"
-									aria-label={`Pane ${pane.label} working directory`}
-								/>
-								<input
-									value={pane.startupCommand || ''}
-									onChange={(e) =>
-										handlePaneUpdate(paneId, {
-											startupCommand: e.target.value || null,
-										})
-									}
-									className="bg-sunken border border-edge rounded-sm text-content text-xs py-1 px-2 outline-none flex-[2] focus:border-accent"
-									placeholder="Startup command"
-									aria-label={`Pane ${pane.label} startup command`}
-								/>
-							</div>
-						))}
 					</div>
 				</div>
 
