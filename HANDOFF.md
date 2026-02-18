@@ -12,6 +12,13 @@
 - [done] Settings redesign + UI testing bugfixes + review fixes (PR #19)
 - [done] UI polish — terminal padding, thinner separators, larger gear button (PR #18)
 
+## Active Reviews
+
+### PR #21 — fix: pane context menu positioning and stuck dismiss
+- State: `docs/reviews/PR-21/_state.json`
+- Agents: 9/9 completed
+- Phase: done — compiling fixes
+
 ## Active Decisions
 - Tech stack: Electron + React + TypeScript + xterm.js + node-pty + Zustand
 - Styling: **Tailwind CSS v4** with @tailwindcss/vite plugin, semantic color tokens in @theme
