@@ -132,6 +132,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 					title={`New workspace (${modKey}+T)`}
 					aria-label="Create new workspace"
 					className="bg-transparent border-none text-content-muted cursor-pointer text-lg leading-none px-2.5 h-tab flex items-center shrink-0 hover:text-content hover:bg-overlay rounded-sm focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+					style={{ WebkitAppRegion: 'no-drag' }}
 				>
 					+
 				</button>
@@ -166,7 +167,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 
 			{/* Closed workspaces menu */}
 			{closedWorkspaces.length > 0 && (
-				<div ref={closedMenuRef} className="relative mr-2" style={{ WebkitAppRegion: 'no-drag' }}>
+				<div ref={closedMenuRef} className="relative mr-2 self-center" style={{ WebkitAppRegion: 'no-drag' }}>
 					<button
 						type="button"
 						onClick={() => setShowClosedMenu((v) => !v)}
