@@ -30,8 +30,10 @@ export function App() {
 		init()
 	}, [init])
 
-	// Dynamic window title — shows active workspace name
-	const activeWorkspaceName = workspaces.find((w) => w.id === appState.activeWorkspaceId)?.name
+	// Window title — visible in dock tooltip, Mission Control, and Cmd+Tab
+	// (title bar text is hidden by titleBarStyle: 'hiddenInset')
+	const activeWorkspace = workspaces.find((w) => w.id === appState.activeWorkspaceId)
+	const activeWorkspaceName = activeWorkspace?.name
 	useEffect(() => {
 		document.title = activeWorkspaceName ? `${activeWorkspaceName} — knkode` : 'knkode'
 	}, [activeWorkspaceName])
@@ -61,7 +63,6 @@ export function App() {
 		)
 	}
 
-	const activeWorkspace = workspaces.find((w) => w.id === appState.activeWorkspaceId)
 	const visitedWorkspaces = workspaces.filter((w) => visitedWorkspaceIds.includes(w.id))
 
 	return (
