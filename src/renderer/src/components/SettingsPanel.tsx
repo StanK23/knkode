@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
-import type { LayoutPreset, PaneConfig, Workspace } from '../../../shared/types'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { LayoutPreset, PaneConfig, PaneTheme, Workspace } from '../../../shared/types'
+import { THEME_PRESETS } from '../data/theme-presets'
 import { createLayoutFromPreset, useStore } from '../store'
+import { FontPicker } from './FontPicker'
 import { LayoutPicker } from './LayoutPicker'
 
 interface SettingsPanelProps {
@@ -12,8 +14,11 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const updateWorkspace = useStore((s) => s.updateWorkspace)
 	const removeWorkspace = useStore((s) => s.removeWorkspace)
 	const updatePaneConfig = useStore((s) => s.updatePaneConfig)
+	const previewWorkspaceTheme = useStore((s) => s.previewWorkspaceTheme)
 	const killPtys = useStore((s) => s.killPtys)
 	const homeDir = useStore((s) => s.homeDir)
+
+	const originalTheme = useRef<PaneTheme>({ ...workspace.theme })
 
 	const [name, setName] = useState(workspace.name)
 	const [color, setColor] = useState(workspace.color)
@@ -21,18 +26,50 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const [fg, setFg] = useState(workspace.theme.foreground)
 	const [fontSize, setFontSize] = useState(workspace.theme.fontSize)
 	const [opacity, setOpacity] = useState(workspace.theme.opacity)
+	const [fontFamily, setFontFamily] = useState(workspace.theme.fontFamily ?? '')
 
 	const currentPreset = workspace.layout.type === 'preset' ? workspace.layout.preset : null
 
+	const buildThemeFromInputs = useCallback(
+		(): PaneTheme => ({
+			background: bg,
+			foreground: fg,
+			fontSize,
+			opacity,
+			fontFamily: fontFamily || undefined,
+		}),
+		[bg, fg, fontSize, opacity, fontFamily],
+	)
+
+	// Live preview: push theme to store (without persisting to disk) on every field change.
+	// Skip mount to avoid unnecessary store write with unchanged values.
+	const mountedRef = useRef(false)
+	useEffect(() => {
+		if (!mountedRef.current) {
+			mountedRef.current = true
+			return
+		}
+		previewWorkspaceTheme(workspace.id, buildThemeFromInputs())
+	}, [workspace.id, buildThemeFromInputs, previewWorkspaceTheme])
+
 	const handleSave = useCallback(async () => {
-		await updateWorkspace({
-			...workspace,
-			name: name.trim() || workspace.name,
-			color,
-			theme: { background: bg, foreground: fg, fontSize, opacity },
-		})
+		try {
+			await updateWorkspace({
+				...workspace,
+				name: name.trim() || workspace.name,
+				color,
+				theme: buildThemeFromInputs(),
+			})
+			onClose()
+		} catch (err) {
+			console.error('[settings] Failed to save workspace:', err)
+		}
+	}, [workspace, name, color, buildThemeFromInputs, updateWorkspace, onClose])
+
+	const handleCancel = useCallback(() => {
+		previewWorkspaceTheme(workspace.id, originalTheme.current)
 		onClose()
-	}, [workspace, name, color, bg, fg, fontSize, opacity, updateWorkspace, onClose])
+	}, [workspace.id, previewWorkspaceTheme, onClose])
 
 	const handleLayoutChange = useCallback(
 		(preset: LayoutPreset) => {
@@ -53,14 +90,14 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		onClose()
 	}, [workspace.id, workspace.name, removeWorkspace, onClose])
 
-	// Close on Escape key
+	// Close on Escape key — cancel reverts theme
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
-			if (e.key === 'Escape') onClose()
+			if (e.key === 'Escape') handleCancel()
 		}
 		document.addEventListener('keydown', handler)
 		return () => document.removeEventListener('keydown', handler)
-	}, [onClose])
+	}, [handleCancel])
 
 	const handlePaneUpdate = useCallback(
 		(paneId: string, updates: Partial<PaneConfig>) => {
@@ -69,12 +106,17 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		[workspace.id, updatePaneConfig],
 	)
 
+	const handlePresetClick = (presetBg: string, presetFg: string) => {
+		setBg(presetBg)
+		setFg(presetFg)
+	}
+
 	return (
 		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape key handled via document listener above
 		<div
 			role="presentation"
 			className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200]"
-			onClick={onClose}
+			onClick={handleCancel}
 		>
 			{/* biome-ignore lint/a11y/useKeyWithClickEvents: stopPropagation only, keyboard handled by overlay */}
 			{/* biome-ignore lint/a11y/useSemanticElements: native dialog has styling/focus-trap limitations in Electron */}
@@ -89,7 +131,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					<h2 className="text-base font-semibold">Workspace Settings</h2>
 					<button
 						type="button"
-						onClick={onClose}
+						onClick={handleCancel}
 						aria-label="Close settings"
 						className="bg-transparent border-none text-content-muted cursor-pointer text-sm hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 					>
@@ -122,6 +164,31 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					{/* Theme */}
 					<div className="flex flex-col gap-2">
 						<span className="section-label">Terminal Theme</span>
+						{/* Theme preset grid — each button is a fully themed card */}
+						<div className="grid grid-cols-4 gap-1.5">
+							{THEME_PRESETS.map((preset) => {
+								const isActive = bg === preset.background && fg === preset.foreground
+								return (
+									<button
+										type="button"
+										key={preset.name}
+										onClick={() => handlePresetClick(preset.background, preset.foreground)}
+										className={`flex flex-col items-center gap-0.5 py-3 px-2 rounded-md cursor-pointer border focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
+											isActive
+												? 'border-accent ring-1 ring-accent'
+												: 'border-transparent hover:border-content-muted'
+										}`}
+										title={preset.name}
+										aria-label={preset.name}
+										style={{ background: preset.background, color: preset.foreground }}
+									>
+										<span className="text-sm font-semibold">Aa</span>
+										<span className="text-[10px] opacity-70">{preset.name}</span>
+									</button>
+								)
+							})}
+						</div>
+						{/* Custom colors */}
 						<label className="flex items-center gap-2">
 							<span className="text-xs text-content-secondary w-20 shrink-0">Background</span>
 							<input
@@ -140,17 +207,33 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								className="bg-sunken border border-edge rounded-sm w-10 h-7 p-0.5 cursor-pointer"
 							/>
 						</label>
-						<label className="flex items-center gap-2">
+						{/* Font family — visual grid */}
+						<span className="text-xs text-content-secondary">Font</span>
+						<FontPicker value={fontFamily} onChange={setFontFamily} />
+						{/* Font size */}
+						<div className="flex items-center gap-2">
 							<span className="text-xs text-content-secondary w-20 shrink-0">Font Size</span>
-							<input
-								type="number"
-								min={8}
-								max={32}
-								value={fontSize}
-								onChange={(e) => setFontSize(Number(e.target.value))}
-								className="settings-input w-15"
-							/>
-						</label>
+							<button
+								type="button"
+								onClick={() => setFontSize((s) => Math.max(8, s - 1))}
+								aria-label="Decrease font size"
+								className="bg-sunken border border-edge rounded-sm text-content cursor-pointer w-7 h-7 flex items-center justify-center hover:bg-overlay focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+							>
+								-
+							</button>
+							<span className="text-xs text-content tabular-nums w-5 text-center">
+								{fontSize}
+							</span>
+							<button
+								type="button"
+								onClick={() => setFontSize((s) => Math.min(32, s + 1))}
+								aria-label="Increase font size"
+								className="bg-sunken border border-edge rounded-sm text-content cursor-pointer w-7 h-7 flex items-center justify-center hover:bg-overlay focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+							>
+								+
+							</button>
+						</div>
+						{/* Opacity */}
 						<label className="flex items-center gap-2">
 							<span className="text-xs text-content-secondary w-20 shrink-0">Opacity</span>
 							<input
@@ -217,7 +300,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					<div className="flex-1" />
 					<button
 						type="button"
-						onClick={onClose}
+						onClick={handleCancel}
 						className="bg-transparent border border-edge text-content-secondary cursor-pointer text-xs py-1.5 px-3 rounded-sm hover:text-content hover:border-content-muted focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 					>
 						Cancel
