@@ -1,27 +1,41 @@
 # knkode
 
-A terminal workspace manager that lets you organize multiple terminal sessions into named, themed workspaces with flexible split-pane layouts.
+A terminal workspace manager — save your multi-pane terminal layouts and switch between them instantly.
 
 ## Why
 
-Every project needs a different terminal setup — a build watcher here, a dev server there, logs in a side panel. Most terminal apps make you rebuild that layout every time. knkode saves your terminal arrangements as workspaces you can switch between instantly, each with its own split layout, theme, and per-pane config.
+Every project needs a different terminal arrangement. A build watcher, a dev server, logs in a side panel — you set it up, then close the window and lose it. knkode persists your terminal layouts as named workspaces so you never rebuild them.
 
 ## What it does
 
-- **Workspaces as tabs** — each workspace is a named, color-coded tab with its own pane layout. Create, close, reopen, rename, reorder by dragging.
-- **Split pane layouts** — 6 presets (single, 2-column, 2-row, 3-panel, 2x2 grid) or split any pane on the fly. Drag panes to reorder, move panes between workspaces.
-- **Per-workspace theming** — 16 built-in themes (Dracula, Tokyo Night, Nord, Catppuccin, etc.), custom background/foreground colors, 14 bundled monospace fonts. Per-pane overrides for when one terminal needs a different look.
-- **Startup commands** — set a command per pane (like `npm run dev`) that runs automatically when the workspace opens.
-- **CWD tracking** — each pane header shows the current working directory, updated in real-time.
-- **Keyboard-driven** — `Cmd+D` split, `Cmd+W` close pane, `Cmd+T` new workspace, `Cmd+1-9` focus pane by index, `Cmd+Shift+[/]` cycle workspace tabs, `Cmd+,` settings.
+- **Workspaces as tabs** — each workspace is a named, color-coded tab with its own pane layout. Create, duplicate, close, reopen from the closed-tabs menu, reorder by drag.
+- **Split pane layouts** — 6 presets (single, 2-column, 2-row, 3-panel L, 3-panel T, 2x2 grid) plus split-on-the-fly. Drag panes to reorder within a workspace or move them between workspaces.
+- **Per-workspace theming** — 16 terminal themes (Dracula, Tokyo Night, Nord, Catppuccin, Gruvbox, etc.), custom bg/fg colors, 14 monospace fonts, adjustable font size, cursor style (bar/block/underline), scrollback buffer (500-50k lines), and unfocused pane dimming.
+- **Find in terminal** — `Cmd+F` opens an in-terminal search bar with next/prev navigation. Clickable URLs in terminal output open in your default browser.
+- **Startup commands** — set a command per pane (like `npm run dev`) that runs when the workspace loads.
+- **CWD tracking** — each pane header shows the current working directory, updated as you `cd`.
+- **Keyboard-driven** — all core actions have shortcuts:
 
-Config is persisted to `~/.knkode/` as JSON files. Window position and size are remembered between sessions.
+  | Action | macOS | Other |
+  |--------|-------|-------|
+  | Split side-by-side | `Cmd+D` | `Ctrl+D` |
+  | Split stacked | `Cmd+Shift+D` | `Ctrl+Shift+D` |
+  | Close pane | `Cmd+W` | `Ctrl+W` |
+  | Close workspace tab | `Cmd+Shift+W` | `Ctrl+Shift+W` |
+  | New workspace | `Cmd+T` | `Ctrl+T` |
+  | Prev/next workspace | `Cmd+Shift+[/]` | `Ctrl+Shift+[/]` |
+  | Prev/next pane | `Cmd+Alt+Left/Right` | `Ctrl+Alt+Left/Right` |
+  | Focus pane by number | `Cmd+1-9` | `Ctrl+1-9` |
+  | Find in terminal | `Cmd+F` | `Ctrl+F` |
+  | Settings | `Cmd+,` | `Ctrl+,` |
+
+Config lives in `~/.knkode/` as JSON. Window position, size, and open tabs are remembered between sessions.
 
 ## Prerequisites
 
 - **Node.js** >= 18
-- **bun** (package manager) — [install](https://bun.sh)
-- macOS recommended (frameless window with native traffic lights). Windows and Linux builds exist but are less tested.
+- **bun** — [install](https://bun.sh)
+- macOS is the primary target (frameless window with native traffic lights). Windows/Linux builds work but are less tested.
 
 ## Quick start
 
@@ -32,7 +46,7 @@ bun install
 bun run dev
 ```
 
-This opens the app in development mode with hot reload. A default workspace with a single terminal pane is created on first launch.
+Opens the app with hot reload. A default workspace with one terminal pane is created on first launch.
 
 ## Build
 
@@ -41,7 +55,7 @@ bun run build       # compile to out/
 bun run package     # build + create distributable (dmg/nsis/AppImage)
 ```
 
-Distributables are written to `dist/`.
+Distributables land in `dist/`.
 
 ## Development
 
@@ -57,14 +71,14 @@ bun run lint:fix     # biome check --write
 
 ```
 src/
-  main/           Electron main process — window management, PTY lifecycle, config I/O
-  preload/        Context bridge (IPC between main and renderer)
-  renderer/       React UI — workspace tabs, pane layouts, terminal views, settings
-  shared/         Types and constants shared between main and renderer
+  main/           Electron main process — window, PTY lifecycle, config I/O
+  preload/        Context bridge (typed IPC between main and renderer)
+  renderer/       React UI — tabs, pane layouts, terminal views, settings
+  shared/         Types and constants used by both processes
 ```
 
-The renderer uses **Zustand** for state, **xterm.js** + **node-pty** for terminals, **allotment** for resizable split panes, and **Tailwind CSS v4** for styling.
+Renderer stack: Zustand (state), xterm.js + node-pty (terminals), allotment (split panes), Tailwind CSS v4 (styling).
 
 ## Status
 
-v0.1.0 — functional but early. The core workspace/pane/terminal loop works. Rough edges remain around edge cases and non-macOS platforms.
+v0.1.0 — functional, actively developed. The workspace/pane/terminal loop is solid. Rough edges remain on non-macOS platforms.
