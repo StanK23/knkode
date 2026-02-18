@@ -44,13 +44,21 @@ function readJson<T>(filePath: string, fallback: T): T {
 
 function writeJson(filePath: string, data: unknown): void {
 	ensureConfigDir()
+	const tmpPath = `${filePath}.tmp`
 	try {
-		fs.writeFileSync(filePath, JSON.stringify(data, null, 2), { encoding: 'utf-8', mode: 0o600 })
+		fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), { encoding: 'utf-8', mode: 0o600 })
+		fs.renameSync(tmpPath, filePath)
 	} catch (err) {
 		console.error(
 			`[config-store] Failed to write ${filePath}:`,
 			err instanceof Error ? err.message : err,
 		)
+		// Clean up temp file on failure
+		try {
+			fs.unlinkSync(tmpPath)
+		} catch {
+			/* best-effort cleanup */
+		}
 		throw err
 	}
 }

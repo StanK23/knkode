@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { PaneArea } from './components/PaneArea'
 import { SettingsPanel } from './components/SettingsPanel'
 import { TabBar } from './components/TabBar'
@@ -49,9 +50,7 @@ export function App() {
 	if (initError) {
 		return (
 			<div className="flex items-center justify-center h-full">
-				<span className="text-danger" style={{ color: '#e74c3c' }}>
-					Failed to load: {initError}
-				</span>
+				<span className="text-danger">Failed to load: {initError}</span>
 			</div>
 		)
 	}
@@ -71,7 +70,9 @@ export function App() {
 								ws.id === appState.activeWorkspaceId ? 'flex flex-1 overflow-hidden' : 'hidden'
 							}
 						>
-							<PaneArea workspace={ws} />
+							<ErrorBoundary>
+								<PaneArea workspace={ws} />
+							</ErrorBoundary>
 						</div>
 					))}
 					{showSettings && activeWorkspace && (

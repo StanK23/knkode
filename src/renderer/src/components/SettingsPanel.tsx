@@ -11,6 +11,55 @@ function getLatestWorkspace(wsId: string): Workspace | undefined {
 	return useStore.getState().workspaces.find((w) => w.id === wsId)
 }
 
+function isValidCwd(path: string): boolean {
+	return path === '' || path.startsWith('/') || path.startsWith('~')
+}
+
+function CwdInput({
+	value,
+	onChange,
+	'aria-label': ariaLabel,
+}: { value: string; onChange: (v: string) => void; 'aria-label': string }) {
+	const [local, setLocal] = useState(value)
+	const [invalid, setInvalid] = useState(false)
+
+	// Sync local state when store value changes externally
+	useEffect(() => {
+		setLocal(value)
+		setInvalid(false)
+	}, [value])
+
+	return (
+		<input
+			value={local}
+			onChange={(e) => {
+				setLocal(e.target.value)
+				setInvalid(false)
+			}}
+			onBlur={() => {
+				const trimmed = local.trim()
+				if (isValidCwd(trimmed)) {
+					if (trimmed !== value) onChange(trimmed)
+					setInvalid(false)
+				} else {
+					setInvalid(true)
+				}
+			}}
+			onKeyDown={(e) => {
+				if (e.key === 'Enter') {
+					e.currentTarget.blur()
+				}
+			}}
+			className={`bg-sunken border rounded-sm text-content text-xs py-1 px-2 outline-none flex-[2] focus:border-accent ${
+				invalid ? 'border-danger' : 'border-edge'
+			}`}
+			placeholder="Working directory"
+			aria-label={ariaLabel}
+			aria-invalid={invalid || undefined}
+		/>
+	)
+}
+
 interface SettingsPanelProps {
 	workspace: Workspace
 	onClose: () => void
@@ -183,11 +232,9 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 									placeholder="Label"
 									aria-label={`Pane ${pane.label} label`}
 								/>
-								<input
+								<CwdInput
 									value={pane.cwd}
-									onChange={(e) => handlePaneUpdate(paneId, { cwd: e.target.value })}
-									className="bg-sunken border border-edge rounded-sm text-content text-xs py-1 px-2 outline-none flex-[2] focus:border-accent"
-									placeholder="Working directory"
+									onChange={(path) => handlePaneUpdate(paneId, { cwd: path })}
 									aria-label={`Pane ${pane.label} working directory`}
 								/>
 								<input
