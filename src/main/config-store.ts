@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { app } from 'electron'
-import type { AppState, Workspace } from '../shared/types'
+import { type AppState, DEFAULT_UNFOCUSED_DIM, type Workspace } from '../shared/types'
 
 const CONFIG_DIR = path.join(app.getPath('home'), '.knkode')
 const WORKSPACES_FILE = path.join(CONFIG_DIR, 'workspaces.json')
@@ -60,10 +60,10 @@ function migrateTheme(ws: Workspace): Workspace {
 	const theme = ws.theme as Record<string, unknown>
 	if ('opacity' in theme && !('unfocusedDim' in theme)) {
 		const { opacity: _, ...rest } = theme
-		return { ...ws, theme: { ...rest, unfocusedDim: 0.3 } as Workspace['theme'] }
+		return { ...ws, theme: { ...rest, unfocusedDim: DEFAULT_UNFOCUSED_DIM } as Workspace['theme'] }
 	}
 	if (!('unfocusedDim' in theme)) {
-		return { ...ws, theme: { ...ws.theme, unfocusedDim: 0.3 } }
+		return { ...ws, theme: { ...ws.theme, unfocusedDim: DEFAULT_UNFOCUSED_DIM } }
 	}
 	return ws
 }

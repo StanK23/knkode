@@ -9,7 +9,7 @@ import type {
 	Workspace,
 	WorkspaceLayout,
 } from '../../../shared/types'
-import { isLayoutBranch } from '../../../shared/types'
+import { DEFAULT_UNFOCUSED_DIM, isLayoutBranch } from '../../../shared/types'
 import { THEME_PRESETS } from '../data/theme-presets'
 
 function defaultTheme(): PaneTheme {
@@ -17,7 +17,7 @@ function defaultTheme(): PaneTheme {
 		background: THEME_PRESETS[0].background,
 		foreground: THEME_PRESETS[0].foreground,
 		fontSize: 14,
-		unfocusedDim: 0.3,
+		unfocusedDim: DEFAULT_UNFOCUSED_DIM,
 	}
 }
 
