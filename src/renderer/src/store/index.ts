@@ -9,7 +9,12 @@ import type {
 	Workspace,
 	WorkspaceLayout,
 } from '../../../shared/types'
-import { DEFAULT_UNFOCUSED_DIM, isLayoutBranch } from '../../../shared/types'
+import {
+	DEFAULT_CURSOR_STYLE,
+	DEFAULT_SCROLLBACK,
+	DEFAULT_UNFOCUSED_DIM,
+	isLayoutBranch,
+} from '../../../shared/types'
 import { THEME_PRESETS } from '../data/theme-presets'
 
 function defaultTheme(): PaneTheme {
@@ -18,6 +23,8 @@ function defaultTheme(): PaneTheme {
 		foreground: THEME_PRESETS[0].foreground,
 		fontSize: 14,
 		unfocusedDim: DEFAULT_UNFOCUSED_DIM,
+		scrollback: DEFAULT_SCROLLBACK,
+		cursorStyle: DEFAULT_CURSOR_STYLE,
 	}
 }
 
