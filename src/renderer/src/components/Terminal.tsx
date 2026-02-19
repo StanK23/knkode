@@ -41,6 +41,7 @@ export function TerminalView({
 	const isFocusedRef = useRef(isFocused)
 	isFocusedRef.current = isFocused
 
+	const [isScrolledUp, setIsScrolledUp] = useState(false)
 	const [showSearch, setShowSearch] = useState(false)
 	const [searchQuery, setSearchQuery] = useState('')
 	const searchInputRef = useRef<HTMLInputElement>(null)
@@ -154,11 +155,17 @@ export function TerminalView({
 			})
 		})
 
-		// Track scroll position across resize sequences. The shell responds to
-		// SIGWINCH with output that re-scrolls xterm to the bottom, so we
-		// debounce restoration: capture viewportY at the START of a resize
-		// sequence, then restore after the resize settles (150ms idle).
-		let savedScrollY: number | null = null
+		// Track whether user is scrolled up (for scroll-to-bottom button)
+		term.onScroll(() => {
+			const atBottom = term.buffer.active.viewportY >= term.buffer.active.baseY
+			setIsScrolledUp(!atBottom)
+		})
+
+		// Preserve scroll position across resize. Uses scroll ratio (viewportY/baseY)
+		// instead of absolute line numbers so position survives text reflow when
+		// columns change. Debounces restoration (150ms) because the shell responds
+		// to SIGWINCH with output that re-scrolls xterm to the bottom.
+		let savedScrollRatio: number | null = null
 		let scrollRestoreTimer: ReturnType<typeof setTimeout> | null = null
 
 		const resizeObserver = new ResizeObserver(() => {
@@ -167,26 +174,26 @@ export function TerminalView({
 					const el = containerRef.current
 					if (!el || el.clientWidth === 0) return
 
-					// Capture position only at the start of a resize sequence
-					if (savedScrollY === null) {
-						const viewportY = term.buffer.active.viewportY
-						if (viewportY >= term.buffer.active.baseY) {
-							// At bottom — nothing to preserve
+					// Capture ratio only at the start of a resize sequence
+					if (savedScrollRatio === null) {
+						const { viewportY, baseY } = term.buffer.active
+						if (viewportY >= baseY) {
 							fitAddon.fit()
 							return
 						}
-						savedScrollY = viewportY
+						savedScrollRatio = baseY > 0 ? viewportY / baseY : 0
 					}
 
 					fitAddon.fit()
 
-					// Debounce: wait for resize to settle, then restore
 					if (scrollRestoreTimer) clearTimeout(scrollRestoreTimer)
+					const ratio = savedScrollRatio
 					scrollRestoreTimer = setTimeout(() => {
-						if (savedScrollY !== null) {
-							term.scrollToLine(savedScrollY)
-							savedScrollY = null
+						if (ratio !== null) {
+							const newBaseY = term.buffer.active.baseY
+							term.scrollToLine(Math.round(ratio * newBaseY))
 						}
+						savedScrollRatio = null
 						scrollRestoreTimer = null
 					}, 150)
 				} catch (err) {
@@ -303,6 +310,12 @@ export function TerminalView({
 		termRef.current?.focus()
 	}, [])
 
+	const scrollToBottom = useCallback(() => {
+		termRef.current?.scrollToBottom()
+		setIsScrolledUp(false)
+		termRef.current?.focus()
+	}, [])
+
 	const handleSearchKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
 			if (e.key === 'Enter') {
@@ -366,6 +379,16 @@ export function TerminalView({
 						&#x2715;
 					</button>
 				</search>
+			)}
+			{isScrolledUp && (
+				<button
+					type="button"
+					onClick={scrollToBottom}
+					aria-label="Scroll to bottom"
+					className="absolute bottom-3 right-3 z-10 bg-elevated/90 border border-edge rounded-full w-7 h-7 flex items-center justify-center text-content-muted hover:text-content hover:bg-overlay cursor-pointer shadow-panel transition-opacity"
+				>
+					&#x25BC;
+				</button>
 			)}
 			<div ref={containerRef} className="w-full h-full" />
 		</div>
