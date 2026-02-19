@@ -155,11 +155,17 @@ export function TerminalView({
 			})
 		})
 
-		// Track whether user is scrolled up (for scroll-to-bottom button)
-		term.onScroll(() => {
+		// Track whether user is scrolled up (for scroll-to-bottom button).
+		// term.onScroll only fires for buffer scroll (new output), not viewport
+		// scroll (mouse wheel), so we listen on the actual xterm viewport DOM element.
+		const viewport = term.element?.querySelector('.xterm-viewport')
+		const handleViewportScroll = () => {
 			const atBottom = term.buffer.active.viewportY >= term.buffer.active.baseY
 			setIsScrolledUp(!atBottom)
-		})
+		}
+		viewport?.addEventListener('scroll', handleViewportScroll)
+		// Also track buffer scroll (new output arriving while scrolled up)
+		term.onScroll(handleViewportScroll)
 
 		// Preserve scroll position across resize. Uses scroll ratio (viewportY/baseY)
 		// instead of absolute line numbers so position survives text reflow when
@@ -211,6 +217,7 @@ export function TerminalView({
 		wrapperEl.addEventListener('focusin', handleFocusIn)
 
 		return () => {
+			viewport?.removeEventListener('scroll', handleViewportScroll)
 			wrapperEl.removeEventListener('focusin', handleFocusIn)
 			resizeObserver.disconnect()
 			if (scrollRestoreTimer) clearTimeout(scrollRestoreTimer)
