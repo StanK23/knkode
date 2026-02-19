@@ -11,7 +11,7 @@ jobs:
     # Pin to macos-14 — macos-latest (15) has a known provisioner hang bug
     # https://github.com/actions/runner-images/issues/12725
     runs-on: macos-14
-    timeout-minutes: 40
+    timeout-minutes: 50
     permissions:
       contents: read
     steps:
@@ -90,7 +90,7 @@ jobs:
         timeout-minutes: 10
 
       - name: Notarize
-        timeout-minutes: 20
+        timeout-minutes: 30
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
@@ -106,7 +106,7 @@ jobs:
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
             --wait \
-            --timeout 15m
+            --timeout 30m
 
           echo "Stapling notarization ticket..."
           xcrun stapler staple "$DMG_PATH"
