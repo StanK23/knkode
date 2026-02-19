@@ -20,7 +20,8 @@ export function createPty(id: string, cwd: string, startupCommand: string | null
 
 	const shell = process.env.SHELL || (os.platform() === 'win32' ? 'powershell.exe' : '/bin/sh')
 
-	const ptyProcess = pty.spawn(shell, [], {
+	const isWin = os.platform() === 'win32'
+	const ptyProcess = pty.spawn(shell, isWin ? [] : ['-l'], {
 		name: 'xterm-256color',
 		cols: 80,
 		rows: 24,
