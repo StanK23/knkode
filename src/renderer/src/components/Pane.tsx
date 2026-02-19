@@ -545,6 +545,7 @@ export function Pane({
 								killPtys([paneId])
 								ensurePty(paneId, config.cwd, config.startupCommand)
 								closeContext()
+								onFocus(paneId)
 							}}
 						>
 							Restart Pane
