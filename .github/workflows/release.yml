@@ -31,13 +31,36 @@ jobs:
 
       - run: bun run test
 
+      - name: Set up code signing keychain
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: |
+          KEYCHAIN=build.keychain
+          echo "$CSC_LINK" | base64 --decode > /tmp/cert.p12
+
+          security create-keychain -p "actions" "$KEYCHAIN"
+          security default-keychain -s "$KEYCHAIN"
+          security unlock-keychain -p "actions" "$KEYCHAIN"
+          security set-keychain-settings -lut 7200 "$KEYCHAIN"
+
+          security import /tmp/cert.p12 -k "$KEYCHAIN" -P "$CSC_KEY_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security -T /usr/bin/productbuild -A
+
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "actions" "$KEYCHAIN"
+
+          # Keep system keychain in search list for root certs
+          security list-keychains -d user -s "$KEYCHAIN" /Library/Keychains/System.keychain
+
+          security find-identity -v -p codesigning
+          rm /tmp/cert.p12
+
       - name: Build, sign, and package
         run: bun run build && bun x electron-builder --arm64 --publish never
         timeout-minutes: 15
         env:
-          # Code signing — electron-builder handles keychain setup automatically
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # Tell electron-builder to use our keychain (skip its own import)
+          CSC_KEYCHAIN: build.keychain
           # Notarization (submitted to Apple after signing)
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
