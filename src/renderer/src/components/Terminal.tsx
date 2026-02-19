@@ -136,7 +136,12 @@ export function TerminalView({
 		const resizeObserver = new ResizeObserver(() => {
 			requestAnimationFrame(() => {
 				try {
+					const viewportY = term.buffer.active.viewportY
+					const wasAtBottom = viewportY >= term.buffer.active.baseY
 					fitAddon.fit()
+					if (!wasAtBottom) {
+						term.scrollToLine(viewportY)
+					}
 				} catch (err) {
 					console.warn('[terminal] fit() failed during resize:', err)
 				}

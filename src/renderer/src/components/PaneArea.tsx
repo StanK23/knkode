@@ -73,12 +73,7 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 		const isVertical = node.direction === 'vertical'
 
 		return (
-			<Allotment
-				vertical={isVertical}
-				key={node.children
-					.map((c) => (isLayoutBranch(c) ? `b${c.children.length}` : c.paneId))
-					.join('-')}
-			>
+			<Allotment vertical={isVertical} key={`${node.direction}-${node.children.length}`}>
 				{node.children.map((child, i) => (
 					<Allotment.Pane
 						key={isLayoutBranch(child) ? `branch-${i}` : child.paneId}
