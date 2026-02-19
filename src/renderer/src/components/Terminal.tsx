@@ -154,20 +154,41 @@ export function TerminalView({
 			})
 		})
 
+		// Track scroll position across resize sequences. The shell responds to
+		// SIGWINCH with output that re-scrolls xterm to the bottom, so we
+		// debounce restoration: capture viewportY at the START of a resize
+		// sequence, then restore after the resize settles (150ms idle).
+		let savedScrollY: number | null = null
+		let scrollRestoreTimer: ReturnType<typeof setTimeout> | null = null
+
 		const resizeObserver = new ResizeObserver(() => {
 			requestAnimationFrame(() => {
 				try {
-					// Skip when container is hidden (display:none → 0 dimensions).
-					// Without this guard, fit() on a hidden workspace resets the
-					// xterm buffer and destroys scroll position.
 					const el = containerRef.current
 					if (!el || el.clientWidth === 0) return
-					const viewportY = term.buffer.active.viewportY
-					const wasAtBottom = viewportY >= term.buffer.active.baseY
-					fitAddon.fit()
-					if (!wasAtBottom) {
-						term.scrollToLine(viewportY)
+
+					// Capture position only at the start of a resize sequence
+					if (savedScrollY === null) {
+						const viewportY = term.buffer.active.viewportY
+						if (viewportY >= term.buffer.active.baseY) {
+							// At bottom — nothing to preserve
+							fitAddon.fit()
+							return
+						}
+						savedScrollY = viewportY
 					}
+
+					fitAddon.fit()
+
+					// Debounce: wait for resize to settle, then restore
+					if (scrollRestoreTimer) clearTimeout(scrollRestoreTimer)
+					scrollRestoreTimer = setTimeout(() => {
+						if (savedScrollY !== null) {
+							term.scrollToLine(savedScrollY)
+							savedScrollY = null
+						}
+						scrollRestoreTimer = null
+					}, 150)
 				} catch (err) {
 					console.warn('[terminal] fit() failed during resize:', err)
 				}
@@ -185,6 +206,7 @@ export function TerminalView({
 		return () => {
 			wrapperEl.removeEventListener('focusin', handleFocusIn)
 			resizeObserver.disconnect()
+			if (scrollRestoreTimer) clearTimeout(scrollRestoreTimer)
 			removeDataListener()
 			removeExitListener()
 			searchAddonRef.current = null
