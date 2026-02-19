@@ -55,8 +55,13 @@ jobs:
           # Allow codesign to access without prompts
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "actions" "$KEYCHAIN"
 
-          # Set search list
-          security list-keychains -d user -s "$KEYCHAIN"
+          # Import Apple Root CA for chain verification
+          curl -sL https://www.apple.com/appleca/AppleIncRootCertificate.cer -o /tmp/AppleRoot.cer
+          security import /tmp/AppleRoot.cer -k "$KEYCHAIN" -T /usr/bin/codesign
+          rm /tmp/AppleRoot.cer
+
+          # Set search list — include system roots for certificate chain verification
+          security list-keychains -d user -s "$KEYCHAIN" /System/Library/Keychains/SystemRootCertificates.keychain /Library/Keychains/System.keychain
 
           # Verify
           security find-identity -v -p codesigning "$KEYCHAIN"
