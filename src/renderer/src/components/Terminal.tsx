@@ -132,6 +132,8 @@ export function TerminalView({
 
 		const removeExitListener = window.api.onPtyExit((id, exitCode) => {
 			if (id === paneId) {
+				// If the PTY was restarted, a new one is already active — skip
+				if (useStore.getState().activePtyIds.has(paneId)) return
 				ptyExited = true
 				term.writeln(
 					`\r\n\x1b[90m[Process exited with code ${exitCode}. Press any key to restart.]\x1b[0m`,

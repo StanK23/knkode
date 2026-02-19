@@ -89,6 +89,7 @@ export function Pane({
 	// double-creation on Allotment remounts (e.g. when splitting panes).
 	// PTY kill is handled by store actions and layout-change helpers.
 	const ensurePty = useStore((s) => s.ensurePty)
+	const killPtys = useStore((s) => s.killPtys)
 	// Capture initial values so config updates don't re-trigger PTY creation
 	const initialCwdRef = useRef(config.cwd)
 	const initialCmdRef = useRef(config.startupCommand)
@@ -536,20 +537,29 @@ export function Pane({
 								</div>
 							</div>
 						)}
+						<div className="ctx-separator" />
+						<button
+							type="button"
+							className="ctx-item"
+							onClick={() => {
+								killPtys([paneId])
+								ensurePty(paneId, config.cwd, config.startupCommand)
+								closeContext()
+							}}
+						>
+							Restart Pane
+						</button>
 						{canClose && (
-							<>
-								<div className="ctx-separator" />
-								<button
-									type="button"
-									className="ctx-item text-danger"
-									onClick={() => {
-										onClose(paneId)
-										closeContext()
-									}}
-								>
-									Close Pane
-								</button>
-							</>
+							<button
+								type="button"
+								className="ctx-item text-danger"
+								onClick={() => {
+									onClose(paneId)
+									closeContext()
+								}}
+							>
+								Close Pane
+							</button>
 						)}
 					</div>
 				)}
