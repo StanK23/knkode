@@ -8,7 +8,10 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    # Pin to macos-14 — macos-latest (15) has a known provisioner hang bug
+    # https://github.com/actions/runner-images/issues/12725
+    runs-on: macos-14
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -31,11 +34,56 @@ jobs:
 
       - run: bun run test
 
+      # Fix clock drift on Azure-hosted runners (prevents timestamp server rejection)
+      - name: Sync system clock
+        run: sudo sntp -sS time.apple.com || true
+
       - name: Import code signing certificate
-        uses: apple-actions/import-codesign-certs@63fff01cd422d4b7b855d40ca1e9d34d2de9427d # v3
-        with:
-          p12-file-base64: ${{ secrets.CSC_LINK }}
-          p12-password: ${{ secrets.CSC_KEY_PASSWORD }}
+        env:
+          P12_BASE64: ${{ secrets.CSC_LINK }}
+          P12_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          KEYCHAIN_NAME="build.keychain"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 32)"
+          CERT_PATH="$RUNNER_TEMP/certificate.p12"
+
+          echo "$P12_BASE64" | base64 --decode > "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
+          security default-keychain -s "$KEYCHAIN_NAME"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
+
+          # Prevent auto-lock (default is 5 min — causes hang mid-signing)
+          security set-keychain-settings -t 3600 -u "$KEYCHAIN_NAME"
+
+          security import "$CERT_PATH" \
+            -k "$KEYCHAIN_NAME" \
+            -P "$P12_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+
+          # Must be called AFTER import — prevents macOS UI prompt in headless CI
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_NAME"
+
+          # Only our keychain in search list (prevents fallback to login.keychain)
+          security list-keychains -d user -s "$KEYCHAIN_NAME"
+
+          security find-identity -v -p codesigning "$KEYCHAIN_NAME"
+          rm -f "$CERT_PATH"
+
+      # Verify codesign works before running the full build
+      - name: Test codesign
+        run: |
+          echo "test" > /tmp/test.txt
+          codesign -s "Developer ID Application" --force /tmp/test.txt
+          echo "codesign works"
+          rm /tmp/test.txt
 
       - name: Build, sign, and package
         run: bun run build && bun x electron-builder --arm64 --publish never
@@ -44,6 +92,11 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          DEBUG: "electron-builder,electron-osx-sign*"
+
+      - name: Clean up keychain
+        if: always()
+        run: security delete-keychain build.keychain || true
 
       - name: Upload artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
