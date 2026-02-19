@@ -11,7 +11,7 @@ jobs:
     # Pin to macos-14 — macos-latest (15) has a known provisioner hang bug
     # https://github.com/actions/runner-images/issues/12725
     runs-on: macos-14
-    timeout-minutes: 30
+    timeout-minutes: 40
     permissions:
       contents: read
     steps:
@@ -85,14 +85,32 @@ jobs:
           echo "codesign works"
           rm /tmp/test.txt
 
-      - name: Build, sign, and package
+      - name: Build and sign
         run: bun run build && bun x electron-builder --arm64 --publish never
-        timeout-minutes: 25
+        timeout-minutes: 10
+
+      - name: Notarize
+        timeout-minutes: 20
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          DEBUG: "electron-builder,electron-osx-sign*"
+        run: |
+          set -euo pipefail
+
+          DMG_PATH=$(ls dist/*.dmg | head -1)
+          echo "Submitting $DMG_PATH for notarization..."
+
+          xcrun notarytool submit "$DMG_PATH" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait \
+            --timeout 15m
+
+          echo "Stapling notarization ticket..."
+          xcrun stapler staple "$DMG_PATH"
+          echo "Notarization and stapling complete."
 
       - name: Clean up keychain
         if: always()
