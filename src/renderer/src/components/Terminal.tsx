@@ -292,7 +292,11 @@ export function TerminalView({
 	)
 
 	return (
-		<div ref={wrapperRef} className="relative w-full h-full p-1.5">
+		<div
+			ref={wrapperRef}
+			className="relative w-full h-full p-1.5"
+			style={{ backgroundColor: mergedTheme.background }}
+		>
 			{showSearch && (
 				<search className="absolute top-1 right-2 z-10 flex items-center gap-1 bg-elevated border border-edge rounded-sm px-2 py-1 shadow-panel">
 					<input
