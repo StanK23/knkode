@@ -1,20 +1,18 @@
 # knkode — Handoff
 
 ## What Was Done
-- [done] v0.1.0 released — signed DMG/ZIP on GitHub, not yet notarized
-- [done] CI workflow — `ci.yml` runs lint/test on PRs (ubuntu, free tier)
-- [done] Release workflow removed — macOS runner burned through free tier, build locally instead
-- [done] Fixed node-pty missing from packaged app (`electron-builder.json` files pattern)
-- [done] Terminal settings (PR #30) — scrollback + cursor style
-- [done] Dynamic window title (PR #29)
-- [done] Keyboard shortcuts v2 (PR #28)
+- [done] Bugfix round (PRs #32–#40):
+  - PTY login shell — `gh`, `bun` etc. now on PATH (#32)
+  - Terminal scroll preservation — workspace switch, resize, pane swap (#33, #38, #39, #40)
+  - Shift+Enter sends LF instead of CR (#34)
+  - Terminal padding + theme-aware padding background (#34, #36)
+  - Restart Pane context menu + focus/resize fix (#35, #37)
+  - Scroll-to-bottom button when scrolled up (#40)
+- [done] v0.1.0 released — signed DMG/ZIP, notarization still "In Progress"
 
 ## Pending: Apple Notarization
 
-Submission ID: `REDACTED_SUBMISSION_ID`
-
-Apple's notarization queue is backed up (we submitted 15 times during CI debugging).
-Check status periodically — when "Accepted", staple and re-upload:
+Submission ID: `REDACTED_SUBMISSION_ID` — status: **In Progress** (as of 2026-02-20)
 
 ```bash
 # Check status
@@ -28,15 +26,7 @@ xcrun stapler staple dist/knkode-0.1.0-arm64.dmg
 gh release upload v0.1.0 dist/knkode-0.1.0-arm64.dmg --clobber
 ```
 
-If it stays "In Progress" for days, submit fresh:
-```bash
-bun run build && bun x electron-builder --arm64 --publish never
-xcrun notarytool submit dist/knkode-0.1.0-arm64.dmg \
-  --apple-id "REDACTED_EMAIL" \
-  --password "REDACTED_PASSWORD" \
-  --team-id "REDACTED_TEAM_ID" \
-  --wait
-```
+If still "In Progress" after 48+ hours, submit fresh (see git history for full command).
 
 ## Active Decisions
 - Tech stack: Electron + React + TypeScript + xterm.js + node-pty + Zustand
@@ -47,9 +37,9 @@ xcrun notarytool submit dist/knkode-0.1.0-arm64.dmg \
 - Releases: build locally, no CI release workflow
 
 ## What's Next
-- Check notarization status (see above)
+- Pane reorder orientation change (drag-drop to change split direction — deferred, complex)
+- Check notarization status
 - Follow-up: Unit tests for `swapPanes` + `applyPresetWithRemap`
 - Follow-up: Extract `usePaneDrag` hook (DRY — 6 callbacks in Pane.tsx)
 - Follow-up: Focus trap for SettingsPanel modal
 - Follow-up: Extract `useContextMenu` hook (DRY — Pane/Tab)
-- Follow-up: IPC `assertWorkspace` per-field theme validation
