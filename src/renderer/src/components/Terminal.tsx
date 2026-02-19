@@ -95,6 +95,19 @@ export function TerminalView({
 		termRef.current = term
 		fitAddonRef.current = fitAddon
 
+		// Shift+Enter → send LF (\n) instead of xterm's default CR (\r).
+		// Programs that distinguish the two (e.g. Claude Code CLI) can treat
+		// LF as "newline" and CR as "submit".
+		term.attachCustomKeyEventHandler((ev) => {
+			if (ev.type === 'keydown' && ev.key === 'Enter' && ev.shiftKey) {
+				window.api.writePty(paneId, '\n').catch((err) => {
+					console.error(`[terminal] writePty failed for pane ${paneId}:`, err)
+				})
+				return false
+			}
+			return true
+		})
+
 		let ptyExited = false
 
 		term.onData((data) => {
