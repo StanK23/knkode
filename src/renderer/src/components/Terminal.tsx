@@ -157,6 +157,11 @@ export function TerminalView({
 		const resizeObserver = new ResizeObserver(() => {
 			requestAnimationFrame(() => {
 				try {
+					// Skip when container is hidden (display:none → 0 dimensions).
+					// Without this guard, fit() on a hidden workspace resets the
+					// xterm buffer and destroys scroll position.
+					const el = containerRef.current
+					if (!el || el.clientWidth === 0) return
 					const viewportY = term.buffer.active.viewportY
 					const wasAtBottom = viewportY >= term.buffer.active.baseY
 					fitAddon.fit()
