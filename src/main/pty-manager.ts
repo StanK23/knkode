@@ -41,7 +41,13 @@ export function createPty(id: string, cwd: string, startupCommand: string | null
 	})
 
 	ptyProcess.onExit(({ exitCode }) => {
-		sessions.delete(id)
+		// Only remove if this process is still the active session for this id.
+		// After restart, the old PTY's onExit fires but sessions already holds
+		// the replacement — deleting it would make the new PTY unreachable.
+		const current = sessions.get(id)
+		if (current?.process === ptyProcess) {
+			sessions.delete(id)
+		}
 		safeSend(IPC.PTY_EXIT, id, exitCode)
 	})
 
