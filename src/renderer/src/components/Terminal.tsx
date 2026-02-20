@@ -100,10 +100,12 @@ export function TerminalView({
 		// Programs that distinguish the two (e.g. Claude Code CLI) can treat
 		// LF as "newline" and CR as "submit".
 		term.attachCustomKeyEventHandler((ev) => {
-			if (ev.type === 'keydown' && ev.key === 'Enter' && ev.shiftKey) {
-				window.api.writePty(paneId, '\n').catch((err) => {
-					console.error(`[terminal] writePty failed for pane ${paneId}:`, err)
-				})
+			if (ev.key === 'Enter' && ev.shiftKey) {
+				if (ev.type === 'keydown') {
+					window.api.writePty(paneId, '\n').catch((err) => {
+						console.error(`[terminal] writePty failed for pane ${paneId}:`, err)
+					})
+				}
 				return false
 			}
 			return true
