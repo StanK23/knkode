@@ -81,4 +81,4 @@ Renderer stack: Zustand (state), xterm.js + node-pty (terminals), allotment (spl
 
 ## Status
 
-v0.1.0 — functional, actively developed. The workspace/pane/terminal loop is solid. Rough edges remain on non-macOS platforms.
+v0.1.2 — functional, actively developed. The workspace/pane/terminal loop is solid. Rough edges remain on non-macOS platforms.
