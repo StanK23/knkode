@@ -6,5 +6,9 @@ dist/
 .env
 .env.*
 docs/reviews/
+docs/plans/
 /main.js
 .playwright-mcp/
+HANDOFF.md
+PROJECT_DESCRIPTION.md
+icon-preview.png
