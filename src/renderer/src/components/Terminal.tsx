@@ -135,8 +135,9 @@ export function TerminalView({
 
 		const removeExitListener = window.api.onPtyExit((id, exitCode) => {
 			if (id === paneId) {
-				// If the PTY was restarted, a new one is already active — sync dimensions
+				// If the PTY was restarted, a new one is already active — clear and sync dimensions
 				if (useStore.getState().activePtyIds.has(paneId)) {
+					term.clear()
 					const { cols, rows } = term
 					window.api.resizePty(paneId, cols, rows).catch((err) => {
 						console.warn('[terminal] resizePty after restart failed:', err)
