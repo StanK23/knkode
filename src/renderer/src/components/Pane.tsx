@@ -64,6 +64,7 @@ function SnippetDropdown({ paneId }: SnippetDropdownProps) {
 	const menuRef = useRef<HTMLDivElement>(null)
 	const snippets = useStore((s) => s.snippets)
 	const runSnippet = useStore((s) => s.runSnippet)
+	const setFocusedPane = useStore((s) => s.setFocusedPane)
 
 	useClickOutside(ref, () => setOpen(false), open)
 
@@ -124,6 +125,7 @@ function SnippetDropdown({ paneId }: SnippetDropdownProps) {
 							onClick={() => {
 								runSnippet(snippet.id, paneId)
 								setOpen(false)
+								setFocusedPane(paneId)
 							}}
 						>
 							<span className="text-accent">&gt;</span>
