@@ -1,6 +1,6 @@
 {
   "name": "knkode",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Terminal workspace manager for organized multi-project development",
   "license": "MIT",
   "main": "./out/main/index.js",
