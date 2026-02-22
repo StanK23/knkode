@@ -78,6 +78,12 @@ export interface AppState {
 	}
 }
 
+export interface Snippet {
+	id: string
+	name: string
+	command: string
+}
+
 // IPC channel names
 export const IPC = {
 	// Config
@@ -86,6 +92,8 @@ export const IPC = {
 	CONFIG_DELETE_WORKSPACE: 'config:delete-workspace',
 	CONFIG_GET_APP_STATE: 'config:get-app-state',
 	CONFIG_SAVE_APP_STATE: 'config:save-app-state',
+	CONFIG_GET_SNIPPETS: 'config:get-snippets',
+	CONFIG_SAVE_SNIPPETS: 'config:save-snippets',
 
 	// App
 	APP_GET_HOME_DIR: 'app:get-home-dir',

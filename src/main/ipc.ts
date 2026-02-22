@@ -1,13 +1,15 @@
 import os from 'node:os'
 import path from 'node:path'
 import { ipcMain, shell } from 'electron'
-import type { AppState, Workspace } from '../shared/types'
+import type { AppState, Snippet, Workspace } from '../shared/types'
 import { IPC } from '../shared/types'
 import {
 	deleteWorkspace,
 	getAppState,
+	getSnippets,
 	getWorkspaces,
 	saveAppState,
+	saveSnippets,
 	saveWorkspace,
 } from './config-store'
 import { trackPane, untrackPane } from './cwd-tracker'
@@ -58,6 +60,20 @@ function assertWorkspace(value: unknown): asserts value is Workspace {
 	}
 	if (!obj.panes || typeof obj.panes !== 'object')
 		throw new Error('Invalid workspace: missing or invalid panes')
+}
+
+function assertSnippets(value: unknown): asserts value is Snippet[] {
+	if (!Array.isArray(value)) throw new Error('Invalid snippets: expected array')
+	for (const item of value) {
+		if (!item || typeof item !== 'object') throw new Error('Invalid snippet: expected object')
+		const s = item as Record<string, unknown>
+		if (typeof s.id !== 'string' || s.id.length === 0)
+			throw new Error('Invalid snippet: missing id')
+		if (typeof s.name !== 'string' || s.name.length === 0)
+			throw new Error('Invalid snippet: missing name')
+		if (typeof s.command !== 'string' || s.command.length === 0)
+			throw new Error('Invalid snippet: missing command')
+	}
 }
 
 function assertAppState(value: unknown): asserts value is AppState {
@@ -146,5 +162,12 @@ export function registerIpcHandlers(): void {
 		assertPaneId(id)
 		killPty(id)
 		untrackPane(id)
+	})
+
+	ipcMain.handle(IPC.CONFIG_GET_SNIPPETS, () => getSnippets())
+
+	ipcMain.handle(IPC.CONFIG_SAVE_SNIPPETS, (_e, snippets: unknown) => {
+		assertSnippets(snippets)
+		saveSnippets(snippets)
 	})
 }

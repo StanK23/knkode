@@ -5,6 +5,7 @@ import type {
 	LayoutPreset,
 	PaneConfig,
 	PaneTheme,
+	Snippet,
 	SplitDirection,
 	Workspace,
 	WorkspaceLayout,
@@ -191,6 +192,7 @@ interface StoreState {
 	workspaces: Workspace[]
 	appState: AppState
 	homeDir: string
+	snippets: Snippet[]
 
 	// UI state
 	initialized: boolean
@@ -234,6 +236,11 @@ interface StoreState {
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
 	saveState: () => Promise<void>
+	addSnippet: (name: string, command: string) => void
+	updateSnippet: (id: string, updates: Partial<Pick<Snippet, 'name' | 'command'>>) => void
+	removeSnippet: (id: string) => void
+	reorderSnippets: (fromIndex: number, toIndex: number) => void
+	runSnippet: (snippetId: string, paneId: string) => void
 }
 
 export const useStore = create<StoreState>((set, get) => ({
@@ -244,6 +251,7 @@ export const useStore = create<StoreState>((set, get) => ({
 		windowBounds: { x: 100, y: 100, width: 1200, height: 800 },
 	},
 	homeDir: '/tmp',
+	snippets: [],
 	initialized: false,
 	initError: null,
 	focusedPaneId: null,
@@ -298,10 +306,11 @@ export const useStore = create<StoreState>((set, get) => ({
 
 	init: async () => {
 		try {
-			const [workspaces, appState, homeDir] = await Promise.all([
+			const [workspaces, appState, homeDir, snippets] = await Promise.all([
 				window.api.getWorkspaces(),
 				window.api.getAppState(),
 				window.api.getHomeDir(),
+				window.api.getSnippets(),
 			])
 
 			// If no workspaces exist, create a default one
@@ -336,6 +345,7 @@ export const useStore = create<StoreState>((set, get) => ({
 				workspaces,
 				appState,
 				homeDir,
+				snippets,
 				initialized: true,
 				visitedWorkspaceIds: initialVisited,
 				focusedPaneId: initialFocusedPaneId,
@@ -824,6 +834,49 @@ export const useStore = create<StoreState>((set, get) => ({
 
 	saveState: async () => {
 		await window.api.saveAppState(get().appState)
+	},
+
+	addSnippet: (name, command) => {
+		const snippet: Snippet = { id: crypto.randomUUID(), name, command }
+		const snippets = [...get().snippets, snippet]
+		set({ snippets })
+		window.api.saveSnippets(snippets).catch((err) => {
+			console.error('[store] Failed to save snippets:', err)
+		})
+	},
+
+	updateSnippet: (id, updates) => {
+		const snippets = get().snippets.map((s) => (s.id === id ? { ...s, ...updates } : s))
+		set({ snippets })
+		window.api.saveSnippets(snippets).catch((err) => {
+			console.error('[store] Failed to save snippets:', err)
+		})
+	},
+
+	removeSnippet: (id) => {
+		const snippets = get().snippets.filter((s) => s.id !== id)
+		set({ snippets })
+		window.api.saveSnippets(snippets).catch((err) => {
+			console.error('[store] Failed to save snippets:', err)
+		})
+	},
+
+	reorderSnippets: (fromIndex, toIndex) => {
+		const snippets = [...get().snippets]
+		const [moved] = snippets.splice(fromIndex, 1)
+		snippets.splice(toIndex, 0, moved)
+		set({ snippets })
+		window.api.saveSnippets(snippets).catch((err) => {
+			console.error('[store] Failed to save snippets:', err)
+		})
+	},
+
+	runSnippet: (snippetId, paneId) => {
+		const snippet = get().snippets.find((s) => s.id === snippetId)
+		if (!snippet) return
+		window.api.writePty(paneId, `${snippet.command}\r`).catch((err) => {
+			console.error(`[store] Failed to run snippet in pane ${paneId}:`, err)
+		})
 	},
 }))
 

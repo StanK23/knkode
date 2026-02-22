@@ -1,11 +1,12 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { app } from 'electron'
-import { type AppState, DEFAULT_UNFOCUSED_DIM, type Workspace } from '../shared/types'
+import { type AppState, DEFAULT_UNFOCUSED_DIM, type Snippet, type Workspace } from '../shared/types'
 
 const CONFIG_DIR = path.join(app.getPath('home'), '.knkode')
 const WORKSPACES_FILE = path.join(CONFIG_DIR, 'workspaces.json')
 const APP_STATE_FILE = path.join(CONFIG_DIR, 'app-state.json')
+const SNIPPETS_FILE = path.join(CONFIG_DIR, 'snippets.json')
 
 function ensureConfigDir(): void {
 	fs.mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 })
@@ -134,4 +135,12 @@ export function getAppState(): AppState {
 
 export function saveAppState(state: AppState): void {
 	writeJson(APP_STATE_FILE, state)
+}
+
+export function getSnippets(): Snippet[] {
+	return readJson<Snippet[]>(SNIPPETS_FILE, [])
+}
+
+export function saveSnippets(snippets: Snippet[]): void {
+	writeJson(SNIPPETS_FILE, snippets)
 }

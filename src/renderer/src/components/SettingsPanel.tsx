@@ -84,6 +84,160 @@ function CwdInput({ value, homeDir, onChange, 'aria-label': ariaLabel }: CwdInpu
 	)
 }
 
+function SnippetsSection() {
+	const snippets = useStore((s) => s.snippets)
+	const addSnippet = useStore((s) => s.addSnippet)
+	const updateSnippet = useStore((s) => s.updateSnippet)
+	const removeSnippet = useStore((s) => s.removeSnippet)
+	const [editingId, setEditingId] = useState<string | null>(null)
+	const [editName, setEditName] = useState('')
+	const [editCommand, setEditCommand] = useState('')
+	const [isAdding, setIsAdding] = useState(false)
+	const [newName, setNewName] = useState('')
+	const [newCommand, setNewCommand] = useState('')
+
+	const startEdit = useCallback(
+		(id: string) => {
+			const s = snippets.find((sn) => sn.id === id)
+			if (!s) return
+			setEditingId(id)
+			setEditName(s.name)
+			setEditCommand(s.command)
+		},
+		[snippets],
+	)
+
+	const commitEdit = useCallback(() => {
+		if (editingId && editName.trim() && editCommand.trim()) {
+			updateSnippet(editingId, { name: editName.trim(), command: editCommand.trim() })
+		}
+		setEditingId(null)
+	}, [editingId, editName, editCommand, updateSnippet])
+
+	const commitAdd = useCallback(() => {
+		if (newName.trim() && newCommand.trim()) {
+			addSnippet(newName.trim(), newCommand.trim())
+		}
+		setNewName('')
+		setNewCommand('')
+		setIsAdding(false)
+	}, [newName, newCommand, addSnippet])
+
+	return (
+		<div className="flex flex-col gap-2">
+			<span className="section-label">Quick Commands</span>
+			<span className="text-[10px] text-content-muted -mt-1">
+				Global snippets — click to run in any terminal pane
+			</span>
+			{snippets.map((snippet) => (
+				<div key={snippet.id} className="flex items-center gap-1.5">
+					{editingId === snippet.id ? (
+						<>
+							<input
+								value={editName}
+								onChange={(e) => setEditName(e.target.value)}
+								className="settings-input flex-1"
+								placeholder="Name"
+								aria-label="Snippet name"
+								ref={(el) => el?.focus()}
+								onKeyDown={(e) => {
+									if (e.key === 'Enter') commitEdit()
+									if (e.key === 'Escape') setEditingId(null)
+								}}
+							/>
+							<input
+								value={editCommand}
+								onChange={(e) => setEditCommand(e.target.value)}
+								className="settings-input flex-[2]"
+								placeholder="Command"
+								aria-label="Snippet command"
+								onKeyDown={(e) => {
+									if (e.key === 'Enter') commitEdit()
+									if (e.key === 'Escape') setEditingId(null)
+								}}
+							/>
+							<button
+								type="button"
+								onClick={commitEdit}
+								className="bg-transparent border-none text-accent cursor-pointer text-[11px] px-1 hover:brightness-125 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+							>
+								Save
+							</button>
+						</>
+					) : (
+						<>
+							<span className="text-xs text-content font-medium w-24 truncate shrink-0">
+								{snippet.name}
+							</span>
+							<span className="text-[11px] text-content-muted flex-1 truncate font-mono">
+								{snippet.command}
+							</span>
+							<button
+								type="button"
+								onClick={() => startEdit(snippet.id)}
+								className="bg-transparent border-none text-content-muted cursor-pointer text-[11px] px-1 hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+								aria-label={`Edit ${snippet.name}`}
+							>
+								Edit
+							</button>
+							<button
+								type="button"
+								onClick={() => removeSnippet(snippet.id)}
+								className="bg-transparent border-none text-danger cursor-pointer text-[11px] px-1 hover:brightness-125 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+								aria-label={`Delete ${snippet.name}`}
+							>
+								Del
+							</button>
+						</>
+					)}
+				</div>
+			))}
+			{isAdding ? (
+				<div className="flex items-center gap-1.5">
+					<input
+						value={newName}
+						onChange={(e) => setNewName(e.target.value)}
+						className="settings-input flex-1"
+						placeholder="Name (e.g. Claude)"
+						aria-label="New snippet name"
+						ref={(el) => el?.focus()}
+						onKeyDown={(e) => {
+							if (e.key === 'Enter') commitAdd()
+							if (e.key === 'Escape') setIsAdding(false)
+						}}
+					/>
+					<input
+						value={newCommand}
+						onChange={(e) => setNewCommand(e.target.value)}
+						className="settings-input flex-[2]"
+						placeholder="Command (e.g. claude --dangerously-skip-permissions)"
+						aria-label="New snippet command"
+						onKeyDown={(e) => {
+							if (e.key === 'Enter') commitAdd()
+							if (e.key === 'Escape') setIsAdding(false)
+						}}
+					/>
+					<button
+						type="button"
+						onClick={commitAdd}
+						className="bg-transparent border-none text-accent cursor-pointer text-[11px] px-1 hover:brightness-125 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+					>
+						Add
+					</button>
+				</div>
+			) : (
+				<button
+					type="button"
+					onClick={() => setIsAdding(true)}
+					className="bg-transparent border border-edge text-content-secondary cursor-pointer text-xs py-1 px-3 rounded-sm hover:text-content hover:border-content-muted focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none self-start"
+				>
+					+ Add Snippet
+				</button>
+			)}
+		</div>
+	)
+}
+
 interface SettingsPanelProps {
 	workspace: Workspace
 	onClose: () => void
@@ -412,6 +566,8 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					<div className="flex flex-col gap-2">
 						<LayoutPicker current={currentPreset} onSelect={handleLayoutChange} />
 					</div>
+					{/* Snippets (global) */}
+					<SnippetsSection />
 				</div>
 
 				<div className="flex items-center gap-2 px-5 py-3 border-t border-edge">

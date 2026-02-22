@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { PaneConfig, PaneTheme } from '../../../shared/types'
+import type { PaneConfig, PaneTheme, Snippet } from '../../../shared/types'
 
 type ContextPanelKind = 'cwd' | 'cmd' | 'theme' | 'move'
 interface PaneDragPayload {
@@ -30,6 +30,49 @@ function initThemeInput(override: Partial<PaneTheme> | null): ThemeInputFields {
 		fontSize: override?.fontSize?.toString() ?? '',
 		fontFamily: override?.fontFamily ?? '',
 	}
+}
+
+function SnippetDropdown({ paneId, snippets }: { paneId: string; snippets: Snippet[] }) {
+	const [open, setOpen] = useState(false)
+	const ref = useRef<HTMLDivElement>(null)
+	const runSnippet = useStore((s) => s.runSnippet)
+
+	useClickOutside(ref, () => setOpen(false), open)
+
+	if (snippets.length === 0) return null
+
+	return (
+		<div className="relative" ref={ref}>
+			<button
+				type="button"
+				onClick={() => setOpen((o) => !o)}
+				title="Quick commands"
+				aria-label="Quick commands"
+				aria-expanded={open}
+				className="bg-transparent border-none text-content-muted cursor-pointer px-0.5 text-[11px] leading-none hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+			>
+				&#x26A1;
+			</button>
+			{open && (
+				<div className="ctx-menu" style={{ right: 0, top: '100%', left: 'auto' }}>
+					{snippets.map((snippet) => (
+						<button
+							type="button"
+							key={snippet.id}
+							className="ctx-item flex items-center gap-2"
+							onClick={() => {
+								runSnippet(snippet.id, paneId)
+								setOpen(false)
+							}}
+						>
+							<span className="text-accent">&#x25B6;</span>
+							<span className="truncate">{snippet.name}</span>
+						</button>
+					))}
+				</div>
+			)}
+		</div>
+	)
 }
 
 interface PaneProps {
@@ -75,6 +118,7 @@ export function Pane({
 	const [isDragOver, setIsDragOver] = useState(false)
 	const dragCounterRef = useRef(0)
 
+	const snippets = useStore((s) => s.snippets)
 	const movePaneToWorkspace = useStore((s) => s.movePaneToWorkspace)
 	const swapPanes = useStore((s) => s.swapPanes)
 	const workspaces = useStore((s) => s.workspaces)
@@ -248,6 +292,7 @@ export function Pane({
 					{shortCwd}
 				</span>
 
+				<SnippetDropdown paneId={paneId} snippets={snippets} />
 				<button
 					type="button"
 					onClick={() => onSplitVertical(paneId)}
