@@ -138,7 +138,13 @@ export function saveAppState(state: AppState): void {
 }
 
 export function getSnippets(): Snippet[] {
-	return readJson<Snippet[]>(SNIPPETS_FILE, [])
+	return readJson<Snippet[]>(SNIPPETS_FILE, []).filter((s) => {
+		if (!s || typeof s !== 'object') return false
+		if (typeof s.id !== 'string' || s.id.length === 0) return false
+		if (typeof s.name !== 'string' || s.name.length === 0) return false
+		if (typeof s.command !== 'string' || s.command.length === 0) return false
+		return true
+	})
 }
 
 export function saveSnippets(snippets: Snippet[]): void {

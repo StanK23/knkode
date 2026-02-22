@@ -78,10 +78,11 @@ export interface AppState {
 	}
 }
 
+/** A reusable shell command that can be executed in any terminal pane. */
 export interface Snippet {
-	id: string
-	name: string
-	command: string
+	readonly id: string
+	readonly name: string
+	readonly command: string
 }
 
 // IPC channel names
