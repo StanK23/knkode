@@ -182,45 +182,24 @@ export function TerminalView({
 
 		// Preserve scroll position across resize. Uses scroll ratio (viewportY/baseY)
 		// instead of absolute line numbers so position survives text reflow when
-		// columns change. Debounces restoration (150ms) because the shell responds
-		// to SIGWINCH with output that re-scrolls xterm to the bottom.
-		let savedScrollRatio: number | null = null
-		let scrollRestoreTimer: ReturnType<typeof setTimeout> | null = null
-
+		// columns change. Restores immediately after fit() so xterm sees the
+		// viewport as "scrolled up" — SIGWINCH output won't trigger auto-scroll.
 		const resizeObserver = new ResizeObserver(() => {
 			requestAnimationFrame(() => {
 				try {
-					const el = containerRef.current
-					if (!el || el.clientWidth === 0) return
+					if (!containerRef.current?.clientWidth) return
 
-					// Capture ratio only at the start of a resize sequence
-					if (savedScrollRatio === null) {
-						if (isAtBottom) {
-							fitAddon.fit()
-							// fit() reflows the buffer (rows/cols change), which can
-							// leave viewportY behind the new baseY. Force scroll so the
-							// terminal stays pinned to the bottom during pane resizes
-							// and rapid output.
-							term.scrollToBottom()
-							isAtBottom = true
-							return
-						}
-						const { viewportY, baseY } = term.buffer.active
-						savedScrollRatio = baseY > 0 ? viewportY / baseY : 0
+					if (isAtBottom) {
+						fitAddon.fit()
+						term.scrollToBottom()
+						isAtBottom = true
+						return
 					}
 
+					const { viewportY, baseY } = term.buffer.active
+					const ratio = baseY > 0 ? viewportY / baseY : 0
 					fitAddon.fit()
-
-					if (scrollRestoreTimer) clearTimeout(scrollRestoreTimer)
-					const ratio = savedScrollRatio
-					scrollRestoreTimer = setTimeout(() => {
-						if (ratio !== null) {
-							const newBaseY = term.buffer.active.baseY
-							term.scrollToLine(Math.round(ratio * newBaseY))
-						}
-						savedScrollRatio = null
-						scrollRestoreTimer = null
-					}, 150)
+					term.scrollToLine(Math.round(ratio * term.buffer.active.baseY))
 				} catch (err) {
 					console.warn('[terminal] fit()/scroll failed during resize:', err)
 				}
@@ -239,7 +218,6 @@ export function TerminalView({
 			viewport?.removeEventListener('scroll', handleViewportScroll)
 			wrapperEl.removeEventListener('focusin', handleFocusIn)
 			resizeObserver.disconnect()
-			if (scrollRestoreTimer) clearTimeout(scrollRestoreTimer)
 			removeDataListener()
 			removeExitListener()
 			searchAddonRef.current = null
