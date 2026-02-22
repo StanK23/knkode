@@ -17,7 +17,8 @@ const ZONE_STYLES: Record<DropZone, React.CSSProperties> = {
 }
 
 /** Determine which drop zone the cursor is in based on position within the element.
- *  Center inner 50%, edges outer 25% on each side. */
+ *  Center is inner 50% on each axis. Edges are outer 25%; left/right checked
+ *  first so they claim corners over top/bottom. */
 function getDropZone(e: React.DragEvent, el: HTMLElement): DropZone {
 	const rect = el.getBoundingClientRect()
 	const x = (e.clientX - rect.left) / rect.width

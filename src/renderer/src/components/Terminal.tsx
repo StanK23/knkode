@@ -182,8 +182,9 @@ export function TerminalView({
 
 		// Preserve scroll position across resize. Uses scroll ratio (viewportY/baseY)
 		// instead of absolute line numbers so position survives text reflow when
-		// columns change. Restores immediately after fit() so xterm sees the
-		// viewport as "scrolled up" — SIGWINCH output won't trigger auto-scroll.
+		// columns change. Restores immediately after fit() so the viewport is
+		// already scrolled up before SIGWINCH output arrives, which prevents
+		// xterm's auto-scroll-to-bottom behavior.
 		const resizeObserver = new ResizeObserver(() => {
 			requestAnimationFrame(() => {
 				try {
@@ -192,6 +193,7 @@ export function TerminalView({
 					if (isAtBottom) {
 						fitAddon.fit()
 						term.scrollToBottom()
+						// Ensure closure var is consistent before scroll event fires
 						isAtBottom = true
 						return
 					}
@@ -386,6 +388,8 @@ export function TerminalView({
 					</button>
 				</search>
 			)}
+			{/* Inline style required: colors must match the terminal's runtime theme,
+			    which varies per pane and cannot be expressed as Tailwind classes. */}
 			{isScrolledUp && (
 				<button
 					type="button"

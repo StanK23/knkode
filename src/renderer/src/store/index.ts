@@ -236,8 +236,9 @@ interface StoreState {
 	 *  Only swaps leaf paneId values; pane configs and PTYs are untouched. */
 	swapPanes: (workspaceId: string, paneIdA: string, paneIdB: string) => void
 	/** Move a pane to a position (left/right/top/bottom) relative to another pane.
-	 *  Restructures the layout tree by removing the source and inserting it as a
-	 *  new split alongside the target. PTYs and pane configs stay alive. */
+	 *  Both panes must belong to the given workspace. Restructures the layout tree
+	 *  by removing the source and inserting it as a new split alongside the target.
+	 *  PTYs and pane configs stay alive. */
 	movePaneToPosition: (
 		workspaceId: string,
 		sourcePaneId: string,
