@@ -1,13 +1,20 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { PaneConfig, PaneTheme } from '../../../shared/types'
+import type { DropPosition, PaneConfig, PaneTheme } from '../../../shared/types'
 
 type ContextPanelKind = 'cwd' | 'cmd' | 'theme' | 'move'
-type DropZone = 'center' | 'left' | 'right' | 'top' | 'bottom'
+type DropZone = DropPosition | 'center'
 interface PaneDragPayload {
 	paneId: string
 	workspaceId: string
 }
 const PANE_DRAG_MIME = 'application/x-knkode-pane'
+const ZONE_STYLES: Record<DropZone, React.CSSProperties> = {
+	center: { inset: 0, backgroundColor: 'var(--color-accent)', opacity: 0.12 },
+	left: { inset: 0, right: '50%', backgroundColor: 'var(--color-accent)', opacity: 0.18 },
+	right: { inset: 0, left: '50%', backgroundColor: 'var(--color-accent)', opacity: 0.18 },
+	top: { inset: 0, bottom: '50%', backgroundColor: 'var(--color-accent)', opacity: 0.18 },
+	bottom: { inset: 0, top: '50%', backgroundColor: 'var(--color-accent)', opacity: 0.18 },
+}
 
 /** Determine which drop zone the cursor is in based on position within the element.
  *  Center inner 50%, edges outer 25% on each side. */
@@ -712,29 +719,10 @@ export function Pane({
 				/>
 			</div>
 
-			{/* Drop zone overlay — shows where the dragged pane will be inserted */}
+			{/* Drop zone overlay — shows where the dragged pane will land
+			    (swap for center, split for edges) */}
 			{dropZone && (
-				<div
-					className="absolute pointer-events-none z-20"
-					style={{
-						inset: 0,
-						...(dropZone === 'center'
-							? { backgroundColor: 'var(--color-accent)', opacity: 0.12 }
-							: {}),
-						...(dropZone === 'left'
-							? { right: '50%', backgroundColor: 'var(--color-accent)', opacity: 0.18 }
-							: {}),
-						...(dropZone === 'right'
-							? { left: '50%', backgroundColor: 'var(--color-accent)', opacity: 0.18 }
-							: {}),
-						...(dropZone === 'top'
-							? { bottom: '50%', backgroundColor: 'var(--color-accent)', opacity: 0.18 }
-							: {}),
-						...(dropZone === 'bottom'
-							? { top: '50%', backgroundColor: 'var(--color-accent)', opacity: 0.18 }
-							: {}),
-					}}
-				/>
+				<div className="absolute pointer-events-none z-20" style={ZONE_STYLES[dropZone]} />
 			)}
 		</div>
 	)
