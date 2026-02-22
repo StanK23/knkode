@@ -170,6 +170,7 @@ export function Pane({
 	const [isDragging, setIsDragging] = useState(false)
 	const [dropZone, setDropZone] = useState<DropZone | null>(null)
 	const dragCounterRef = useRef(0)
+	const dropZoneRef = useRef<DropZone | null>(null)
 	const outerRef = useRef<HTMLDivElement>(null)
 
 	const movePaneToWorkspace = useStore((s) => s.movePaneToWorkspace)
@@ -279,7 +280,13 @@ export function Pane({
 			e.preventDefault()
 			e.dataTransfer.dropEffect = 'move'
 			const el = outerRef.current
-			if (el) setDropZone(getDropZone(e, el))
+			if (el) {
+				const zone = getDropZone(e, el)
+				if (zone !== dropZoneRef.current) {
+					dropZoneRef.current = zone
+					setDropZone(zone)
+				}
+			}
 		},
 		[],
 	)
@@ -291,14 +298,19 @@ export function Pane({
 	const handlePaneDragLeave = useCallback((e: React.DragEvent) => {
 		if (!e.dataTransfer.types.includes(PANE_DRAG_MIME)) return
 		dragCounterRef.current--
-		if (dragCounterRef.current === 0) setDropZone(null)
+		if (dragCounterRef.current === 0) {
+			dropZoneRef.current = null
+			setDropZone(null)
+		}
 	}, [])
 	const handlePaneDrop = useCallback(
 		(e: React.DragEvent) => {
 			e.preventDefault()
-			const zone = dropZone
 			dragCounterRef.current = 0
+			dropZoneRef.current = null
 			setDropZone(null)
+			const el = outerRef.current
+			const zone = el ? getDropZone(e, el) : null
 			const raw = e.dataTransfer.getData(PANE_DRAG_MIME)
 			if (!raw) return
 			let data: PaneDragPayload
@@ -315,7 +327,7 @@ export function Pane({
 				movePaneToPosition(workspaceId, data.paneId, paneId, zone)
 			}
 		},
-		[paneId, workspaceId, swapPanes, movePaneToPosition, dropZone],
+		[paneId, workspaceId, swapPanes, movePaneToPosition],
 	)
 
 	return (
