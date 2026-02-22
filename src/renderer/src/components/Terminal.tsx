@@ -17,6 +17,66 @@ function isTermAtBottom(term: XTerm): boolean {
 	return term.buffer.active.viewportY >= term.buffer.active.baseY
 }
 
+// ---------------------------------------------------------------------------
+// Module-level cache (keyed by paneId) — survives React unmount/remount
+// (e.g. pane split). Per-instance state (xterm, addons, PTY listeners) lives
+// here. Per-mount state (ResizeObserver, scroll tracking, focus) is set up in
+// the useEffect and torn down on unmount without disposing the terminal.
+// ---------------------------------------------------------------------------
+
+interface CachedTerminal {
+	term: XTerm
+	fitAddon: FitAddon
+	searchAddon: SearchAddon
+	/** Attached to the current React container on each mount; detached on unmount. */
+	termContainer: HTMLDivElement
+	webglAddon: WebglAddon | null
+	removeDataListener: () => void
+	removeExitListener: () => void
+	// Safe to mutate from onData/onPtyExit because both run on the same JS
+	// event loop — no concurrent access is possible.
+	ptyExited: boolean
+}
+
+const terminalCache = new Map<string, CachedTerminal>()
+
+/** Dispose the previous WebGL addon (if any) and try loading a fresh one. */
+function tryLoadWebgl(entry: CachedTerminal): void {
+	try {
+		entry.webglAddon?.dispose()
+	} catch {
+		/* ignore disposal errors */
+	}
+	entry.webglAddon = null
+	try {
+		const webglAddon = new WebglAddon()
+		webglAddon.onContextLoss(() => {
+			webglAddon.dispose()
+			entry.webglAddon = null
+		})
+		entry.term.loadAddon(webglAddon)
+		entry.webglAddon = webglAddon
+	} catch (err) {
+		console.warn('[terminal] WebGL unavailable, using canvas renderer:', err)
+	}
+}
+
+/** Fully dispose a cached terminal (call on pane close / workspace delete). */
+export function disposeTerminal(paneId: string): void {
+	const cached = terminalCache.get(paneId)
+	if (!cached) return
+	// Delete first to prevent stale lookups if dispose throws
+	terminalCache.delete(paneId)
+	try {
+		cached.removeDataListener()
+		cached.removeExitListener()
+		cached.webglAddon?.dispose()
+		cached.term.dispose()
+	} catch (err) {
+		console.warn(`[terminal] dispose failed for pane ${paneId}:`, err)
+	}
+}
+
 interface TerminalProps {
 	paneId: string
 	theme: PaneTheme
@@ -59,147 +119,176 @@ export function TerminalView({
 	themeRef.current = mergedTheme
 
 	useEffect(() => {
-		if (!containerRef.current || !wrapperRef.current) return
-
-		const t = themeRef.current
-		const term = new XTerm({
-			fontSize: t.fontSize,
-			fontFamily: buildFontFamily(t.fontFamily),
-			theme: buildXtermTheme(t),
-			cursorBlink: true,
-			cursorStyle: t.cursorStyle ?? DEFAULT_CURSOR_STYLE,
-			allowProposedApi: true,
-			scrollback: t.scrollback ?? DEFAULT_SCROLLBACK,
-		})
-
-		const fitAddon = new FitAddon()
-		term.loadAddon(fitAddon)
-
-		const searchAddon = new SearchAddon()
-		term.loadAddon(searchAddon)
-		searchAddonRef.current = searchAddon
-
-		term.loadAddon(
-			new WebLinksAddon((_event, url) => {
-				window.api.openExternal(url).catch((err) => {
-					console.error('[terminal] Failed to open URL:', err)
-				})
-			}),
-		)
-
-		term.open(containerRef.current)
-		fitAddon.fit()
-
-		try {
-			const webglAddon = new WebglAddon()
-			webglAddon.onContextLoss(() => webglAddon.dispose())
-			term.loadAddon(webglAddon)
-		} catch (err) {
-			console.warn('[terminal] WebGL unavailable, using canvas renderer:', err)
+		if (!containerRef.current || !wrapperRef.current) {
+			console.warn('[terminal] containerRef or wrapperRef not ready for pane', paneId)
+			return
 		}
+
+		let cached = terminalCache.get(paneId)
+
+		if (!cached) {
+			// ── CACHE MISS: first mount for this paneId ──────────────────────
+			const t = themeRef.current
+			const term = new XTerm({
+				fontSize: t.fontSize,
+				fontFamily: buildFontFamily(t.fontFamily),
+				theme: buildXtermTheme(t),
+				cursorBlink: true,
+				cursorStyle: t.cursorStyle ?? DEFAULT_CURSOR_STYLE,
+				allowProposedApi: true,
+				scrollback: t.scrollback ?? DEFAULT_SCROLLBACK,
+			})
+
+			const fitAddon = new FitAddon()
+			term.loadAddon(fitAddon)
+
+			const searchAddon = new SearchAddon()
+			term.loadAddon(searchAddon)
+
+			term.loadAddon(
+				new WebLinksAddon((_event, url) => {
+					window.api.openExternal(url).catch((err) => {
+						console.error('[terminal] Failed to open URL:', err)
+					})
+				}),
+			)
+
+			// Detached container — xterm renders into this. Created via
+			// document.createElement (not JSX) so inline styles are used
+			// instead of Tailwind classes.
+			const termContainer = document.createElement('div')
+			termContainer.style.width = '100%'
+			termContainer.style.height = '100%'
+			term.open(termContainer)
+
+			// Entry is built with no-op listener placeholders, then the real
+			// listeners are assigned below. The entry is NOT stored in the cache
+			// until all fields are fully initialized (see terminalCache.set at
+			// the end of this block), so disposeTerminal cannot observe the
+			// half-initialized state.
+			const entry: CachedTerminal = {
+				term,
+				fitAddon,
+				searchAddon,
+				termContainer,
+				webglAddon: null,
+				removeDataListener: () => {},
+				removeExitListener: () => {},
+				ptyExited: false,
+			}
+
+			tryLoadWebgl(entry)
+
+			// Shift+Enter → send LF (\n) instead of xterm's default CR (\r).
+			// Programs that distinguish the two (e.g. Claude Code CLI) can treat
+			// LF as "newline" and CR as "submit".
+			term.attachCustomKeyEventHandler((ev) => {
+				if (ev.key === 'Enter' && ev.shiftKey) {
+					if (ev.type === 'keydown') {
+						window.api.writePty(paneId, '\n').catch((err) => {
+							console.error(`[terminal] writePty failed for pane ${paneId}:`, err)
+						})
+					}
+					return false
+				}
+				return true
+			})
+
+			term.onData((data) => {
+				if (entry.ptyExited) {
+					// Restart PTY on any keypress after exit
+					entry.ptyExited = false
+					term.clear()
+					const state = useStore.getState()
+					const ws = state.workspaces.find((w) => paneId in w.panes)
+					const cwd = ws?.panes[paneId]?.cwd ?? state.homeDir
+					state.ensurePty(paneId, cwd, null)
+					return
+				}
+				window.api.writePty(paneId, data).catch((err) => {
+					console.error(`[terminal] writePty failed for pane ${paneId}:`, err)
+				})
+			})
+
+			entry.removeDataListener = window.api.onPtyData((id, data) => {
+				if (id === paneId) term.write(data)
+			})
+
+			entry.removeExitListener = window.api.onPtyExit((id, exitCode) => {
+				if (id === paneId) {
+					// If the PTY was restarted, a new one is already active — clear and sync dimensions
+					if (useStore.getState().activePtyIds.has(paneId)) {
+						term.clear()
+						const { cols, rows } = term
+						window.api.resizePty(paneId, cols, rows).catch((err) => {
+							console.warn('[terminal] resizePty after restart failed:', err)
+						})
+						return
+					}
+					entry.ptyExited = true
+					term.writeln(
+						`\r\n\x1b[90m[Process exited with code ${exitCode}. Press any key to restart.]\x1b[0m`,
+					)
+					useStore.getState().removePtyId(paneId)
+				}
+			})
+
+			term.onResize(({ cols, rows }) => {
+				window.api.resizePty(paneId, cols, rows).catch((err) => {
+					console.error(`[terminal] resizePty failed for pane ${paneId}:`, err)
+				})
+			})
+
+			// All fields initialized — safe to store in cache
+			terminalCache.set(paneId, entry)
+			cached = entry
+		} else {
+			// ── CACHE HIT: remount (e.g. after pane split) ───────────────────
+			try {
+				cached.searchAddon.clearDecorations()
+			} catch (err) {
+				console.warn('[terminal] clearDecorations failed on remount:', err)
+			}
+			// WebGL context may have been lost when detached — reload
+			tryLoadWebgl(cached)
+		}
+
+		const { term, fitAddon, searchAddon, termContainer } = cached
+
+		// ── PER-MOUNT SETUP (torn down on unmount, not on dispose) ───────
+
+		// Reparent xterm's container into the React-managed div
+		containerRef.current.appendChild(termContainer)
+		fitAddon.fit()
 
 		termRef.current = term
 		fitAddonRef.current = fitAddon
-
-		// Shift+Enter → send LF (\n) instead of xterm's default CR (\r).
-		// Programs that distinguish the two (e.g. Claude Code CLI) can treat
-		// LF as "newline" and CR as "submit".
-		term.attachCustomKeyEventHandler((ev) => {
-			if (ev.key === 'Enter' && ev.shiftKey) {
-				if (ev.type === 'keydown') {
-					window.api.writePty(paneId, '\n').catch((err) => {
-						console.error(`[terminal] writePty failed for pane ${paneId}:`, err)
-					})
-				}
-				return false
-			}
-			return true
-		})
-
-		let ptyExited = false
-
-		term.onData((data) => {
-			if (ptyExited) {
-				// Restart PTY on any keypress after exit
-				ptyExited = false
-				term.clear()
-				const state = useStore.getState()
-				const ws = state.workspaces.find((w) => paneId in w.panes)
-				const cwd = ws?.panes[paneId]?.cwd ?? state.homeDir
-				state.ensurePty(paneId, cwd, null)
-				return
-			}
-			window.api.writePty(paneId, data).catch((err) => {
-				console.error(`[terminal] writePty failed for pane ${paneId}:`, err)
-			})
-		})
-
-		const removeDataListener = window.api.onPtyData((id, data) => {
-			if (id === paneId) term.write(data)
-		})
-
-		const removeExitListener = window.api.onPtyExit((id, exitCode) => {
-			if (id === paneId) {
-				// If the PTY was restarted, a new one is already active — clear and sync dimensions
-				if (useStore.getState().activePtyIds.has(paneId)) {
-					term.clear()
-					const { cols, rows } = term
-					window.api.resizePty(paneId, cols, rows).catch((err) => {
-						console.warn('[terminal] resizePty after restart failed:', err)
-					})
-					return
-				}
-				ptyExited = true
-				term.writeln(
-					`\r\n\x1b[90m[Process exited with code ${exitCode}. Press any key to restart.]\x1b[0m`,
-				)
-				useStore.getState().removePtyId(paneId)
-			}
-		})
-
-		term.onResize(({ cols, rows }) => {
-			window.api.resizePty(paneId, cols, rows).catch((err) => {
-				console.error(`[terminal] resizePty failed for pane ${paneId}:`, err)
-			})
-		})
+		searchAddonRef.current = searchAddon
 
 		// Track whether user is scrolled up (for scroll-to-bottom button).
 		// term.onScroll only fires for buffer scroll (new output), not viewport
 		// scroll (mouse wheel), so we listen on the actual xterm viewport DOM element.
-		// `isAtBottom` is a mutable closure variable for synchronous access in the
-		// ResizeObserver — avoids stale reads from React state during rapid resize/output.
-		// Initialized from buffer state (true for a fresh terminal where viewportY === baseY === 0).
-		let isAtBottom = isTermAtBottom(term)
 		const viewport = term.element?.querySelector('.xterm-viewport')
 		const handleViewportScroll = () => {
-			const atBottom = isTermAtBottom(term)
-			isAtBottom = atBottom
-			setIsScrolledUp(!atBottom)
+			setIsScrolledUp(!isTermAtBottom(term))
 		}
 		viewport?.addEventListener('scroll', handleViewportScroll)
 		// Also track buffer scroll (new output arriving while scrolled up)
-		term.onScroll(handleViewportScroll)
+		const scrollDisposable = term.onScroll(handleViewportScroll)
 
-		// Preserve scroll position across resize. Uses scroll ratio (viewportY/baseY)
-		// instead of absolute line numbers so position survives text reflow when
-		// columns change. Restores immediately after fit() so the viewport is
-		// already scrolled up before SIGWINCH output arrives, which prevents
-		// xterm's auto-scroll-to-bottom behavior.
+		// Preserve scroll position across resize using ratio (viewportY/baseY).
+		// Always ratio-based: at bottom ratio=1 → stays at bottom; scrolled up
+		// ratio<1 → proportional. Avoids the `isAtBottom` flag in resize handling,
+		// which TUI apps (vim, Claude Code) break by briefly repositioning the
+		// viewport during screen redraws.
 		const resizeObserver = new ResizeObserver(() => {
 			requestAnimationFrame(() => {
 				try {
 					if (!containerRef.current?.clientWidth) return
 
-					if (isAtBottom) {
-						fitAddon.fit()
-						term.scrollToBottom()
-						// Ensure closure var is consistent before scroll event fires
-						isAtBottom = true
-						return
-					}
-
 					const { viewportY, baseY } = term.buffer.active
-					const ratio = baseY > 0 ? viewportY / baseY : 0
+					// No scrollback content: treat as at-bottom
+					const ratio = baseY > 0 ? viewportY / baseY : 1
 					fitAddon.fit()
 					term.scrollToLine(Math.round(ratio * term.buffer.active.baseY))
 				} catch (err) {
@@ -217,13 +306,17 @@ export function TerminalView({
 		wrapperEl.addEventListener('focusin', handleFocusIn)
 
 		return () => {
+			// Per-mount listeners are cleaned up here. Per-instance listeners
+			// (onData, onPtyData, onPtyExit, onResize) remain active on the
+			// cached entry so the PTY buffer keeps accumulating while detached.
 			viewport?.removeEventListener('scroll', handleViewportScroll)
+			scrollDisposable.dispose()
 			wrapperEl.removeEventListener('focusin', handleFocusIn)
 			resizeObserver.disconnect()
-			removeDataListener()
-			removeExitListener()
 			searchAddonRef.current = null
-			term.dispose()
+			// Detach termContainer from DOM — do NOT dispose the terminal.
+			// PTY data continues writing to the buffer while detached.
+			termContainer.remove()
 		}
 	}, [paneId])
 

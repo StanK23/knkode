@@ -1,10 +1,11 @@
 import { Allotment } from 'allotment'
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import 'allotment/dist/style.css'
 import type { LayoutNode, PaneConfig, Workspace } from '../../../shared/types'
 import { isLayoutBranch } from '../../../shared/types'
 import { getPaneIdsInOrder, useStore } from '../store'
 import { Pane } from './Pane'
+import { disposeTerminal } from './Terminal'
 
 interface PaneAreaProps {
 	workspace: Workspace
@@ -22,6 +23,28 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 		const order = getPaneIdsInOrder(workspace.layout.tree)
 		return new Map(order.map((id, i) => [id, i + 1]))
 	}, [workspace.layout.tree])
+
+	// Dispose cached terminals for panes that were removed (close pane).
+	// Needed because the terminal cache is module-level and outlives the React
+	// component tree — Terminal.tsx's own unmount only detaches, not disposes.
+	const paneIds = useMemo(() => Object.keys(workspace.panes), [workspace.panes])
+	const prevPaneIdsRef = useRef<string[]>(paneIds)
+
+	useEffect(() => {
+		const prev = new Set(prevPaneIdsRef.current)
+		const curr = new Set(paneIds)
+		for (const id of prev) {
+			if (!curr.has(id)) disposeTerminal(id)
+		}
+		prevPaneIdsRef.current = paneIds
+	}, [paneIds])
+
+	// Dispose all cached terminals on workspace unmount (tab close / workspace delete).
+	useEffect(() => {
+		return () => {
+			for (const id of prevPaneIdsRef.current) disposeTerminal(id)
+		}
+	}, [])
 
 	const handleUpdateConfig = useCallback(
 		(paneId: string, updates: Partial<PaneConfig>) => {
