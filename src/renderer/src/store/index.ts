@@ -237,10 +237,15 @@ interface StoreState {
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
 	saveState: () => Promise<void>
 	addSnippet: (name: string, command: string) => void
-	updateSnippet: (id: string, updates: Partial<Pick<Snippet, 'name' | 'command'>>) => void
+	updateSnippet: (id: string, updates: Pick<Snippet, 'name' | 'command'>) => void
 	removeSnippet: (id: string) => void
-	reorderSnippets: (fromIndex: number, toIndex: number) => void
 	runSnippet: (snippetId: string, paneId: string) => void
+}
+
+function persistSnippets(snippets: Snippet[]): void {
+	window.api.saveSnippets(snippets).catch((err) => {
+		console.error('[store] Failed to save snippets:', err)
+	})
 }
 
 export const useStore = create<StoreState>((set, get) => ({
@@ -840,40 +845,27 @@ export const useStore = create<StoreState>((set, get) => ({
 		const snippet: Snippet = { id: crypto.randomUUID(), name, command }
 		const snippets = [...get().snippets, snippet]
 		set({ snippets })
-		window.api.saveSnippets(snippets).catch((err) => {
-			console.error('[store] Failed to save snippets:', err)
-		})
+		persistSnippets(snippets)
 	},
 
 	updateSnippet: (id, updates) => {
 		const snippets = get().snippets.map((s) => (s.id === id ? { ...s, ...updates } : s))
 		set({ snippets })
-		window.api.saveSnippets(snippets).catch((err) => {
-			console.error('[store] Failed to save snippets:', err)
-		})
+		persistSnippets(snippets)
 	},
 
 	removeSnippet: (id) => {
 		const snippets = get().snippets.filter((s) => s.id !== id)
 		set({ snippets })
-		window.api.saveSnippets(snippets).catch((err) => {
-			console.error('[store] Failed to save snippets:', err)
-		})
-	},
-
-	reorderSnippets: (fromIndex, toIndex) => {
-		const snippets = [...get().snippets]
-		const [moved] = snippets.splice(fromIndex, 1)
-		snippets.splice(toIndex, 0, moved)
-		set({ snippets })
-		window.api.saveSnippets(snippets).catch((err) => {
-			console.error('[store] Failed to save snippets:', err)
-		})
+		persistSnippets(snippets)
 	},
 
 	runSnippet: (snippetId, paneId) => {
 		const snippet = get().snippets.find((s) => s.id === snippetId)
-		if (!snippet) return
+		if (!snippet) {
+			console.warn('[store] runSnippet: snippet not found', snippetId)
+			return
+		}
 		window.api.writePty(paneId, `${snippet.command}\r`).catch((err) => {
 			console.error(`[store] Failed to run snippet in pane ${paneId}:`, err)
 		})
