@@ -860,6 +860,8 @@ export const useStore = create<StoreState>((set, get) => ({
 			})
 			return {
 				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
+				focusedPaneId: sourcePaneId,
+				focusGeneration: state.focusGeneration + 1,
 			}
 		})
 	},
