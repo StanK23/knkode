@@ -1,13 +1,15 @@
 import os from 'node:os'
 import path from 'node:path'
 import { ipcMain, shell } from 'electron'
-import type { AppState, Workspace } from '../shared/types'
+import type { AppState, Snippet, Workspace } from '../shared/types'
 import { IPC } from '../shared/types'
 import {
 	deleteWorkspace,
 	getAppState,
+	getSnippets,
 	getWorkspaces,
 	saveAppState,
+	saveSnippets,
 	saveWorkspace,
 } from './config-store'
 import { trackPane, untrackPane } from './cwd-tracker'
@@ -58,6 +60,28 @@ function assertWorkspace(value: unknown): asserts value is Workspace {
 	}
 	if (!obj.panes || typeof obj.panes !== 'object')
 		throw new Error('Invalid workspace: missing or invalid panes')
+}
+
+const MAX_SNIPPETS = 500
+const MAX_SNIPPET_NAME_LENGTH = 256
+const MAX_SNIPPET_COMMAND_LENGTH = 4096
+
+function assertSnippets(value: unknown): asserts value is Snippet[] {
+	if (!Array.isArray(value)) throw new Error('Invalid snippets: expected array')
+	if (value.length > MAX_SNIPPETS) throw new Error(`Too many snippets: max ${MAX_SNIPPETS}`)
+	for (const item of value) {
+		if (!item || typeof item !== 'object') throw new Error('Invalid snippet: expected object')
+		const s = item as Record<string, unknown>
+		assertNonEmptyString(s.id, 'snippet id')
+		if ((s.id as string).length > MAX_PANE_ID_LENGTH)
+			throw new Error(`Invalid snippet id: exceeds ${MAX_PANE_ID_LENGTH} characters`)
+		assertNonEmptyString(s.name, 'snippet name')
+		if ((s.name as string).length > MAX_SNIPPET_NAME_LENGTH)
+			throw new Error(`Invalid snippet name: exceeds ${MAX_SNIPPET_NAME_LENGTH} characters`)
+		assertNonEmptyString(s.command, 'snippet command')
+		if ((s.command as string).length > MAX_SNIPPET_COMMAND_LENGTH)
+			throw new Error(`Invalid snippet command: exceeds ${MAX_SNIPPET_COMMAND_LENGTH} characters`)
+	}
 }
 
 function assertAppState(value: unknown): asserts value is AppState {
@@ -146,5 +170,12 @@ export function registerIpcHandlers(): void {
 		assertPaneId(id)
 		killPty(id)
 		untrackPane(id)
+	})
+
+	ipcMain.handle(IPC.CONFIG_GET_SNIPPETS, () => getSnippets())
+
+	ipcMain.handle(IPC.CONFIG_SAVE_SNIPPETS, (_e, snippets: unknown) => {
+		assertSnippets(snippets)
+		saveSnippets(snippets)
 	})
 }

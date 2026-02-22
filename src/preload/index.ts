@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppState, IpcChannel, Workspace } from '../shared/types'
+import type { AppState, IpcChannel, Snippet, Workspace } from '../shared/types'
 import { IPC } from '../shared/types'
 
 type Unsubscribe = () => void
@@ -28,6 +28,9 @@ const api = {
 	getAppState: (): Promise<AppState> => ipcRenderer.invoke(IPC.CONFIG_GET_APP_STATE),
 	saveAppState: (state: AppState): Promise<void> =>
 		ipcRenderer.invoke(IPC.CONFIG_SAVE_APP_STATE, state),
+	getSnippets: (): Promise<Snippet[]> => ipcRenderer.invoke(IPC.CONFIG_GET_SNIPPETS),
+	saveSnippets: (snippets: Snippet[]): Promise<void> =>
+		ipcRenderer.invoke(IPC.CONFIG_SAVE_SNIPPETS, snippets),
 
 	// PTY
 	createPty: (id: string, cwd: string, startupCommand: string | null): Promise<void> =>

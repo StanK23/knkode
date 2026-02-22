@@ -78,6 +78,13 @@ export interface AppState {
 	}
 }
 
+/** A reusable shell command that can be executed in any terminal pane. */
+export interface Snippet {
+	readonly id: string
+	readonly name: string
+	readonly command: string
+}
+
 // IPC channel names
 export const IPC = {
 	// Config
@@ -86,6 +93,8 @@ export const IPC = {
 	CONFIG_DELETE_WORKSPACE: 'config:delete-workspace',
 	CONFIG_GET_APP_STATE: 'config:get-app-state',
 	CONFIG_SAVE_APP_STATE: 'config:save-app-state',
+	CONFIG_GET_SNIPPETS: 'config:get-snippets',
+	CONFIG_SAVE_SNIPPETS: 'config:save-snippets',
 
 	// App
 	APP_GET_HOME_DIR: 'app:get-home-dir',
