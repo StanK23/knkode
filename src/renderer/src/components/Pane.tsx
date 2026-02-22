@@ -316,7 +316,8 @@ export function Pane({
 			let data: PaneDragPayload
 			try {
 				data = JSON.parse(raw)
-			} catch {
+			} catch (err) {
+				console.warn('[pane] Failed to parse drag payload:', raw, err)
 				return
 			}
 			if (typeof data.paneId !== 'string' || typeof data.workspaceId !== 'string') return

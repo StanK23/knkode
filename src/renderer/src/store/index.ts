@@ -821,7 +821,13 @@ export const useStore = create<StoreState>((set, get) => ({
 
 			// 1. Remove source leaf from tree
 			const treeWithoutSource = removeLeafFromTree(workspace.layout.tree, sourcePaneId)
-			if (!treeWithoutSource) return state
+			if (!treeWithoutSource) {
+				console.error('[store] movePaneToPosition: removeLeafFromTree returned null', {
+					sourcePaneId,
+					workspaceId,
+				})
+				return state
+			}
 
 			// 2. Find target leaf and replace it with a new branch containing [source, target]
 			const direction: SplitDirection =
