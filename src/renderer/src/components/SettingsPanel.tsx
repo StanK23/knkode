@@ -108,27 +108,31 @@ function SnippetsSection() {
 	)
 
 	const commitEdit = useCallback(() => {
-		if (editingId && editName.trim() && editCommand.trim()) {
+		if (!editingId) return
+		if (editName.trim() && editCommand.trim()) {
 			updateSnippet(editingId, { name: editName.trim(), command: editCommand.trim() })
+			setEditingId(null)
 		}
-		setEditingId(null)
 	}, [editingId, editName, editCommand, updateSnippet])
 
 	const commitAdd = useCallback(() => {
 		if (newName.trim() && newCommand.trim()) {
 			addSnippet(newName.trim(), newCommand.trim())
+			setNewName('')
+			setNewCommand('')
+			setIsAdding(false)
 		}
-		setNewName('')
-		setNewCommand('')
-		setIsAdding(false)
 	}, [newName, newCommand, addSnippet])
 
 	return (
 		<div className="flex flex-col gap-2">
 			<span className="section-label">Quick Commands</span>
 			<span className="text-[10px] text-content-muted -mt-1">
-				Global snippets — click to run in any terminal pane
+				Global snippets — available from the &gt;_ icon on any pane
 			</span>
+			{snippets.length === 0 && !isAdding && (
+				<span className="text-[11px] text-content-muted italic">No snippets yet</span>
+			)}
 			{snippets.map((snippet) => (
 				<div key={snippet.id} className="flex items-center gap-1.5">
 					{editingId === snippet.id ? (
@@ -139,7 +143,7 @@ function SnippetsSection() {
 								className="settings-input flex-1"
 								placeholder="Name"
 								aria-label="Snippet name"
-								ref={(el) => el?.focus()}
+								autoFocus
 								onKeyDown={(e) => {
 									if (e.key === 'Enter') commitEdit()
 									if (e.key === 'Escape') setEditingId(null)
@@ -182,7 +186,10 @@ function SnippetsSection() {
 							</button>
 							<button
 								type="button"
-								onClick={() => removeSnippet(snippet.id)}
+								onClick={() => {
+								if (window.confirm(`Delete snippet "${snippet.name}"?`))
+									removeSnippet(snippet.id)
+							}}
 								className="bg-transparent border-none text-danger cursor-pointer text-[11px] px-1 hover:brightness-125 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 								aria-label={`Delete ${snippet.name}`}
 							>
@@ -200,7 +207,7 @@ function SnippetsSection() {
 						className="settings-input flex-1"
 						placeholder="Name (e.g. Claude)"
 						aria-label="New snippet name"
-						ref={(el) => el?.focus()}
+						autoFocus
 						onKeyDown={(e) => {
 							if (e.key === 'Enter') commitAdd()
 							if (e.key === 'Escape') setIsAdding(false)
@@ -566,7 +573,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					<div className="flex flex-col gap-2">
 						<LayoutPicker current={currentPreset} onSelect={handleLayoutChange} />
 					</div>
-					{/* Snippets (global) */}
+					{/* Snippets */}
 					<SnippetsSection />
 				</div>
 
