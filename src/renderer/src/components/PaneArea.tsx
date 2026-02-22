@@ -25,6 +25,8 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 	}, [workspace.layout.tree])
 
 	// Dispose cached terminals for panes that were removed (close pane).
+	// Needed because the terminal cache is module-level and outlives the React
+	// component tree — Terminal.tsx's own unmount only detaches, not disposes.
 	const paneIds = useMemo(() => Object.keys(workspace.panes), [workspace.panes])
 	const prevPaneIdsRef = useRef<string[]>(paneIds)
 

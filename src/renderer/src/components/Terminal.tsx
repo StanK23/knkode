@@ -18,33 +18,63 @@ function isTermAtBottom(term: XTerm): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Module-level cache — survives React unmount/remount (e.g. pane split).
-// Per-instance state (xterm, addons, PTY listeners) lives here.
-// Per-mount state (ResizeObserver, scroll tracking, focus) is set up in the
-// useEffect and torn down on unmount without disposing the terminal.
+// Module-level cache (keyed by paneId) — survives React unmount/remount
+// (e.g. pane split). Per-instance state (xterm, addons, PTY listeners) lives
+// here. Per-mount state (ResizeObserver, scroll tracking, focus) is set up in
+// the useEffect and torn down on unmount without disposing the terminal.
 // ---------------------------------------------------------------------------
 
 interface CachedTerminal {
 	term: XTerm
 	fitAddon: FitAddon
 	searchAddon: SearchAddon
-	/** Detached <div> that xterm opens into. Reparented between React containers. */
+	/** Attached to the current React container on each mount; detached on unmount. */
 	termContainer: HTMLDivElement
+	webglAddon: WebglAddon | null
 	removeDataListener: () => void
 	removeExitListener: () => void
+	// Safe to mutate from onData/onPtyExit because both run on the same JS
+	// event loop — no concurrent access is possible.
 	ptyExited: boolean
 }
 
 const terminalCache = new Map<string, CachedTerminal>()
 
+/** Dispose the previous WebGL addon (if any) and try loading a fresh one. */
+function tryLoadWebgl(entry: CachedTerminal): void {
+	try {
+		entry.webglAddon?.dispose()
+	} catch {
+		/* ignore disposal errors */
+	}
+	entry.webglAddon = null
+	try {
+		const webglAddon = new WebglAddon()
+		webglAddon.onContextLoss(() => {
+			webglAddon.dispose()
+			entry.webglAddon = null
+		})
+		entry.term.loadAddon(webglAddon)
+		entry.webglAddon = webglAddon
+	} catch (err) {
+		console.warn('[terminal] WebGL unavailable, using canvas renderer:', err)
+	}
+}
+
 /** Fully dispose a cached terminal (call on pane close / workspace delete). */
 export function disposeTerminal(paneId: string): void {
 	const cached = terminalCache.get(paneId)
 	if (!cached) return
-	cached.removeDataListener()
-	cached.removeExitListener()
-	cached.term.dispose()
+	// Delete first to prevent stale lookups if dispose throws
 	terminalCache.delete(paneId)
+	try {
+		cached.removeDataListener()
+		cached.removeExitListener()
+		cached.webglAddon?.dispose()
+		cached.term.dispose()
+	} catch (err) {
+		console.warn(`[terminal] dispose failed for pane ${paneId}:`, err)
+	}
 }
 
 interface TerminalProps {
@@ -89,7 +119,10 @@ export function TerminalView({
 	themeRef.current = mergedTheme
 
 	useEffect(() => {
-		if (!containerRef.current || !wrapperRef.current) return
+		if (!containerRef.current || !wrapperRef.current) {
+			console.warn('[terminal] containerRef or wrapperRef not ready for pane', paneId)
+			return
+		}
 
 		let cached = terminalCache.get(paneId)
 
@@ -120,30 +153,31 @@ export function TerminalView({
 				}),
 			)
 
-			// Detached container — xterm renders into this, we reparent it
-			// between React containers on mount/unmount.
+			// Detached container — xterm renders into this. Created via
+			// document.createElement (not JSX) so inline styles are used
+			// instead of Tailwind classes.
 			const termContainer = document.createElement('div')
 			termContainer.style.width = '100%'
 			termContainer.style.height = '100%'
 			term.open(termContainer)
 
-			try {
-				const webglAddon = new WebglAddon()
-				webglAddon.onContextLoss(() => webglAddon.dispose())
-				term.loadAddon(webglAddon)
-			} catch (err) {
-				console.warn('[terminal] WebGL unavailable, using canvas renderer:', err)
-			}
-
+			// Entry is built with no-op listener placeholders, then the real
+			// listeners are assigned below. The entry is NOT stored in the cache
+			// until all fields are fully initialized (see terminalCache.set at
+			// the end of this block), so disposeTerminal cannot observe the
+			// half-initialized state.
 			const entry: CachedTerminal = {
 				term,
 				fitAddon,
 				searchAddon,
 				termContainer,
+				webglAddon: null,
 				removeDataListener: () => {},
 				removeExitListener: () => {},
 				ptyExited: false,
 			}
+
+			tryLoadWebgl(entry)
 
 			// Shift+Enter → send LF (\n) instead of xterm's default CR (\r).
 			// Programs that distinguish the two (e.g. Claude Code CLI) can treat
@@ -205,19 +239,18 @@ export function TerminalView({
 				})
 			})
 
+			// All fields initialized — safe to store in cache
 			terminalCache.set(paneId, entry)
 			cached = entry
 		} else {
 			// ── CACHE HIT: remount (e.g. after pane split) ───────────────────
-			cached.searchAddon.clearDecorations()
-			// WebGL context may have been lost when detached — try reloading
 			try {
-				const webglAddon = new WebglAddon()
-				webglAddon.onContextLoss(() => webglAddon.dispose())
-				cached.term.loadAddon(webglAddon)
-			} catch {
-				// WebGL unavailable or context still active — canvas fallback is fine
+				cached.searchAddon.clearDecorations()
+			} catch (err) {
+				console.warn('[terminal] clearDecorations failed on remount:', err)
 			}
+			// WebGL context may have been lost when detached — reload
+			tryLoadWebgl(cached)
 		}
 
 		const { term, fitAddon, searchAddon, termContainer } = cached
@@ -245,15 +278,16 @@ export function TerminalView({
 
 		// Preserve scroll position across resize using ratio (viewportY/baseY).
 		// Always ratio-based: at bottom ratio=1 → stays at bottom; scrolled up
-		// ratio<1 → proportional. Avoids the `isAtBottom` flag which TUI apps
-		// (vim, Claude Code) break by briefly repositioning the viewport during
-		// screen redraws.
+		// ratio<1 → proportional. Avoids the `isAtBottom` flag in resize handling,
+		// which TUI apps (vim, Claude Code) break by briefly repositioning the
+		// viewport during screen redraws.
 		const resizeObserver = new ResizeObserver(() => {
 			requestAnimationFrame(() => {
 				try {
 					if (!containerRef.current?.clientWidth) return
 
 					const { viewportY, baseY } = term.buffer.active
+					// No scrollback content: treat as at-bottom
 					const ratio = baseY > 0 ? viewportY / baseY : 1
 					fitAddon.fit()
 					term.scrollToLine(Math.round(ratio * term.buffer.active.baseY))
@@ -272,6 +306,9 @@ export function TerminalView({
 		wrapperEl.addEventListener('focusin', handleFocusIn)
 
 		return () => {
+			// Per-mount listeners are cleaned up here. Per-instance listeners
+			// (onData, onPtyData, onPtyExit, onResize) remain active on the
+			// cached entry so the PTY buffer keeps accumulating while detached.
 			viewport?.removeEventListener('scroll', handleViewportScroll)
 			scrollDisposable.dispose()
 			wrapperEl.removeEventListener('focusin', handleFocusIn)
