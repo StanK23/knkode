@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { PaneConfig, PaneTheme, Snippet } from '../../../shared/types'
+import type { PaneConfig, PaneTheme } from '../../../shared/types'
 
 type ContextPanelKind = 'cwd' | 'cmd' | 'theme' | 'move'
 interface PaneDragPayload {
@@ -32,12 +32,49 @@ function initThemeInput(override: Partial<PaneTheme> | null): ThemeInputFields {
 	}
 }
 
-function SnippetDropdown({ paneId, snippets }: { paneId: string; snippets: Snippet[] }) {
+interface SnippetDropdownProps {
+	paneId: string
+}
+
+function SnippetDropdown({ paneId }: SnippetDropdownProps) {
 	const [open, setOpen] = useState(false)
 	const ref = useRef<HTMLDivElement>(null)
+	const menuRef = useRef<HTMLDivElement>(null)
+	const snippets = useStore((s) => s.snippets)
 	const runSnippet = useStore((s) => s.runSnippet)
 
 	useClickOutside(ref, () => setOpen(false), open)
+
+	// Escape to close + arrow-key navigation for menu items
+	useEffect(() => {
+		if (!open) return
+		const menu = menuRef.current
+		if (!menu) return
+		const firstItem = menu.querySelector<HTMLButtonElement>('[role="menuitem"]')
+		firstItem?.focus()
+		const handler = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') {
+				setOpen(false)
+				return
+			}
+			if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+				e.preventDefault()
+				const items = Array.from(menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
+				const idx = items.indexOf(document.activeElement as HTMLButtonElement)
+				const next =
+					e.key === 'ArrowDown'
+						? idx < items.length - 1
+							? idx + 1
+							: 0
+						: idx > 0
+							? idx - 1
+							: items.length - 1
+				items[next]?.focus()
+			}
+		}
+		document.addEventListener('keydown', handler)
+		return () => document.removeEventListener('keydown', handler)
+	}, [open])
 
 	if (snippets.length === 0) return null
 
@@ -49,23 +86,25 @@ function SnippetDropdown({ paneId, snippets }: { paneId: string; snippets: Snipp
 				title="Quick commands"
 				aria-label="Quick commands"
 				aria-expanded={open}
+				aria-haspopup="true"
 				className="bg-transparent border-none text-content-muted cursor-pointer px-0.5 text-[11px] leading-none hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 			>
-				&#x26A1;
+				&gt;_
 			</button>
 			{open && (
-				<div className="ctx-menu" style={{ right: 0, top: '100%', left: 'auto' }}>
+				<div ref={menuRef} role="menu" className="ctx-menu right-0 top-full left-auto">
 					{snippets.map((snippet) => (
 						<button
 							type="button"
 							key={snippet.id}
+							role="menuitem"
 							className="ctx-item flex items-center gap-2"
 							onClick={() => {
 								runSnippet(snippet.id, paneId)
 								setOpen(false)
 							}}
 						>
-							<span className="text-accent">&#x25B6;</span>
+							<span className="text-accent">&gt;</span>
 							<span className="truncate">{snippet.name}</span>
 						</button>
 					))}
@@ -118,7 +157,6 @@ export function Pane({
 	const [isDragOver, setIsDragOver] = useState(false)
 	const dragCounterRef = useRef(0)
 
-	const snippets = useStore((s) => s.snippets)
 	const movePaneToWorkspace = useStore((s) => s.movePaneToWorkspace)
 	const swapPanes = useStore((s) => s.swapPanes)
 	const workspaces = useStore((s) => s.workspaces)
@@ -292,7 +330,7 @@ export function Pane({
 					{shortCwd}
 				</span>
 
-				<SnippetDropdown paneId={paneId} snippets={snippets} />
+				<SnippetDropdown paneId={paneId} />
 				<button
 					type="button"
 					onClick={() => onSplitVertical(paneId)}
