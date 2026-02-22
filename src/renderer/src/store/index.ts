@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import type {
 	AppState,
+	DropPosition,
+	LayoutLeaf,
 	LayoutNode,
 	LayoutPreset,
 	PaneConfig,
@@ -233,6 +235,16 @@ interface StoreState {
 	/** Swap two panes' positions within a workspace layout tree.
 	 *  Only swaps leaf paneId values; pane configs and PTYs are untouched. */
 	swapPanes: (workspaceId: string, paneIdA: string, paneIdB: string) => void
+	/** Move a pane to a position (left/right/top/bottom) relative to another pane.
+	 *  Both panes must belong to the given workspace. Restructures the layout tree
+	 *  by removing the source and inserting it as a new split alongside the target.
+	 *  PTYs and pane configs stay alive. */
+	movePaneToPosition: (
+		workspaceId: string,
+		sourcePaneId: string,
+		targetPaneId: string,
+		position: DropPosition,
+	) => void
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
 	saveState: () => Promise<void>
@@ -590,28 +602,18 @@ export const useStore = create<StoreState>((set, get) => ({
 				themeOverride: null,
 			}
 
-			// Walk layout tree; when the target leaf is found, replace it with a
-			// branch containing the original pane and a new sibling at 50/50.
-			const replaceInTree = (node: LayoutNode): LayoutNode => {
-				if (isLayoutBranch(node)) {
-					return { ...node, children: node.children.map(replaceInTree) }
-				}
-				if (node.paneId === paneId) {
-					return {
-						direction,
-						size: node.size,
-						children: [
-							{ paneId, size: 50 },
-							{ paneId: newPaneId, size: 50 },
-						],
-					}
-				}
-				return node
-			}
+			const newTree = replaceLeafInTree(workspace.layout.tree, paneId, (leaf) => ({
+				direction,
+				size: leaf.size,
+				children: [
+					{ paneId, size: 50 },
+					{ paneId: newPaneId, size: 50 },
+				],
+			}))
 
 			const updated = {
 				...workspace,
-				layout: { type: 'custom' as const, tree: replaceInTree(workspace.layout.tree) },
+				layout: { type: 'custom' as const, tree: newTree },
 				panes: { ...workspace.panes, [newPaneId]: newPane },
 			}
 			window.api.saveWorkspace(updated).catch((err) => {
@@ -797,6 +799,59 @@ export const useStore = create<StoreState>((set, get) => ({
 		})
 	},
 
+	movePaneToPosition: (workspaceId, sourcePaneId, targetPaneId, position) => {
+		if (sourcePaneId === targetPaneId) return
+		set((state) => {
+			const workspace = state.workspaces.find((w) => w.id === workspaceId)
+			if (!workspace?.panes[sourcePaneId] || !workspace.panes[targetPaneId]) {
+				console.error('[store] movePaneToPosition: pane not found', {
+					sourcePaneId,
+					targetPaneId,
+					workspaceId,
+				})
+				return state
+			}
+
+			// 1. Remove source leaf from tree
+			const treeWithoutSource = removeLeafFromTree(workspace.layout.tree, sourcePaneId)
+			if (!treeWithoutSource) {
+				console.error('[store] movePaneToPosition: removeLeafFromTree returned null', {
+					sourcePaneId,
+					workspaceId,
+				})
+				return state
+			}
+
+			// 2. Find target leaf and replace it with a new branch containing
+			// source and target in position-dependent order
+			const direction: SplitDirection =
+				position === 'left' || position === 'right' ? 'horizontal' : 'vertical'
+			const sourceFirst = position === 'left' || position === 'top'
+
+			const newTree = replaceLeafInTree(treeWithoutSource, targetPaneId, (leaf) => {
+				const sourceLeaf: LayoutLeaf = { paneId: sourcePaneId, size: 50 }
+				const targetLeaf: LayoutLeaf = { paneId: targetPaneId, size: 50 }
+				return {
+					direction,
+					size: leaf.size,
+					children: sourceFirst ? [sourceLeaf, targetLeaf] : [targetLeaf, sourceLeaf],
+				}
+			})
+			const updated = {
+				...workspace,
+				layout: { type: 'custom' as const, tree: newTree },
+			}
+			window.api.saveWorkspace(updated).catch((err) => {
+				console.error('[store] Failed to save workspace:', err)
+			})
+			return {
+				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
+				focusedPaneId: sourcePaneId,
+				focusGeneration: state.focusGeneration + 1,
+			}
+		})
+	},
+
 	updatePaneConfig: (workspaceId, paneId, updates) => {
 		set((state) => {
 			const workspace = state.workspaces.find((w) => w.id === workspaceId)
@@ -886,6 +941,19 @@ function removeLeafFromTree(node: LayoutNode, targetPaneId: string): LayoutNode 
 	if (remaining.length === 0) return null
 	if (remaining.length === 1) return { ...remaining[0], size: node.size }
 	return { ...node, children: remaining }
+}
+
+/** Find a leaf by pane ID and replace it using the given function.
+ *  The replacer receives the matched leaf and returns its replacement node. */
+function replaceLeafInTree(
+	node: LayoutNode,
+	targetPaneId: string,
+	replacer: (leaf: LayoutNode) => LayoutNode,
+): LayoutNode {
+	if (isLayoutBranch(node)) {
+		return { ...node, children: node.children.map((c) => replaceLeafInTree(c, targetPaneId, replacer)) }
+	}
+	return node.paneId === targetPaneId ? replacer(node) : node
 }
 
 /** Get pane IDs in depth-first, left-child-first order

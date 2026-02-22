@@ -34,6 +34,7 @@ export interface PaneConfig {
 }
 
 export type SplitDirection = 'horizontal' | 'vertical'
+export type DropPosition = 'left' | 'right' | 'top' | 'bottom'
 
 export interface LayoutLeaf {
 	paneId: string

@@ -182,45 +182,26 @@ export function TerminalView({
 
 		// Preserve scroll position across resize. Uses scroll ratio (viewportY/baseY)
 		// instead of absolute line numbers so position survives text reflow when
-		// columns change. Debounces restoration (150ms) because the shell responds
-		// to SIGWINCH with output that re-scrolls xterm to the bottom.
-		let savedScrollRatio: number | null = null
-		let scrollRestoreTimer: ReturnType<typeof setTimeout> | null = null
-
+		// columns change. Restores immediately after fit() so the viewport is
+		// already scrolled up before SIGWINCH output arrives, which prevents
+		// xterm's auto-scroll-to-bottom behavior.
 		const resizeObserver = new ResizeObserver(() => {
 			requestAnimationFrame(() => {
 				try {
-					const el = containerRef.current
-					if (!el || el.clientWidth === 0) return
+					if (!containerRef.current?.clientWidth) return
 
-					// Capture ratio only at the start of a resize sequence
-					if (savedScrollRatio === null) {
-						if (isAtBottom) {
-							fitAddon.fit()
-							// fit() reflows the buffer (rows/cols change), which can
-							// leave viewportY behind the new baseY. Force scroll so the
-							// terminal stays pinned to the bottom during pane resizes
-							// and rapid output.
-							term.scrollToBottom()
-							isAtBottom = true
-							return
-						}
-						const { viewportY, baseY } = term.buffer.active
-						savedScrollRatio = baseY > 0 ? viewportY / baseY : 0
+					if (isAtBottom) {
+						fitAddon.fit()
+						term.scrollToBottom()
+						// Ensure closure var is consistent before scroll event fires
+						isAtBottom = true
+						return
 					}
 
+					const { viewportY, baseY } = term.buffer.active
+					const ratio = baseY > 0 ? viewportY / baseY : 0
 					fitAddon.fit()
-
-					if (scrollRestoreTimer) clearTimeout(scrollRestoreTimer)
-					const ratio = savedScrollRatio
-					scrollRestoreTimer = setTimeout(() => {
-						if (ratio !== null) {
-							const newBaseY = term.buffer.active.baseY
-							term.scrollToLine(Math.round(ratio * newBaseY))
-						}
-						savedScrollRatio = null
-						scrollRestoreTimer = null
-					}, 150)
+					term.scrollToLine(Math.round(ratio * term.buffer.active.baseY))
 				} catch (err) {
 					console.warn('[terminal] fit()/scroll failed during resize:', err)
 				}
@@ -239,7 +220,6 @@ export function TerminalView({
 			viewport?.removeEventListener('scroll', handleViewportScroll)
 			wrapperEl.removeEventListener('focusin', handleFocusIn)
 			resizeObserver.disconnect()
-			if (scrollRestoreTimer) clearTimeout(scrollRestoreTimer)
 			removeDataListener()
 			removeExitListener()
 			searchAddonRef.current = null
@@ -408,12 +388,20 @@ export function TerminalView({
 					</button>
 				</search>
 			)}
+			{/* Inline style required: colors must match the terminal's runtime theme,
+			    which varies per pane and cannot be expressed as Tailwind classes. */}
 			{isScrolledUp && (
 				<button
 					type="button"
 					onClick={scrollToBottom}
 					aria-label="Scroll to bottom"
-					className="absolute bottom-3 left-3 right-3 z-10 h-9 bg-elevated/90 border border-edge rounded-sm flex items-center justify-center gap-1.5 text-xs text-content-muted hover:text-content hover:bg-overlay cursor-pointer shadow-panel whitespace-nowrap overflow-hidden focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+					className="absolute bottom-3 left-3 right-3 z-10 h-9 rounded-sm flex items-center justify-center gap-1.5 text-xs cursor-pointer whitespace-nowrap overflow-hidden hover:brightness-110 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+					style={{
+						backgroundColor: `${mergedTheme.background}e6`,
+						color: mergedTheme.foreground,
+						border: `1px solid ${mergedTheme.foreground}22`,
+						boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+					}}
 				>
 					Scroll to bottom &#x25BC;
 				</button>
