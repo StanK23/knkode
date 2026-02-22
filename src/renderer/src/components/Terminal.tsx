@@ -391,7 +391,13 @@ export function TerminalView({
 					type="button"
 					onClick={scrollToBottom}
 					aria-label="Scroll to bottom"
-					className="absolute bottom-3 left-3 right-3 z-10 h-9 bg-elevated/90 border border-edge rounded-sm flex items-center justify-center gap-1.5 text-xs text-content-muted hover:text-content hover:bg-overlay cursor-pointer shadow-panel whitespace-nowrap overflow-hidden focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+					className="absolute bottom-3 left-3 right-3 z-10 h-9 rounded-sm flex items-center justify-center gap-1.5 text-xs cursor-pointer whitespace-nowrap overflow-hidden hover:brightness-110 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+					style={{
+						backgroundColor: `${mergedTheme.background}e6`,
+						color: mergedTheme.foreground,
+						border: `1px solid ${mergedTheme.foreground}22`,
+						boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+					}}
 				>
 					Scroll to bottom &#x25BC;
 				</button>
