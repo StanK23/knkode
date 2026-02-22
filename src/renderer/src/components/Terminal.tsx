@@ -161,9 +161,13 @@ export function TerminalView({
 		// Track whether user is scrolled up (for scroll-to-bottom button).
 		// term.onScroll only fires for buffer scroll (new output), not viewport
 		// scroll (mouse wheel), so we listen on the actual xterm viewport DOM element.
+		// `isAtBottom` is a mutable closure variable for synchronous access in the
+		// ResizeObserver — avoids stale reads from React state during rapid resize/output.
+		let isAtBottom = true
 		const viewport = term.element?.querySelector('.xterm-viewport')
 		const handleViewportScroll = () => {
 			const atBottom = term.buffer.active.viewportY >= term.buffer.active.baseY
+			isAtBottom = atBottom
 			setIsScrolledUp(!atBottom)
 		}
 		viewport?.addEventListener('scroll', handleViewportScroll)
@@ -185,11 +189,16 @@ export function TerminalView({
 
 					// Capture ratio only at the start of a resize sequence
 					if (savedScrollRatio === null) {
-						const { viewportY, baseY } = term.buffer.active
-						if (viewportY >= baseY) {
+						if (isAtBottom) {
 							fitAddon.fit()
+							// fit() reflows the buffer (rows/cols change), which can
+							// leave viewportY behind the new baseY. Force scroll so the
+							// terminal stays pinned to the bottom during pane resizes
+							// and rapid output (e.g. clearing Claude context).
+							term.scrollToBottom()
 							return
 						}
+						const { viewportY, baseY } = term.buffer.active
 						savedScrollRatio = baseY > 0 ? viewportY / baseY : 0
 					}
 
@@ -245,7 +254,7 @@ export function TerminalView({
 
 	// Update xterm theme colors, cursor style, scrollback, and font metrics without
 	// re-mounting. Only calls fit() when font size or font family change (fit recalculates
-	// cell metrics). Restores focus after fit() since it can cause DOM focus loss.
+	// cell metrics). Restores scroll position and focus after fit() since it disrupts both.
 	useEffect(() => {
 		if (!termRef.current || !fitAddonRef.current) return
 		termRef.current.options.theme = buildXtermTheme(mergedTheme)
@@ -258,11 +267,14 @@ export function TerminalView({
 		termRef.current.options.fontSize = mergedTheme.fontSize
 		termRef.current.options.fontFamily = newFontFamily
 		if (metricsChanged) {
+			const wasAtBottom =
+				termRef.current.buffer.active.viewportY >= termRef.current.buffer.active.baseY
 			try {
 				fitAddonRef.current.fit()
 			} catch (err) {
 				console.warn('[terminal] fit() failed during theme update:', err)
 			}
+			if (wasAtBottom) termRef.current.scrollToBottom()
 			if (isFocusedRef.current) termRef.current.focus()
 		}
 	}, [mergedTheme])
@@ -395,9 +407,9 @@ export function TerminalView({
 					type="button"
 					onClick={scrollToBottom}
 					aria-label="Scroll to bottom"
-					className="absolute bottom-3 right-3 z-10 bg-elevated/90 border border-edge rounded-full w-7 h-7 flex items-center justify-center text-content-muted hover:text-content hover:bg-overlay cursor-pointer shadow-panel transition-opacity"
+					className="absolute bottom-3 left-3 right-3 z-10 h-9 bg-elevated/90 border border-edge rounded-md flex items-center justify-center gap-1.5 text-xs text-content-muted hover:text-content hover:bg-overlay cursor-pointer shadow-panel transition-opacity"
 				>
-					&#x25BC;
+					Scroll to bottom &#x25BC;
 				</button>
 			)}
 			<div ref={containerRef} className="w-full h-full" />
