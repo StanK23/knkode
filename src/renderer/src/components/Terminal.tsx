@@ -166,40 +166,26 @@ export function TerminalView({
 		// Track whether user is scrolled up (for scroll-to-bottom button).
 		// term.onScroll only fires for buffer scroll (new output), not viewport
 		// scroll (mouse wheel), so we listen on the actual xterm viewport DOM element.
-		// `isAtBottom` is a mutable closure variable for synchronous access in the
-		// ResizeObserver — avoids stale reads from React state during rapid resize/output.
-		// Initialized from buffer state (true for a fresh terminal where viewportY === baseY === 0).
-		let isAtBottom = isTermAtBottom(term)
 		const viewport = term.element?.querySelector('.xterm-viewport')
 		const handleViewportScroll = () => {
-			const atBottom = isTermAtBottom(term)
-			isAtBottom = atBottom
-			setIsScrolledUp(!atBottom)
+			setIsScrolledUp(!isTermAtBottom(term))
 		}
 		viewport?.addEventListener('scroll', handleViewportScroll)
 		// Also track buffer scroll (new output arriving while scrolled up)
 		term.onScroll(handleViewportScroll)
 
-		// Preserve scroll position across resize. Uses scroll ratio (viewportY/baseY)
-		// instead of absolute line numbers so position survives text reflow when
-		// columns change. Restores immediately after fit() so the viewport is
-		// already scrolled up before SIGWINCH output arrives, which prevents
-		// xterm's auto-scroll-to-bottom behavior.
+		// Preserve scroll position across resize using ratio (viewportY/baseY).
+		// Always ratio-based: at bottom ratio=1 → stays at bottom; scrolled up
+		// ratio<1 → proportional. Avoids the `isAtBottom` flag which TUI apps
+		// (vim, Claude Code) break by briefly repositioning the viewport during
+		// screen redraws.
 		const resizeObserver = new ResizeObserver(() => {
 			requestAnimationFrame(() => {
 				try {
 					if (!containerRef.current?.clientWidth) return
 
-					if (isAtBottom) {
-						fitAddon.fit()
-						term.scrollToBottom()
-						// Ensure closure var is consistent before scroll event fires
-						isAtBottom = true
-						return
-					}
-
 					const { viewportY, baseY } = term.buffer.active
-					const ratio = baseY > 0 ? viewportY / baseY : 0
+					const ratio = baseY > 0 ? viewportY / baseY : 1
 					fitAddon.fit()
 					term.scrollToLine(Math.round(ratio * term.buffer.active.baseY))
 				} catch (err) {
