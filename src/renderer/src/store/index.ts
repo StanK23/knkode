@@ -233,6 +233,15 @@ interface StoreState {
 	/** Swap two panes' positions within a workspace layout tree.
 	 *  Only swaps leaf paneId values; pane configs and PTYs are untouched. */
 	swapPanes: (workspaceId: string, paneIdA: string, paneIdB: string) => void
+	/** Move a pane to a position (left/right/top/bottom) relative to another pane.
+	 *  Restructures the layout tree by removing the source and inserting it as a
+	 *  new split alongside the target. PTYs and pane configs stay alive. */
+	movePaneToPosition: (
+		workspaceId: string,
+		sourcePaneId: string,
+		targetPaneId: string,
+		position: 'left' | 'right' | 'top' | 'bottom',
+	) => void
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
 	saveState: () => Promise<void>
@@ -787,6 +796,58 @@ export const useStore = create<StoreState>((set, get) => ({
 			const updated = {
 				...workspace,
 				layout: { type: 'custom' as const, tree: swappedTree },
+			}
+			window.api.saveWorkspace(updated).catch((err) => {
+				console.error('[store] Failed to save workspace:', err)
+			})
+			return {
+				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
+			}
+		})
+	},
+
+	movePaneToPosition: (workspaceId, sourcePaneId, targetPaneId, position) => {
+		if (sourcePaneId === targetPaneId) return
+		set((state) => {
+			const workspace = state.workspaces.find((w) => w.id === workspaceId)
+			if (!workspace?.panes[sourcePaneId] || !workspace.panes[targetPaneId]) {
+				console.error('[store] movePaneToPosition: pane not found', {
+					sourcePaneId,
+					targetPaneId,
+					workspaceId,
+				})
+				return state
+			}
+
+			// 1. Remove source leaf from tree
+			const treeWithoutSource = removeLeafFromTree(workspace.layout.tree, sourcePaneId)
+			if (!treeWithoutSource) return state
+
+			// 2. Find target leaf and replace it with a new branch containing [source, target]
+			const direction: SplitDirection =
+				position === 'left' || position === 'right' ? 'horizontal' : 'vertical'
+			const sourceFirst = position === 'left' || position === 'top'
+
+			const insertAtTarget = (node: LayoutNode): LayoutNode => {
+				if (isLayoutBranch(node)) {
+					return { ...node, children: node.children.map(insertAtTarget) }
+				}
+				if (node.paneId === targetPaneId) {
+					const sourceLeaf: LayoutNode = { paneId: sourcePaneId, size: 50 }
+					const targetLeaf: LayoutNode = { paneId: targetPaneId, size: 50 }
+					return {
+						direction,
+						size: node.size,
+						children: sourceFirst ? [sourceLeaf, targetLeaf] : [targetLeaf, sourceLeaf],
+					}
+				}
+				return node
+			}
+
+			const newTree = insertAtTarget(treeWithoutSource)
+			const updated = {
+				...workspace,
+				layout: { type: 'custom' as const, tree: newTree },
 			}
 			window.api.saveWorkspace(updated).catch((err) => {
 				console.error('[store] Failed to save workspace:', err)

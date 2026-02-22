@@ -2,11 +2,25 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { PaneConfig, PaneTheme } from '../../../shared/types'
 
 type ContextPanelKind = 'cwd' | 'cmd' | 'theme' | 'move'
+type DropZone = 'center' | 'left' | 'right' | 'top' | 'bottom'
 interface PaneDragPayload {
 	paneId: string
 	workspaceId: string
 }
 const PANE_DRAG_MIME = 'application/x-knkode-pane'
+
+/** Determine which drop zone the cursor is in based on position within the element.
+ *  Center inner 50%, edges outer 25% on each side. */
+function getDropZone(e: React.DragEvent, el: HTMLElement): DropZone {
+	const rect = el.getBoundingClientRect()
+	const x = (e.clientX - rect.left) / rect.width
+	const y = (e.clientY - rect.top) / rect.height
+	if (x < 0.25) return 'left'
+	if (x > 0.75) return 'right'
+	if (y < 0.25) return 'top'
+	if (y > 0.75) return 'bottom'
+	return 'center'
+}
 const VIEWPORT_MARGIN = 8
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useInlineEdit } from '../hooks/useInlineEdit'
@@ -154,11 +168,13 @@ export function Pane({
 	const [cmdInput, setCmdInput] = useState(config.startupCommand ?? '')
 	const [themeInput, setThemeInput] = useState(() => initThemeInput(config.themeOverride))
 	const [isDragging, setIsDragging] = useState(false)
-	const [isDragOver, setIsDragOver] = useState(false)
+	const [dropZone, setDropZone] = useState<DropZone | null>(null)
 	const dragCounterRef = useRef(0)
+	const outerRef = useRef<HTMLDivElement>(null)
 
 	const movePaneToWorkspace = useStore((s) => s.movePaneToWorkspace)
 	const swapPanes = useStore((s) => s.swapPanes)
+	const movePaneToPosition = useStore((s) => s.movePaneToPosition)
 	const workspaces = useStore((s) => s.workspaces)
 	const openWorkspaceIds = useStore((s) => s.appState.openWorkspaceIds)
 	// Only show workspaces that are currently open as tabs (not all workspaces)
@@ -257,28 +273,32 @@ export function Pane({
 		setIsDragging(false)
 		dragCounterRef.current = 0
 	}, [])
-	const handlePaneDragOver = useCallback((e: React.DragEvent) => {
-		if (e.dataTransfer.types.includes(PANE_DRAG_MIME)) {
+	const handlePaneDragOver = useCallback(
+		(e: React.DragEvent) => {
+			if (!e.dataTransfer.types.includes(PANE_DRAG_MIME)) return
 			e.preventDefault()
 			e.dataTransfer.dropEffect = 'move'
-		}
-	}, [])
+			const el = outerRef.current
+			if (el) setDropZone(getDropZone(e, el))
+		},
+		[],
+	)
 	const handlePaneDragEnter = useCallback((e: React.DragEvent) => {
 		if (e.dataTransfer.types.includes(PANE_DRAG_MIME)) {
 			dragCounterRef.current++
-			if (dragCounterRef.current === 1) setIsDragOver(true)
 		}
 	}, [])
 	const handlePaneDragLeave = useCallback((e: React.DragEvent) => {
 		if (!e.dataTransfer.types.includes(PANE_DRAG_MIME)) return
 		dragCounterRef.current--
-		if (dragCounterRef.current === 0) setIsDragOver(false)
+		if (dragCounterRef.current === 0) setDropZone(null)
 	}, [])
 	const handlePaneDrop = useCallback(
 		(e: React.DragEvent) => {
 			e.preventDefault()
+			const zone = dropZone
 			dragCounterRef.current = 0
-			setIsDragOver(false)
+			setDropZone(null)
 			const raw = e.dataTransfer.getData(PANE_DRAG_MIME)
 			if (!raw) return
 			let data: PaneDragPayload
@@ -288,29 +308,35 @@ export function Pane({
 				return
 			}
 			if (typeof data.paneId !== 'string' || typeof data.workspaceId !== 'string') return
-			if (data.workspaceId === workspaceId && data.paneId !== paneId) {
+			if (data.workspaceId !== workspaceId || data.paneId === paneId) return
+			if (zone === 'center' || !zone) {
 				swapPanes(workspaceId, data.paneId, paneId)
+			} else {
+				movePaneToPosition(workspaceId, data.paneId, paneId, zone)
 			}
 		},
-		[paneId, workspaceId, swapPanes],
+		[paneId, workspaceId, swapPanes, movePaneToPosition, dropZone],
 	)
 
 	return (
-		<div className="flex flex-col h-full w-full">
+		<div
+			ref={outerRef}
+			className="flex flex-col h-full w-full relative"
+			onDragOver={handlePaneDragOver}
+			onDragEnter={handlePaneDragEnter}
+			onDragLeave={handlePaneDragLeave}
+			onDrop={handlePaneDrop}
+		>
 			<div
 				draggable={!isEditing}
 				aria-roledescription="draggable pane"
 				onDragStart={handleDragStart}
 				onDragEnd={handleDragEnd}
-				onDragOver={handlePaneDragOver}
-				onDragEnter={handlePaneDragEnter}
-				onDragLeave={handlePaneDragLeave}
-				onDrop={handlePaneDrop}
 				onContextMenu={handleContextMenu}
 				onMouseDown={handleFocus}
 				className={`h-header flex items-center gap-2 px-2 text-[11px] shrink-0 relative select-none ${
 					isFocused ? 'bg-elevated border-b border-accent' : 'bg-sunken border-b border-edge'
-				} ${isDragOver ? 'shadow-[inset_0_0_0_2px_var(--color-accent)]' : ''} ${isDragging ? 'opacity-40' : ''}`}
+				} ${isDragging ? 'opacity-40' : ''}`}
 			>
 				<span className="text-content-muted text-[10px] font-semibold min-w-3 text-center shrink-0">
 					{paneIndex}
@@ -672,6 +698,31 @@ export function Pane({
 					}
 				/>
 			</div>
+
+			{/* Drop zone overlay — shows where the dragged pane will be inserted */}
+			{dropZone && (
+				<div
+					className="absolute pointer-events-none z-20"
+					style={{
+						inset: 0,
+						...(dropZone === 'center'
+							? { backgroundColor: 'var(--color-accent)', opacity: 0.12 }
+							: {}),
+						...(dropZone === 'left'
+							? { right: '50%', backgroundColor: 'var(--color-accent)', opacity: 0.18 }
+							: {}),
+						...(dropZone === 'right'
+							? { left: '50%', backgroundColor: 'var(--color-accent)', opacity: 0.18 }
+							: {}),
+						...(dropZone === 'top'
+							? { bottom: '50%', backgroundColor: 'var(--color-accent)', opacity: 0.18 }
+							: {}),
+						...(dropZone === 'bottom'
+							? { top: '50%', backgroundColor: 'var(--color-accent)', opacity: 0.18 }
+							: {}),
+					}}
+				/>
+			)}
 		</div>
 	)
 }
