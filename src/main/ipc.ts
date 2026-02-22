@@ -62,17 +62,25 @@ function assertWorkspace(value: unknown): asserts value is Workspace {
 		throw new Error('Invalid workspace: missing or invalid panes')
 }
 
+const MAX_SNIPPETS = 500
+const MAX_SNIPPET_NAME_LENGTH = 256
+const MAX_SNIPPET_COMMAND_LENGTH = 4096
+
 function assertSnippets(value: unknown): asserts value is Snippet[] {
 	if (!Array.isArray(value)) throw new Error('Invalid snippets: expected array')
+	if (value.length > MAX_SNIPPETS) throw new Error(`Too many snippets: max ${MAX_SNIPPETS}`)
 	for (const item of value) {
 		if (!item || typeof item !== 'object') throw new Error('Invalid snippet: expected object')
 		const s = item as Record<string, unknown>
-		if (typeof s.id !== 'string' || s.id.length === 0)
-			throw new Error('Invalid snippet: missing id')
-		if (typeof s.name !== 'string' || s.name.length === 0)
-			throw new Error('Invalid snippet: missing name')
-		if (typeof s.command !== 'string' || s.command.length === 0)
-			throw new Error('Invalid snippet: missing command')
+		assertNonEmptyString(s.id, 'snippet id')
+		if ((s.id as string).length > MAX_PANE_ID_LENGTH)
+			throw new Error(`Invalid snippet id: exceeds ${MAX_PANE_ID_LENGTH} characters`)
+		assertNonEmptyString(s.name, 'snippet name')
+		if ((s.name as string).length > MAX_SNIPPET_NAME_LENGTH)
+			throw new Error(`Invalid snippet name: exceeds ${MAX_SNIPPET_NAME_LENGTH} characters`)
+		assertNonEmptyString(s.command, 'snippet command')
+		if ((s.command as string).length > MAX_SNIPPET_COMMAND_LENGTH)
+			throw new Error(`Invalid snippet command: exceeds ${MAX_SNIPPET_COMMAND_LENGTH} characters`)
 	}
 }
 
