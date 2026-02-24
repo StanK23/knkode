@@ -1,4 +1,5 @@
 import type { LayoutPreset } from '../../../shared/types'
+import { SettingsSection } from './SettingsPanel'
 
 interface LayoutPickerProps {
 	current: LayoutPreset | null
@@ -88,8 +89,7 @@ const PRESETS: { value: LayoutPreset; label: string; icon: React.ReactNode }[] =
 
 export function LayoutPicker({ current, onSelect }: LayoutPickerProps) {
 	return (
-		<div className="flex flex-col gap-2">
-			<span className="section-label">Layout</span>
+		<SettingsSection label="Layout">
 			<div className="grid grid-cols-3 gap-1.5">
 				{PRESETS.map((p) => (
 					<button
@@ -109,6 +109,6 @@ export function LayoutPicker({ current, onSelect }: LayoutPickerProps) {
 					</button>
 				))}
 			</div>
-		</div>
+		</SettingsSection>
 	)
 }

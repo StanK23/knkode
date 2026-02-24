@@ -75,10 +75,7 @@ export function App() {
 	)
 
 	return (
-		<div
-			className="flex flex-col h-full w-full relative"
-			style={themeStyles}
-		>
+		<div className="flex flex-col h-full w-full relative" style={themeStyles}>
 			<TabBar onOpenSettings={() => setShowSettings(true)} />
 			{visitedWorkspaces.length > 0 ? (
 				<>
