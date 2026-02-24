@@ -48,15 +48,12 @@ export function mixColors(color1: string, color2: string, weight: number): strin
 	)
 }
 
-/** Returns true if the color has low perceived luminance (< 0.5). Defaults to true (dark) on invalid input. */
+/** Returns true if the color has low perceived luminance (< 0.5).
+ *  Invalid input → hexToRgb returns [0,0,0] → luminance 0 → true (dark). */
 export function isDark(hex: string): boolean {
-	try {
-		const [r, g, b] = hexToRgb(hex)
-		const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-		return luminance < 0.5
-	} catch {
-		return true
-	}
+	const [r, g, b] = hexToRgb(hex)
+	const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+	return luminance < 0.5
 }
 
 /**
