@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { PaneArea } from './components/PaneArea'
 import { SettingsPanel } from './components/SettingsPanel'
@@ -66,14 +66,18 @@ export function App() {
 
 	const visitedWorkspaces = workspaces.filter((w) => visitedWorkspaceIds.includes(w.id))
 
-	const themeStyles = activeWorkspace
-		? generateThemeVariables(activeWorkspace.theme.background, activeWorkspace.theme.foreground)
-		: undefined
+	const themeStyles = useMemo(
+		() =>
+			activeWorkspace
+				? generateThemeVariables(activeWorkspace.theme.background, activeWorkspace.theme.foreground)
+				: undefined,
+		[activeWorkspace?.theme.background, activeWorkspace?.theme.foreground],
+	)
 
 	return (
 		<div
-			className="flex flex-col h-full w-full relative transition-colors duration-200"
-			style={themeStyles as React.CSSProperties}
+			className="flex flex-col h-full w-full relative"
+			style={themeStyles}
 		>
 			<TabBar onOpenSettings={() => setShowSettings(true)} />
 			{visitedWorkspaces.length > 0 ? (
