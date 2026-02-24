@@ -66,23 +66,25 @@ export function App() {
 
 	const visitedWorkspaces = workspaces.filter((w) => visitedWorkspaceIds.includes(w.id))
 
-	const themeStyles = useMemo(
-		() =>
-			activeWorkspace
-				? generateThemeVariables(
-						activeWorkspace.theme.background,
-						activeWorkspace.theme.foreground,
-						activeWorkspace.theme.fontFamily,
-						activeWorkspace.theme.fontSize,
-					)
-				: undefined,
-		[
-			activeWorkspace?.theme.background,
-			activeWorkspace?.theme.foreground,
-			activeWorkspace?.theme.fontFamily,
-			activeWorkspace?.theme.fontSize,
-		],
-	)
+	const themeStyles = useMemo(() => {
+		if (!activeWorkspace?.theme) return undefined
+		try {
+			return generateThemeVariables(
+				activeWorkspace.theme.background,
+				activeWorkspace.theme.foreground,
+				activeWorkspace.theme.fontFamily,
+				activeWorkspace.theme.fontSize,
+			)
+		} catch (err) {
+			console.error('[App] theme generation failed:', err)
+			return undefined
+		}
+	}, [
+		activeWorkspace?.theme?.background,
+		activeWorkspace?.theme?.foreground,
+		activeWorkspace?.theme?.fontFamily,
+		activeWorkspace?.theme?.fontSize,
+	])
 
 	return (
 		<div className="flex flex-col h-full w-full relative" style={themeStyles}>

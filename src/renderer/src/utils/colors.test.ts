@@ -21,13 +21,13 @@ describe('hexToRgb', () => {
 		expect(hexToRgb('abc')).toEqual([170, 187, 204])
 	})
 
-	it('throws on malformed input', () => {
-		expect(() => hexToRgb('')).toThrow('Invalid hex color')
-		expect(() => hexToRgb('#')).toThrow('Invalid hex color')
-		expect(() => hexToRgb('#gg0000')).toThrow('Invalid hex color')
-		expect(() => hexToRgb('#12345')).toThrow('Invalid hex color')
-		expect(() => hexToRgb('#1234567')).toThrow('Invalid hex color')
-		expect(() => hexToRgb('not-a-color')).toThrow('Invalid hex color')
+	it('returns [0, 0, 0] on malformed input', () => {
+		expect(hexToRgb('')).toEqual([0, 0, 0])
+		expect(hexToRgb('#')).toEqual([0, 0, 0])
+		expect(hexToRgb('#gg0000')).toEqual([0, 0, 0])
+		expect(hexToRgb('#12345')).toEqual([0, 0, 0])
+		expect(hexToRgb('#1234567')).toEqual([0, 0, 0])
+		expect(hexToRgb('not-a-color')).toEqual([0, 0, 0])
 	})
 })
 
@@ -150,5 +150,17 @@ describe('generateThemeVariables', () => {
 		]
 		// All four should be different from each other
 		expect(new Set(surfaces).size).toBe(4)
+	})
+
+	it('handles missing or malformed inputs gracefully', () => {
+		const theme = generateThemeVariables(undefined, undefined, undefined, undefined)
+		expect(theme['--color-canvas']).toBe('#1a1a2e')
+		expect(theme['--color-content']).toBe('#e0e0e0')
+		expect(theme['--font-family-ui']).toBe('var(--font-mono-fallback)')
+		expect(theme['--font-size-ui']).toBe('13px')
+
+		const malformed = generateThemeVariables('not-a-color', 'bad', 'Font', -5)
+		expect(malformed['--color-canvas']).toBe('#1a1a2e')
+		expect(malformed['--font-size-ui']).toBe('13px')
 	})
 })
