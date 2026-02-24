@@ -2,19 +2,19 @@
 
 ## Current State
 - Branch: `feat/deep-theming`
-- PR #47 open, review complete — fixing findings
-
-## Active Reviews
-
-### PR #47 — feat: deep theming, UI typography and motion
-- State: `docs/reviews/PR-47/_state.json`
-- Agents: 9/9 completed
-- Phase: done — compiled report ready, fixing findings
+- PR #47 open, review fixes applied — ready for merge
 
 ## What Was Done
 - PR #46 merged: terminal cache + TUI resize fix
-- PR #47 (open): deep theming, UI typography, CSS motion, test mock fix
+- PR #47 (open): deep theming, UI typography, CSS motion
+  - Review: 9 agents, 25 findings (5 must-fix, 15 suggestions, 5 nitpicks)
+  - All findings addressed in 5 commits:
+    1. `fix: harden color utils` — WCAG contrast, input validation, type safety
+    2. `test: overhaul color util tests` — edge cases, strong assertions, structure
+    3. `fix: configure getSnippets mock` — prevent undefined snippets state
+    4. `fix: memoize theme variables` — useMemo, remove cast, drop root transition
+    5. `fix: add prefers-reduced-motion` — accessibility, CSS comments
 
 ## Next Steps
-1. Apply review fixes for PR #47
+1. Merge PR #47
 2. Investigate blank terminal on workspace switch
