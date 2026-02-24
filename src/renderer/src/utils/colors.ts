@@ -58,6 +58,10 @@ export function isDark(hex: string): boolean {
 	return luminance < 0.5
 }
 
+const MIN_UI_FONT_SIZE = 11
+const MAX_UI_FONT_SIZE = 15
+const DEFAULT_UI_FONT_SIZE = 13
+
 /**
  * Derive a full set of CSS custom properties from a background/foreground color pair
  * and typography settings.
@@ -98,13 +102,11 @@ export function generateThemeVariables(
 	const accent = dark ? '#6c63ff' : '#4d46e5'
 	const danger = '#e74c3c'
 
-	// Typography: scale UI font size relative to terminal font size.
-	// We want the UI to feel proportional but slightly smaller than terminal text.
-	// Range: 11px to 15px.
+	// Typography: 1px smaller than terminal font size, clamped to 11-15px range
 	const uiFontSize =
 		typeof fontSize === 'number' && Number.isFinite(fontSize) && fontSize > 0
-			? Math.max(11, Math.min(15, fontSize - 1))
-			: 13
+			? Math.max(MIN_UI_FONT_SIZE, Math.min(MAX_UI_FONT_SIZE, fontSize - 1))
+			: DEFAULT_UI_FONT_SIZE
 
 	return {
 		'--color-canvas': safeBg,
