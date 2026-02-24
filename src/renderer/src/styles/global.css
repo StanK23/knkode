@@ -31,6 +31,8 @@
 	src: url("../assets/fonts/cascadia-code-700.woff2") format("woff2");
 	font-display: swap;
 }
+/* IBM Plex Mono — only 400/700 bundled. Intermediate weights (500, 600)
+   used by font-medium/font-semibold are synthesized by the browser. */
 @font-face {
 	font-family: "IBM Plex Mono";
 	font-weight: 400;
@@ -87,7 +89,8 @@
 }
 
 @theme {
-	/* Surfaces — dark navy palette, each level has purpose */
+	/* Static defaults — overridden at runtime by generateThemeVariables() in App.tsx.
+	   These values only show during initial render before the store loads. */
 	--color-canvas: #1a1a2e;
 	--color-elevated: #16213e;
 	--color-sunken: #0f1626;
@@ -114,7 +117,8 @@
 	--spacing-header: 28px;
 	--spacing-traffic: 78px; /* macOS window controls (close/minimize/maximize) width + padding */
 
-	/* System font stack - Industrial Monospace aesthetic */
+	/* Overrides Tailwind's font-sans with a monospace stack — the entire UI
+	   uses a terminal aesthetic, so sans-serif fonts are never used. */
 	--font-sans: "IBM Plex Mono", "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
 }
 
@@ -189,6 +193,16 @@
 	}
 	.animate-panel-in {
 		animation: panel-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.animate-panel-in {
+			animation: none;
+		}
+		.settings-input,
+		.transition-colors {
+			transition: none;
+		}
 	}
 }
 
