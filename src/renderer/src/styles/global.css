@@ -117,6 +117,9 @@
 	--spacing-header: 28px;
 	--spacing-traffic: 78px; /* macOS window controls (close/minimize/maximize) width + padding */
 
+	/* Mechanical spring easing — quick attack, soft settle */
+	--ease-mechanical: cubic-bezier(0.2, 0.8, 0.2, 1);
+
 	/* Overrides Tailwind's font-sans with a monospace stack — the entire UI
 	   uses a terminal aesthetic, so sans-serif fonts are never used. */
 	--font-sans: "IBM Plex Mono", "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
@@ -172,14 +175,10 @@
 		@apply bg-sunken border border-edge rounded-sm text-content text-[11px] py-0.5 px-2 cursor-pointer shrink-0 hover:bg-overlay;
 	}
 
-	.transition-colors {
-		transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
-	}
-
 	/* Settings panel */
 	.settings-input {
 		@apply bg-sunken border border-edge rounded-sm text-content text-xs py-1 px-2 outline-none focus:border-accent transition-colors duration-300;
-		transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+		transition-timing-function: var(--ease-mechanical);
 	}
 	.section-label {
 		@apply text-[10px] text-content-secondary uppercase tracking-[0.15em] font-semibold;
@@ -197,15 +196,14 @@
 		}
 	}
 	.animate-panel-in {
-		animation: panel-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+		animation: panel-in 0.3s var(--ease-mechanical) forwards;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
 		.animate-panel-in {
 			animation: none;
 		}
-		.settings-input,
-		.transition-colors {
+		.settings-input {
 			transition: none;
 		}
 	}
