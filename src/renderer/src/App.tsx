@@ -69,9 +69,19 @@ export function App() {
 	const themeStyles = useMemo(
 		() =>
 			activeWorkspace
-				? generateThemeVariables(activeWorkspace.theme.background, activeWorkspace.theme.foreground)
+				? generateThemeVariables(
+						activeWorkspace.theme.background,
+						activeWorkspace.theme.foreground,
+						activeWorkspace.theme.fontFamily,
+						activeWorkspace.theme.fontSize,
+					)
 				: undefined,
-		[activeWorkspace?.theme.background, activeWorkspace?.theme.foreground],
+		[
+			activeWorkspace?.theme.background,
+			activeWorkspace?.theme.foreground,
+			activeWorkspace?.theme.fontFamily,
+			activeWorkspace?.theme.fontSize,
+		],
 	)
 
 	return (

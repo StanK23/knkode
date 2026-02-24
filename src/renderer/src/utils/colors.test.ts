@@ -110,19 +110,23 @@ describe('generateThemeVariables', () => {
 		'--color-edge',
 		'--color-accent',
 		'--color-danger',
+		'--font-family-ui',
+		'--font-size-ui',
 	] as const
 
-	it('returns all 12 expected keys', () => {
+	it('returns all 14 expected keys', () => {
 		const theme = generateThemeVariables('#1a1a2e', '#e0e0e0')
 		expect(Object.keys(theme).sort()).toEqual([...ALL_KEYS].sort())
 	})
 
 	it('generates correct dark-mode theme', () => {
-		const theme = generateThemeVariables('#1a1a2e', '#e0e0e0')
+		const theme = generateThemeVariables('#1a1a2e', '#e0e0e0', 'Hack', 14)
 		expect(theme['--color-canvas']).toBe('#1a1a2e')
 		expect(theme['--color-content']).toBe('#e0e0e0')
 		expect(theme['--color-accent']).toBe('#6c63ff')
 		expect(theme['--color-danger']).toBe('#e74c3c')
+		expect(theme['--font-family-ui']).toContain('Hack')
+		expect(theme['--font-size-ui']).toBe('13px')
 		// Elevated should be lighter than canvas in dark mode
 		expect(theme['--color-elevated']).not.toBe(theme['--color-canvas'])
 	})

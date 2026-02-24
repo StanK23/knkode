@@ -52,14 +52,17 @@ export function isDark(hex: string): boolean {
 }
 
 /**
- * Derive a full set of CSS custom properties from a background/foreground color pair.
+ * Derive a full set of CSS custom properties from a background/foreground color pair
+ * and typography settings.
  * Auto-detects dark vs light mode from the background luminance.
  * Returns an object suitable for React inline `style` — keys are CSS variable names.
  */
 export function generateThemeVariables(
 	bg: string,
 	fg: string,
-): Record<`--color-${string}`, string> {
+	fontFamily?: string,
+	fontSize?: number,
+): Record<`--color-${string}` | `--font-${string}`, string> {
 	const dark = isDark(bg)
 
 	// Surfaces shift toward white (dark mode) or black (light mode) for depth
@@ -84,6 +87,11 @@ export function generateThemeVariables(
 	const accent = dark ? '#6c63ff' : '#4d46e5'
 	const danger = '#e74c3c'
 
+	// Typography: scale UI font size relative to terminal font size.
+	// We want the UI to feel proportional but slightly smaller than terminal text.
+	// Range: 11px to 15px.
+	const uiFontSize = fontSize ? Math.max(11, Math.min(15, fontSize - 1)) : 13
+
 	return {
 		'--color-canvas': bg,
 		'--color-elevated': elevated,
@@ -97,5 +105,7 @@ export function generateThemeVariables(
 		'--color-edge': edge,
 		'--color-accent': accent,
 		'--color-danger': danger,
+		'--font-family-ui': fontFamily ? `"${fontFamily}", var(--font-mono-fallback)` : 'var(--font-mono-fallback)',
+		'--font-size-ui': `${uiFontSize}px`,
 	}
 }

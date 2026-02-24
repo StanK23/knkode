@@ -120,9 +120,14 @@
 	/* Mechanical spring easing — quick attack, soft settle */
 	--ease-mechanical: cubic-bezier(0.2, 0.8, 0.2, 1);
 
+	/* Typography — overridden at runtime by generateThemeVariables() in App.tsx. */
+	--font-mono-fallback: "IBM Plex Mono", "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+	--font-family-ui: var(--font-mono-fallback);
+	--font-size-ui: 13px;
+
 	/* Overrides Tailwind's font-sans with a monospace stack — the entire UI
 	   uses a terminal aesthetic, so sans-serif fonts are never used. */
-	--font-sans: "IBM Plex Mono", "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+	--font-sans: var(--font-family-ui);
 }
 
 @layer base {
@@ -135,7 +140,7 @@
 		background: var(--color-canvas);
 		color: var(--color-content);
 		font-family: var(--font-sans);
-		font-size: 13px;
+		font-size: var(--font-size-ui);
 		-webkit-font-smoothing: antialiased;
 	}
 
