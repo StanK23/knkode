@@ -87,7 +87,16 @@ export function App() {
 	])
 
 	return (
-		<div className="flex flex-col h-full w-full relative" style={themeStyles}>
+		<div
+			className="flex flex-col h-full w-full relative"
+			style={{
+				...themeStyles,
+				backgroundColor: 'var(--color-canvas)',
+				color: 'var(--color-content)',
+				fontFamily: 'var(--font-family-ui)',
+				fontSize: 'var(--font-size-ui)',
+			}}
+		>
 			<TabBar onOpenSettings={() => setShowSettings(true)} />
 			{visitedWorkspaces.length > 0 ? (
 				<>
