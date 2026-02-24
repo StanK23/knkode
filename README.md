@@ -10,11 +10,13 @@ Every project needs a different terminal setup — build watcher, dev server, lo
 
 **Workspaces as tabs.** Each workspace is a color-coded tab with its own split-pane layout. Create, duplicate, close, drag to reorder, or reopen from the closed-workspaces menu. Switching tabs is instant — background shells stay alive.
 
-**Split panes.** Six layout presets (single, 2-column, 2-row, 3-panel L, 3-panel T, 2x2 grid), plus split any pane on the fly with `Cmd+D` / `Cmd+Shift+D`. Drag pane headers to swap positions. Move a pane to a different workspace via right-click — the live shell moves with it.
+**Split panes.** Six layout presets (single, 2-column, 2-row, 3-panel L, 3-panel T, 2x2 grid), plus split any pane on the fly with `Cmd+D` / `Cmd+Shift+D`. Drag pane headers to rearrange — drop on center to swap, or on an edge (left/right/top/bottom) to insert a new split. Move a pane to a different workspace via right-click — the live shell moves with it. Splitting preserves the existing terminal's output.
 
 **Theming.** 16 built-in themes (Dracula, Tokyo Night, Nord, Catppuccin, Gruvbox, Solarized, and more) applied per workspace. Individual panes can override the workspace theme with their own colors, font, and font size. 10 bundled monospace fonts (JetBrains Mono, Fira Code, Cascadia Code, etc.) that work without system installation, plus 4 system fonts when available. Cursor style (bar, block, underline), scrollback (500–50k lines), and unfocused pane dimming are all adjustable.
 
-**Terminal.** WebGL-accelerated rendering via xterm.js. In-terminal search (`Cmd+F`), clickable URLs, CWD tracking in each pane header, and per-pane startup commands (e.g., `npm run dev` runs when the workspace loads). `Shift+Enter` sends LF instead of CR, which tools like Claude Code use to distinguish newline from submit.
+**Terminal.** WebGL-accelerated rendering via xterm.js. In-terminal search (`Cmd+F`), clickable URLs, CWD tracking in each pane header, and per-pane startup commands (e.g., `npm run dev` runs when the workspace loads). `Shift+Enter` sends LF instead of CR, which tools like Claude Code use to distinguish newline from submit. Right-click any pane header for quick access to rename, change directory, set startup commands, restart the shell, per-pane theme overrides, or move to another workspace.
+
+**Quick commands.** Define reusable shell snippets (e.g., `npm run dev`, `claude --dangerously-skip-permissions`) in workspace settings. Run them in any pane from the `>_` icon on the pane header — one click to execute.
 
 **Persistent config.** Everything is stored as JSON in `~/.knkode/` — workspace definitions, open tabs, window position and size. Writes are atomic (temp file + rename) so a crash won't corrupt your config.
 

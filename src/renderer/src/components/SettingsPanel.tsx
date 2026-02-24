@@ -187,9 +187,8 @@ function SnippetsSection() {
 							<button
 								type="button"
 								onClick={() => {
-								if (window.confirm(`Delete snippet "${snippet.name}"?`))
-									removeSnippet(snippet.id)
-							}}
+									if (window.confirm(`Delete snippet "${snippet.name}"?`)) removeSnippet(snippet.id)
+								}}
 								className="bg-transparent border-none text-danger cursor-pointer text-[11px] px-1 hover:brightness-125 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 								aria-label={`Delete ${snippet.name}`}
 							>
@@ -375,7 +374,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 				role="dialog"
 				aria-modal="true"
 				aria-label="Workspace Settings"
-				className="bg-elevated border border-edge rounded-md w-[520px] max-h-[80vh] flex flex-col shadow-panel"
+				className="bg-elevated border border-edge rounded-md w-[520px] max-h-[80vh] flex flex-col shadow-panel animate-panel-in"
 				onClick={(e) => e.stopPropagation()}
 			>
 				<div className="flex items-center justify-between px-5 py-4 border-b border-edge">

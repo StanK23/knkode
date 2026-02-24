@@ -1,0 +1,22 @@
+{
+  "type": "watch-pr",
+  "pr_number": 47,
+  "pr_title": "feat: deep theming, UI typography and motion",
+  "branch": "feat/deep-theming",
+  "base_branch": "main",
+  "head_sha": "90dcb7540607cac514b35505667764eb16071865",
+  "started_at": "2026-02-24T12:00:00Z",
+  "agents": {
+    "code-reviewer": { "status": "completed", "file": "code-reviewer.md" },
+    "security-auditor": { "status": "completed", "file": "security-auditor.md" },
+    "code-simplifier": { "status": "completed", "file": "code-simplifier.md" },
+    "dry-reuse": { "status": "completed", "file": "dry-reuse.md" },
+    "comment-analyzer": { "status": "completed", "file": "comment-analyzer.md" },
+    "type-design": { "status": "completed", "file": "type-design.md" },
+    "test-coverage": { "status": "completed", "file": "test-coverage.md" },
+    "frontend-ui": { "status": "completed", "file": "frontend-ui.md" },
+    "typescript-pro": { "status": "completed", "file": "typescript-pro.md" }
+  },
+  "phase": "done",
+  "compiled": true
+}

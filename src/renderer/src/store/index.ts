@@ -951,7 +951,10 @@ function replaceLeafInTree(
 	replacer: (leaf: LayoutNode) => LayoutNode,
 ): LayoutNode {
 	if (isLayoutBranch(node)) {
-		return { ...node, children: node.children.map((c) => replaceLeafInTree(c, targetPaneId, replacer)) }
+		return {
+			...node,
+			children: node.children.map((c) => replaceLeafInTree(c, targetPaneId, replacer)),
+		}
 	}
 	return node.paneId === targetPaneId ? replacer(node) : node
 }
