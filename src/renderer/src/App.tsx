@@ -87,40 +87,45 @@ export function App() {
 	])
 
 	return (
-		<div
-			className="flex flex-col h-full w-full relative"
-			style={{
-				...themeStyles,
-				backgroundColor: 'var(--color-canvas)',
-				color: 'var(--color-content)',
-				fontFamily: 'var(--font-family-ui)',
-				fontSize: 'var(--font-size-ui)',
-			}}
-		>
-			<TabBar onOpenSettings={() => setShowSettings(true)} />
-			{visitedWorkspaces.length > 0 ? (
-				<>
-					{visitedWorkspaces.map((ws) => (
-						<div
-							key={ws.id}
-							className={
-								ws.id === appState.activeWorkspaceId ? 'flex flex-1 overflow-hidden' : 'hidden'
-							}
-						>
-							<ErrorBoundary>
-								<PaneArea workspace={ws} />
-							</ErrorBoundary>
-						</div>
-					))}
-					{showSettings && activeWorkspace && (
-						<SettingsPanel workspace={activeWorkspace} onClose={closeSettings} />
-					)}
-				</>
-			) : (
-				<div className="flex items-center justify-center flex-1">
-					<p className="text-content-muted text-sm">No workspace open. Click + to create one.</p>
-				</div>
-			)}
-		</div>
+		<ErrorBoundary>
+			<div
+				className="flex flex-col h-full w-full relative"
+				style={{
+					...themeStyles,
+					backgroundColor: 'var(--color-canvas)',
+					color: 'var(--color-content)',
+					fontFamily: 'var(--font-family-ui)',
+					fontSize: 'var(--font-size-ui)',
+				}}
+			>
+				<TabBar onOpenSettings={() => setShowSettings(true)} />
+				{visitedWorkspaces.length > 0 ? (
+					<>
+						{visitedWorkspaces.map((ws) => (
+							<div
+								key={ws.id}
+								className={
+									ws.id === appState.activeWorkspaceId ? 'flex flex-1 overflow-hidden' : 'hidden'
+								}
+							>
+								<ErrorBoundary>
+									<PaneArea workspace={ws} />
+								</ErrorBoundary>
+							</div>
+						))}
+						{showSettings && activeWorkspace && (
+							<SettingsPanel workspace={activeWorkspace} onClose={closeSettings} />
+						)}
+					</>
+				) : (
+					<div className="flex items-center justify-center flex-1">
+						<p className="text-content-muted text-sm">
+							No workspace open. Click + to create one.{' '}
+							{!activeWorkspace && `(Debug: activeId=${appState.activeWorkspaceId})`}
+						</p>
+					</div>
+				)}
+			</div>
+		</ErrorBoundary>
 	)
 }
