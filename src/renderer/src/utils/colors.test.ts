@@ -1,5 +1,23 @@
 import { describe, expect, it } from 'vitest'
-import { generateThemeVariables, hexToRgb, isDark, mixColors, rgbToHex } from './colors'
+import { generateThemeVariables, hexToRgb, isDark, isValidHex, mixColors, rgbToHex } from './colors'
+
+describe('isValidHex', () => {
+	it('accepts valid hex colors', () => {
+		expect(isValidHex('#ffffff')).toBe(true)
+		expect(isValidHex('#000')).toBe(true)
+		expect(isValidHex('abc')).toBe(true)
+		expect(isValidHex('1a1a2e')).toBe(true)
+	})
+
+	it('rejects invalid hex colors', () => {
+		expect(isValidHex('')).toBe(false)
+		expect(isValidHex('#')).toBe(false)
+		expect(isValidHex('#gg0000')).toBe(false)
+		expect(isValidHex('#12345')).toBe(false)
+		expect(isValidHex('#1234567')).toBe(false)
+		expect(isValidHex('not-a-color')).toBe(false)
+	})
+})
 
 describe('hexToRgb', () => {
 	it('parses 6-digit hex colors', () => {
@@ -21,13 +39,13 @@ describe('hexToRgb', () => {
 		expect(hexToRgb('abc')).toEqual([170, 187, 204])
 	})
 
-	it('throws on malformed input', () => {
-		expect(() => hexToRgb('')).toThrow('Invalid hex color')
-		expect(() => hexToRgb('#')).toThrow('Invalid hex color')
-		expect(() => hexToRgb('#gg0000')).toThrow('Invalid hex color')
-		expect(() => hexToRgb('#12345')).toThrow('Invalid hex color')
-		expect(() => hexToRgb('#1234567')).toThrow('Invalid hex color')
-		expect(() => hexToRgb('not-a-color')).toThrow('Invalid hex color')
+	it('returns [0, 0, 0] on malformed input', () => {
+		expect(hexToRgb('')).toEqual([0, 0, 0])
+		expect(hexToRgb('#')).toEqual([0, 0, 0])
+		expect(hexToRgb('#gg0000')).toEqual([0, 0, 0])
+		expect(hexToRgb('#12345')).toEqual([0, 0, 0])
+		expect(hexToRgb('#1234567')).toEqual([0, 0, 0])
+		expect(hexToRgb('not-a-color')).toEqual([0, 0, 0])
 	})
 })
 
@@ -110,19 +128,23 @@ describe('generateThemeVariables', () => {
 		'--color-edge',
 		'--color-accent',
 		'--color-danger',
+		'--font-family-ui',
+		'--font-size-ui',
 	] as const
 
-	it('returns all 12 expected keys', () => {
+	it('returns all expected keys', () => {
 		const theme = generateThemeVariables('#1a1a2e', '#e0e0e0')
 		expect(Object.keys(theme).sort()).toEqual([...ALL_KEYS].sort())
 	})
 
 	it('generates correct dark-mode theme', () => {
-		const theme = generateThemeVariables('#1a1a2e', '#e0e0e0')
+		const theme = generateThemeVariables('#1a1a2e', '#e0e0e0', 'Hack', 14)
 		expect(theme['--color-canvas']).toBe('#1a1a2e')
 		expect(theme['--color-content']).toBe('#e0e0e0')
 		expect(theme['--color-accent']).toBe('#6c63ff')
 		expect(theme['--color-danger']).toBe('#e74c3c')
+		expect(theme['--font-family-ui']).toContain('Hack')
+		expect(theme['--font-size-ui']).toBe('13px')
 		// Elevated should be lighter than canvas in dark mode
 		expect(theme['--color-elevated']).not.toBe(theme['--color-canvas'])
 	})
@@ -146,5 +168,50 @@ describe('generateThemeVariables', () => {
 		]
 		// All four should be different from each other
 		expect(new Set(surfaces).size).toBe(4)
+	})
+
+	it('handles missing or malformed inputs gracefully', () => {
+		const theme = generateThemeVariables(undefined, undefined, undefined, undefined)
+		expect(theme['--color-canvas']).toBe('#1a1a2e')
+		expect(theme['--color-content']).toBe('#e0e0e0')
+		expect(theme['--font-family-ui']).toBe('var(--font-mono-fallback)')
+		expect(theme['--font-size-ui']).toBe('13px')
+
+		const malformed = generateThemeVariables('not-a-color', 'bad', 'Font', -5)
+		expect(malformed['--color-canvas']).toBe('#1a1a2e')
+		expect(malformed['--font-size-ui']).toBe('13px')
+	})
+
+	it('derives UI font size as 1px smaller than terminal size', () => {
+		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, 16)['--font-size-ui']).toBe('15px')
+		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, 14)['--font-size-ui']).toBe('13px')
+	})
+
+	it('clamps UI font size to 11-15px range', () => {
+		// Lower boundary
+		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, 12)['--font-size-ui']).toBe('11px')
+		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, 11)['--font-size-ui']).toBe('11px')
+		// Upper boundary
+		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, 17)['--font-size-ui']).toBe('15px')
+		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, 32)['--font-size-ui']).toBe('15px')
+		// Invalid → default 13px
+		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, 0)['--font-size-ui']).toBe('13px')
+		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, Number.NaN)['--font-size-ui']).toBe('13px')
+		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, Number.POSITIVE_INFINITY)['--font-size-ui']).toBe('13px')
+	})
+
+	it('sanitizes fontFamily against allowlist', () => {
+		// Valid font from TERMINAL_FONTS
+		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', 'JetBrains Mono')['--font-family-ui']).toBe(
+			'"JetBrains Mono", var(--font-mono-fallback)',
+		)
+		// Unknown font → fallback only
+		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', 'Comic Sans')['--font-family-ui']).toBe(
+			'var(--font-mono-fallback)',
+		)
+		// CSS injection attempt → rejected
+		expect(
+			generateThemeVariables('#1a1a2e', '#e0e0e0', '"; } body { display: none; } .x { font-family: "')['--font-family-ui'],
+		).toBe('var(--font-mono-fallback)')
 	})
 })

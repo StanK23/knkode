@@ -1,14 +1,24 @@
 # HANDOFF
 
 ## Current State
-- Branch: `main`
-- Clean — PR #49 merged
+- Branch: `feat/dynamic-workspace-fonts`
+- PR #50 open: Dynamic fonts implemented + stability fixes
 
 ## What Was Done
-- PR #47 merged: deep theming, UI typography, CSS motion
-- PR #48 merged: fix terminal scroll jump on resize/TUI redraw
 - PR #49 merged: UI glass polish (settings grid, translucent modal, mechanical motion)
+- Implement PR `feat/dynamic-workspace-fonts`:
+  - Derived UI typography (family & size) from workspace settings.
+  - Added robustness to theme generation to prevent app crashes.
+  - Explicitly applied styles to root to ensure deep UI inheritance.
+
+## Active Reviews
+
+### PR #50 — feat: dynamic workspace fonts
+- State: `docs/reviews/PR-50/_state.json`
+- Agents: 10/10 completed
+- Phase: done — review complete, fixes pending
 
 ## Next Steps
-1. Implement dynamic workspace fonts (sync UI font/size with terminal settings)
-2. Investigate blank terminal on workspace switch
+1. Apply review fixes for PR #50
+2. Merge `feat/dynamic-workspace-fonts`
+3. Investigate blank terminal on workspace switch

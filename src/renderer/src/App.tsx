@@ -48,6 +48,22 @@ export function App() {
 		return unsubscribe
 	}, [updatePaneCwd])
 
+	// Must be above early returns to satisfy React's rules of hooks
+	const themeStyles = useMemo(() => {
+		if (!activeWorkspace?.theme) return undefined
+		try {
+			return generateThemeVariables(
+				activeWorkspace.theme.background,
+				activeWorkspace.theme.foreground,
+				activeWorkspace.theme.fontFamily,
+				activeWorkspace.theme.fontSize,
+			)
+		} catch (err) {
+			console.error('[App] theme generation failed:', err)
+			return undefined
+		}
+	}, [activeWorkspace?.theme])
+
 	if (!initialized) {
 		return (
 			<div className="flex items-center justify-center h-full">
@@ -66,40 +82,50 @@ export function App() {
 
 	const visitedWorkspaces = workspaces.filter((w) => visitedWorkspaceIds.includes(w.id))
 
-	const themeStyles = useMemo(
-		() =>
-			activeWorkspace
-				? generateThemeVariables(activeWorkspace.theme.background, activeWorkspace.theme.foreground)
-				: undefined,
-		[activeWorkspace?.theme.background, activeWorkspace?.theme.foreground],
-	)
-
 	return (
-		<div className="flex flex-col h-full w-full relative" style={themeStyles}>
-			<TabBar onOpenSettings={() => setShowSettings(true)} />
-			{visitedWorkspaces.length > 0 ? (
-				<>
-					{visitedWorkspaces.map((ws) => (
-						<div
-							key={ws.id}
-							className={
-								ws.id === appState.activeWorkspaceId ? 'flex flex-1 overflow-hidden' : 'hidden'
-							}
-						>
-							<ErrorBoundary>
-								<PaneArea workspace={ws} />
-							</ErrorBoundary>
+		<ErrorBoundary>
+			<div
+				className="flex flex-col h-full w-full relative"
+				style={{
+					...themeStyles,
+					backgroundColor: 'var(--color-canvas)',
+					color: 'var(--color-content)',
+					fontFamily: 'var(--font-family-ui)',
+					fontSize: 'var(--font-size-ui)',
+				}}
+			>
+				<TabBar onOpenSettings={() => setShowSettings(true)} />
+				{visitedWorkspaces.length > 0 ? (
+					<>
+						<div className="relative flex flex-1 overflow-hidden">
+							{visitedWorkspaces.map((ws) => (
+								<div
+									key={ws.id}
+									className={
+										ws.id === appState.activeWorkspaceId
+											? 'absolute inset-0 flex flex-col'
+											: 'absolute inset-0 opacity-0 pointer-events-none -z-10'
+									}
+								>
+									<ErrorBoundary>
+										<PaneArea workspace={ws} />
+									</ErrorBoundary>
+								</div>
+							))}
 						</div>
-					))}
-					{showSettings && activeWorkspace && (
-						<SettingsPanel workspace={activeWorkspace} onClose={closeSettings} />
-					)}
-				</>
-			) : (
-				<div className="flex items-center justify-center flex-1">
-					<p className="text-content-muted text-sm">No workspace open. Click + to create one.</p>
-				</div>
-			)}
-		</div>
+						{showSettings && activeWorkspace && (
+							<SettingsPanel workspace={activeWorkspace} onClose={closeSettings} />
+						)}
+					</>
+				) : (
+					<div className="flex items-center justify-center flex-1">
+						<p className="text-content-muted text-sm">
+							No workspace open. Click + to create one.{' '}
+							{!activeWorkspace && `(Debug: activeId=${appState.activeWorkspaceId})`}
+						</p>
+					</div>
+				)}
+			</div>
+		</ErrorBoundary>
 	)
 }

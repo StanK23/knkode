@@ -1,5 +1,5 @@
 import type { LayoutPreset } from '../../../shared/types'
-import { SettingsSection } from './SettingsPanel'
+import { SettingsSection } from './SettingsSection'
 
 interface LayoutPickerProps {
 	current: LayoutPreset | null
