@@ -276,21 +276,40 @@ export function TerminalView({
 		// Also track buffer scroll (new output arriving while scrolled up)
 		const scrollDisposable = term.onScroll(handleViewportScroll)
 
-		// Preserve scroll position across resize using ratio (viewportY/baseY).
-		// Always ratio-based: at bottom ratio=1 → stays at bottom; scrolled up
-		// ratio<1 → proportional. Avoids the `isAtBottom` flag in resize handling,
-		// which TUI apps (vim, Claude Code) break by briefly repositioning the
-		// viewport during screen redraws.
-		const resizeObserver = new ResizeObserver(() => {
+		let lastWidth = 0
+		let lastHeight = 0
+		const resizeObserver = new ResizeObserver((entries) => {
+			const entry = entries[0]
+			if (!entry) return
+			const { width, height } = entry.contentRect
+			if (width === lastWidth && height === lastHeight) return
+			lastWidth = width
+			lastHeight = height
+
 			requestAnimationFrame(() => {
 				try {
 					if (!containerRef.current?.clientWidth) return
 
+					// Do not attempt to manage scroll if in alternate screen buffer (TUIs).
+					// TUIs handle their own redraws.
+					if (term.buffer.active.type === 'alternate') {
+						fitAddon.fit()
+						return
+					}
+
 					const { viewportY, baseY } = term.buffer.active
-					// No scrollback content: treat as at-bottom
-					const ratio = baseY > 0 ? viewportY / baseY : 1
+					const isAtBottom = viewportY >= baseY
+					const linesFromBottom = baseY - viewportY
+
 					fitAddon.fit()
-					term.scrollToLine(Math.round(ratio * term.buffer.active.baseY))
+
+					if (isAtBottom) {
+						term.scrollToBottom()
+					} else {
+						// Maintain exact distance from bottom instead of ratio, as
+						// wrapping text changes total buffer lines non-linearly.
+						term.scrollToLine(Math.max(0, term.buffer.active.baseY - linesFromBottom))
+					}
 				} catch (err) {
 					console.warn('[terminal] fit()/scroll failed during resize:', err)
 				}
