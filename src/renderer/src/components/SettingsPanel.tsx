@@ -207,7 +207,7 @@ function SnippetsSection() {
 						<input
 							value={newName}
 							onChange={(e) => setNewName(e.target.value)}
-							className="settings-input flex-1"
+							className="settings-input flex-1 min-w-0"
 							placeholder="Name (e.g. Claude)"
 							aria-label="New snippet name"
 							autoFocus
