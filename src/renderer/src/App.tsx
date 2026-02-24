@@ -48,6 +48,22 @@ export function App() {
 		return unsubscribe
 	}, [updatePaneCwd])
 
+	// Must be above early returns to satisfy React's rules of hooks
+	const themeStyles = useMemo(() => {
+		if (!activeWorkspace?.theme) return undefined
+		try {
+			return generateThemeVariables(
+				activeWorkspace.theme.background,
+				activeWorkspace.theme.foreground,
+				activeWorkspace.theme.fontFamily,
+				activeWorkspace.theme.fontSize,
+			)
+		} catch (err) {
+			console.error('[App] theme generation failed:', err)
+			return undefined
+		}
+	}, [activeWorkspace?.theme])
+
 	if (!initialized) {
 		return (
 			<div className="flex items-center justify-center h-full">
@@ -65,21 +81,6 @@ export function App() {
 	}
 
 	const visitedWorkspaces = workspaces.filter((w) => visitedWorkspaceIds.includes(w.id))
-
-	const themeStyles = useMemo(() => {
-		if (!activeWorkspace?.theme) return undefined
-		try {
-			return generateThemeVariables(
-				activeWorkspace.theme.background,
-				activeWorkspace.theme.foreground,
-				activeWorkspace.theme.fontFamily,
-				activeWorkspace.theme.fontSize,
-			)
-		} catch (err) {
-			console.error('[App] theme generation failed:', err)
-			return undefined
-		}
-	}, [activeWorkspace?.theme])
 
 	return (
 		<ErrorBoundary>
