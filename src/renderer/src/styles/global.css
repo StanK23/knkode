@@ -172,27 +172,32 @@
 		@apply bg-sunken border border-edge rounded-sm text-content text-[11px] py-0.5 px-2 cursor-pointer shrink-0 hover:bg-overlay;
 	}
 
+	.transition-colors {
+		transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+	}
+
 	/* Settings panel */
 	.settings-input {
-		@apply bg-sunken border border-edge rounded-sm text-content text-xs py-1 px-2 outline-none focus:border-accent transition-colors duration-200;
+		@apply bg-sunken border border-edge rounded-sm text-content text-xs py-1 px-2 outline-none focus:border-accent transition-colors duration-300;
+		transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
 	}
 	.section-label {
-		@apply text-[11px] text-content-secondary uppercase tracking-wider font-semibold;
+		@apply text-[10px] text-content-secondary uppercase tracking-[0.15em] font-semibold;
 	}
 
 	/* Animations */
 	@keyframes panel-in {
 		0% {
 			opacity: 0;
-			transform: scale(0.97);
+			transform: translateY(12px) scale(0.98);
 		}
 		100% {
 			opacity: 1;
-			transform: scale(1);
+			transform: translateY(0) scale(1);
 		}
 	}
 	.animate-panel-in {
-		animation: panel-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+		animation: panel-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 	}
 
 	@media (prefers-reduced-motion: reduce) {

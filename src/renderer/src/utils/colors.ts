@@ -56,7 +56,10 @@ export function isDark(hex: string): boolean {
  * Auto-detects dark vs light mode from the background luminance.
  * Returns an object suitable for React inline `style` — keys are CSS variable names.
  */
-export function generateThemeVariables(bg: string, fg: string): Record<`--color-${string}`, string> {
+export function generateThemeVariables(
+	bg: string,
+	fg: string,
+): Record<`--color-${string}`, string> {
 	const dark = isDark(bg)
 
 	// Surfaces shift toward white (dark mode) or black (light mode) for depth
