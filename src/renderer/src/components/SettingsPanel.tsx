@@ -56,7 +56,7 @@ function CwdInput({ value, homeDir, onChange, 'aria-label': ariaLabel }: CwdInpu
 	}, [local, homeDir, value, onChange])
 
 	return (
-		<div className="flex flex-col flex-[2] gap-0.5">
+		<div className="flex flex-col flex-[2] min-w-0 gap-0.5">
 			<input
 				value={local}
 				onChange={(e) => {
@@ -74,7 +74,7 @@ function CwdInput({ value, homeDir, onChange, 'aria-label': ariaLabel }: CwdInpu
 						setInvalid(false)
 					}
 				}}
-				className={`settings-input ${invalid ? '!border-danger' : ''}`}
+				className={`settings-input w-full ${invalid ? '!border-danger' : ''}`}
 				placeholder="Working directory"
 				aria-label={ariaLabel}
 				aria-invalid={invalid}
@@ -143,7 +143,7 @@ function SnippetsSection() {
 								<input
 									value={editName}
 									onChange={(e) => setEditName(e.target.value)}
-									className="settings-input flex-1"
+									className="settings-input flex-1 min-w-0"
 									placeholder="Name"
 									aria-label="Snippet name"
 									autoFocus
@@ -155,7 +155,7 @@ function SnippetsSection() {
 								<input
 									value={editCommand}
 									onChange={(e) => setEditCommand(e.target.value)}
-									className="settings-input flex-[2]"
+									className="settings-input flex-[2] min-w-0"
 									placeholder="Command"
 									aria-label="Snippet command"
 									onKeyDown={(e) => {
@@ -219,7 +219,7 @@ function SnippetsSection() {
 						<input
 							value={newCommand}
 							onChange={(e) => setNewCommand(e.target.value)}
-							className="settings-input flex-[2]"
+							className="settings-input flex-[2] min-w-0"
 							placeholder="Command (e.g. claude --dangerously-skip-permissions)"
 							aria-label="New snippet command"
 							onKeyDown={(e) => {
@@ -407,7 +407,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 									value={name}
 									onChange={(e) => setName(e.target.value)}
 									maxLength={128}
-									className="settings-input flex-1"
+									className="settings-input flex-1 min-w-0"
 								/>
 							</label>
 							<label className="flex items-center gap-3">
@@ -449,7 +449,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 												startupCommand: e.target.value || null,
 											})
 										}
-										className="settings-input flex-[2]"
+										className="settings-input flex-[2] min-w-0"
 										placeholder="Startup command"
 										aria-label={`Pane ${pane.label} startup command`}
 									/>
