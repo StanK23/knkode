@@ -395,7 +395,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 				</div>
 
 				<div className="px-6 py-6 overflow-y-auto overflow-x-hidden flex flex-col gap-8">
-					{/* Name & Color */}
+					{/* General */}
 					<div className="grid grid-cols-[110px_1fr] items-start gap-x-4 gap-y-4">
 						<div className="pt-1.5">
 							<span className="section-label">General</span>
@@ -457,13 +457,13 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 							))}
 						</div>
 					</div>
-					{/* Theme */}
+					{/* Terminal */}
 					<div className="grid grid-cols-[110px_1fr] items-start gap-x-4 gap-y-4">
 						<div className="pt-1.5">
 							<span className="section-label">Terminal</span>
 						</div>
 						<div className="flex flex-col gap-4 min-w-0">
-							{/* Theme preset grid */}
+							{/* Theme preset grid — each name is rendered in its own theme colors as a live preview */}
 							<div className="grid grid-cols-4 gap-1.5">
 								{THEME_PRESETS.map((preset) => {
 									const isActive = bg === preset.background && fg === preset.foreground
@@ -491,6 +491,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 							</div>
 
 							<div className="flex flex-col gap-3">
+								{/* Custom colors */}
 								<div className="flex items-center gap-4">
 									<label className="flex items-center gap-2">
 										<span className="text-xs text-content-secondary shrink-0">Background</span>
@@ -512,6 +513,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 									</label>
 								</div>
 
+								{/* Font settings */}
 								<div className="flex items-center gap-3">
 									<span className="text-xs text-content-secondary w-20 shrink-0">Font</span>
 									<div className="flex-1 min-w-0">
@@ -544,6 +546,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 									</div>
 								</div>
 
+								{/* Behavior */}
 								<label className="flex items-center gap-3">
 									<span className="text-xs text-content-secondary w-20 shrink-0">
 										Dim unfocused
