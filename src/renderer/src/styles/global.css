@@ -125,8 +125,9 @@
 	--font-family-ui: var(--font-mono-fallback);
 	--font-size-ui: 13px;
 
-	/* Overrides Tailwind's font-sans with a monospace stack — the entire UI
-	   uses a terminal aesthetic, so sans-serif fonts are never used. */
+	/* Override Tailwind's font-sans and font-mono with the dynamic UI font.
+	   Both point to --font-family-ui so the entire UI uses the workspace's
+	   chosen monospace font — sans-serif fonts are never used. */
 	--font-sans: var(--font-family-ui);
 	--font-mono: var(--font-family-ui);
 }
