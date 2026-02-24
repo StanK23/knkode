@@ -124,10 +124,12 @@ function SnippetsSection() {
 		}
 	}, [newName, newCommand, addSnippet])
 
-		return (
-			<div className="grid grid-cols-[110px_1fr] items-start gap-x-4 gap-y-4">
-				<div className="pt-1.5"><span className="section-label">Commands</span></div>
-				<div className="flex flex-col gap-2 min-w-0">
+	return (
+		<div className="grid grid-cols-[110px_1fr] items-start gap-x-4 gap-y-4">
+			<div className="pt-1.5">
+				<span className="section-label">Commands</span>
+			</div>
+			<div className="flex flex-col gap-2 min-w-0">
 				<span className="text-[10px] text-content-muted -mt-1 mb-1">
 					Global snippets — available from the &gt;_ icon on any pane
 				</span>
@@ -394,9 +396,11 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 
 				<div className="px-6 py-6 overflow-y-auto overflow-x-hidden flex flex-col gap-8">
 					{/* Name & Color */}
-										<div className="grid grid-cols-[110px_1fr] items-start gap-x-4 gap-y-4">
-											<div className="pt-1.5"><span className="section-label">General</span></div>
-											<div className="flex flex-col gap-3 min-w-0">
+					<div className="grid grid-cols-[110px_1fr] items-start gap-x-4 gap-y-4">
+						<div className="pt-1.5">
+							<span className="section-label">General</span>
+						</div>
+						<div className="flex flex-col gap-3 min-w-0">
 							<label className="flex items-center gap-3">
 								<span className="text-xs text-content-secondary w-16 shrink-0">Name</span>
 								<input
@@ -418,9 +422,11 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 						</div>
 					</div>
 					{/* Panes */}
-										<div className="grid grid-cols-[110px_1fr] items-start gap-x-4 gap-y-4">
-											<div className="pt-1.5"><span className="section-label">Panes</span></div>
-											<div className="flex flex-col gap-2 min-w-0">
+					<div className="grid grid-cols-[110px_1fr] items-start gap-x-4 gap-y-4">
+						<div className="pt-1.5">
+							<span className="section-label">Panes</span>
+						</div>
+						<div className="flex flex-col gap-2 min-w-0">
 							{Object.entries(workspace.panes).map(([paneId, pane]) => (
 								<div key={paneId} className="flex gap-1.5">
 									<input
@@ -452,9 +458,11 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 						</div>
 					</div>
 					{/* Theme */}
-										<div className="grid grid-cols-[110px_1fr] items-start gap-x-4 gap-y-4">
-											<div className="pt-1.5"><span className="section-label">Terminal</span></div>
-											<div className="flex flex-col gap-4 min-w-0">
+					<div className="grid grid-cols-[110px_1fr] items-start gap-x-4 gap-y-4">
+						<div className="pt-1.5">
+							<span className="section-label">Terminal</span>
+						</div>
+						<div className="flex flex-col gap-4 min-w-0">
 							{/* Theme preset grid */}
 							<div className="grid grid-cols-4 gap-1.5">
 								{THEME_PRESETS.map((preset) => {
