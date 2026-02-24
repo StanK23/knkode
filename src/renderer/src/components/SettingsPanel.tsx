@@ -605,7 +605,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					<SnippetsSection />
 				</div>
 
-				<div className="flex items-center gap-2 px-5 py-3 border-t border-edge">
+				<div className="flex items-center gap-2 px-6 py-3 border-t border-edge/50">
 					<button
 						type="button"
 						onClick={handleDelete}
