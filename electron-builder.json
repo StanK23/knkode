@@ -14,6 +14,7 @@
     { "from": "resources/icon.png", "to": "icon.png" }
   ],
   "asarUnpack": ["**/node-pty/**"],
+  "afterSign": "scripts/notarize.js",
   "mac": {
     "target": ["dmg", "zip"],
     "category": "public.app-category.developer-tools",
