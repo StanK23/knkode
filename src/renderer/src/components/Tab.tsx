@@ -81,7 +81,7 @@ export function Tab({
 			onDragOver={(e) => onDragOver(e, index)}
 			onDrop={() => onDrop(index)}
 			onDragEnd={onDragEnd}
-			className={`flex items-center gap-1.5 px-3 h-tab cursor-pointer rounded-t-md select-none relative min-w-20 max-w-[180px] ${
+			className={`flex items-center gap-1.5 px-3 h-tab cursor-pointer rounded-t-md select-none relative min-w-20 max-w-[180px] transition-colors duration-200 ease-out ${
 				isActive ? 'bg-overlay-active' : 'bg-overlay hover:bg-overlay-hover'
 			} ${isDragOver ? 'shadow-[inset_2px_0_0_var(--color-accent)]' : ''} ${
 				isDragging ? 'opacity-40' : ''

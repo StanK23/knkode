@@ -284,22 +284,19 @@ export function Pane({
 		setIsDragging(false)
 		dragCounterRef.current = 0
 	}, [])
-	const handlePaneDragOver = useCallback(
-		(e: React.DragEvent) => {
-			if (!e.dataTransfer.types.includes(PANE_DRAG_MIME)) return
-			e.preventDefault()
-			e.dataTransfer.dropEffect = 'move'
-			const el = outerRef.current
-			if (el) {
-				const zone = getDropZone(e, el)
-				if (zone !== dropZoneRef.current) {
-					dropZoneRef.current = zone
-					setDropZone(zone)
-				}
+	const handlePaneDragOver = useCallback((e: React.DragEvent) => {
+		if (!e.dataTransfer.types.includes(PANE_DRAG_MIME)) return
+		e.preventDefault()
+		e.dataTransfer.dropEffect = 'move'
+		const el = outerRef.current
+		if (el) {
+			const zone = getDropZone(e, el)
+			if (zone !== dropZoneRef.current) {
+				dropZoneRef.current = zone
+				setDropZone(zone)
 			}
-		},
-		[],
-	)
+		}
+	}, [])
 	const handlePaneDragEnter = useCallback((e: React.DragEvent) => {
 		if (e.dataTransfer.types.includes(PANE_DRAG_MIME)) {
 			dragCounterRef.current++
@@ -357,7 +354,7 @@ export function Pane({
 				onDragEnd={handleDragEnd}
 				onContextMenu={handleContextMenu}
 				onMouseDown={handleFocus}
-				className={`h-header flex items-center gap-2 px-2 text-[11px] shrink-0 relative select-none ${
+				className={`h-header flex items-center gap-2 px-2 text-[11px] shrink-0 relative select-none transition-colors duration-200 ${
 					isFocused ? 'bg-elevated border-b border-accent' : 'bg-sunken border-b border-edge'
 				} ${isDragging ? 'opacity-40' : ''}`}
 			>

@@ -25,6 +25,7 @@ const mockApi = {
 	writePty: vi.fn<(id: string, data: string) => Promise<void>>(),
 	resizePty: vi.fn<(id: string, cols: number, rows: number) => Promise<void>>(),
 	killPty: vi.fn<(id: string) => Promise<void>>(),
+	getSnippets: vi.fn<() => Promise<[]>>(),
 	onPtyData: vi.fn(() => () => {}),
 	onPtyExit: vi.fn(() => () => {}),
 	onPtyCwdChanged: vi.fn(() => () => {}),

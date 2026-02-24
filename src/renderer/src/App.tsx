@@ -5,6 +5,7 @@ import { SettingsPanel } from './components/SettingsPanel'
 import { TabBar } from './components/TabBar'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useStore } from './store'
+import { generateThemeVariables } from './utils/colors'
 
 export function App() {
 	const initialized = useStore((s) => s.initialized)
@@ -65,8 +66,15 @@ export function App() {
 
 	const visitedWorkspaces = workspaces.filter((w) => visitedWorkspaceIds.includes(w.id))
 
+	const themeStyles = activeWorkspace
+		? generateThemeVariables(activeWorkspace.theme.background, activeWorkspace.theme.foreground)
+		: undefined
+
 	return (
-		<div className="flex flex-col h-full w-full relative">
+		<div
+			className="flex flex-col h-full w-full relative transition-colors duration-200"
+			style={themeStyles as React.CSSProperties}
+		>
 			<TabBar onOpenSettings={() => setShowSettings(true)} />
 			{visitedWorkspaces.length > 0 ? (
 				<>
