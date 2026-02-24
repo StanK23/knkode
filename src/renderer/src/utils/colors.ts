@@ -1,3 +1,8 @@
+/** Test whether a string is a valid hex color (#RGB, #RRGGBB, or bare RGB/RRGGBB). */
+export function isValidHex(hex: string): boolean {
+	return /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.test(hex)
+}
+
 /** Parse a hex color string (#RGB or #RRGGBB) into an RGB tuple. Returns [0,0,0] on malformed input. */
 export function hexToRgb(hex: string): [number, number, number] {
 	const match = String(hex).match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i)
@@ -64,8 +69,8 @@ export function generateThemeVariables(
 	fontSize?: number,
 ): Record<`--color-${string}` | `--font-${string}`, string> {
 	// Safe fallbacks for missing or malformed colors to prevent app crashes
-	const safeBg = bg && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(bg) ? bg : '#1a1a2e'
-	const safeFg = fg && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(fg) ? fg : '#e0e0e0'
+	const safeBg = bg && isValidHex(bg) ? bg : '#1a1a2e'
+	const safeFg = fg && isValidHex(fg) ? fg : '#e0e0e0'
 
 	const dark = isDark(safeBg)
 
