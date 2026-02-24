@@ -175,6 +175,17 @@
 		@apply bg-sunken border border-edge rounded-sm text-content text-[11px] py-0.5 px-2 cursor-pointer shrink-0 hover:bg-overlay;
 	}
 
+	/* Shared interactive elements */
+	.btn-ghost {
+		@apply bg-transparent border-none cursor-pointer text-[11px] px-1 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none;
+	}
+	.color-swatch {
+		@apply bg-sunken border border-edge rounded-sm w-10 h-7 p-0.5 cursor-pointer;
+	}
+	.stepper-btn {
+		@apply bg-sunken border border-edge rounded-sm text-content cursor-pointer w-7 h-7 flex items-center justify-center hover:bg-overlay focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none;
+	}
+
 	/* Settings panel */
 	.settings-input {
 		@apply bg-sunken border border-edge rounded-sm text-content text-xs py-1 px-2 outline-none focus:border-accent transition-colors duration-300;

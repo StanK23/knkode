@@ -179,7 +179,7 @@ function SnippetsSection() {
 							<button
 								type="button"
 								onClick={commitEdit}
-								className="bg-transparent border-none text-accent cursor-pointer text-[11px] px-1 hover:brightness-125 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+								className="btn-ghost text-accent hover:brightness-125"
 							>
 								Save
 							</button>
@@ -195,7 +195,7 @@ function SnippetsSection() {
 							<button
 								type="button"
 								onClick={() => startEdit(snippet.id)}
-								className="bg-transparent border-none text-content-muted cursor-pointer text-[11px] px-1 hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+								className="btn-ghost text-content-muted hover:text-content"
 								aria-label={`Edit ${snippet.name}`}
 							>
 								Edit
@@ -205,7 +205,7 @@ function SnippetsSection() {
 								onClick={() => {
 									if (window.confirm(`Delete snippet "${snippet.name}"?`)) removeSnippet(snippet.id)
 								}}
-								className="bg-transparent border-none text-danger cursor-pointer text-[11px] px-1 hover:brightness-125 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+								className="btn-ghost text-danger hover:brightness-125"
 								aria-label={`Delete ${snippet.name}`}
 							>
 								Del
@@ -242,7 +242,7 @@ function SnippetsSection() {
 					<button
 						type="button"
 						onClick={commitAdd}
-						className="bg-transparent border-none text-accent cursor-pointer text-[11px] px-1 hover:brightness-125 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+						className="btn-ghost text-accent hover:brightness-125"
 					>
 						Add
 					</button>
@@ -423,7 +423,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								type="color"
 								value={color}
 								onChange={(e) => setColor(e.target.value)}
-								className="bg-sunken border border-edge rounded-sm w-10 h-7 p-0.5 cursor-pointer"
+								className="color-swatch"
 							/>
 						</label>
 					</SettingsSection>
@@ -496,7 +496,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 										type="color"
 										value={bg}
 										onChange={(e) => setBg(e.target.value)}
-										className="bg-sunken border border-edge rounded-sm w-10 h-7 p-0.5 cursor-pointer"
+										className="color-swatch"
 									/>
 								</label>
 								<label className="flex items-center gap-2">
@@ -505,7 +505,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 										type="color"
 										value={fg}
 										onChange={(e) => setFg(e.target.value)}
-										className="bg-sunken border border-edge rounded-sm w-10 h-7 p-0.5 cursor-pointer"
+										className="color-swatch"
 									/>
 								</label>
 							</div>
@@ -525,7 +525,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 										type="button"
 										onClick={() => setFontSize((s) => Math.max(8, s - 1))}
 										aria-label="Decrease font size"
-										className="bg-sunken border border-edge rounded-sm text-content cursor-pointer w-7 h-7 flex items-center justify-center hover:bg-overlay focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+										className="stepper-btn"
 									>
 										-
 									</button>
@@ -536,7 +536,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 										type="button"
 										onClick={() => setFontSize((s) => Math.min(32, s + 1))}
 										aria-label="Increase font size"
-										className="bg-sunken border border-edge rounded-sm text-content cursor-pointer w-7 h-7 flex items-center justify-center hover:bg-overlay focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+										className="stepper-btn"
 									>
 										+
 									</button>
