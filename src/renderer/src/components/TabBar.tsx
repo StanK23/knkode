@@ -130,7 +130,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 					onClick={handleNewWorkspace}
 					title={`New workspace (${modKey}+T)`}
 					aria-label="Create new workspace"
-					className="bg-transparent border-none text-content-muted cursor-pointer text-lg leading-none min-w-[44px] px-2.5 h-tab flex items-center justify-center shrink-0 hover:text-content hover:bg-overlay rounded-sm focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none transition-colors duration-300"
+					className="bg-transparent border-none text-content-muted cursor-pointer text-lg leading-none min-w-[44px] px-2.5 h-tab flex items-center justify-center shrink-0 hover:text-content hover:bg-overlay rounded-sm focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none transition-colors duration-300 ease-[var(--ease-mechanical)]"
 				>
 					+
 				</button>
@@ -143,7 +143,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 					onClick={onOpenSettings}
 					title={`Workspace settings (${modKey}+,)`}
 					aria-label="Open workspace settings"
-					className="no-drag relative bg-transparent border-none text-content-muted cursor-pointer min-w-[44px] px-2.5 h-tab self-center flex items-center justify-center shrink-0 hover:text-content hover:bg-overlay rounded-sm focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none transition-colors duration-300"
+					className="no-drag relative bg-transparent border-none text-content-muted cursor-pointer min-w-[44px] px-2.5 h-tab self-center flex items-center justify-center shrink-0 hover:text-content hover:bg-overlay rounded-sm focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none transition-colors duration-300 ease-[var(--ease-mechanical)]"
 				>
 					<svg
 						width="16"
@@ -170,7 +170,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 						onClick={() => setShowClosedMenu((v) => !v)}
 						title="Reopen closed workspace"
 						aria-label={`Reopen closed workspace (${closedWorkspaces.length} available)`}
-						className="bg-transparent border border-edge text-content-muted cursor-pointer text-[11px] min-h-[28px] py-0.5 px-2 rounded-sm hover:text-content hover:border-content-muted focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none transition-colors duration-300"
+						className="bg-transparent border border-edge text-content-muted cursor-pointer text-[11px] min-h-[28px] py-0.5 px-2 rounded-sm hover:text-content hover:border-content-muted focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none transition-colors duration-300 ease-[var(--ease-mechanical)]"
 					>
 						{closedWorkspaces.length} closed
 					</button>
