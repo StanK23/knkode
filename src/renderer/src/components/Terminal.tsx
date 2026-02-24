@@ -17,6 +17,34 @@ function isTermAtBottom(term: XTerm): boolean {
 	return term.buffer.active.viewportY >= term.buffer.active.baseY
 }
 
+/**
+ * Call fitAddon.fit() and restore the user's scroll position afterward.
+ * Skips scroll management for the alternate screen buffer (TUIs like vim,
+ * htop) — the alternate buffer has no scrollback, so viewportY/baseY are
+ * always 0 and scroll restoration is meaningless.
+ * For the normal buffer, preserves exact distance from bottom instead of a
+ * ratio. When the terminal narrows, long lines re-wrap into more rows,
+ * inflating baseY disproportionately and causing a ratio to overshoot.
+ */
+function fitAndPreserveScroll(term: XTerm, fitAddon: FitAddon): void {
+	const isAlternateBuffer = term.buffer.active.type === 'alternate'
+	if (isAlternateBuffer) {
+		fitAddon.fit()
+		return
+	}
+
+	const atBottom = isTermAtBottom(term)
+	const linesFromBottom = term.buffer.active.baseY - term.buffer.active.viewportY
+
+	fitAddon.fit()
+
+	if (atBottom) {
+		term.scrollToBottom()
+	} else {
+		term.scrollToLine(Math.max(0, term.buffer.active.baseY - linesFromBottom))
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Module-level cache (keyed by paneId) — survives React unmount/remount
 // (e.g. pane split). Per-instance state (xterm, addons, PTY listeners) lives
@@ -276,21 +304,22 @@ export function TerminalView({
 		// Also track buffer scroll (new output arriving while scrolled up)
 		const scrollDisposable = term.onScroll(handleViewportScroll)
 
-		// Preserve scroll position across resize using ratio (viewportY/baseY).
-		// Always ratio-based: at bottom ratio=1 → stays at bottom; scrolled up
-		// ratio<1 → proportional. Avoids the `isAtBottom` flag in resize handling,
-		// which TUI apps (vim, Claude Code) break by briefly repositioning the
-		// viewport during screen redraws.
-		const resizeObserver = new ResizeObserver(() => {
+		// Skip ResizeObserver callbacks with unchanged dimensions (fires on
+		// DOM re-attach, style recalc, etc.) to avoid unnecessary fit/scroll cycles.
+		let lastWidth = 0
+		let lastHeight = 0
+		const resizeObserver = new ResizeObserver((entries) => {
+			const entry = entries[0]
+			if (!entry) return
+			const { width, height } = entry.contentRect
+			if (width === lastWidth && height === lastHeight) return
+			lastWidth = width
+			lastHeight = height
+
 			requestAnimationFrame(() => {
 				try {
 					if (!containerRef.current?.clientWidth) return
-
-					const { viewportY, baseY } = term.buffer.active
-					// No scrollback content: treat as at-bottom
-					const ratio = baseY > 0 ? viewportY / baseY : 1
-					fitAddon.fit()
-					term.scrollToLine(Math.round(ratio * term.buffer.active.baseY))
+					fitAndPreserveScroll(term, fitAddon)
 				} catch (err) {
 					console.warn('[terminal] fit()/scroll failed during resize:', err)
 				}
@@ -347,10 +376,8 @@ export function TerminalView({
 		termRef.current.options.fontSize = mergedTheme.fontSize
 		termRef.current.options.fontFamily = newFontFamily
 		if (metricsChanged) {
-			const wasAtBottom = isTermAtBottom(termRef.current)
 			try {
-				fitAddonRef.current.fit()
-				if (wasAtBottom) termRef.current.scrollToBottom()
+				fitAndPreserveScroll(termRef.current, fitAddonRef.current)
 				if (isFocusedRef.current) termRef.current.focus()
 			} catch (err) {
 				console.warn('[terminal] fit()/scroll failed during theme update:', err)
