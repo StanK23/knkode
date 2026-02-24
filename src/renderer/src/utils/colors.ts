@@ -1,7 +1,18 @@
+import type React from 'react'
+import { TERMINAL_FONTS } from '../data/theme-presets'
+
+/** Test whether a string is a valid hex color (#RGB, #RRGGBB, or bare RGB/RRGGBB). */
+export function isValidHex(hex: string): boolean {
+	return /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.test(hex)
+}
+
 /** Parse a hex color string (#RGB or #RRGGBB) into an RGB tuple. Returns [0,0,0] on malformed input. */
 export function hexToRgb(hex: string): [number, number, number] {
-	const match = String(hex).match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i)
-	if (!match) return [0, 0, 0]
+	const match = hex.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i)
+	if (!match) {
+		console.warn('[theme] malformed hex color:', hex)
+		return [0, 0, 0]
+	}
 	const c = match[1]
 	if (c.length === 3) {
 		return [
@@ -40,16 +51,36 @@ export function mixColors(color1: string, color2: string, weight: number): strin
 	)
 }
 
-/** Returns true if the color has low perceived luminance (< 0.5). Defaults to true (dark) on invalid input. */
+/** Returns true if the color has low perceived luminance (< 0.5).
+ *  Invalid input → hexToRgb returns [0,0,0] → luminance 0 → true (dark). */
 export function isDark(hex: string): boolean {
-	try {
-		const [r, g, b] = hexToRgb(hex)
-		const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-		return luminance < 0.5
-	} catch {
-		return true
-	}
+	const [r, g, b] = hexToRgb(hex)
+	const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+	return luminance < 0.5
 }
+
+const MIN_UI_FONT_SIZE = 11
+const MAX_UI_FONT_SIZE = 15
+const DEFAULT_UI_FONT_SIZE = 13
+
+/** The exact set of CSS custom properties produced by generateThemeVariables.
+ *  Intersected with React.CSSProperties so the result can be spread into a `style` prop. */
+export type ThemeVariables = {
+	'--color-canvas': string
+	'--color-elevated': string
+	'--color-sunken': string
+	'--color-overlay': string
+	'--color-overlay-hover': string
+	'--color-overlay-active': string
+	'--color-content': string
+	'--color-content-secondary': string
+	'--color-content-muted': string
+	'--color-edge': string
+	'--color-accent': string
+	'--color-danger': string
+	'--font-family-ui': string
+	'--font-size-ui': string
+} & React.CSSProperties
 
 /**
  * Derive a full set of CSS custom properties from a background/foreground color pair
@@ -62,10 +93,9 @@ export function generateThemeVariables(
 	fg?: string,
 	fontFamily?: string,
 	fontSize?: number,
-): Record<`--color-${string}` | `--font-${string}`, string> {
-	// Safe fallbacks for missing or malformed colors to prevent app crashes
-	const safeBg = bg && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(bg) ? bg : '#1a1a2e'
-	const safeFg = fg && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(fg) ? fg : '#e0e0e0'
+): ThemeVariables {
+	const safeBg = bg && isValidHex(bg) ? bg : '#1a1a2e'
+	const safeFg = fg && isValidHex(fg) ? fg : '#e0e0e0'
 
 	const dark = isDark(safeBg)
 
@@ -91,13 +121,16 @@ export function generateThemeVariables(
 	const accent = dark ? '#6c63ff' : '#4d46e5'
 	const danger = '#e74c3c'
 
-	// Typography: scale UI font size relative to terminal font size.
-	// We want the UI to feel proportional but slightly smaller than terminal text.
-	// Range: 11px to 15px.
+	// Sanitize fontFamily — only allow known fonts to prevent CSS injection from tampered config
+	const safeFontFamily = fontFamily && (TERMINAL_FONTS as readonly string[]).includes(fontFamily)
+		? fontFamily
+		: undefined
+
+	// Typography: 1px smaller than terminal font size, clamped to 11-15px range
 	const uiFontSize =
 		typeof fontSize === 'number' && Number.isFinite(fontSize) && fontSize > 0
-			? Math.max(11, Math.min(15, fontSize - 1))
-			: 13
+			? Math.max(MIN_UI_FONT_SIZE, Math.min(MAX_UI_FONT_SIZE, fontSize - 1))
+			: DEFAULT_UI_FONT_SIZE
 
 	return {
 		'--color-canvas': safeBg,
@@ -112,8 +145,10 @@ export function generateThemeVariables(
 		'--color-edge': edge,
 		'--color-accent': accent,
 		'--color-danger': danger,
-		'--font-family-ui': fontFamily
-			? `"${fontFamily}", var(--font-mono-fallback)`
+		// CSS variable fallback — intentionally different from buildFontFamily() in theme-presets.ts
+		// which uses literal font names for xterm.js (no CSS variable support in canvas).
+		'--font-family-ui': safeFontFamily
+			? `"${safeFontFamily}", var(--font-mono-fallback)`
 			: 'var(--font-mono-fallback)',
 		'--font-size-ui': `${uiFontSize}px`,
 	}
