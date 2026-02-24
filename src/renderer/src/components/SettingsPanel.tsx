@@ -17,6 +17,23 @@ import { isValidCwd } from '../utils/validation'
 import { FontPicker } from './FontPicker'
 import { LayoutPicker } from './LayoutPicker'
 
+export function SettingsSection({
+	label,
+	gap = 12,
+	children,
+}: { label: string; gap?: number; children: React.ReactNode }) {
+	return (
+		<div className="grid grid-cols-[110px_1fr] items-start gap-x-4 gap-y-4">
+			<div className="pt-1.5">
+				<span className="section-label">{label}</span>
+			</div>
+			<div className="flex flex-col min-w-0" style={{ gap }}>
+				{children}
+			</div>
+		</div>
+	)
+}
+
 /** Read the latest workspace from the store to avoid stale-snapshot races
  *  when multiple auto-persist effects fire in close succession. */
 function getLatestWorkspace(wsId: string): Workspace | undefined {
@@ -125,127 +142,121 @@ function SnippetsSection() {
 	}, [newName, newCommand, addSnippet])
 
 	return (
-		<div className="grid grid-cols-[110px_1fr] items-start gap-x-4 gap-y-4">
-			<div className="pt-1.5">
-				<span className="section-label">Commands</span>
-			</div>
-			<div className="flex flex-col gap-2 min-w-0">
-				<span className="text-[10px] text-content-muted -mt-1 mb-1">
-					Global snippets — available from the &gt;_ icon on any pane
-				</span>
-				{snippets.length === 0 && !isAdding && (
-					<span className="text-[11px] text-content-muted italic">No snippets yet</span>
-				)}
-				{snippets.map((snippet) => (
-					<div key={snippet.id} className="flex items-center gap-1.5">
-						{editingId === snippet.id ? (
-							<>
-								<input
-									value={editName}
-									onChange={(e) => setEditName(e.target.value)}
-									className="settings-input flex-1 min-w-0"
-									placeholder="Name"
-									aria-label="Snippet name"
-									autoFocus
-									onKeyDown={(e) => {
-										if (e.key === 'Enter') commitEdit()
-										if (e.key === 'Escape') setEditingId(null)
-									}}
-								/>
-								<input
-									value={editCommand}
-									onChange={(e) => setEditCommand(e.target.value)}
-									className="settings-input flex-[2] min-w-0"
-									placeholder="Command"
-									aria-label="Snippet command"
-									onKeyDown={(e) => {
-										if (e.key === 'Enter') commitEdit()
-										if (e.key === 'Escape') setEditingId(null)
-									}}
-								/>
-								<button
-									type="button"
-									onClick={commitEdit}
-									className="bg-transparent border-none text-accent cursor-pointer text-[11px] px-1 hover:brightness-125 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
-								>
-									Save
-								</button>
-							</>
-						) : (
-							<>
-								<span className="text-xs text-content font-medium w-24 truncate shrink-0">
-									{snippet.name}
-								</span>
-								<span className="text-[11px] text-content-muted flex-1 truncate font-mono">
-									{snippet.command}
-								</span>
-								<button
-									type="button"
-									onClick={() => startEdit(snippet.id)}
-									className="bg-transparent border-none text-content-muted cursor-pointer text-[11px] px-1 hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
-									aria-label={`Edit ${snippet.name}`}
-								>
-									Edit
-								</button>
-								<button
-									type="button"
-									onClick={() => {
-										if (window.confirm(`Delete snippet "${snippet.name}"?`))
-											removeSnippet(snippet.id)
-									}}
-									className="bg-transparent border-none text-danger cursor-pointer text-[11px] px-1 hover:brightness-125 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
-									aria-label={`Delete ${snippet.name}`}
-								>
-									Del
-								</button>
-							</>
-						)}
-					</div>
-				))}
-				{isAdding ? (
-					<div className="flex items-center gap-1.5">
-						<input
-							value={newName}
-							onChange={(e) => setNewName(e.target.value)}
-							className="settings-input flex-1 min-w-0"
-							placeholder="Name (e.g. Claude)"
-							aria-label="New snippet name"
-							autoFocus
-							onKeyDown={(e) => {
-								if (e.key === 'Enter') commitAdd()
-								if (e.key === 'Escape') setIsAdding(false)
-							}}
-						/>
-						<input
-							value={newCommand}
-							onChange={(e) => setNewCommand(e.target.value)}
-							className="settings-input flex-[2] min-w-0"
-							placeholder="Command (e.g. claude --dangerously-skip-permissions)"
-							aria-label="New snippet command"
-							onKeyDown={(e) => {
-								if (e.key === 'Enter') commitAdd()
-								if (e.key === 'Escape') setIsAdding(false)
-							}}
-						/>
-						<button
-							type="button"
-							onClick={commitAdd}
-							className="bg-transparent border-none text-accent cursor-pointer text-[11px] px-1 hover:brightness-125 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
-						>
-							Add
-						</button>
-					</div>
-				) : (
+		<SettingsSection label="Commands" gap={8}>
+			<span className="text-[10px] text-content-muted -mt-1 mb-1">
+				Global snippets — available from the &gt;_ icon on any pane
+			</span>
+			{snippets.length === 0 && !isAdding && (
+				<span className="text-[11px] text-content-muted italic">No snippets yet</span>
+			)}
+			{snippets.map((snippet) => (
+				<div key={snippet.id} className="flex items-center gap-1.5">
+					{editingId === snippet.id ? (
+						<>
+							<input
+								value={editName}
+								onChange={(e) => setEditName(e.target.value)}
+								className="settings-input flex-1 min-w-0"
+								placeholder="Name"
+								aria-label="Snippet name"
+								autoFocus
+								onKeyDown={(e) => {
+									if (e.key === 'Enter') commitEdit()
+									if (e.key === 'Escape') setEditingId(null)
+								}}
+							/>
+							<input
+								value={editCommand}
+								onChange={(e) => setEditCommand(e.target.value)}
+								className="settings-input flex-[2] min-w-0"
+								placeholder="Command"
+								aria-label="Snippet command"
+								onKeyDown={(e) => {
+									if (e.key === 'Enter') commitEdit()
+									if (e.key === 'Escape') setEditingId(null)
+								}}
+							/>
+							<button
+								type="button"
+								onClick={commitEdit}
+								className="bg-transparent border-none text-accent cursor-pointer text-[11px] px-1 hover:brightness-125 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+							>
+								Save
+							</button>
+						</>
+					) : (
+						<>
+							<span className="text-xs text-content font-medium w-24 truncate shrink-0">
+								{snippet.name}
+							</span>
+							<span className="text-[11px] text-content-muted flex-1 truncate font-mono">
+								{snippet.command}
+							</span>
+							<button
+								type="button"
+								onClick={() => startEdit(snippet.id)}
+								className="bg-transparent border-none text-content-muted cursor-pointer text-[11px] px-1 hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+								aria-label={`Edit ${snippet.name}`}
+							>
+								Edit
+							</button>
+							<button
+								type="button"
+								onClick={() => {
+									if (window.confirm(`Delete snippet "${snippet.name}"?`)) removeSnippet(snippet.id)
+								}}
+								className="bg-transparent border-none text-danger cursor-pointer text-[11px] px-1 hover:brightness-125 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+								aria-label={`Delete ${snippet.name}`}
+							>
+								Del
+							</button>
+						</>
+					)}
+				</div>
+			))}
+			{isAdding ? (
+				<div className="flex items-center gap-1.5">
+					<input
+						value={newName}
+						onChange={(e) => setNewName(e.target.value)}
+						className="settings-input flex-1 min-w-0"
+						placeholder="Name (e.g. Claude)"
+						aria-label="New snippet name"
+						autoFocus
+						onKeyDown={(e) => {
+							if (e.key === 'Enter') commitAdd()
+							if (e.key === 'Escape') setIsAdding(false)
+						}}
+					/>
+					<input
+						value={newCommand}
+						onChange={(e) => setNewCommand(e.target.value)}
+						className="settings-input flex-[2] min-w-0"
+						placeholder="Command (e.g. claude --dangerously-skip-permissions)"
+						aria-label="New snippet command"
+						onKeyDown={(e) => {
+							if (e.key === 'Enter') commitAdd()
+							if (e.key === 'Escape') setIsAdding(false)
+						}}
+					/>
 					<button
 						type="button"
-						onClick={() => setIsAdding(true)}
-						className="bg-transparent border border-edge text-content-secondary cursor-pointer text-xs py-1 px-3 rounded-sm hover:text-content hover:border-content-muted focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none self-start"
+						onClick={commitAdd}
+						className="bg-transparent border-none text-accent cursor-pointer text-[11px] px-1 hover:brightness-125 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 					>
-						+ Add Snippet
+						Add
 					</button>
-				)}
-			</div>
-		</div>
+				</div>
+			) : (
+				<button
+					type="button"
+					onClick={() => setIsAdding(true)}
+					className="bg-transparent border border-edge text-content-secondary cursor-pointer text-xs py-1 px-3 rounded-sm hover:text-content hover:border-content-muted focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none self-start"
+				>
+					+ Add Snippet
+				</button>
+			)}
+		</SettingsSection>
 	)
 }
 
@@ -396,212 +407,195 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 
 				<div className="px-6 py-6 overflow-y-auto overflow-x-hidden flex flex-col gap-8">
 					{/* General */}
-					<div className="grid grid-cols-[110px_1fr] items-start gap-x-4 gap-y-4">
-						<div className="pt-1.5">
-							<span className="section-label">General</span>
-						</div>
-						<div className="flex flex-col gap-3 min-w-0">
-							<label className="flex items-center gap-3">
-								<span className="text-xs text-content-secondary w-16 shrink-0">Name</span>
-								<input
-									value={name}
-									onChange={(e) => setName(e.target.value)}
-									maxLength={128}
-									className="settings-input flex-1 min-w-0"
-								/>
-							</label>
-							<label className="flex items-center gap-3">
-								<span className="text-xs text-content-secondary w-16 shrink-0">Color</span>
-								<input
-									type="color"
-									value={color}
-									onChange={(e) => setColor(e.target.value)}
-									className="bg-sunken border border-edge rounded-sm w-10 h-7 p-0.5 cursor-pointer"
-								/>
-							</label>
-						</div>
-					</div>
+					<SettingsSection label="General">
+						<label className="flex items-center gap-3">
+							<span className="text-xs text-content-secondary w-16 shrink-0">Name</span>
+							<input
+								value={name}
+								onChange={(e) => setName(e.target.value)}
+								maxLength={128}
+								className="settings-input flex-1 min-w-0"
+							/>
+						</label>
+						<label className="flex items-center gap-3">
+							<span className="text-xs text-content-secondary w-16 shrink-0">Color</span>
+							<input
+								type="color"
+								value={color}
+								onChange={(e) => setColor(e.target.value)}
+								className="bg-sunken border border-edge rounded-sm w-10 h-7 p-0.5 cursor-pointer"
+							/>
+						</label>
+					</SettingsSection>
 					{/* Panes */}
-					<div className="grid grid-cols-[110px_1fr] items-start gap-x-4 gap-y-4">
-						<div className="pt-1.5">
-							<span className="section-label">Panes</span>
-						</div>
-						<div className="flex flex-col gap-2 min-w-0">
-							{Object.entries(workspace.panes).map(([paneId, pane]) => (
-								<div key={paneId} className="flex gap-1.5">
-									<input
-										value={pane.label}
-										onChange={(e) => handlePaneUpdate(paneId, { label: e.target.value })}
-										className="settings-input w-24 shrink-0"
-										placeholder="Label"
-										aria-label={`Pane ${pane.label} label`}
-									/>
-									<CwdInput
-										value={pane.cwd}
-										homeDir={homeDir}
-										onChange={(cwd) => handlePaneUpdate(paneId, { cwd })}
-										aria-label={`Pane ${pane.label} working directory`}
-									/>
-									<input
-										value={pane.startupCommand || ''}
-										onChange={(e) =>
-											handlePaneUpdate(paneId, {
-												startupCommand: e.target.value || null,
-											})
-										}
-										className="settings-input flex-[2] min-w-0"
-										placeholder="Startup command"
-										aria-label={`Pane ${pane.label} startup command`}
-									/>
-								</div>
-							))}
-						</div>
-					</div>
+					<SettingsSection label="Panes" gap={8}>
+						{Object.entries(workspace.panes).map(([paneId, pane]) => (
+							<div key={paneId} className="flex gap-1.5">
+								<input
+									value={pane.label}
+									onChange={(e) => handlePaneUpdate(paneId, { label: e.target.value })}
+									className="settings-input w-24 shrink-0"
+									placeholder="Label"
+									aria-label={`Pane ${pane.label} label`}
+								/>
+								<CwdInput
+									value={pane.cwd}
+									homeDir={homeDir}
+									onChange={(cwd) => handlePaneUpdate(paneId, { cwd })}
+									aria-label={`Pane ${pane.label} working directory`}
+								/>
+								<input
+									value={pane.startupCommand || ''}
+									onChange={(e) =>
+										handlePaneUpdate(paneId, {
+											startupCommand: e.target.value || null,
+										})
+									}
+									className="settings-input flex-[2] min-w-0"
+									placeholder="Startup command"
+									aria-label={`Pane ${pane.label} startup command`}
+								/>
+							</div>
+						))}
+					</SettingsSection>
 					{/* Terminal */}
-					<div className="grid grid-cols-[110px_1fr] items-start gap-x-4 gap-y-4">
-						<div className="pt-1.5">
-							<span className="section-label">Terminal</span>
-						</div>
-						<div className="flex flex-col gap-4 min-w-0">
-							{/* Theme preset grid — each name is rendered in its own theme colors as a live preview */}
-							<div className="grid grid-cols-4 gap-1.5">
-								{THEME_PRESETS.map((preset) => {
-									const isActive = bg === preset.background && fg === preset.foreground
-									return (
-										<button
-											type="button"
-											key={preset.name}
-											onClick={() => handlePresetClick(preset.background, preset.foreground)}
-											aria-pressed={isActive}
-											className={`py-1.5 px-1 rounded-md cursor-pointer border text-center focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
-												isActive
-													? 'border-accent ring-1 ring-accent'
-													: 'border-transparent hover:border-content-muted'
-											}`}
-											title={preset.name}
-											aria-label={preset.name}
-											style={{ background: preset.background, color: preset.foreground }}
-										>
-											<span className="text-[11px] font-medium leading-tight block truncate">
-												{preset.name}
-											</span>
-										</button>
-									)
-								})}
-							</div>
-
-							<div className="flex flex-col gap-3">
-								{/* Custom colors */}
-								<div className="flex items-center gap-4">
-									<label className="flex items-center gap-2">
-										<span className="text-xs text-content-secondary shrink-0">Background</span>
-										<input
-											type="color"
-											value={bg}
-											onChange={(e) => setBg(e.target.value)}
-											className="bg-sunken border border-edge rounded-sm w-10 h-7 p-0.5 cursor-pointer"
-										/>
-									</label>
-									<label className="flex items-center gap-2">
-										<span className="text-xs text-content-secondary shrink-0">Foreground</span>
-										<input
-											type="color"
-											value={fg}
-											onChange={(e) => setFg(e.target.value)}
-											className="bg-sunken border border-edge rounded-sm w-10 h-7 p-0.5 cursor-pointer"
-										/>
-									</label>
-								</div>
-
-								{/* Font settings */}
-								<div className="flex items-center gap-3">
-									<span className="text-xs text-content-secondary w-20 shrink-0">Font</span>
-									<div className="flex-1 min-w-0">
-										<FontPicker value={fontFamily} onChange={setFontFamily} />
-									</div>
-								</div>
-
-								<div className="flex items-center gap-3">
-									<span className="text-xs text-content-secondary w-20 shrink-0">Size</span>
-									<div className="flex items-center gap-2">
-										<button
-											type="button"
-											onClick={() => setFontSize((s) => Math.max(8, s - 1))}
-											aria-label="Decrease font size"
-											className="bg-sunken border border-edge rounded-sm text-content cursor-pointer w-7 h-7 flex items-center justify-center hover:bg-overlay focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
-										>
-											-
-										</button>
-										<span className="text-xs text-content tabular-nums w-5 text-center">
-											{fontSize}
-										</span>
-										<button
-											type="button"
-											onClick={() => setFontSize((s) => Math.min(32, s + 1))}
-											aria-label="Increase font size"
-											className="bg-sunken border border-edge rounded-sm text-content cursor-pointer w-7 h-7 flex items-center justify-center hover:bg-overlay focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
-										>
-											+
-										</button>
-									</div>
-								</div>
-
-								{/* Behavior */}
-								<label className="flex items-center gap-3">
-									<span className="text-xs text-content-secondary w-20 shrink-0">
-										Dim unfocused
-									</span>
-									<input
-										type="range"
-										min={0}
-										max={0.7}
-										step={0.05}
-										value={unfocusedDim}
-										onChange={(e) => setUnfocusedDim(Number(e.target.value))}
-										className="w-32"
-									/>
-									<span className="text-[11px] text-content-muted w-7">
-										{Math.round(unfocusedDim * 100)}%
-									</span>
-								</label>
-
-								<label className="flex items-center gap-3">
-									<span className="text-xs text-content-secondary w-20 shrink-0">Cursor</span>
-									<select
-										value={cursorStyle}
-										onChange={(e) => {
-											if (isCursorStyle(e.target.value)) setCursorStyle(e.target.value)
-										}}
-										className="settings-input w-32"
+					<SettingsSection label="Terminal" gap={16}>
+						{/* Theme preset grid — each name is rendered in its own theme colors as a live preview */}
+						<div className="grid grid-cols-4 gap-1.5">
+							{THEME_PRESETS.map((preset) => {
+								const isActive = bg === preset.background && fg === preset.foreground
+								return (
+									<button
+										type="button"
+										key={preset.name}
+										onClick={() => handlePresetClick(preset.background, preset.foreground)}
+										aria-pressed={isActive}
+										className={`py-1.5 px-1 rounded-md cursor-pointer border text-center focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
+											isActive
+												? 'border-accent ring-1 ring-accent'
+												: 'border-transparent hover:border-content-muted'
+										}`}
+										title={preset.name}
+										aria-label={preset.name}
+										style={{ background: preset.background, color: preset.foreground }}
 									>
-										{CURSOR_STYLES.map((s) => (
-											<option key={s} value={s}>
-												{s[0].toUpperCase() + s.slice(1)}
-											</option>
-										))}
-									</select>
-								</label>
+										<span className="text-[11px] font-medium leading-tight block truncate">
+											{preset.name}
+										</span>
+									</button>
+								)
+							})}
+						</div>
 
-								<label className="flex items-center gap-3">
-									<span className="text-xs text-content-secondary w-20 shrink-0">Scrollback</span>
+						<div className="flex flex-col gap-3">
+							{/* Custom colors */}
+							<div className="flex items-center gap-4">
+								<label className="flex items-center gap-2">
+									<span className="text-xs text-content-secondary shrink-0">Background</span>
 									<input
-										type="number"
-										min={MIN_SCROLLBACK}
-										max={MAX_SCROLLBACK}
-										step={500}
-										value={scrollback}
-										onChange={(e) => {
-											const n = Number(e.target.value)
-											if (!Number.isFinite(n)) return
-											setScrollback(Math.max(MIN_SCROLLBACK, Math.min(MAX_SCROLLBACK, n)))
-										}}
-										className="settings-input w-24"
+										type="color"
+										value={bg}
+										onChange={(e) => setBg(e.target.value)}
+										className="bg-sunken border border-edge rounded-sm w-10 h-7 p-0.5 cursor-pointer"
 									/>
-									<span className="text-[11px] text-content-muted">lines</span>
+								</label>
+								<label className="flex items-center gap-2">
+									<span className="text-xs text-content-secondary shrink-0">Foreground</span>
+									<input
+										type="color"
+										value={fg}
+										onChange={(e) => setFg(e.target.value)}
+										className="bg-sunken border border-edge rounded-sm w-10 h-7 p-0.5 cursor-pointer"
+									/>
 								</label>
 							</div>
+
+							{/* Font settings */}
+							<div className="flex items-center gap-3">
+								<span className="text-xs text-content-secondary w-20 shrink-0">Font</span>
+								<div className="flex-1 min-w-0">
+									<FontPicker value={fontFamily} onChange={setFontFamily} />
+								</div>
+							</div>
+
+							<div className="flex items-center gap-3">
+								<span className="text-xs text-content-secondary w-20 shrink-0">Size</span>
+								<div className="flex items-center gap-2">
+									<button
+										type="button"
+										onClick={() => setFontSize((s) => Math.max(8, s - 1))}
+										aria-label="Decrease font size"
+										className="bg-sunken border border-edge rounded-sm text-content cursor-pointer w-7 h-7 flex items-center justify-center hover:bg-overlay focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+									>
+										-
+									</button>
+									<span className="text-xs text-content tabular-nums w-5 text-center">
+										{fontSize}
+									</span>
+									<button
+										type="button"
+										onClick={() => setFontSize((s) => Math.min(32, s + 1))}
+										aria-label="Increase font size"
+										className="bg-sunken border border-edge rounded-sm text-content cursor-pointer w-7 h-7 flex items-center justify-center hover:bg-overlay focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+									>
+										+
+									</button>
+								</div>
+							</div>
+
+							{/* Behavior */}
+							<label className="flex items-center gap-3">
+								<span className="text-xs text-content-secondary w-20 shrink-0">Dim unfocused</span>
+								<input
+									type="range"
+									min={0}
+									max={0.7}
+									step={0.05}
+									value={unfocusedDim}
+									onChange={(e) => setUnfocusedDim(Number(e.target.value))}
+									className="w-32"
+								/>
+								<span className="text-[11px] text-content-muted w-7">
+									{Math.round(unfocusedDim * 100)}%
+								</span>
+							</label>
+
+							<label className="flex items-center gap-3">
+								<span className="text-xs text-content-secondary w-20 shrink-0">Cursor</span>
+								<select
+									value={cursorStyle}
+									onChange={(e) => {
+										if (isCursorStyle(e.target.value)) setCursorStyle(e.target.value)
+									}}
+									className="settings-input w-32"
+								>
+									{CURSOR_STYLES.map((s) => (
+										<option key={s} value={s}>
+											{s[0].toUpperCase() + s.slice(1)}
+										</option>
+									))}
+								</select>
+							</label>
+
+							<label className="flex items-center gap-3">
+								<span className="text-xs text-content-secondary w-20 shrink-0">Scrollback</span>
+								<input
+									type="number"
+									min={MIN_SCROLLBACK}
+									max={MAX_SCROLLBACK}
+									step={500}
+									value={scrollback}
+									onChange={(e) => {
+										const n = Number(e.target.value)
+										if (!Number.isFinite(n)) return
+										setScrollback(Math.max(MIN_SCROLLBACK, Math.min(MAX_SCROLLBACK, n)))
+									}}
+									className="settings-input w-24"
+								/>
+								<span className="text-[11px] text-content-muted">lines</span>
+							</label>
 						</div>
-					</div>
+					</SettingsSection>
 					{/* Layout */}
 					<LayoutPicker current={currentPreset} onSelect={handleLayoutChange} />
 					{/* Snippets */}
