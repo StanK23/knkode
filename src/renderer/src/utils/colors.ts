@@ -5,8 +5,11 @@ export function isValidHex(hex: string): boolean {
 
 /** Parse a hex color string (#RGB or #RRGGBB) into an RGB tuple. Returns [0,0,0] on malformed input. */
 export function hexToRgb(hex: string): [number, number, number] {
-	const match = String(hex).match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i)
-	if (!match) return [0, 0, 0]
+	const match = hex.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i)
+	if (!match) {
+		console.warn('[theme] malformed hex color:', hex)
+		return [0, 0, 0]
+	}
 	const c = match[1]
 	if (c.length === 3) {
 		return [
