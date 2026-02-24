@@ -80,6 +80,7 @@ beforeEach(() => {
 	mockApi.deleteWorkspace.mockResolvedValue(undefined)
 	mockApi.killPty.mockResolvedValue(undefined)
 	mockApi.createPty.mockResolvedValue(undefined)
+	mockApi.getSnippets.mockResolvedValue([])
 	resetStore()
 })
 
