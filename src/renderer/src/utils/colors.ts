@@ -1,3 +1,5 @@
+import { TERMINAL_FONTS } from '../data/theme-presets'
+
 /** Test whether a string is a valid hex color (#RGB, #RRGGBB, or bare RGB/RRGGBB). */
 export function isValidHex(hex: string): boolean {
 	return /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.test(hex)
@@ -117,7 +119,10 @@ export function generateThemeVariables(
 		'--color-edge': edge,
 		'--color-accent': accent,
 		'--color-danger': danger,
-		'--font-family-ui': fontFamily
+		// Sanitize fontFamily — only allow known fonts to prevent CSS injection from tampered config.
+	// CSS variable fallback — intentionally different from buildFontFamily() in theme-presets.ts
+	// which uses literal font names for xterm.js (no CSS variable support in canvas).
+	'--font-family-ui': fontFamily && (TERMINAL_FONTS as readonly string[]).includes(fontFamily)
 			? `"${fontFamily}", var(--font-mono-fallback)`
 			: 'var(--font-mono-fallback)',
 		'--font-size-ui': `${uiFontSize}px`,
