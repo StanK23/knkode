@@ -1,3 +1,4 @@
+import type React from 'react'
 import { TERMINAL_FONTS } from '../data/theme-presets'
 
 /** Test whether a string is a valid hex color (#RGB, #RRGGBB, or bare RGB/RRGGBB). */
@@ -58,6 +59,25 @@ export function isDark(hex: string): boolean {
 	return luminance < 0.5
 }
 
+/** The exact set of CSS custom properties produced by generateThemeVariables.
+ *  Intersected with React.CSSProperties so the result can be spread into a `style` prop. */
+export type ThemeVariables = {
+	'--color-canvas': string
+	'--color-elevated': string
+	'--color-sunken': string
+	'--color-overlay': string
+	'--color-overlay-hover': string
+	'--color-overlay-active': string
+	'--color-content': string
+	'--color-content-secondary': string
+	'--color-content-muted': string
+	'--color-edge': string
+	'--color-accent': string
+	'--color-danger': string
+	'--font-family-ui': string
+	'--font-size-ui': string
+} & React.CSSProperties
+
 const MIN_UI_FONT_SIZE = 11
 const MAX_UI_FONT_SIZE = 15
 const DEFAULT_UI_FONT_SIZE = 13
@@ -73,7 +93,7 @@ export function generateThemeVariables(
 	fg?: string,
 	fontFamily?: string,
 	fontSize?: number,
-): Record<`--color-${string}` | `--font-${string}`, string> {
+): ThemeVariables {
 	// Safe fallbacks for missing or malformed colors to prevent app crashes
 	const safeBg = bg && isValidHex(bg) ? bg : '#1a1a2e'
 	const safeFg = fg && isValidHex(fg) ? fg : '#e0e0e0'
