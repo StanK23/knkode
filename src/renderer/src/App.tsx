@@ -79,12 +79,7 @@ export function App() {
 			console.error('[App] theme generation failed:', err)
 			return undefined
 		}
-	}, [
-		activeWorkspace?.theme?.background,
-		activeWorkspace?.theme?.foreground,
-		activeWorkspace?.theme?.fontFamily,
-		activeWorkspace?.theme?.fontSize,
-	])
+	}, [activeWorkspace?.theme])
 
 	return (
 		<ErrorBoundary>
@@ -101,18 +96,22 @@ export function App() {
 				<TabBar onOpenSettings={() => setShowSettings(true)} />
 				{visitedWorkspaces.length > 0 ? (
 					<>
-						{visitedWorkspaces.map((ws) => (
-							<div
-								key={ws.id}
-								className={
-									ws.id === appState.activeWorkspaceId ? 'flex flex-1 overflow-hidden' : 'hidden'
-								}
-							>
-								<ErrorBoundary>
-									<PaneArea workspace={ws} />
-								</ErrorBoundary>
-							</div>
-						))}
+						<div className="relative flex flex-1 overflow-hidden">
+							{visitedWorkspaces.map((ws) => (
+								<div
+									key={ws.id}
+									className={
+										ws.id === appState.activeWorkspaceId
+											? 'absolute inset-0 flex flex-col'
+											: 'absolute inset-0 opacity-0 pointer-events-none -z-10'
+									}
+								>
+									<ErrorBoundary>
+										<PaneArea workspace={ws} />
+									</ErrorBoundary>
+								</div>
+							))}
+						</div>
 						{showSettings && activeWorkspace && (
 							<SettingsPanel workspace={activeWorkspace} onClose={closeSettings} />
 						)}

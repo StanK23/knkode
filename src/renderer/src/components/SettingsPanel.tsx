@@ -143,6 +143,7 @@ function SnippetsSection() {
 								className="settings-input flex-1 min-w-0"
 								placeholder="Name"
 								aria-label="Snippet name"
+								// biome-ignore lint/a11y/noAutofocus: intentional focus for inline edit
 								autoFocus
 								onKeyDown={(e) => {
 									if (e.key === 'Enter') commitEdit()
@@ -206,6 +207,7 @@ function SnippetsSection() {
 						className="settings-input flex-1 min-w-0"
 						placeholder="Name (e.g. Claude)"
 						aria-label="New snippet name"
+						// biome-ignore lint/a11y/noAutofocus: intentional focus for new snippet
 						autoFocus
 						onKeyDown={(e) => {
 							if (e.key === 'Enter') commitAdd()

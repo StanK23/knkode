@@ -94,9 +94,10 @@ export function generateThemeVariables(
 	// Typography: scale UI font size relative to terminal font size.
 	// We want the UI to feel proportional but slightly smaller than terminal text.
 	// Range: 11px to 15px.
-	const uiFontSize = typeof fontSize === 'number' && Number.isFinite(fontSize) && fontSize > 0
-		? Math.max(11, Math.min(15, fontSize - 1))
-		: 13
+	const uiFontSize =
+		typeof fontSize === 'number' && Number.isFinite(fontSize) && fontSize > 0
+			? Math.max(11, Math.min(15, fontSize - 1))
+			: 13
 
 	return {
 		'--color-canvas': safeBg,
@@ -111,7 +112,9 @@ export function generateThemeVariables(
 		'--color-edge': edge,
 		'--color-accent': accent,
 		'--color-danger': danger,
-		'--font-family-ui': fontFamily ? `"${fontFamily}", var(--font-mono-fallback)` : 'var(--font-mono-fallback)',
+		'--font-family-ui': fontFamily
+			? `"${fontFamily}", var(--font-mono-fallback)`
+			: 'var(--font-mono-fallback)',
 		'--font-size-ui': `${uiFontSize}px`,
 	}
 }
