@@ -48,7 +48,7 @@ function createWindow(): void {
 	})
 
 	// Set dock icon on macOS (ensures custom icon during development; production uses bundled .icns)
-	if (process.platform === 'darwin' && app.dock) {
+	if (isMac && app.dock) {
 		app.dock.setIcon(appIcon)
 	}
 
@@ -127,7 +127,7 @@ app
 
 app.on('window-all-closed', () => {
 	cleanup()
-	if (process.platform !== 'darwin') {
+	if (!isMac) {
 		app.quit()
 	}
 })
