@@ -104,7 +104,7 @@ export function App() {
 									className={
 										ws.id === appState.activeWorkspaceId
 											? 'absolute inset-0 flex flex-col'
-											: 'absolute inset-0 opacity-0 pointer-events-none -z-10'
+											: 'absolute inset-0 invisible pointer-events-none'
 									}
 								>
 									<ErrorBoundary>

@@ -3,7 +3,7 @@ import { SearchAddon } from '@xterm/addon-search'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal as XTerm } from '@xterm/xterm'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import '@xterm/xterm/css/xterm.css'
 import { DEFAULT_CURSOR_STYLE, DEFAULT_SCROLLBACK, type PaneTheme } from '../../../shared/types'
 import { buildFontFamily, buildXtermTheme } from '../data/theme-presets'
@@ -140,6 +140,15 @@ export function TerminalView({
 	const searchInputRef = useRef<HTMLInputElement>(null)
 	const showSearchRef = useRef(false)
 	showSearchRef.current = showSearch
+
+	// Scroll preservation across workspace switches: save position while
+	// active, ignore browser-induced scroll resets while hidden, restore on reactivation.
+	const savedScrollRef = useRef({ atBottom: true, viewportY: 0 })
+	const isActiveRef = useRef(true)
+	const isWorkspaceActive = useStore((s) => {
+		const ws = s.workspaces.find((w) => paneId in w.panes)
+		return ws?.id === s.appState.activeWorkspaceId
+	})
 
 	const mergedTheme = useMemo(() => ({ ...theme, ...themeOverride }), [theme, themeOverride])
 
@@ -298,7 +307,10 @@ export function TerminalView({
 		// scroll (mouse wheel), so we listen on the actual xterm viewport DOM element.
 		const viewport = term.element?.querySelector('.xterm-viewport')
 		const handleViewportScroll = () => {
-			setIsScrolledUp(!isTermAtBottom(term))
+			if (!isActiveRef.current) return
+			const atBottom = isTermAtBottom(term)
+			setIsScrolledUp(!atBottom)
+			savedScrollRef.current = { atBottom, viewportY: term.buffer.active.viewportY }
 		}
 		viewport?.addEventListener('scroll', handleViewportScroll)
 		// Also track buffer scroll (new output arriving while scrolled up)
@@ -348,6 +360,31 @@ export function TerminalView({
 			termContainer.remove()
 		}
 	}, [paneId])
+
+	// Restore terminal scroll position when workspace becomes active.
+	// Runs as useLayoutEffect (before paint) so the user never sees a flash
+	// of wrong scroll position. While inactive, handleViewportScroll is
+	// suppressed via isActiveRef so browser-induced scrollTop resets don't
+	// corrupt the saved position.
+	useLayoutEffect(() => {
+		if (!isWorkspaceActive) {
+			isActiveRef.current = false
+			return
+		}
+		if (termRef.current) {
+			const term = termRef.current
+			const { atBottom, viewportY } = savedScrollRef.current
+			if (atBottom) {
+				term.scrollToBottom()
+			} else {
+				term.scrollToLine(viewportY)
+			}
+			isActiveRef.current = true
+			setIsScrolledUp(!isTermAtBottom(term))
+		} else {
+			isActiveRef.current = true
+		}
+	}, [isWorkspaceActive])
 
 	// Sync xterm focus with pane focus state (keyboard shortcuts + click).
 	// focusGeneration is an intentional trigger dep — it re-fires the effect
