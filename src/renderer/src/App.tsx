@@ -32,8 +32,8 @@ export function App() {
 		init()
 	}, [init])
 
-	// Window title — visible in dock tooltip, Mission Control, and Cmd+Tab
-	// (title bar text is hidden by titleBarStyle: 'hiddenInset')
+	// Window title — visible in task switcher and system UI on all platforms;
+	// on macOS the title bar text is hidden by hiddenInset, on Windows it shows in the title bar
 	const activeWorkspace = workspaces.find((w) => w.id === appState.activeWorkspaceId)
 	const activeWorkspaceName = activeWorkspace?.name
 	useEffect(() => {

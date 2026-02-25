@@ -115,7 +115,7 @@
 	/* Layout dimensions */
 	--spacing-tab: 38px;
 	--spacing-header: 28px;
-	--spacing-traffic: 0px; /* overridden to 78px on macOS via App.tsx for traffic-light controls */
+	--spacing-traffic: 0px; /* overridden to 78px on macOS via App.tsx for window controls (close/minimize/maximize) */
 
 	/* Mechanical spring easing — quick attack, soft settle */
 	--ease-mechanical: cubic-bezier(0.2, 0.8, 0.2, 1);
