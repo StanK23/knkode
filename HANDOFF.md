@@ -1,15 +1,20 @@
 # HANDOFF
 
 ## Current State
-- Branch: `main`
-- All PRs merged, clean slate
+- Branch: `feat/windows-support`
+- PR #51 open: "feat: Windows support + CI/CD"
+
+## Active Reviews
+
+### PR #51 — feat: Windows support + CI/CD
+- State: `docs/reviews/PR-51/_state.json`
+- Agents: 10/10 completed
+- Phase: done — review complete, fixing in progress
 
 ## What Was Done
-- `47440a1` on main: Fix terminal scroll position lost on workspace switch
-  - Changed inactive workspace CSS from `opacity-0 -z-10` to `visibility:hidden`
-  - Added scroll save/restore in Terminal.tsx via useLayoutEffect — suppresses scroll events while inactive, restores exact viewportY on reactivation
-- PR #50 merged: Dynamic workspace fonts (sync UI font/size with terminal settings)
-- PR #49 merged: UI glass polish (settings grid, translucent modal, mechanical motion)
+- PR #51 created: Windows support (platform-conditional BrowserWindow, cross-platform path validation, NSIS config, icon.ico) + CI/CD (GitHub Actions for lint/test and matrix build/release)
+- Review complete: 6 must-fix, 9 suggestions, 4 nitpicks
 
 ## Next Steps
-1. (none pending — ready for new work)
+1. Apply review fixes to PR #51
+2. Merge PR #51
