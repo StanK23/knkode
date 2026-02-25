@@ -38,14 +38,13 @@ jobs:
 
       - name: Build Electron app
         env:
-          PLATFORM: ${{ matrix.platform }}
           # macOS signing & notarization (only populated on mac runner)
           APPLE_ID: ${{ matrix.platform == 'mac' && secrets.APPLE_ID || '' }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.platform == 'mac' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
           APPLE_TEAM_ID: ${{ matrix.platform == 'mac' && secrets.APPLE_TEAM_ID || '' }}
           CSC_LINK: ${{ matrix.platform == 'mac' && secrets.CSC_LINK || '' }}
           CSC_KEY_PASSWORD: ${{ matrix.platform == 'mac' && secrets.CSC_KEY_PASSWORD || '' }}
-        run: bun x electron-builder --"$PLATFORM" --publish never
+        run: bun x electron-builder --${{ matrix.platform }} --publish never
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
