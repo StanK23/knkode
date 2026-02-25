@@ -142,11 +142,12 @@ export function generateThemeVariables(
 		'--color-accent': accent,
 		'--color-danger': danger,
 		// Sanitize fontFamily — only allow known fonts to prevent CSS injection from tampered config.
-	// CSS variable fallback — intentionally different from buildFontFamily() in theme-presets.ts
-	// which uses literal font names for xterm.js (no CSS variable support in canvas).
-	'--font-family-ui': fontFamily && (TERMINAL_FONTS as readonly string[]).includes(fontFamily)
-			? `"${fontFamily}", var(--font-mono-fallback)`
-			: 'var(--font-mono-fallback)',
+		// CSS variable fallback — intentionally different from buildFontFamily() in theme-presets.ts
+		// which uses literal font names for xterm.js (no CSS variable support in canvas).
+		'--font-family-ui':
+			fontFamily && (TERMINAL_FONTS as readonly string[]).includes(fontFamily)
+				? `"${fontFamily}", var(--font-mono-fallback)`
+				: 'var(--font-mono-fallback)',
 		'--font-size-ui': `${uiFontSize}px`,
 	}
 }

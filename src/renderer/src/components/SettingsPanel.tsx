@@ -13,6 +13,7 @@ import {
 } from '../../../shared/types'
 import { THEME_PRESETS } from '../data/theme-presets'
 import { applyPresetWithRemap, useStore } from '../store'
+import { isMac } from '../utils/platform'
 import { isValidCwd } from '../utils/validation'
 import { FontPicker } from './FontPicker'
 import { LayoutPicker } from './LayoutPicker'
@@ -80,7 +81,11 @@ function CwdInput({ value, homeDir, onChange, 'aria-label': ariaLabel }: CwdInpu
 				aria-label={ariaLabel}
 				aria-invalid={invalid}
 			/>
-			{invalid && <span className="text-danger text-[10px]">Path must start with / or ~</span>}
+			{invalid && (
+				<span className="text-danger text-[10px]">
+					{isMac ? 'Path must start with / or ~' : 'Path must be absolute (e.g. C:\\)'}
+				</span>
+			)}
 		</div>
 	)
 }

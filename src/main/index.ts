@@ -6,13 +6,15 @@ import { registerIpcHandlers } from './ipc'
 import { getMainWindow, setMainWindow } from './main-window'
 import { killAllPtys } from './pty-manager'
 
-// Override the default "Electron" name shown in macOS dock tooltip during development
+// Override the default "Electron" app name (visible in macOS dock tooltip and Windows taskbar)
 app.setName('knkode')
 
 // __dirname resolves to out/main/ at runtime; in packaged builds, resources are in process.resourcesPath
 const APP_ICON_PATH = app.isPackaged
 	? path.join(process.resourcesPath, 'icon.png')
 	: path.join(__dirname, '../../resources/icon.png')
+
+const isMac = process.platform === 'darwin'
 
 function createWindow(): void {
 	const { windowBounds } = getAppState()
@@ -31,8 +33,10 @@ function createWindow(): void {
 		minHeight: 400,
 		icon: appIcon,
 		title: 'knkode',
-		titleBarStyle: 'hiddenInset',
-		trafficLightPosition: { x: 12, y: 12 },
+		...(isMac && {
+			titleBarStyle: 'hiddenInset' as const,
+			trafficLightPosition: { x: 12, y: 12 },
+		}),
 		backgroundColor: '#1a1a2e',
 		webPreferences: {
 			preload: path.join(__dirname, '../preload/index.js'),
@@ -44,7 +48,7 @@ function createWindow(): void {
 	})
 
 	// Set dock icon on macOS (ensures custom icon during development; production uses bundled .icns)
-	if (process.platform === 'darwin' && app.dock) {
+	if (isMac && app.dock) {
 		app.dock.setIcon(appIcon)
 	}
 
@@ -123,7 +127,7 @@ app
 
 app.on('window-all-closed', () => {
 	cleanup()
-	if (process.platform !== 'darwin') {
+	if (!isMac) {
 		app.quit()
 	}
 })

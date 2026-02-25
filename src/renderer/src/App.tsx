@@ -6,6 +6,7 @@ import { TabBar } from './components/TabBar'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useStore } from './store'
 import { generateThemeVariables } from './utils/colors'
+import { isMac } from './utils/platform'
 
 export function App() {
 	const initialized = useStore((s) => s.initialized)
@@ -31,8 +32,8 @@ export function App() {
 		init()
 	}, [init])
 
-	// Window title — visible in dock tooltip, Mission Control, and Cmd+Tab
-	// (title bar text is hidden by titleBarStyle: 'hiddenInset')
+	// Window title — visible in task switcher and system UI on all platforms;
+	// on macOS the title bar text is hidden by hiddenInset, on Windows it shows in the title bar
 	const activeWorkspace = workspaces.find((w) => w.id === appState.activeWorkspaceId)
 	const activeWorkspaceName = activeWorkspace?.name
 	useEffect(() => {
@@ -88,6 +89,7 @@ export function App() {
 				className="flex flex-col h-full w-full relative"
 				style={{
 					...themeStyles,
+					...(isMac && { '--spacing-traffic': '78px' }),
 					backgroundColor: 'var(--color-canvas)',
 					color: 'var(--color-content)',
 					fontFamily: 'var(--font-family-ui)',

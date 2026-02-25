@@ -1,15 +1,19 @@
 # HANDOFF
 
 ## Current State
-- Branch: `main`
-- All PRs merged, clean slate
+- Branch: `feat/windows-support`
+- PR #51 open: "feat: Windows support + CI/CD" — review fixes applied, ready for merge
 
 ## What Was Done
-- `47440a1` on main: Fix terminal scroll position lost on workspace switch
-  - Changed inactive workspace CSS from `opacity-0 -z-10` to `visibility:hidden`
-  - Added scroll save/restore in Terminal.tsx via useLayoutEffect — suppresses scroll events while inactive, restores exact viewportY on reactivation
-- PR #50 merged: Dynamic workspace fonts (sync UI font/size with terminal settings)
-- PR #49 merged: UI glass polish (settings grid, translucent modal, mechanical motion)
+- PR #51: Windows support + CI/CD
+  - Platform-conditional BrowserWindow, cross-platform path validation, NSIS config, icon.ico
+  - GitHub Actions: CI (lint+test on push/PR) and release (matrix build on v* tags)
+  - Review: 10 agents, all findings addressed (6 must-fix, 9 suggestions, 4 nitpicks)
+  - `navigator.platform` deprecation tracked as follow-up (not in this PR scope)
+  - Action SHA pinning tracked as follow-up
 
 ## Next Steps
-1. (none pending — ready for new work)
+1. Merge PR #51
+2. Follow-up: expose `process.platform` via preload API to replace deprecated `navigator.platform`
+3. Follow-up: pin GitHub Actions to commit SHAs
+4. Follow-up: Windows code-signing (Authenticode)
