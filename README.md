@@ -2,29 +2,36 @@
 
 A terminal workspace manager that persists your multi-pane layouts across sessions.
 
-## Why
-
 Every project needs a different terminal setup — build watcher, dev server, logs, a shell for git. You arrange them, close the window, and rebuild the whole thing next time. knkode saves each arrangement as a named workspace you can switch between instantly. Workspaces survive restarts, remember their shell state, and each one gets its own theme.
 
-## Features
+## Download
+
+Grab the latest release from [GitHub Releases](https://github.com/StanK23/knkode/releases):
+
+- **macOS** — `.dmg` (Apple Silicon)
+- **Windows** — `.exe` installer
+
+A default workspace with one terminal pane is created on first launch.
+
+## What it does
 
 **Workspaces as tabs.** Each workspace is a color-coded tab with its own split-pane layout. Create, duplicate, close, drag to reorder, or reopen from the closed-workspaces menu. Switching tabs is instant — background shells stay alive.
 
-**Split panes.** Six layout presets (single, 2-column, 2-row, 3-panel L, 3-panel T, 2x2 grid), plus split any pane on the fly with `Cmd+D` / `Cmd+Shift+D`. Drag pane headers to rearrange — drop on center to swap, or on an edge (left/right/top/bottom) to insert a new split. Move a pane to a different workspace via right-click — the live shell moves with it. Splitting preserves the existing terminal's output.
+**Split panes.** Six layout presets (single, 2-column, 2-row, 3-panel L, 3-panel T, 2x2 grid), plus split any pane on the fly. Drag pane headers to rearrange — drop on center to swap, drop on an edge to insert a new split. Move a pane to a different workspace via right-click. Splitting preserves the existing terminal's output.
 
-**Theming.** 16 built-in themes (Dracula, Tokyo Night, Nord, Catppuccin, Gruvbox, Solarized, and more) applied per workspace. Individual panes can override the workspace theme with their own colors, font, and font size. 10 bundled monospace fonts (JetBrains Mono, Fira Code, Cascadia Code, etc.) that work without system installation, plus 4 system fonts when available. Cursor style (bar, block, underline), scrollback (500–50k lines), and unfocused pane dimming are all adjustable.
+**Theming.** 16 built-in themes (Dracula, Tokyo Night, Nord, Catppuccin, Gruvbox, Solarized, and more) applied per workspace. Individual panes can override with their own colors, font, and font size. 10 bundled monospace fonts that work without system installation. Cursor style, scrollback (500-50k lines), and unfocused pane dimming are all adjustable.
 
-**Terminal.** WebGL-accelerated rendering via xterm.js. In-terminal search (`Cmd+F`), clickable URLs, CWD tracking in each pane header, and per-pane startup commands (e.g., `npm run dev` runs when the workspace loads). `Shift+Enter` sends LF instead of CR, which tools like Claude Code use to distinguish newline from submit. Right-click any pane header for quick access to rename, change directory, set startup commands, restart the shell, per-pane theme overrides, or move to another workspace.
+**Terminal.** WebGL-accelerated rendering via xterm.js. In-terminal search, clickable URLs, CWD tracking in each pane header, and per-pane startup commands (e.g., `npm run dev` runs when the workspace loads). `Shift+Enter` sends LF instead of CR, which tools like Claude Code use to distinguish newline from submit.
 
-**Quick commands.** Define reusable shell snippets (e.g., `npm run dev`, `claude --dangerously-skip-permissions`) in workspace settings. Run them in any pane from the `>_` icon on the pane header — one click to execute.
+**Quick commands.** Define reusable shell snippets in workspace settings. Run them in any pane from the `>_` icon on the pane header.
 
-**Persistent config.** Everything is stored as JSON in `~/.knkode/` — workspace definitions, open tabs, window position and size. Writes are atomic (temp file + rename) so a crash won't corrupt your config.
+**Persistent config.** Everything is stored as JSON in `~/.knkode/` — workspace definitions, open tabs, window position. Writes are atomic (temp file + rename) so a crash won't corrupt your config.
 
 ## Keyboard shortcuts
 
-Uses `Cmd` on macOS, `Ctrl` elsewhere — intentionally avoids terminal control sequences (`Ctrl+C`, `Ctrl+D`, etc.).
+Uses `Cmd` on macOS, `Ctrl` on Windows — intentionally avoids terminal control sequences (`Ctrl+C`, `Ctrl+D`, etc.).
 
-| Action | macOS | Other |
+| Action | macOS | Windows |
 |---|---|---|
 | Split side-by-side | `Cmd+D` | `Ctrl+D` |
 | Split stacked | `Cmd+Shift+D` | `Ctrl+Shift+D` |
@@ -33,11 +40,11 @@ Uses `Cmd` on macOS, `Ctrl` elsewhere — intentionally avoids terminal control 
 | New workspace | `Cmd+T` | `Ctrl+T` |
 | Prev / next workspace | `Cmd+Shift+[ / ]` | `Ctrl+Shift+[ / ]` |
 | Prev / next pane | `Cmd+Alt+Left / Right` | `Ctrl+Alt+Left / Right` |
-| Focus pane by number | `Cmd+1–9` | `Ctrl+1–9` |
+| Focus pane by number | `Cmd+1-9` | `Ctrl+1-9` |
 | Find in terminal | `Cmd+F` | `Ctrl+F` |
 | Settings | `Cmd+,` | `Ctrl+,` |
 
-## Quick start
+## Development
 
 Requires [Node.js](https://nodejs.org) >= 18 and [bun](https://bun.sh).
 
@@ -48,28 +55,22 @@ bun install
 bun run dev
 ```
 
-Opens the app with hot reload. A default workspace with one terminal pane is created on first launch.
-
-macOS is the primary target (frameless window with native traffic lights). Windows and Linux builds work but are less tested.
-
-## Build
+Opens the app with hot reload. macOS uses a frameless window with native traffic lights; Windows uses the standard title bar.
 
 ```sh
-bun run build       # compile to out/
-bun run package     # build + create .dmg / .zip
-```
-
-Distributables land in `dist/`. Code signing and notarization require Apple Developer credentials in environment variables — see `scripts/notarize.js`.
-
-## Development
-
-```sh
-bun run dev          # electron-vite dev server with HMR
 bun run test         # vitest
-bun run test:watch   # vitest in watch mode
 bun run lint         # biome check
 bun run lint:fix     # biome check --write
 ```
+
+### Building
+
+```sh
+bun run build       # compile to out/
+bun run package     # build + create .dmg / .exe
+```
+
+Distributables land in `dist/`. macOS code signing and notarization require Apple Developer credentials — see `scripts/notarize.js`.
 
 ### Project structure
 
@@ -81,7 +82,7 @@ src/
   shared/      Types and constants shared across processes
 ```
 
-Stack: React + TypeScript, Zustand (state), xterm.js + node-pty (terminals), allotment (split panes), Tailwind CSS v4 (styling), electron-vite (bundler), Biome (lint + format).
+Stack: Electron, React 19, TypeScript, Zustand, xterm.js + node-pty, allotment, Tailwind CSS v4, electron-vite, Biome.
 
 ## License
 
