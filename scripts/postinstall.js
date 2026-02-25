@@ -4,7 +4,7 @@ const path = require('path')
 if (process.platform === 'darwin') {
 	try {
 		execFileSync('bash', [path.join(__dirname, 'patch-electron-name.sh')], { stdio: 'inherit' })
-	} catch {
-		/* non-fatal — cosmetic dev-only patch */
+	} catch (err) {
+		console.warn('[postinstall] patch-electron-name.sh failed (cosmetic, non-fatal):', err.message)
 	}
 }
