@@ -14,7 +14,6 @@
     { "from": "resources/icon.png", "to": "icon.png" }
   ],
   "asarUnpack": ["**/node-pty/**"],
-  "afterSign": "scripts/notarize.js",
   "win": {
     "target": ["nsis"],
     "icon": "resources/icon.ico"
@@ -25,6 +24,7 @@
     "allowToChangeInstallationDirectory": true
   },
   "mac": {
+    "afterSign": "scripts/notarize.js",
     "target": ["dmg", "zip"],
     "category": "public.app-category.developer-tools",
     "icon": "resources/icon.icns",
