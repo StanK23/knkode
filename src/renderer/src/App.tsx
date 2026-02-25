@@ -6,6 +6,7 @@ import { TabBar } from './components/TabBar'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useStore } from './store'
 import { generateThemeVariables } from './utils/colors'
+import { isMac } from './utils/platform'
 
 export function App() {
 	const initialized = useStore((s) => s.initialized)
@@ -86,13 +87,16 @@ export function App() {
 		<ErrorBoundary>
 			<div
 				className="flex flex-col h-full w-full relative"
-				style={{
-					...themeStyles,
-					backgroundColor: 'var(--color-canvas)',
-					color: 'var(--color-content)',
-					fontFamily: 'var(--font-family-ui)',
-					fontSize: 'var(--font-size-ui)',
-				}}
+				style={
+					{
+						...themeStyles,
+						...(isMac && { '--spacing-traffic': '78px' }),
+						backgroundColor: 'var(--color-canvas)',
+						color: 'var(--color-content)',
+						fontFamily: 'var(--font-family-ui)',
+						fontSize: 'var(--font-size-ui)',
+					} as React.CSSProperties
+				}
 			>
 				<TabBar onOpenSettings={() => setShowSettings(true)} />
 				{visitedWorkspaces.length > 0 ? (

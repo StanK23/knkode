@@ -183,21 +183,41 @@ describe('generateThemeVariables', () => {
 	})
 
 	it('derives UI font size as 1px smaller than terminal size', () => {
-		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, 16)['--font-size-ui']).toBe('15px')
-		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, 14)['--font-size-ui']).toBe('13px')
+		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, 16)['--font-size-ui']).toBe(
+			'15px',
+		)
+		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, 14)['--font-size-ui']).toBe(
+			'13px',
+		)
 	})
 
 	it('clamps UI font size to 11-15px range', () => {
 		// Lower boundary
-		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, 12)['--font-size-ui']).toBe('11px')
-		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, 11)['--font-size-ui']).toBe('11px')
+		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, 12)['--font-size-ui']).toBe(
+			'11px',
+		)
+		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, 11)['--font-size-ui']).toBe(
+			'11px',
+		)
 		// Upper boundary
-		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, 17)['--font-size-ui']).toBe('15px')
-		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, 32)['--font-size-ui']).toBe('15px')
+		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, 17)['--font-size-ui']).toBe(
+			'15px',
+		)
+		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, 32)['--font-size-ui']).toBe(
+			'15px',
+		)
 		// Invalid → default 13px
-		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, 0)['--font-size-ui']).toBe('13px')
-		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, Number.NaN)['--font-size-ui']).toBe('13px')
-		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, Number.POSITIVE_INFINITY)['--font-size-ui']).toBe('13px')
+		expect(generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, 0)['--font-size-ui']).toBe(
+			'13px',
+		)
+		expect(
+			generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, Number.NaN)['--font-size-ui'],
+		).toBe('13px')
+		expect(
+			generateThemeVariables('#1a1a2e', '#e0e0e0', undefined, Number.POSITIVE_INFINITY)[
+				'--font-size-ui'
+			],
+		).toBe('13px')
 	})
 
 	it('sanitizes fontFamily against allowlist', () => {
@@ -211,7 +231,11 @@ describe('generateThemeVariables', () => {
 		)
 		// CSS injection attempt → rejected
 		expect(
-			generateThemeVariables('#1a1a2e', '#e0e0e0', '"; } body { display: none; } .x { font-family: "')['--font-family-ui'],
+			generateThemeVariables(
+				'#1a1a2e',
+				'#e0e0e0',
+				'"; } body { display: none; } .x { font-family: "',
+			)['--font-family-ui'],
 		).toBe('var(--font-mono-fallback)')
 	})
 })

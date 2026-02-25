@@ -15,6 +15,15 @@
   ],
   "asarUnpack": ["**/node-pty/**"],
   "afterSign": "scripts/notarize.js",
+  "win": {
+    "target": ["nsis"],
+    "icon": "resources/icon.ico"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true
+  },
   "mac": {
     "target": ["dmg", "zip"],
     "category": "public.app-category.developer-tools",
