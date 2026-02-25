@@ -4,7 +4,7 @@ A terminal workspace manager that persists your multi-pane layouts across sessio
 
 Every project needs a different terminal setup — build watcher, dev server, logs, a shell for git. You arrange them, close the window, and rebuild the whole thing next time. knkode saves each arrangement as a named workspace you can switch between instantly. Workspaces survive restarts, remember their shell state, and each one gets its own theme.
 
-## Download
+## 📥 Download
 
 Grab the latest release from [GitHub Releases](https://github.com/StanK23/knkode/releases):
 
@@ -13,7 +13,7 @@ Grab the latest release from [GitHub Releases](https://github.com/StanK23/knkode
 
 A default workspace with one terminal pane is created on first launch.
 
-## What it does
+## ✨ What it does
 
 **Workspaces as tabs.** Each workspace is a color-coded tab with its own split-pane layout. Create, duplicate, close, drag to reorder, or reopen from the closed-workspaces menu. Switching tabs is instant — background shells stay alive.
 
@@ -27,7 +27,7 @@ A default workspace with one terminal pane is created on first launch.
 
 **Persistent config.** Everything is stored as JSON in `~/.knkode/` — workspace definitions, open tabs, window position. Writes are atomic (temp file + rename) so a crash won't corrupt your config.
 
-## Keyboard shortcuts
+## ⌨️ Keyboard shortcuts
 
 Uses `Cmd` on macOS, `Ctrl` on Windows — intentionally avoids terminal control sequences (`Ctrl+C`, `Ctrl+D`, etc.).
 
@@ -44,7 +44,7 @@ Uses `Cmd` on macOS, `Ctrl` on Windows — intentionally avoids terminal control
 | Find in terminal | `Cmd+F` | `Ctrl+F` |
 | Settings | `Cmd+,` | `Ctrl+,` |
 
-## Development
+## 🛠 Development
 
 Requires [Node.js](https://nodejs.org) >= 18 and [bun](https://bun.sh).
 
@@ -63,7 +63,7 @@ bun run lint         # biome check
 bun run lint:fix     # biome check --write
 ```
 
-### Building
+### 📦 Building
 
 ```sh
 bun run build       # compile to out/
@@ -72,7 +72,7 @@ bun run package     # build + create .dmg / .exe
 
 Distributables land in `dist/`. macOS code signing and notarization require Apple Developer credentials — see `scripts/notarize.js`.
 
-### Project structure
+### 🗂 Project structure
 
 ```
 src/
@@ -84,6 +84,6 @@ src/
 
 Stack: Electron, React 19, TypeScript, Zustand, xterm.js + node-pty, allotment, Tailwind CSS v4, electron-vite, Biome.
 
-## License
+## 📄 License
 
 [MIT](LICENSE)
