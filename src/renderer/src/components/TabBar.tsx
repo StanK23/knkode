@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react'
 import type { Workspace } from '../../../shared/types'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { WORKSPACE_COLORS, useStore } from '../store'
-import { modKey } from '../utils/platform'
+import { isMac, modKey } from '../utils/platform'
 import { Tab } from './Tab'
 
 interface TabBarProps {
@@ -96,7 +96,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 	return (
 		<div
 			className="flex items-end bg-sunken border-b border-edge relative shrink-0"
-			style={{ WebkitAppRegion: 'drag' }}
+			style={isMac ? { WebkitAppRegion: 'drag' } : undefined}
 		>
 			{/* Tabs */}
 			<div

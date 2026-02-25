@@ -342,6 +342,7 @@ export function Pane({
 		<div
 			ref={outerRef}
 			className="flex flex-col h-full w-full relative"
+			onMouseDown={handleFocus}
 			onDragOver={handlePaneDragOver}
 			onDragEnter={handlePaneDragEnter}
 			onDragLeave={handlePaneDragLeave}
