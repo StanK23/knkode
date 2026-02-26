@@ -59,6 +59,7 @@ interface CachedTerminal {
 	/** Attached to the current React container on each mount; detached on unmount. */
 	termContainer: HTMLDivElement
 	webglAddon: WebglAddon | null
+	webglRecoveries: number
 	removeDataListener: () => void
 	removeExitListener: () => void
 	// Safe to mutate from onData/onPtyExit because both run on the same JS
@@ -68,6 +69,12 @@ interface CachedTerminal {
 
 const terminalCache = new Map<string, CachedTerminal>()
 
+/**
+ * Maximum consecutive WebGL context-loss recoveries before giving up and
+ * staying on the canvas renderer for this terminal instance.
+ */
+const MAX_WEBGL_RECOVERIES = 3
+
 /** Dispose the previous WebGL addon (if any) and try loading a fresh one. */
 function tryLoadWebgl(entry: CachedTerminal): void {
 	try {
@@ -76,11 +83,29 @@ function tryLoadWebgl(entry: CachedTerminal): void {
 		/* ignore disposal errors */
 	}
 	entry.webglAddon = null
+
+	if (entry.webglRecoveries >= MAX_WEBGL_RECOVERIES) {
+		console.warn('[terminal] WebGL context lost too many times, staying on canvas renderer')
+		return
+	}
+
 	try {
 		const webglAddon = new WebglAddon()
 		webglAddon.onContextLoss(() => {
-			webglAddon.dispose()
+			console.warn('[terminal] WebGL context lost, recovering...')
+			try {
+				webglAddon.dispose()
+			} catch {
+				/* ignore disposal errors */
+			}
 			entry.webglAddon = null
+			entry.webglRecoveries++
+			// Delay to let the GPU recover before re-creating the context
+			setTimeout(() => {
+				tryLoadWebgl(entry)
+				// Force full repaint to clear corrupted glyphs
+				entry.term.refresh(0, entry.term.rows - 1)
+			}, 200)
 		})
 		entry.term.loadAddon(webglAddon)
 		entry.webglAddon = webglAddon
@@ -209,6 +234,7 @@ export function TerminalView({
 				searchAddon,
 				termContainer,
 				webglAddon: null,
+				webglRecoveries: 0,
 				removeDataListener: () => {},
 				removeExitListener: () => {},
 				ptyExited: false,
