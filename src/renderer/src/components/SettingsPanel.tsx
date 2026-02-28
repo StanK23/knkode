@@ -95,12 +95,16 @@ function SnippetsSection() {
 	const addSnippet = useStore((s) => s.addSnippet)
 	const updateSnippet = useStore((s) => s.updateSnippet)
 	const removeSnippet = useStore((s) => s.removeSnippet)
+	const reorderSnippets = useStore((s) => s.reorderSnippets)
 	const [editingId, setEditingId] = useState<string | null>(null)
 	const [editName, setEditName] = useState('')
 	const [editCommand, setEditCommand] = useState('')
 	const [isAdding, setIsAdding] = useState(false)
 	const [newName, setNewName] = useState('')
 	const [newCommand, setNewCommand] = useState('')
+	const [dragFromIndex, setDragFromIndex] = useState<number | null>(null)
+	const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+	const dragFromRef = useRef<number | null>(null)
 
 	const startEdit = useCallback(
 		(id: string) => {
@@ -130,6 +134,35 @@ function SnippetsSection() {
 		}
 	}, [newName, newCommand, addSnippet])
 
+	const resetDragState = useCallback(() => {
+		setDragFromIndex(null)
+		setDragOverIndex(null)
+		dragFromRef.current = null
+	}, [])
+
+	const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
+		e.dataTransfer.effectAllowed = 'move'
+		setDragFromIndex(index)
+		dragFromRef.current = index
+	}, [])
+
+	const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
+		e.preventDefault()
+		e.dataTransfer.dropEffect = 'move'
+		setDragOverIndex((prev) => (prev === index ? prev : index))
+	}, [])
+
+	const handleDrop = useCallback(
+		(index: number) => {
+			const from = dragFromRef.current
+			if (from !== null && from !== index) {
+				reorderSnippets(from, index)
+			}
+			resetDragState()
+		},
+		[reorderSnippets, resetDragState],
+	)
+
 	return (
 		<SettingsSection label="Commands" gap={8}>
 			<span className="text-[10px] text-content-muted -mt-1 mb-1">
@@ -138,8 +171,20 @@ function SnippetsSection() {
 			{snippets.length === 0 && !isAdding && (
 				<span className="text-[11px] text-content-muted italic">No snippets yet</span>
 			)}
-			{snippets.map((snippet) => (
-				<div key={snippet.id} className="flex items-center gap-1.5">
+			{snippets.map((snippet, index) => (
+				<div
+					key={snippet.id}
+					draggable={editingId !== snippet.id}
+					onDragStart={(e) => handleDragStart(e, index)}
+					onDragOver={(e) => handleDragOver(e, index)}
+					onDrop={() => handleDrop(index)}
+					onDragEnd={resetDragState}
+					className={`flex items-center gap-1.5 rounded-sm transition-colors ${
+						dragOverIndex === index && dragFromIndex !== null && dragFromIndex !== index
+							? 'bg-accent/10'
+							: ''
+					} ${dragFromIndex === index ? 'opacity-40' : ''}`}
+				>
 					{editingId === snippet.id ? (
 						<>
 							<input
@@ -176,6 +221,12 @@ function SnippetsSection() {
 						</>
 					) : (
 						<>
+							<span
+								className="text-content-muted cursor-grab active:cursor-grabbing select-none shrink-0 text-xs"
+								aria-label={`Drag to reorder ${snippet.name}`}
+							>
+								⠿
+							</span>
 							<span className="text-xs text-content font-medium w-24 truncate shrink-0">
 								{snippet.name}
 							</span>

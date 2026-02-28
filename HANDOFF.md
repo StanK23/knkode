@@ -1,18 +1,27 @@
 # HANDOFF
 
 ## Current State
-- Branch: `main`
-- All PRs merged, clean slate
+- Branch: `feature/snippet-reorder`
+- PR pending: drag-to-reorder snippets in Settings
 
 ## What Was Done
-- PR #51 merged: Windows support + CI/CD
-  - Platform-conditional BrowserWindow, cross-platform path validation, NSIS config, icon.ico
-  - GitHub Actions: CI (lint+test on push/PR) and release (matrix build on v* tags)
-  - Review: 10 agents, all findings addressed
-- PR #50 merged: Dynamic workspace fonts
-- PR #49 merged: UI glass polish
+- feat: snippet reorder via drag-and-drop in Settings panel
+  - Added `reorderSnippets(fromIndex, toIndex)` store action (splice-remove + insert, persists)
+  - Added HTML5 DnD to snippet rows: drag handle, opacity on drag, accent highlight on drop target
+  - Follows same pattern as workspace tab reorder in TabBar
+
+## Previous Work
+- `34fcc09` fix: recover from WebGL context loss
+- PR #51: Windows support + CI/CD
+- PR #50: Dynamic workspace fonts
+
+## Active Plan
+- `docs/plans/2026-03-01-pane-enhancements-plan.md`
+- PR #1: snippet reorder (this branch) — done
+- PR #2: fix pane scroll jump — next
+- PR #3: translucent pane backgrounds — after
 
 ## Next Steps
-1. Follow-up: expose `process.platform` via preload API to replace deprecated `navigator.platform`
-2. Follow-up: pin GitHub Actions to commit SHAs
-3. Follow-up: Windows code-signing (Authenticode)
+1. Merge PR #1, then fix pane scroll jump (PR #2)
+2. Follow-up: expose `process.platform` via preload API
+3. Follow-up: pin GitHub Actions to commit SHAs
