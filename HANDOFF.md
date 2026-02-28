@@ -1,29 +1,23 @@
 # HANDOFF
 
 ## Current State
-- Branch: `feature/snippet-reorder`
-- PR #56: drag-to-reorder snippets — review fixes applied, ready for merge
+- Branch: `main`
+- PR #56 merged: drag-to-reorder snippets in Settings
 
 ## What Was Done
-- feat: snippet reorder via drag-and-drop in Settings panel
-  - `reorderSnippets` store action with console.warn on bad indices
-  - HTML5 DnD on snippet rows + keyboard reorder (Alt+Arrow)
-  - Full accessibility: `aria-roledescription`, `aria-live` announcements, focus ring
-  - Drag handle hidden in edit mode and for single-snippet lists
-  - 5 unit tests mirroring `reorderWorkspaceTabs` suite
-
-## Previous Work
-- `34fcc09` fix: recover from WebGL context loss
-- PR #51: Windows support + CI/CD
-- PR #50: Dynamic workspace fonts
+- PR #56 merged: snippet reorder via DnD + keyboard, full a11y, 5 unit tests
 
 ## Active Plan
 - `docs/plans/2026-03-01-pane-enhancements-plan.md`
-- PR #1: snippet reorder (this branch) — done, reviewed, fixes applied
+- PR #1: snippet reorder — merged (PR #56)
 - PR #2: fix pane scroll jump — next
 - PR #3: translucent pane backgrounds — after
 
+## Previous Work
+- PR #51: Windows support + CI/CD
+- PR #50: Dynamic workspace fonts
+
 ## Next Steps
-1. Merge PR #56, then fix pane scroll jump (PR #2)
-2. Follow-up: extract shared `useDragReorder` hook (TabBar + SettingsPanel)
-3. Follow-up: expose `process.platform` via preload API
+1. Fix pane scroll jump (PR #2)
+2. Translucent pane backgrounds (PR #3)
+3. Follow-up: extract shared `useDragReorder` hook
