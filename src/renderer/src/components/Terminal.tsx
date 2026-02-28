@@ -92,14 +92,20 @@ const terminalCache = new Map<string, CachedTerminal>()
  */
 const MAX_WEBGL_RECOVERIES = 3
 
-/** Dispose the previous WebGL addon (if any) and try loading a fresh one. */
-function tryLoadWebgl(entry: CachedTerminal): void {
+/** Safely dispose the current WebGL addon (if any) and null the reference. */
+function disposeWebgl(entry: CachedTerminal): void {
+	if (!entry.webglAddon) return
 	try {
-		entry.webglAddon?.dispose()
-	} catch {
-		/* ignore disposal errors */
+		entry.webglAddon.dispose()
+	} catch (err) {
+		console.warn('[terminal] WebGL disposal failed:', err)
 	}
 	entry.webglAddon = null
+}
+
+/** Dispose the previous WebGL addon (if any) and try loading a fresh one. */
+function tryLoadWebgl(entry: CachedTerminal): void {
+	disposeWebgl(entry)
 
 	if (entry.webglRecoveries >= MAX_WEBGL_RECOVERIES) {
 		console.warn('[terminal] WebGL context lost too many times, staying on canvas renderer')
@@ -110,12 +116,7 @@ function tryLoadWebgl(entry: CachedTerminal): void {
 		const webglAddon = new WebglAddon()
 		webglAddon.onContextLoss(() => {
 			console.warn('[terminal] WebGL context lost, recovering...')
-			try {
-				webglAddon.dispose()
-			} catch {
-				/* ignore disposal errors */
-			}
-			entry.webglAddon = null
+			disposeWebgl(entry)
 			entry.webglRecoveries++
 			// Delay to let the GPU recover before re-creating the context
 			setTimeout(() => {
@@ -333,8 +334,9 @@ export function TerminalView({
 			} catch (err) {
 				console.warn('[terminal] clearDecorations failed on remount:', err)
 			}
-			// WebGL context may have been lost when detached — reload
-			tryLoadWebgl(cached)
+			// WebGL context may have been lost when detached — reload only if opaque
+			const cachedOpacity = themeRef.current.paneOpacity ?? DEFAULT_PANE_OPACITY
+			if (cachedOpacity >= 1) tryLoadWebgl(cached)
 		}
 
 		const { term, fitAddon, searchAddon, termContainer } = cached
@@ -459,16 +461,12 @@ export function TerminalView({
 			termRef.current.options.fontFamily !== newFontFamily
 		termRef.current.options.fontSize = mergedTheme.fontSize
 		termRef.current.options.fontFamily = newFontFamily
-		// Toggle WebGL based on opacity — WebGL doesn't support transparent backgrounds
+		// Toggle WebGL based on opacity — WebGL doesn't support transparent backgrounds.
+		// See also: cache-miss (line ~275) and cache-hit (line ~348) guards.
 		const cached = terminalCache.get(paneId)
 		if (cached) {
 			if (opacity < 1 && cached.webglAddon) {
-				try {
-					cached.webglAddon.dispose()
-				} catch {
-					/* ignore disposal errors */
-				}
-				cached.webglAddon = null
+				disposeWebgl(cached)
 			} else if (opacity >= 1 && !cached.webglAddon) {
 				tryLoadWebgl(cached)
 			}
@@ -481,6 +479,7 @@ export function TerminalView({
 				console.warn('[terminal] fit()/scroll failed during theme update:', err)
 			}
 		}
+	// paneId needed because the effect reads from terminalCache by paneId
 	}, [mergedTheme, paneId])
 
 	// Cmd+F to open search (captured at terminal level to prevent browser find)
