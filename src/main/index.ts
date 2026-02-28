@@ -24,6 +24,8 @@ function createWindow(): void {
 		console.warn('[main] App icon not found at', APP_ICON_PATH)
 	}
 
+	const isWindows = process.platform === 'win32'
+
 	const win = new BrowserWindow({
 		x: windowBounds.x,
 		y: windowBounds.y,
@@ -33,14 +35,19 @@ function createWindow(): void {
 		minHeight: 400,
 		icon: appIcon,
 		title: 'knkode',
-		transparent: true,
+		// transparent: true is required on macOS for vibrancy but causes issues on
+		// Windows without frame: false and has no blur equivalent on Linux.
 		...(isMac && {
+			transparent: true,
 			titleBarStyle: 'hiddenInset' as const,
 			trafficLightPosition: { x: 12, y: 12 },
 			vibrancy: 'under-window' as const,
 			hasShadow: true,
 		}),
-		...(!isMac && { backgroundMaterial: 'acrylic' as const }),
+		// Windows: backgroundMaterial works independently of transparent flag
+		...(isWindows && { backgroundMaterial: 'acrylic' as const }),
+		// Linux: no platform-native blur API in Electron — opaque window
+		...(!isMac && !isWindows && { backgroundColor: '#1a1a2e' }),
 		webPreferences: {
 			preload: path.join(__dirname, '../preload/index.js'),
 			nodeIntegration: false,
