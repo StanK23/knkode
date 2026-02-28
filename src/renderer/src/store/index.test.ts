@@ -26,6 +26,7 @@ const mockApi = {
 	resizePty: vi.fn<(id: string, cols: number, rows: number) => Promise<void>>(),
 	killPty: vi.fn<(id: string) => Promise<void>>(),
 	getSnippets: vi.fn<() => Promise<[]>>(),
+	saveSnippets: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 	onPtyData: vi.fn(() => () => {}),
 	onPtyExit: vi.fn(() => () => {}),
 	onPtyCwdChanged: vi.fn(() => () => {}),
@@ -374,6 +375,50 @@ describe('store reorderWorkspaceTabs', () => {
 	it('persists to app state', () => {
 		useStore.getState().reorderWorkspaceTabs(0, 3)
 		expect(mockApi.saveAppState).toHaveBeenCalled()
+	})
+})
+
+describe('store reorderSnippets', () => {
+	beforeEach(() => {
+		useStore.setState({
+			snippets: [
+				{ id: 'a', name: 'Alpha', command: 'echo a' },
+				{ id: 'b', name: 'Beta', command: 'echo b' },
+				{ id: 'c', name: 'Charlie', command: 'echo c' },
+				{ id: 'd', name: 'Delta', command: 'echo d' },
+			],
+		})
+		mockApi.saveSnippets.mockClear()
+	})
+
+	it('moves a snippet forward', () => {
+		useStore.getState().reorderSnippets(0, 2)
+		expect(useStore.getState().snippets.map((s) => s.id)).toEqual(['b', 'c', 'a', 'd'])
+	})
+
+	it('moves a snippet backward', () => {
+		useStore.getState().reorderSnippets(3, 1)
+		expect(useStore.getState().snippets.map((s) => s.id)).toEqual(['a', 'd', 'b', 'c'])
+	})
+
+	it('no-ops for same index', () => {
+		useStore.getState().reorderSnippets(1, 1)
+		expect(useStore.getState().snippets.map((s) => s.id)).toEqual(['a', 'b', 'c', 'd'])
+		expect(mockApi.saveSnippets).not.toHaveBeenCalled()
+	})
+
+	it('no-ops for out-of-range indices', () => {
+		vi.spyOn(console, 'warn').mockImplementation(() => {})
+		useStore.getState().reorderSnippets(-1, 2)
+		expect(useStore.getState().snippets.map((s) => s.id)).toEqual(['a', 'b', 'c', 'd'])
+		expect(mockApi.saveSnippets).not.toHaveBeenCalled()
+		expect(console.warn).toHaveBeenCalled()
+		vi.restoreAllMocks()
+	})
+
+	it('persists after reorder', () => {
+		useStore.getState().reorderSnippets(0, 3)
+		expect(mockApi.saveSnippets).toHaveBeenCalled()
 	})
 })
 
