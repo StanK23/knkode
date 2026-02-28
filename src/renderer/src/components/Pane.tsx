@@ -273,12 +273,17 @@ export function Pane({
 
 	const shortCwd = config.cwd.replace(/^\/Users\/[^/]+/, '~')
 
-	const headerBgStyle = useMemo(() => {
+	const headerStyles = useMemo(() => {
 		const opacity =
 			config.themeOverride?.paneOpacity ?? workspaceTheme.paneOpacity ?? DEFAULT_PANE_OPACITY
-		if (opacity >= 1) return undefined
+		if (opacity >= 1) return { focused: undefined, unfocused: undefined }
 		const bg = config.themeOverride?.background ?? workspaceTheme.background
-		return { backgroundColor: resolveBackground(bg, opacity) }
+		// Slightly boost focused header opacity to preserve visual distinction
+		const focusedOpacity = Math.min(1, opacity + 0.1)
+		return {
+			focused: { backgroundColor: resolveBackground(bg, focusedOpacity) },
+			unfocused: { backgroundColor: resolveBackground(bg, opacity) },
+		}
 	}, [config.themeOverride, workspaceTheme])
 
 	const handleFocus = useCallback(() => onFocus(paneId), [paneId, onFocus])
@@ -372,7 +377,7 @@ export function Pane({
 				className={`h-header flex items-center gap-2 px-2 text-[11px] shrink-0 relative select-none transition-colors duration-200 ${
 					isFocused ? 'bg-elevated border-b border-accent' : 'bg-sunken border-b border-edge'
 				} ${isDragging ? 'opacity-40' : ''}`}
-				style={headerBgStyle}
+				style={isFocused ? headerStyles.focused : headerStyles.unfocused}
 			>
 				<span className="text-content-muted text-[10px] font-semibold min-w-3 text-center shrink-0">
 					{paneIndex}
