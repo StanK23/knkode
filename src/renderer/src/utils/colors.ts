@@ -51,6 +51,21 @@ export function mixColors(color1: string, color2: string, weight: number): strin
 	)
 }
 
+/** Convert a hex color (#RGB or #RRGGBB) to an rgba() CSS string.
+ *  Delegates to hexToRgb for parsing — malformed input produces rgba(0, 0, 0, opacity).
+ *  Opacity is clamped to [0, 1]; non-finite values default to 1. */
+export function hexToRgba(hex: string, opacity: number): string {
+	const [r, g, b] = hexToRgb(hex)
+	const a = Number.isFinite(opacity) ? Math.max(0, Math.min(1, opacity)) : 1
+	return `rgba(${r}, ${g}, ${b}, ${a})`
+}
+
+/** Return an rgba background when translucent, or the raw hex when opaque.
+ *  Centralizes the `opacity < 1` threshold so it's defined in one place. */
+export function resolveBackground(hex: string, opacity: number): string {
+	return opacity < 1 ? hexToRgba(hex, opacity) : hex
+}
+
 /** Returns true if the color has low perceived luminance (< 0.5).
  *  Invalid input → hexToRgb returns [0,0,0] → luminance 0 → true (dark). */
 export function isDark(hex: string): boolean {

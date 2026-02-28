@@ -5,7 +5,7 @@ import {
 	type PaneConfig,
 	type PaneTheme,
 } from '../../../shared/types'
-import { hexToRgba } from '../data/theme-presets'
+import { resolveBackground } from '../utils/colors'
 
 type ContextPanelKind = 'cwd' | 'cmd' | 'theme' | 'move'
 type DropZone = DropPosition | 'center'
@@ -273,13 +273,13 @@ export function Pane({
 
 	const shortCwd = config.cwd.replace(/^\/Users\/[^/]+/, '~')
 
-	const effectiveOpacity =
-		config.themeOverride?.paneOpacity ?? workspaceTheme.paneOpacity ?? DEFAULT_PANE_OPACITY
-	const isTranslucent = effectiveOpacity < 1
-	const effectiveBg = config.themeOverride?.background ?? workspaceTheme.background
-	const headerBgStyle = isTranslucent
-		? { backgroundColor: hexToRgba(effectiveBg, effectiveOpacity) }
-		: undefined
+	const headerBgStyle = useMemo(() => {
+		const opacity =
+			config.themeOverride?.paneOpacity ?? workspaceTheme.paneOpacity ?? DEFAULT_PANE_OPACITY
+		if (opacity >= 1) return undefined
+		const bg = config.themeOverride?.background ?? workspaceTheme.background
+		return { backgroundColor: resolveBackground(bg, opacity) }
+	}, [config.themeOverride, workspaceTheme])
 
 	const handleFocus = useCallback(() => onFocus(paneId), [paneId, onFocus])
 

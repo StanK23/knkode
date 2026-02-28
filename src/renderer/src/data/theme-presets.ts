@@ -1,4 +1,5 @@
 import type { PaneTheme } from '../../../shared/types'
+import { resolveBackground } from '../utils/colors'
 
 type ThemePreset = Pick<PaneTheme, 'background' | 'foreground'> & { name: string }
 
@@ -49,28 +50,14 @@ export function buildFontFamily(family?: string): string {
 	return family ? `${family}, ${FONT_FALLBACKS}` : DEFAULT_FONT_FAMILY
 }
 
-/** Convert a hex color (#RGB or #RRGGBB) to rgba with the given opacity (0–1). */
-export function hexToRgba(hex: string, opacity: number): string {
-	const h = hex.replace('#', '')
-	const full =
-		h.length === 3
-			? h
-					.split('')
-					.map((c) => c + c)
-					.join('')
-			: h
-	const r = Number.parseInt(full.slice(0, 2), 16)
-	const g = Number.parseInt(full.slice(2, 4), 16)
-	const b = Number.parseInt(full.slice(4, 6), 16)
-	if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return hex
-	return `rgba(${r}, ${g}, ${b}, ${opacity})`
-}
-
-/** Build xterm.js theme options from a PaneTheme's color fields. */
-export function buildXtermTheme(t: Pick<PaneTheme, 'background' | 'foreground'>, opacity = 1) {
-	const bg = opacity < 1 ? hexToRgba(t.background, opacity) : t.background
+/** Build xterm.js theme options from a PaneTheme's color fields.
+ *  When opacity < 1, the background is converted to an rgba value for translucency. */
+export function buildXtermTheme(
+	t: Pick<PaneTheme, 'background' | 'foreground'>,
+	opacity: number = 1,
+): { background: string; foreground: string; cursor: string; selectionBackground: string } {
 	return {
-		background: bg,
+		background: resolveBackground(t.background, opacity),
 		foreground: t.foreground,
 		cursor: t.foreground,
 		selectionBackground: `${t.foreground}33`,

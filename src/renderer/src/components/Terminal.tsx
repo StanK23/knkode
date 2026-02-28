@@ -11,7 +11,8 @@ import {
 	DEFAULT_SCROLLBACK,
 	type PaneTheme,
 } from '../../../shared/types'
-import { buildFontFamily, buildXtermTheme, hexToRgba } from '../data/theme-presets'
+import { buildFontFamily, buildXtermTheme } from '../data/theme-presets'
+import { resolveBackground } from '../utils/colors'
 import { useStore } from '../store'
 
 const SEARCH_BTN =
@@ -562,9 +563,10 @@ export function TerminalView({
 		[handleSearchNav, closeSearch],
 	)
 
-	const wrapperOpacity = mergedTheme.paneOpacity ?? DEFAULT_PANE_OPACITY
-	const wrapperBg =
-		wrapperOpacity < 1 ? hexToRgba(mergedTheme.background, wrapperOpacity) : mergedTheme.background
+	const wrapperBg = useMemo(() => {
+		const opacity = mergedTheme.paneOpacity ?? DEFAULT_PANE_OPACITY
+		return resolveBackground(mergedTheme.background, opacity)
+	}, [mergedTheme])
 
 	return (
 		<div
