@@ -251,6 +251,8 @@ interface StoreState {
 	addSnippet: (name: string, command: string) => void
 	updateSnippet: (id: string, updates: Pick<Snippet, 'name' | 'command'>) => void
 	removeSnippet: (id: string) => void
+	/** Move the snippet at fromIndex to toIndex (splice-remove then insert). */
+	reorderSnippets: (fromIndex: number, toIndex: number) => void
 	runSnippet: (snippetId: string, paneId: string) => void
 }
 
@@ -911,6 +913,23 @@ export const useStore = create<StoreState>((set, get) => ({
 
 	removeSnippet: (id) => {
 		const snippets = get().snippets.filter((s) => s.id !== id)
+		set({ snippets })
+		persistSnippets(snippets)
+	},
+
+	reorderSnippets: (fromIndex, toIndex) => {
+		const snippets = [...get().snippets]
+		if (fromIndex < 0 || fromIndex >= snippets.length || toIndex < 0 || toIndex >= snippets.length) {
+			console.warn('[store] reorderSnippets: index out of range', {
+				fromIndex,
+				toIndex,
+				length: snippets.length,
+			})
+			return
+		}
+		if (fromIndex === toIndex) return
+		const [moved] = snippets.splice(fromIndex, 1)
+		snippets.splice(toIndex, 0, moved!)
 		set({ snippets })
 		persistSnippets(snippets)
 	},

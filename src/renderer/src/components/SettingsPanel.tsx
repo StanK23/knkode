@@ -95,12 +95,17 @@ function SnippetsSection() {
 	const addSnippet = useStore((s) => s.addSnippet)
 	const updateSnippet = useStore((s) => s.updateSnippet)
 	const removeSnippet = useStore((s) => s.removeSnippet)
+	const reorderSnippets = useStore((s) => s.reorderSnippets)
 	const [editingId, setEditingId] = useState<string | null>(null)
 	const [editName, setEditName] = useState('')
 	const [editCommand, setEditCommand] = useState('')
 	const [isAdding, setIsAdding] = useState(false)
 	const [newName, setNewName] = useState('')
 	const [newCommand, setNewCommand] = useState('')
+	const [dragFromIndex, setDragFromIndex] = useState<number | null>(null)
+	const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+	const dragFromRef = useRef<number | null>(null)
+	const [liveMessage, setLiveMessage] = useState('')
 
 	const startEdit = useCallback(
 		(id: string) => {
@@ -130,6 +135,56 @@ function SnippetsSection() {
 		}
 	}, [newName, newCommand, addSnippet])
 
+	const resetDragState = useCallback(() => {
+		setDragFromIndex(null)
+		setDragOverIndex(null)
+		dragFromRef.current = null
+	}, [])
+
+	const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
+		e.dataTransfer.effectAllowed = 'move'
+		e.dataTransfer.setData('text/plain', '')
+		setDragFromIndex(index)
+		dragFromRef.current = index
+	}, [])
+
+	const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
+		e.preventDefault()
+		e.dataTransfer.dropEffect = 'move'
+		setDragOverIndex((prev) => (prev === index ? prev : index))
+	}, [])
+
+	const handleDrop = useCallback(
+		(index: number) => {
+			const from = dragFromRef.current
+			if (from !== null && from !== index) {
+				reorderSnippets(from, index)
+				const name = snippets[from]?.name ?? 'Snippet'
+				setLiveMessage(`Moved ${name} to position ${index + 1}`)
+			}
+			resetDragState()
+		},
+		[reorderSnippets, resetDragState, snippets],
+	)
+
+	const handleKeyboardReorder = useCallback(
+		(e: React.KeyboardEvent, index: number) => {
+			if (!e.altKey) return
+			if (e.key === 'ArrowUp' && index > 0) {
+				e.preventDefault()
+				reorderSnippets(index, index - 1)
+				const name = snippets[index]?.name ?? 'Snippet'
+				setLiveMessage(`Moved ${name} to position ${index}`)
+			} else if (e.key === 'ArrowDown' && index < snippets.length - 1) {
+				e.preventDefault()
+				reorderSnippets(index, index + 1)
+				const name = snippets[index]?.name ?? 'Snippet'
+				setLiveMessage(`Moved ${name} to position ${index + 2}`)
+			}
+		},
+		[reorderSnippets, snippets],
+	)
+
 	return (
 		<SettingsSection label="Commands" gap={8}>
 			<span className="text-[10px] text-content-muted -mt-1 mb-1">
@@ -138,72 +193,105 @@ function SnippetsSection() {
 			{snippets.length === 0 && !isAdding && (
 				<span className="text-[11px] text-content-muted italic">No snippets yet</span>
 			)}
-			{snippets.map((snippet) => (
-				<div key={snippet.id} className="flex items-center gap-1.5">
-					{editingId === snippet.id ? (
-						<>
-							<input
-								value={editName}
-								onChange={(e) => setEditName(e.target.value)}
-								className="settings-input flex-1 min-w-0"
-								placeholder="Name"
-								aria-label="Snippet name"
-								// biome-ignore lint/a11y/noAutofocus: intentional focus for inline edit
-								autoFocus
-								onKeyDown={(e) => {
-									if (e.key === 'Enter') commitEdit()
-									if (e.key === 'Escape') setEditingId(null)
-								}}
-							/>
-							<input
-								value={editCommand}
-								onChange={(e) => setEditCommand(e.target.value)}
-								className="settings-input flex-[2] min-w-0"
-								placeholder="Command"
-								aria-label="Snippet command"
-								onKeyDown={(e) => {
-									if (e.key === 'Enter') commitEdit()
-									if (e.key === 'Escape') setEditingId(null)
-								}}
-							/>
-							<button
-								type="button"
-								onClick={commitEdit}
-								className="btn-ghost text-accent hover:brightness-125"
-							>
-								Save
-							</button>
-						</>
-					) : (
-						<>
-							<span className="text-xs text-content font-medium w-24 truncate shrink-0">
-								{snippet.name}
-							</span>
-							<span className="text-[11px] text-content-muted flex-1 truncate font-mono">
-								{snippet.command}
-							</span>
-							<button
-								type="button"
-								onClick={() => startEdit(snippet.id)}
-								className="btn-ghost text-content-muted hover:text-content"
-								aria-label={`Edit ${snippet.name}`}
-							>
-								Edit
-							</button>
-							<button
-								type="button"
-								onClick={() => {
-									if (window.confirm(`Delete snippet "${snippet.name}"?`)) removeSnippet(snippet.id)
-								}}
-								className="btn-ghost text-danger hover:brightness-125"
-								aria-label={`Delete ${snippet.name}`}
-							>
-								Del
-							</button>
-						</>
-					)}
-				</div>
-			))}
+			{snippets.map((snippet, index) => {
+				const isDropTarget =
+					dragOverIndex === index && dragFromIndex !== null && dragFromIndex !== index
+				const isDragSource = dragFromIndex === index
+				const isEditing = editingId === snippet.id
+				const showHandle = !isEditing && snippets.length > 1
+
+				return (
+					<div
+						key={snippet.id}
+						draggable={!isEditing}
+						onDragStart={(e) => handleDragStart(e, index)}
+						onDragOver={(e) => handleDragOver(e, index)}
+						onDrop={() => handleDrop(index)}
+						onDragEnd={resetDragState}
+						aria-roledescription="reorderable snippet"
+						className={`flex items-center gap-1.5 rounded-sm transition-colors ${isDropTarget ? 'bg-accent/10' : ''} ${isDragSource ? 'opacity-40' : ''}`}
+					>
+						{isEditing ? (
+							<>
+								<input
+									value={editName}
+									onChange={(e) => setEditName(e.target.value)}
+									className="settings-input flex-1 min-w-0"
+									placeholder="Name"
+									aria-label="Snippet name"
+									// biome-ignore lint/a11y/noAutofocus: intentional focus for inline edit
+									autoFocus
+									onKeyDown={(e) => {
+										if (e.key === 'Enter') commitEdit()
+										if (e.key === 'Escape') setEditingId(null)
+									}}
+								/>
+								<input
+									value={editCommand}
+									onChange={(e) => setEditCommand(e.target.value)}
+									className="settings-input flex-[2] min-w-0"
+									placeholder="Command"
+									aria-label="Snippet command"
+									onKeyDown={(e) => {
+										if (e.key === 'Enter') commitEdit()
+										if (e.key === 'Escape') setEditingId(null)
+									}}
+								/>
+								<button
+									type="button"
+									onClick={commitEdit}
+									className="btn-ghost text-accent hover:brightness-125"
+								>
+									Save
+								</button>
+							</>
+						) : (
+							<>
+								{showHandle ? (
+									<button
+										type="button"
+										className="bg-transparent border-none text-content-muted cursor-grab active:cursor-grabbing select-none shrink-0 text-xs p-0 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none rounded-sm"
+										aria-label={`Reorder ${snippet.name}, item ${index + 1} of ${snippets.length}. Use Alt+Arrow keys`}
+										onKeyDown={(e) => handleKeyboardReorder(e, index)}
+									>
+										⠿
+									</button>
+								) : (
+									<span className="w-3 shrink-0" />
+								)}
+								<span className="text-xs text-content font-medium w-24 truncate shrink-0">
+									{snippet.name}
+								</span>
+								<span className="text-[11px] text-content-muted flex-1 truncate font-mono">
+									{snippet.command}
+								</span>
+								<button
+									type="button"
+									onClick={() => startEdit(snippet.id)}
+									className="btn-ghost text-content-muted hover:text-content"
+									aria-label={`Edit ${snippet.name}`}
+								>
+									Edit
+								</button>
+								<button
+									type="button"
+									onClick={() => {
+										if (window.confirm(`Delete snippet "${snippet.name}"?`))
+											removeSnippet(snippet.id)
+									}}
+									className="btn-ghost text-danger hover:brightness-125"
+									aria-label={`Delete ${snippet.name}`}
+								>
+									Del
+								</button>
+							</>
+						)}
+					</div>
+				)
+			})}
+			<span className="sr-only" aria-live="polite">
+				{liveMessage}
+			</span>
 			{isAdding ? (
 				<div className="flex items-center gap-1.5">
 					<input
