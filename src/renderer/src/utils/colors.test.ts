@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { generateThemeVariables, hexToRgb, isDark, isValidHex, mixColors, rgbToHex } from './colors'
+import {
+	generateThemeVariables,
+	hexToRgb,
+	hexToRgba,
+	isDark,
+	isValidHex,
+	mixColors,
+	resolveBackground,
+	rgbToHex,
+} from './colors'
 
 describe('isValidHex', () => {
 	it('accepts valid hex colors', () => {
@@ -237,5 +246,49 @@ describe('generateThemeVariables', () => {
 				'"; } body { display: none; } .x { font-family: "',
 			)['--font-family-ui'],
 		).toBe('var(--font-mono-fallback)')
+	})
+})
+
+describe('hexToRgba', () => {
+	it('converts 6-digit hex with opacity', () => {
+		expect(hexToRgba('#1a1a2e', 0.5)).toBe('rgba(26, 26, 46, 0.5)')
+		expect(hexToRgba('#ffffff', 1)).toBe('rgba(255, 255, 255, 1)')
+		expect(hexToRgba('#000000', 0)).toBe('rgba(0, 0, 0, 0)')
+	})
+
+	it('converts 3-digit shorthand hex', () => {
+		expect(hexToRgba('#fff', 0.8)).toBe('rgba(255, 255, 255, 0.8)')
+		expect(hexToRgba('#000', 0.3)).toBe('rgba(0, 0, 0, 0.3)')
+	})
+
+	it('handles input without # prefix', () => {
+		expect(hexToRgba('ff0000', 0.5)).toBe('rgba(255, 0, 0, 0.5)')
+	})
+
+	it('falls back to rgba(0,0,0) on malformed hex', () => {
+		expect(hexToRgba('not-a-color', 0.5)).toBe('rgba(0, 0, 0, 0.5)')
+		expect(hexToRgba('', 0.5)).toBe('rgba(0, 0, 0, 0.5)')
+	})
+
+	it('clamps opacity outside [0, 1]', () => {
+		expect(hexToRgba('#ff0000', -0.5)).toBe('rgba(255, 0, 0, 0)')
+		expect(hexToRgba('#ff0000', 2)).toBe('rgba(255, 0, 0, 1)')
+	})
+
+	it('defaults to opacity 1 for non-finite values', () => {
+		expect(hexToRgba('#ff0000', Number.NaN)).toBe('rgba(255, 0, 0, 1)')
+		expect(hexToRgba('#ff0000', Number.POSITIVE_INFINITY)).toBe('rgba(255, 0, 0, 1)')
+		expect(hexToRgba('#ff0000', Number.NEGATIVE_INFINITY)).toBe('rgba(255, 0, 0, 1)')
+	})
+})
+
+describe('resolveBackground', () => {
+	it('returns rgba when opacity < 1', () => {
+		expect(resolveBackground('#1a1a2e', 0.5)).toBe('rgba(26, 26, 46, 0.5)')
+	})
+
+	it('returns raw hex when opacity >= 1', () => {
+		expect(resolveBackground('#1a1a2e', 1)).toBe('#1a1a2e')
+		expect(resolveBackground('#1a1a2e', 1.5)).toBe('#1a1a2e')
 	})
 })

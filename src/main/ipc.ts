@@ -52,6 +52,17 @@ function assertWorkspace(value: unknown): asserts value is Workspace {
 	if (typeof obj.color !== 'string') throw new Error('Invalid workspace: missing or invalid color')
 	if (!obj.theme || typeof obj.theme !== 'object')
 		throw new Error('Invalid workspace: missing or invalid theme')
+	const theme = obj.theme as Record<string, unknown>
+	if (theme.paneOpacity !== undefined) {
+		if (
+			typeof theme.paneOpacity !== 'number' ||
+			!Number.isFinite(theme.paneOpacity) ||
+			theme.paneOpacity < 0 ||
+			theme.paneOpacity > 1
+		) {
+			throw new Error('Invalid workspace: paneOpacity must be a finite number in [0, 1]')
+		}
+	}
 	if (!obj.layout || typeof obj.layout !== 'object')
 		throw new Error('Invalid workspace: missing or invalid layout')
 	const layout = obj.layout as Record<string, unknown>

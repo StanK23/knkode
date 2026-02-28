@@ -1,4 +1,5 @@
 import type { PaneTheme } from '../../../shared/types'
+import { resolveBackground } from '../utils/colors'
 
 type ThemePreset = Pick<PaneTheme, 'background' | 'foreground'> & { name: string }
 
@@ -49,10 +50,14 @@ export function buildFontFamily(family?: string): string {
 	return family ? `${family}, ${FONT_FALLBACKS}` : DEFAULT_FONT_FAMILY
 }
 
-/** Build xterm.js theme options from a PaneTheme's color fields. */
-export function buildXtermTheme(t: Pick<PaneTheme, 'background' | 'foreground'>) {
+/** Build xterm.js theme options from a PaneTheme's color fields.
+ *  When opacity < 1, the background is converted to an rgba value for translucency. */
+export function buildXtermTheme(
+	t: Pick<PaneTheme, 'background' | 'foreground'>,
+	opacity = 1,
+): { background: string; foreground: string; cursor: string; selectionBackground: string } {
 	return {
-		background: t.background,
+		background: resolveBackground(t.background, opacity),
 		foreground: t.foreground,
 		cursor: t.foreground,
 		selectionBackground: `${t.foreground}33`,

@@ -5,9 +5,15 @@ import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import '@xterm/xterm/css/xterm.css'
-import { DEFAULT_CURSOR_STYLE, DEFAULT_SCROLLBACK, type PaneTheme } from '../../../shared/types'
+import {
+	DEFAULT_CURSOR_STYLE,
+	DEFAULT_PANE_OPACITY,
+	DEFAULT_SCROLLBACK,
+	type PaneTheme,
+} from '../../../shared/types'
 import { buildFontFamily, buildXtermTheme } from '../data/theme-presets'
 import { useStore } from '../store'
+import { resolveBackground } from '../utils/colors'
 
 const SEARCH_BTN =
 	'bg-transparent border-none text-content-muted cursor-pointer text-xs min-w-[28px] min-h-[28px] flex items-center justify-center hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none rounded-sm'
@@ -86,14 +92,20 @@ const terminalCache = new Map<string, CachedTerminal>()
  */
 const MAX_WEBGL_RECOVERIES = 3
 
-/** Dispose the previous WebGL addon (if any) and try loading a fresh one. */
-function tryLoadWebgl(entry: CachedTerminal): void {
+/** Safely dispose the current WebGL addon (if any) and null the reference. */
+function disposeWebgl(entry: CachedTerminal): void {
+	if (!entry.webglAddon) return
 	try {
-		entry.webglAddon?.dispose()
-	} catch {
-		/* ignore disposal errors */
+		entry.webglAddon.dispose()
+	} catch (err) {
+		console.warn('[terminal] WebGL disposal failed:', err)
 	}
 	entry.webglAddon = null
+}
+
+/** Dispose the previous WebGL addon (if any) and try loading a fresh one. */
+function tryLoadWebgl(entry: CachedTerminal): void {
+	disposeWebgl(entry)
 
 	if (entry.webglRecoveries >= MAX_WEBGL_RECOVERIES) {
 		console.warn('[terminal] WebGL context lost too many times, staying on canvas renderer')
@@ -104,12 +116,7 @@ function tryLoadWebgl(entry: CachedTerminal): void {
 		const webglAddon = new WebglAddon()
 		webglAddon.onContextLoss(() => {
 			console.warn('[terminal] WebGL context lost, recovering...')
-			try {
-				webglAddon.dispose()
-			} catch {
-				/* ignore disposal errors */
-			}
-			entry.webglAddon = null
+			disposeWebgl(entry)
 			entry.webglRecoveries++
 			// Delay to let the GPU recover before re-creating the context
 			setTimeout(() => {
@@ -203,14 +210,16 @@ export function TerminalView({
 		if (!cached) {
 			// ── CACHE MISS: first mount for this paneId ──────────────────────
 			const t = themeRef.current
+			const opacity = t.paneOpacity ?? DEFAULT_PANE_OPACITY
 			const term = new XTerm({
 				fontSize: t.fontSize,
 				fontFamily: buildFontFamily(t.fontFamily),
-				theme: buildXtermTheme(t),
+				theme: buildXtermTheme(t, opacity),
 				cursorBlink: true,
 				cursorStyle: t.cursorStyle ?? DEFAULT_CURSOR_STYLE,
 				allowProposedApi: true,
 				scrollback: t.scrollback ?? DEFAULT_SCROLLBACK,
+				allowTransparency: opacity < 1,
 			})
 
 			const fitAddon = new FitAddon()
@@ -252,7 +261,8 @@ export function TerminalView({
 				ptyExited: false,
 			}
 
-			tryLoadWebgl(entry)
+			// WebGL renderer doesn't support transparent backgrounds — skip when translucent
+			if (opacity >= 1) tryLoadWebgl(entry)
 
 			// Shift+Enter → send LF (\n) instead of xterm's default CR (\r).
 			// Programs that distinguish the two (e.g. Claude Code CLI) can treat
@@ -324,8 +334,9 @@ export function TerminalView({
 			} catch (err) {
 				console.warn('[terminal] clearDecorations failed on remount:', err)
 			}
-			// WebGL context may have been lost when detached — reload
-			tryLoadWebgl(cached)
+			// WebGL context may have been lost when detached — reload only if opaque
+			const cachedOpacity = themeRef.current.paneOpacity ?? DEFAULT_PANE_OPACITY
+			if (cachedOpacity >= 1) tryLoadWebgl(cached)
 		}
 
 		const { term, fitAddon, searchAddon, termContainer } = cached
@@ -439,7 +450,9 @@ export function TerminalView({
 	// cell metrics). Restores scroll position and focus after fit() since it disrupts both.
 	useEffect(() => {
 		if (!termRef.current || !fitAddonRef.current) return
-		termRef.current.options.theme = buildXtermTheme(mergedTheme)
+		const opacity = mergedTheme.paneOpacity ?? DEFAULT_PANE_OPACITY
+		termRef.current.options.allowTransparency = opacity < 1
+		termRef.current.options.theme = buildXtermTheme(mergedTheme, opacity)
 		termRef.current.options.cursorStyle = mergedTheme.cursorStyle ?? DEFAULT_CURSOR_STYLE
 		termRef.current.options.scrollback = mergedTheme.scrollback ?? DEFAULT_SCROLLBACK
 		const newFontFamily = buildFontFamily(mergedTheme.fontFamily)
@@ -448,6 +461,16 @@ export function TerminalView({
 			termRef.current.options.fontFamily !== newFontFamily
 		termRef.current.options.fontSize = mergedTheme.fontSize
 		termRef.current.options.fontFamily = newFontFamily
+		// Toggle WebGL based on opacity — WebGL doesn't support transparent backgrounds.
+		// See also: cache-miss (line ~275) and cache-hit (line ~348) guards.
+		const cached = terminalCache.get(paneId)
+		if (cached) {
+			if (opacity < 1 && cached.webglAddon) {
+				disposeWebgl(cached)
+			} else if (opacity >= 1 && !cached.webglAddon) {
+				tryLoadWebgl(cached)
+			}
+		}
 		if (metricsChanged) {
 			try {
 				fitAndPreserveScroll(termRef.current, fitAddonRef.current)
@@ -456,7 +479,8 @@ export function TerminalView({
 				console.warn('[terminal] fit()/scroll failed during theme update:', err)
 			}
 		}
-	}, [mergedTheme])
+		// paneId needed because the effect reads from terminalCache by paneId
+	}, [mergedTheme, paneId])
 
 	// Cmd+F to open search (captured at terminal level to prevent browser find)
 	useEffect(() => {
@@ -538,11 +562,16 @@ export function TerminalView({
 		[handleSearchNav, closeSearch],
 	)
 
+	const wrapperBg = useMemo(() => {
+		const opacity = mergedTheme.paneOpacity ?? DEFAULT_PANE_OPACITY
+		return resolveBackground(mergedTheme.background, opacity)
+	}, [mergedTheme])
+
 	return (
 		<div
 			ref={wrapperRef}
 			className="relative w-full h-full p-1.5"
-			style={{ backgroundColor: mergedTheme.background }}
+			style={{ backgroundColor: wrapperBg }}
 		>
 			{showSearch && (
 				<search className="absolute top-1 right-2 z-10 flex items-center gap-1 bg-elevated border border-edge rounded-sm px-2 py-1 shadow-panel">
