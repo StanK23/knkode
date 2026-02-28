@@ -12,8 +12,8 @@ import {
 	type PaneTheme,
 } from '../../../shared/types'
 import { buildFontFamily, buildXtermTheme } from '../data/theme-presets'
-import { resolveBackground } from '../utils/colors'
 import { useStore } from '../store'
+import { resolveBackground } from '../utils/colors'
 
 const SEARCH_BTN =
 	'bg-transparent border-none text-content-muted cursor-pointer text-xs min-w-[28px] min-h-[28px] flex items-center justify-center hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none rounded-sm'
@@ -479,7 +479,7 @@ export function TerminalView({
 				console.warn('[terminal] fit()/scroll failed during theme update:', err)
 			}
 		}
-	// paneId needed because the effect reads from terminalCache by paneId
+		// paneId needed because the effect reads from terminalCache by paneId
 	}, [mergedTheme, paneId])
 
 	// Cmd+F to open search (captured at terminal level to prevent browser find)

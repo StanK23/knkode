@@ -54,7 +54,7 @@ export function buildFontFamily(family?: string): string {
  *  When opacity < 1, the background is converted to an rgba value for translucency. */
 export function buildXtermTheme(
 	t: Pick<PaneTheme, 'background' | 'foreground'>,
-	opacity: number = 1,
+	opacity = 1,
 ): { background: string; foreground: string; cursor: string; selectionBackground: string } {
 	return {
 		background: resolveBackground(t.background, opacity),
