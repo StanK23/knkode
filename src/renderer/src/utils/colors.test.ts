@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { hexToRgba } from '../data/theme-presets'
 import { generateThemeVariables, hexToRgb, isDark, isValidHex, mixColors, rgbToHex } from './colors'
 
 describe('isValidHex', () => {
@@ -237,5 +238,27 @@ describe('generateThemeVariables', () => {
 				'"; } body { display: none; } .x { font-family: "',
 			)['--font-family-ui'],
 		).toBe('var(--font-mono-fallback)')
+	})
+})
+
+describe('hexToRgba', () => {
+	it('converts 6-digit hex with opacity', () => {
+		expect(hexToRgba('#1a1a2e', 0.5)).toBe('rgba(26, 26, 46, 0.5)')
+		expect(hexToRgba('#ffffff', 1)).toBe('rgba(255, 255, 255, 1)')
+		expect(hexToRgba('#000000', 0)).toBe('rgba(0, 0, 0, 0)')
+	})
+
+	it('converts 3-digit shorthand hex', () => {
+		expect(hexToRgba('#fff', 0.8)).toBe('rgba(255, 255, 255, 0.8)')
+		expect(hexToRgba('#000', 0.3)).toBe('rgba(0, 0, 0, 0.3)')
+	})
+
+	it('handles input without # prefix', () => {
+		expect(hexToRgba('ff0000', 0.5)).toBe('rgba(255, 0, 0, 0.5)')
+	})
+
+	it('returns original hex on malformed input', () => {
+		expect(hexToRgba('not-a-color', 0.5)).toBe('not-a-color')
+		expect(hexToRgba('', 0.5)).toBe('')
 	})
 })

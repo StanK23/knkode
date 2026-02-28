@@ -33,11 +33,14 @@ function createWindow(): void {
 		minHeight: 400,
 		icon: appIcon,
 		title: 'knkode',
+		transparent: true,
 		...(isMac && {
 			titleBarStyle: 'hiddenInset' as const,
 			trafficLightPosition: { x: 12, y: 12 },
+			vibrancy: 'under-window' as const,
+			hasShadow: true,
 		}),
-		backgroundColor: '#1a1a2e',
+		...(!isMac && { backgroundMaterial: 'acrylic' as const }),
 		webPreferences: {
 			preload: path.join(__dirname, '../preload/index.js'),
 			nodeIntegration: false,

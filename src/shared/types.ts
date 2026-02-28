@@ -1,6 +1,9 @@
 /** Default unfocused pane dimming (moderate). UI range: [0, 0.7]. */
 export const DEFAULT_UNFOCUSED_DIM = 0.3
 
+/** Default pane background opacity (fully opaque). UI range: [0.1, 1]. */
+export const DEFAULT_PANE_OPACITY = 1
+
 export const CURSOR_STYLES = ['block', 'underline', 'bar'] as const
 export type CursorStyle = (typeof CURSOR_STYLES)[number]
 
@@ -24,6 +27,8 @@ export interface PaneTheme {
 	scrollback?: number
 	/** Terminal cursor style. Defaults to DEFAULT_CURSOR_STYLE if omitted. */
 	cursorStyle?: CursorStyle
+	/** Terminal background opacity. 0 = fully transparent, 1 = fully opaque. Defaults to DEFAULT_PANE_OPACITY. */
+	paneOpacity?: number
 }
 
 export interface PaneConfig {

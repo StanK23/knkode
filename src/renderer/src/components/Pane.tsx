@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { DropPosition, PaneConfig, PaneTheme } from '../../../shared/types'
+import {
+	DEFAULT_PANE_OPACITY,
+	type DropPosition,
+	type PaneConfig,
+	type PaneTheme,
+} from '../../../shared/types'
+import { hexToRgba } from '../data/theme-presets'
 
 type ContextPanelKind = 'cwd' | 'cmd' | 'theme' | 'move'
 type DropZone = DropPosition | 'center'
@@ -267,6 +273,14 @@ export function Pane({
 
 	const shortCwd = config.cwd.replace(/^\/Users\/[^/]+/, '~')
 
+	const effectiveOpacity =
+		config.themeOverride?.paneOpacity ?? workspaceTheme.paneOpacity ?? DEFAULT_PANE_OPACITY
+	const isTranslucent = effectiveOpacity < 1
+	const effectiveBg = config.themeOverride?.background ?? workspaceTheme.background
+	const headerBgStyle = isTranslucent
+		? { backgroundColor: hexToRgba(effectiveBg, effectiveOpacity) }
+		: undefined
+
 	const handleFocus = useCallback(() => onFocus(paneId), [paneId, onFocus])
 
 	const handleDragStart = useCallback(
@@ -358,6 +372,7 @@ export function Pane({
 				className={`h-header flex items-center gap-2 px-2 text-[11px] shrink-0 relative select-none transition-colors duration-200 ${
 					isFocused ? 'bg-elevated border-b border-accent' : 'bg-sunken border-b border-edge'
 				} ${isDragging ? 'opacity-40' : ''}`}
+				style={headerBgStyle}
 			>
 				<span className="text-content-muted text-[10px] font-semibold min-w-3 text-center shrink-0">
 					{paneIndex}

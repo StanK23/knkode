@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
 	CURSOR_STYLES,
 	DEFAULT_CURSOR_STYLE,
+	DEFAULT_PANE_OPACITY,
 	DEFAULT_SCROLLBACK,
 	type LayoutPreset,
 	MAX_SCROLLBACK,
@@ -362,6 +363,9 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const [cursorStyle, setCursorStyle] = useState(
 		workspace.theme.cursorStyle ?? DEFAULT_CURSOR_STYLE,
 	)
+	const [paneOpacity, setPaneOpacity] = useState(
+		workspace.theme.paneOpacity ?? DEFAULT_PANE_OPACITY,
+	)
 
 	const currentPreset = workspace.layout.type === 'preset' ? workspace.layout.preset : null
 
@@ -374,8 +378,9 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 			fontFamily: fontFamily || undefined,
 			scrollback,
 			cursorStyle,
+			paneOpacity,
 		}),
-		[bg, fg, fontSize, unfocusedDim, fontFamily, scrollback, cursorStyle],
+		[bg, fg, fontSize, unfocusedDim, fontFamily, scrollback, cursorStyle, paneOpacity],
 	)
 
 	// Auto-persist: save full workspace with updated color/theme whenever those fields change.
@@ -636,6 +641,22 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								/>
 								<span className="text-[11px] text-content-muted w-7">
 									{Math.round(unfocusedDim * 100)}%
+								</span>
+							</label>
+
+							<label className="flex items-center gap-3">
+								<span className="text-xs text-content-secondary w-20 shrink-0">Opacity</span>
+								<input
+									type="range"
+									min={0.1}
+									max={1}
+									step={0.05}
+									value={paneOpacity}
+									onChange={(e) => setPaneOpacity(Number(e.target.value))}
+									className="w-32"
+								/>
+								<span className="text-[11px] text-content-muted w-7">
+									{Math.round(paneOpacity * 100)}%
 								</span>
 							</label>
 

@@ -67,7 +67,7 @@ export function App() {
 
 	if (!initialized) {
 		return (
-			<div className="flex items-center justify-center h-full">
+			<div className="flex items-center justify-center h-full bg-canvas">
 				<span className="text-content-muted">Loading...</span>
 			</div>
 		)
@@ -75,7 +75,7 @@ export function App() {
 
 	if (initError) {
 		return (
-			<div className="flex items-center justify-center h-full">
+			<div className="flex items-center justify-center h-full bg-canvas">
 				<span className="text-danger">Failed to load: {initError}</span>
 			</div>
 		)
@@ -90,7 +90,6 @@ export function App() {
 				style={{
 					...themeStyles,
 					...(isMac && { '--spacing-traffic': '78px' }),
-					backgroundColor: 'var(--color-canvas)',
 					color: 'var(--color-content)',
 					fontFamily: 'var(--font-family-ui)',
 					fontSize: 'var(--font-size-ui)',
@@ -120,7 +119,7 @@ export function App() {
 						)}
 					</>
 				) : (
-					<div className="flex items-center justify-center flex-1">
+					<div className="flex items-center justify-center flex-1 bg-canvas">
 						<p className="text-content-muted text-sm">
 							No workspace open. Click + to create one.{' '}
 							{!activeWorkspace && `(Debug: activeId=${appState.activeWorkspaceId})`}

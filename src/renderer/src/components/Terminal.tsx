@@ -5,8 +5,13 @@ import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import '@xterm/xterm/css/xterm.css'
-import { DEFAULT_CURSOR_STYLE, DEFAULT_SCROLLBACK, type PaneTheme } from '../../../shared/types'
-import { buildFontFamily, buildXtermTheme } from '../data/theme-presets'
+import {
+	DEFAULT_CURSOR_STYLE,
+	DEFAULT_PANE_OPACITY,
+	DEFAULT_SCROLLBACK,
+	type PaneTheme,
+} from '../../../shared/types'
+import { buildFontFamily, buildXtermTheme, hexToRgba } from '../data/theme-presets'
 import { useStore } from '../store'
 
 const SEARCH_BTN =
@@ -203,14 +208,16 @@ export function TerminalView({
 		if (!cached) {
 			// ── CACHE MISS: first mount for this paneId ──────────────────────
 			const t = themeRef.current
+			const opacity = t.paneOpacity ?? DEFAULT_PANE_OPACITY
 			const term = new XTerm({
 				fontSize: t.fontSize,
 				fontFamily: buildFontFamily(t.fontFamily),
-				theme: buildXtermTheme(t),
+				theme: buildXtermTheme(t, opacity),
 				cursorBlink: true,
 				cursorStyle: t.cursorStyle ?? DEFAULT_CURSOR_STYLE,
 				allowProposedApi: true,
 				scrollback: t.scrollback ?? DEFAULT_SCROLLBACK,
+				allowTransparency: opacity < 1,
 			})
 
 			const fitAddon = new FitAddon()
@@ -252,7 +259,8 @@ export function TerminalView({
 				ptyExited: false,
 			}
 
-			tryLoadWebgl(entry)
+			// WebGL renderer doesn't support transparent backgrounds — skip when translucent
+			if (opacity >= 1) tryLoadWebgl(entry)
 
 			// Shift+Enter → send LF (\n) instead of xterm's default CR (\r).
 			// Programs that distinguish the two (e.g. Claude Code CLI) can treat
@@ -439,7 +447,9 @@ export function TerminalView({
 	// cell metrics). Restores scroll position and focus after fit() since it disrupts both.
 	useEffect(() => {
 		if (!termRef.current || !fitAddonRef.current) return
-		termRef.current.options.theme = buildXtermTheme(mergedTheme)
+		const opacity = mergedTheme.paneOpacity ?? DEFAULT_PANE_OPACITY
+		termRef.current.options.allowTransparency = opacity < 1
+		termRef.current.options.theme = buildXtermTheme(mergedTheme, opacity)
 		termRef.current.options.cursorStyle = mergedTheme.cursorStyle ?? DEFAULT_CURSOR_STYLE
 		termRef.current.options.scrollback = mergedTheme.scrollback ?? DEFAULT_SCROLLBACK
 		const newFontFamily = buildFontFamily(mergedTheme.fontFamily)
@@ -448,6 +458,20 @@ export function TerminalView({
 			termRef.current.options.fontFamily !== newFontFamily
 		termRef.current.options.fontSize = mergedTheme.fontSize
 		termRef.current.options.fontFamily = newFontFamily
+		// Toggle WebGL based on opacity — WebGL doesn't support transparent backgrounds
+		const cached = terminalCache.get(paneId)
+		if (cached) {
+			if (opacity < 1 && cached.webglAddon) {
+				try {
+					cached.webglAddon.dispose()
+				} catch {
+					/* ignore disposal errors */
+				}
+				cached.webglAddon = null
+			} else if (opacity >= 1 && !cached.webglAddon) {
+				tryLoadWebgl(cached)
+			}
+		}
 		if (metricsChanged) {
 			try {
 				fitAndPreserveScroll(termRef.current, fitAddonRef.current)
@@ -456,7 +480,7 @@ export function TerminalView({
 				console.warn('[terminal] fit()/scroll failed during theme update:', err)
 			}
 		}
-	}, [mergedTheme])
+	}, [mergedTheme, paneId])
 
 	// Cmd+F to open search (captured at terminal level to prevent browser find)
 	useEffect(() => {
@@ -538,11 +562,15 @@ export function TerminalView({
 		[handleSearchNav, closeSearch],
 	)
 
+	const wrapperOpacity = mergedTheme.paneOpacity ?? DEFAULT_PANE_OPACITY
+	const wrapperBg =
+		wrapperOpacity < 1 ? hexToRgba(mergedTheme.background, wrapperOpacity) : mergedTheme.background
+
 	return (
 		<div
 			ref={wrapperRef}
 			className="relative w-full h-full p-1.5"
-			style={{ backgroundColor: mergedTheme.background }}
+			style={{ backgroundColor: wrapperBg }}
 		>
 			{showSearch && (
 				<search className="absolute top-1 right-2 z-10 flex items-center gap-1 bg-elevated border border-edge rounded-sm px-2 py-1 shadow-panel">
