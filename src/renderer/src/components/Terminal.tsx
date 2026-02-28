@@ -17,6 +17,17 @@ function isTermAtBottom(term: XTerm): boolean {
 	return term.buffer.active.viewportY >= term.buffer.active.baseY
 }
 
+/** Distance-from-bottom scroll snapshot — used by savedScrollRef and fitAndPreserveScroll. */
+interface SavedScroll {
+	atBottom: boolean
+	linesFromBottom: number
+}
+
+/** Number of buffer lines between the current viewport and the bottom. */
+function getLinesFromBottom(term: XTerm): number {
+	return Math.max(0, term.buffer.active.baseY - term.buffer.active.viewportY)
+}
+
 /**
  * Call fitAddon.fit() and restore the user's scroll position afterward.
  * Skips scroll management for the alternate screen buffer (TUIs like vim,
@@ -34,14 +45,14 @@ function fitAndPreserveScroll(term: XTerm, fitAddon: FitAddon): void {
 	}
 
 	const atBottom = isTermAtBottom(term)
-	const linesFromBottom = term.buffer.active.baseY - term.buffer.active.viewportY
+	const saved = getLinesFromBottom(term)
 
 	fitAddon.fit()
 
 	if (atBottom) {
 		term.scrollToBottom()
 	} else {
-		term.scrollToLine(Math.max(0, term.buffer.active.baseY - linesFromBottom))
+		term.scrollToLine(Math.max(0, term.buffer.active.baseY - saved))
 	}
 }
 
@@ -168,8 +179,8 @@ export function TerminalView({
 
 	// Scroll preservation across workspace switches: save position while
 	// active, ignore browser-induced scroll resets while hidden, restore on reactivation.
-	// Uses linesFromBottom instead of viewportY for robust restoration after buffer growth.
-	const savedScrollRef = useRef({ atBottom: true, linesFromBottom: 0 })
+	// Uses linesFromBottom (see fitAndPreserveScroll for rationale).
+	const savedScrollRef = useRef<SavedScroll>({ atBottom: true, linesFromBottom: 0 })
 	const isActiveRef = useRef(true)
 	const isWorkspaceActive = useStore((s) => {
 		const ws = s.workspaces.find((w) => paneId in w.panes)
@@ -330,17 +341,15 @@ export function TerminalView({
 		searchAddonRef.current = searchAddon
 
 		// Track whether user is scrolled up (for scroll-to-bottom button).
-		// Only uses the DOM viewport scroll event — NOT term.onScroll (buffer scroll).
-		// term.onScroll fires synchronously during term.write() processing when the
-		// viewport hasn't caught up yet, giving false isTermAtBottom() readings that
-		// corrupt savedScrollRef and cause panes to jump to top on workspace switch.
+		// term.onScroll fires synchronously during term.write() before the DOM
+		// scrollTop updates, giving stale isTermAtBottom() readings that corrupt
+		// savedScrollRef and cause panes to jump to top on workspace switch.
 		const viewport = term.element?.querySelector('.xterm-viewport')
 		const handleViewportScroll = () => {
 			if (!isActiveRef.current) return
 			const atBottom = isTermAtBottom(term)
 			setIsScrolledUp(!atBottom)
-			const linesFromBottom = term.buffer.active.baseY - term.buffer.active.viewportY
-			savedScrollRef.current = { atBottom, linesFromBottom }
+			savedScrollRef.current = { atBottom, linesFromBottom: getLinesFromBottom(term) }
 		}
 		viewport?.addEventListener('scroll', handleViewportScroll)
 
@@ -392,8 +401,7 @@ export function TerminalView({
 	// Runs as useLayoutEffect (before paint) so the user never sees a flash
 	// of wrong scroll position. While inactive, handleViewportScroll is
 	// suppressed via isActiveRef so browser-induced scrollTop resets don't
-	// corrupt the saved position. Uses linesFromBottom for robust restoration
-	// after buffer growth during inactive period.
+	// corrupt the saved position.
 	useLayoutEffect(() => {
 		if (!isWorkspaceActive) {
 			isActiveRef.current = false
@@ -401,12 +409,11 @@ export function TerminalView({
 		}
 		if (termRef.current) {
 			const term = termRef.current
-			const { atBottom, linesFromBottom } = savedScrollRef.current
+			const { atBottom, linesFromBottom: saved } = savedScrollRef.current
 			if (atBottom) {
 				term.scrollToBottom()
 			} else {
-				const targetLine = Math.max(0, term.buffer.active.baseY - linesFromBottom)
-				term.scrollToLine(targetLine)
+				term.scrollToLine(Math.max(0, term.buffer.active.baseY - saved))
 			}
 			isActiveRef.current = true
 			setIsScrolledUp(!isTermAtBottom(term))
