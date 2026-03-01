@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { getTerminal } from '../components/Terminal'
 import { getPaneIdsInOrder, useStore } from '../store'
 import { isMac } from '../utils/platform'
 
@@ -17,6 +18,8 @@ const PANE_NAV_DELTAS: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1 }
  * - Mod+Alt/Option+Left/Right: cycle focus to prev/next pane in layout order
  * - Mod+,: toggle settings panel
  * - Mod+1-9: focus pane by index
+ * - Mod+Down: scroll focused terminal to bottom
+ * - Mod+Up: scroll focused terminal to top
  */
 
 interface ShortcutOptions {
@@ -115,6 +118,18 @@ export function useKeyboardShortcuts({ toggleSettings }: ShortcutOptions = {}) {
 			if (e.key === ',' && toggleSettings) {
 				e.preventDefault()
 				toggleSettings()
+				return
+			}
+
+			// Mod+Down — scroll focused terminal to bottom
+			// Mod+Up — scroll focused terminal to top
+			if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+				if (!resolvedFocusId) return
+				const term = getTerminal(resolvedFocusId)
+				if (!term) return
+				e.preventDefault()
+				if (e.key === 'ArrowDown') term.scrollToBottom()
+				else term.scrollToTop()
 				return
 			}
 

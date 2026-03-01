@@ -132,6 +132,11 @@ function tryLoadWebgl(entry: CachedTerminal): void {
 	}
 }
 
+/** Get the xterm instance for a pane (if it exists). */
+export function getTerminal(paneId: string): XTerm | null {
+	return terminalCache.get(paneId)?.term ?? null
+}
+
 /** Fully dispose a cached terminal (call on pane close / workspace delete). */
 export function disposeTerminal(paneId: string): void {
 	const cached = terminalCache.get(paneId)
