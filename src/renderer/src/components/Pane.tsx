@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
-	type AgentType,
+	AGENT_LABELS,
 	DEFAULT_PANE_OPACITY,
 	type DropPosition,
 	type PaneConfig,
@@ -15,14 +15,6 @@ interface PaneDragPayload {
 	workspaceId: string
 }
 const PANE_DRAG_MIME = 'application/x-knkode-pane'
-const AGENT_LABELS: Record<AgentType, string> = {
-	'claude-code': 'Claude',
-	codex: 'Codex',
-	'gemini-cli': 'Gemini',
-	aider: 'Aider',
-	opencode: 'OpenCode',
-	'kilo-code': 'Kilo',
-}
 const ZONE_STYLES: Record<DropZone, React.CSSProperties> = {
 	center: { inset: 0, backgroundColor: 'var(--color-accent)', opacity: 0.12 },
 	left: { inset: 0, right: '50%', backgroundColor: 'var(--color-accent)', opacity: 0.18 },

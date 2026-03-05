@@ -120,6 +120,16 @@ export interface ProcessInfo {
 	pid: number
 }
 
+/** Human-readable labels for agent types (used in UI badges). */
+export const AGENT_LABELS: Record<AgentType, string> = {
+	'claude-code': 'Claude',
+	codex: 'Codex',
+	'gemini-cli': 'Gemini',
+	aider: 'Aider',
+	opencode: 'OpenCode',
+	'kilo-code': 'Kilo',
+}
+
 // IPC channel names
 export const IPC = {
 	// Config
