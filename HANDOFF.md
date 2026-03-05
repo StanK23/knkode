@@ -4,18 +4,10 @@
 - Branch: `feature/agent-process-detection`
 - PR #59 open: agent process detection layer — review complete, fixes pending
 
-## Active Reviews
-
-### PR #59 — feat: agent process detection layer
-- State: `docs/reviews/PR-59/_state.json`
-- Agents: 6/6 completed
-- Phase: done (compiled report written, PR comment posted)
-- Findings: 10 must-fix, 8 suggestions, 10 nitpicks
-
 ## What Was Done
 - PR #58 merged: translucent pane backgrounds with blur
 - PR #59 created: agent process detection — process tree walking, IPC, store integration, agent badges
-- PR #59 review: 6 agents, 28 findings compiled
+- PR #59 review: 6 agents, 28 findings — all addressed in 6 fix commits
 
 ## Active Plan
 - `docs/plans/2026-03-06-agent-workspace-plan.md`
