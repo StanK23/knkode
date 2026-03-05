@@ -1,14 +1,17 @@
-import { execFileSync } from 'node:child_process'
+import { execFile as execFileCb, execFileSync } from 'node:child_process'
 import os from 'node:os'
+import { promisify } from 'node:util'
 import * as pty from 'node-pty'
 import { IPC, type ProcessInfo } from '../shared/types'
 import { safeSend } from './main-window'
 
+const execFile = promisify(execFileCb)
+
 interface PtySession {
 	process: pty.IPty
 	initialCwd: string
-	/** Last known foreground child process name (for agent detection). */
-	lastProcessName: string | null
+	/** Last known deepest child process info (for agent detection). */
+	lastProcessInfo: ProcessInfo | null
 }
 
 const sessions = new Map<string, PtySession>()
@@ -38,7 +41,7 @@ export function createPty(id: string, cwd: string, startupCommand: string | null
 		},
 	})
 
-	const session: PtySession = { process: ptyProcess, initialCwd: cwd, lastProcessName: null }
+	const session: PtySession = { process: ptyProcess, initialCwd: cwd, lastProcessInfo: null }
 	sessions.set(id, session)
 
 	ptyProcess.onData((data) => {
@@ -102,106 +105,120 @@ export function killAllPtys(): void {
 	}
 }
 
-/** Get the foreground child process of a PTY shell. */
-export function getChildProcessInfo(pid: number): ProcessInfo | null {
-	try {
-		if (!Number.isInteger(pid) || pid <= 0) return null
+/** Get the deepest child process of a PTY by walking the process tree.
+ *  Uses ppid-based filtering to find children reliably across macOS, Linux, and Windows. */
+async function getDeepestChild(shellPid: number): Promise<ProcessInfo | null> {
+	if (!Number.isInteger(shellPid) || shellPid <= 0) return null
 
+	try {
 		const platform = os.platform()
 		if (platform === 'darwin' || platform === 'linux') {
-			// ps -o pid=,comm= lists child processes; we want the foreground one
-			const output = execFileSync('ps', ['-o', 'pid=,comm=', '-p', String(pid)], {
+			// Get all processes with ppid info in one call, filter in-process
+			const { stdout } = await execFile('ps', ['ax', '-o', 'pid=,ppid=,comm='], {
 				encoding: 'utf-8',
 				timeout: 1000,
-			}).trim()
-			if (!output) return null
+			})
+			if (!stdout.trim()) return null
 
-			// Parse the single line: "  PID COMMAND"
-			const match = output.match(/^\s*(\d+)\s+(.+)$/)
-			if (!match) return null
-			const name = match[2].split('/').pop() ?? match[2]
-			return { name: name.trim(), pid: Number(match[1]) }
+			const procs: { pid: number; ppid: number; name: string }[] = []
+			for (const line of stdout.split('\n')) {
+				const match = line.match(/^\s*(\d+)\s+(\d+)\s+(.+)$/)
+				if (match) {
+					procs.push({
+						pid: Number(match[1]),
+						ppid: Number(match[2]),
+						name: match[3].trim(),
+					})
+				}
+			}
+
+			// Walk from shell PID to deepest child via ppid chain
+			let current = shellPid
+			let result: ProcessInfo | null = null
+			for (let depth = 0; depth < 10; depth++) {
+				const child = procs.find((p) => p.ppid === current && p.pid !== current)
+				if (!child) break
+				result = { name: child.name, pid: child.pid }
+				current = child.pid
+			}
+			return result
 		}
+
 		if (platform === 'win32') {
-			const output = execFileSync(
-				'wmic',
-				['process', 'where', `ParentProcessId=${pid}`, 'get', 'Name,ProcessId', '/format:csv'],
-				{ encoding: 'utf-8', timeout: 2000 },
-			).trim()
-			const lines = output.split('\n').filter((l) => l.trim())
-			if (lines.length < 2) return null
-			const last = lines[lines.length - 1].split(',')
-			if (last.length < 3) return null
-			return { name: last[1].trim(), pid: Number(last[2]) }
+			// Get all processes in one PowerShell call, walk tree in-process
+			const { stdout } = await execFile(
+				'powershell.exe',
+				[
+					'-NoProfile',
+					'-Command',
+					'Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name | ConvertTo-Json -Compress',
+				],
+				{ encoding: 'utf-8', timeout: 5000 },
+			)
+			const trimmed = stdout.trim()
+			if (!trimmed) return null
+
+			let allProcs: Array<{ ProcessId: number; ParentProcessId: number; Name: string }>
+			try {
+				const parsed = JSON.parse(trimmed)
+				allProcs = Array.isArray(parsed) ? parsed : [parsed]
+			} catch {
+				return null
+			}
+
+			// Walk from shell PID to deepest child
+			let current = shellPid
+			let result: ProcessInfo | null = null
+			for (let depth = 0; depth < 10; depth++) {
+				const child = allProcs.find((p) => p.ParentProcessId === current && p.ProcessId !== current)
+				if (!child?.Name || !Number.isInteger(child.ProcessId) || child.ProcessId <= 0) break
+				result = { name: child.Name.replace(/\.exe$/i, ''), pid: child.ProcessId }
+				current = child.ProcessId
+			}
+			return result
 		}
-	} catch {
-		// Silently ignore — process may have exited
+	} catch (err) {
+		// execFile rejects on non-zero exit (process gone) or timeout — expected.
+		// Log unexpected system errors (ENOENT, EACCES) for diagnostics.
+		if (err instanceof Error) {
+			const code = (err as NodeJS.ErrnoException).code
+			const killed = (err as { killed?: boolean }).killed
+			if (typeof code === 'string') {
+				console.warn('[pty] getDeepestChild system error:', code, err.message)
+			} else if (!killed && typeof code !== 'number') {
+				console.warn('[pty] getDeepestChild unexpected error:', err.message)
+			}
+		}
 	}
 	return null
 }
 
-/** Get the deepest child process of a PTY (walks the process tree). */
-function getDeepestChild(shellPid: number): ProcessInfo | null {
-	try {
-		const platform = os.platform()
-		if (platform !== 'darwin' && platform !== 'linux') {
-			return getChildProcessInfo(shellPid)
-		}
-
-		// Get all children in one call
-		const output = execFileSync('ps', ['-o', 'pid=,ppid=,comm=', '-g', String(shellPid)], {
-			encoding: 'utf-8',
-			timeout: 1000,
-		}).trim()
-		if (!output) return null
-
-		const procs: { pid: number; ppid: number; name: string }[] = []
-		for (const line of output.split('\n')) {
-			const match = line.match(/^\s*(\d+)\s+(\d+)\s+(.+)$/)
-			if (match) {
-				procs.push({
-					pid: Number(match[1]),
-					ppid: Number(match[2]),
-					name: (match[3].split('/').pop() ?? match[3]).trim(),
-				})
-			}
-		}
-
-		// Walk from shell to deepest child
-		let current = shellPid
-		let result: ProcessInfo | null = null
-		for (let depth = 0; depth < 10; depth++) {
-			const child = procs.find((p) => p.ppid === current && p.pid !== current)
-			if (!child) break
-			result = { name: child.name, pid: child.pid }
-			current = child.pid
-		}
-		return result
-	} catch {
-		return null
-	}
-}
-
-/** Get process info for a specific pane. */
+/** Get cached process info for a specific pane (from last poll cycle). */
 export function getPtyProcessInfo(id: string): ProcessInfo | null {
 	const session = sessions.get(id)
 	if (!session) return null
-	return getDeepestChild(session.process.pid)
+	return session.lastProcessInfo
 }
 
 /** Start polling child process names and emit events on changes. */
 export function startProcessPolling(): void {
 	if (pollTimer) return
-	pollTimer = setInterval(() => {
+	pollTimer = setInterval(async () => {
+		if (sessions.size === 0) return
 		const ids = [...sessions.keys()]
 		for (const id of ids) {
-			const session = sessions.get(id)
-			if (!session) continue
-			const info = getDeepestChild(session.process.pid)
-			const name = info?.name ?? null
-			if (name !== session.lastProcessName) {
-				session.lastProcessName = name
-				safeSend(IPC.PTY_PROCESS_CHANGED, id, info)
+			try {
+				const session = sessions.get(id)
+				if (!session) continue
+				const info = await getDeepestChild(session.process.pid)
+				const name = info?.name ?? null
+				const prevName = session.lastProcessInfo?.name ?? null
+				if (name !== prevName) {
+					session.lastProcessInfo = info
+					safeSend(IPC.PTY_PROCESS_CHANGED, id, info)
+				}
+			} catch (err) {
+				console.warn(`[pty] Process polling failed for pane ${id}:`, err)
 			}
 		}
 	}, PROCESS_POLL_INTERVAL_MS)
