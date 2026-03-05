@@ -215,8 +215,13 @@ interface StoreState {
 	paneAgentTypes: Map<string, AgentType>
 	/** Raw process name per pane (for debugging). */
 	paneProcessNames: Map<string, string>
+	/** Pane IDs currently in alternate screen buffer (TUI mode like vim, htop).
+	 *  Block parsing must be disabled for these panes. */
+	altScreenPaneIds: Set<string>
 
 	// Actions
+	/** Update alt screen buffer state for a pane. */
+	setAltScreen: (paneId: string, isAlt: boolean) => void
 	/** Update agent type for a pane based on process info. */
 	setPaneProcess: (paneId: string, info: ProcessInfo | null) => void
 	setFocusedPane: (paneId: string | null) => void
@@ -288,6 +293,17 @@ export const useStore = create<StoreState>((set, get) => ({
 	activePtyIds: new Set(),
 	paneAgentTypes: new Map(),
 	paneProcessNames: new Map(),
+	altScreenPaneIds: new Set(),
+
+	setAltScreen: (paneId, isAlt) => {
+		const current = get().altScreenPaneIds
+		const has = current.has(paneId)
+		if (isAlt === has) return
+		const next = new Set(current)
+		if (isAlt) next.add(paneId)
+		else next.delete(paneId)
+		set({ altScreenPaneIds: next })
+	},
 
 	setPaneProcess: (paneId, info) => {
 		set((state) => {
@@ -346,14 +362,16 @@ export const useStore = create<StoreState>((set, get) => ({
 			if (newSet.delete(id)) changed = true
 		}
 		if (changed) set({ activePtyIds: newSet })
-		// Clean up agent detection state
+		// Clean up agent detection + alt screen state
 		const agents = new Map(get().paneAgentTypes)
 		const procs = new Map(get().paneProcessNames)
+		const altIds = new Set(get().altScreenPaneIds)
 		for (const id of paneIds) {
 			agents.delete(id)
 			procs.delete(id)
+			altIds.delete(id)
 		}
-		set({ paneAgentTypes: agents, paneProcessNames: procs })
+		set({ paneAgentTypes: agents, paneProcessNames: procs, altScreenPaneIds: altIds })
 	},
 
 	removePtyId: (paneId) => {
@@ -361,12 +379,19 @@ export const useStore = create<StoreState>((set, get) => ({
 		if (!current.has(paneId)) return
 		const newSet = new Set(current)
 		newSet.delete(paneId)
-		// Clean up agent detection state so dead panes don't show stale badges
+		// Clean up agent detection + alt screen state so dead panes don't show stale data
 		const agents = new Map(get().paneAgentTypes)
 		const procs = new Map(get().paneProcessNames)
+		const altIds = new Set(get().altScreenPaneIds)
 		agents.delete(paneId)
 		procs.delete(paneId)
-		set({ activePtyIds: newSet, paneAgentTypes: agents, paneProcessNames: procs })
+		altIds.delete(paneId)
+		set({
+			activePtyIds: newSet,
+			paneAgentTypes: agents,
+			paneProcessNames: procs,
+			altScreenPaneIds: altIds,
+		})
 	},
 
 	init: async () => {
