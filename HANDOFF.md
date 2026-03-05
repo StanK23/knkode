@@ -1,8 +1,15 @@
 # HANDOFF
 
 ## Current State
-- Branch: `main`
-- PR #59 merged: agent process detection layer
+- Branch: `feature/alt-screen-detection`
+- PR #60 open: alt screen buffer detection — review complete, addressing findings
+
+## Active Reviews
+
+### PR #60 — feat: alt screen buffer detection
+- State: `docs/reviews/PR-60/_state.json`
+- Agents: 7/7 completed
+- Phase: done — 0 must-fix, 4 suggestions, 2 nitpicks
 
 ## What Was Done
 - PR #58 merged: translucent pane backgrounds with blur
@@ -13,7 +20,7 @@
 ## Active Plan
 - `docs/plans/2026-03-06-agent-workspace-plan.md`
 - PR #1: agent process detection — **merged** (PR #59)
-- PR #2: alt screen buffer detection — next
+- PR #2: alt screen buffer detection — **in review** (PR #60)
 - PR #3: ANSI block parser for Ink-based CLIs
 - PR #4: collapsible block overlay UI
 - PR #5: per-pane agent status bar
@@ -28,5 +35,5 @@
 - PR #50: Dynamic workspace fonts
 
 ## Next Steps
-1. PR #2: Alt screen buffer detection (`feature/alt-screen-detection`)
+1. Address PR #60 review findings
 2. PR #3: ANSI block parser
