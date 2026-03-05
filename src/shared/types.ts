@@ -102,8 +102,9 @@ export const AGENT_TYPES = [
 ] as const
 export type AgentType = (typeof AGENT_TYPES)[number]
 
-/** Map process executable names to agent types. */
-export const PROCESS_TO_AGENT: Record<string, AgentType> = {
+/** Map process executable names to agent types.
+ *  Lookup returns undefined for unknown process names. */
+export const PROCESS_TO_AGENT: Partial<Record<string, AgentType>> = {
 	claude: 'claude-code',
 	'claude-code': 'claude-code',
 	codex: 'codex',

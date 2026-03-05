@@ -38,12 +38,14 @@ describe('Agent detection mapping', () => {
 	it('all mapped values are valid AgentType values', () => {
 		const validTypes = new Set<string>(AGENT_TYPES)
 		for (const agentType of Object.values(PROCESS_TO_AGENT)) {
-			expect(validTypes.has(agentType)).toBe(true)
+			expect(agentType).toBeDefined()
+			if (agentType) expect(validTypes.has(agentType)).toBe(true)
 		}
 	})
 
 	it('every AgentType has at least one process mapping', () => {
-		const mappedTypes = new Set<AgentType>(Object.values(PROCESS_TO_AGENT))
+		const values = Object.values(PROCESS_TO_AGENT).filter((v): v is AgentType => v !== undefined)
+		const mappedTypes = new Set(values)
 		for (const agentType of AGENT_TYPES) {
 			expect(mappedTypes.has(agentType)).toBe(true)
 		}
