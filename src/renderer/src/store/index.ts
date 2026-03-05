@@ -211,9 +211,9 @@ interface StoreState {
 	 *  Prevents double-creation on Allotment remount.
 	 *  IMPORTANT: Always create a new Set on mutation — Zustand uses reference equality. */
 	activePtyIds: Set<string>
-	/** Detected agent type per pane (null = no agent detected). */
+	/** Detected agent type per pane (absent from map = no agent detected). */
 	paneAgentTypes: Map<string, AgentType>
-	/** Raw process name per pane (for debugging / display). */
+	/** Raw process name per pane (for debugging). */
 	paneProcessNames: Map<string, string>
 
 	// Actions
@@ -986,7 +986,8 @@ export const useStore = create<StoreState>((set, get) => ({
 		}
 		if (fromIndex === toIndex) return
 		const [moved] = snippets.splice(fromIndex, 1)
-		snippets.splice(toIndex, 0, moved!)
+		if (!moved) return
+		snippets.splice(toIndex, 0, moved)
 		set({ snippets })
 		persistSnippets(snippets)
 	},
