@@ -361,10 +361,16 @@ export const useStore = create<StoreState>((set, get) => ({
 		if (!current.has(paneId)) return
 		const newSet = new Set(current)
 		newSet.delete(paneId)
-		set({ activePtyIds: newSet })
+		// Clean up agent detection state so dead panes don't show stale badges
+		const agents = new Map(get().paneAgentTypes)
+		const procs = new Map(get().paneProcessNames)
+		agents.delete(paneId)
+		procs.delete(paneId)
+		set({ activePtyIds: newSet, paneAgentTypes: agents, paneProcessNames: procs })
 	},
 
 	init: async () => {
+		if (get().initialized) return
 		try {
 			const [workspaces, appState, homeDir, snippets] = await Promise.all([
 				window.api.getWorkspaces(),
