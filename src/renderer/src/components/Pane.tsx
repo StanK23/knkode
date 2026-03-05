@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
+	type AgentType,
 	DEFAULT_PANE_OPACITY,
 	type DropPosition,
 	type PaneConfig,
@@ -14,6 +15,14 @@ interface PaneDragPayload {
 	workspaceId: string
 }
 const PANE_DRAG_MIME = 'application/x-knkode-pane'
+const AGENT_LABELS: Record<AgentType, string> = {
+	'claude-code': 'Claude',
+	codex: 'Codex',
+	'gemini-cli': 'Gemini',
+	aider: 'Aider',
+	opencode: 'OpenCode',
+	'kilo-code': 'Kilo',
+}
 const ZONE_STYLES: Record<DropZone, React.CSSProperties> = {
 	center: { inset: 0, backgroundColor: 'var(--color-accent)', opacity: 0.12 },
 	left: { inset: 0, right: '50%', backgroundColor: 'var(--color-accent)', opacity: 0.18 },
@@ -189,6 +198,7 @@ export function Pane({
 	const dropZoneRef = useRef<DropZone | null>(null)
 	const outerRef = useRef<HTMLDivElement>(null)
 
+	const agentType = useStore((s) => s.paneAgentTypes.get(paneId) ?? null)
 	const movePaneToWorkspace = useStore((s) => s.movePaneToWorkspace)
 	const swapPanes = useStore((s) => s.swapPanes)
 	const movePaneToPosition = useStore((s) => s.movePaneToPosition)
@@ -390,6 +400,15 @@ export function Pane({
 				) : (
 					<span onDoubleClick={startEditing} className="text-content font-medium cursor-default">
 						{config.label}
+					</span>
+				)}
+
+				{agentType && (
+					<span
+						className="text-[9px] font-semibold uppercase tracking-wider px-1 py-px rounded-sm bg-accent/15 text-accent shrink-0"
+						title={`Agent: ${AGENT_LABELS[agentType]}`}
+					>
+						{AGENT_LABELS[agentType]}
 					</span>
 				)}
 
