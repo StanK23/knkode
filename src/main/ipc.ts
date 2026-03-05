@@ -13,7 +13,14 @@ import {
 	saveWorkspace,
 } from './config-store'
 import { trackPane, untrackPane } from './cwd-tracker'
-import { createPty, killPty, resizePty, writePty } from './pty-manager'
+import {
+	createPty,
+	getPtyProcessInfo,
+	killPty,
+	resizePty,
+	startProcessPolling,
+	writePty,
+} from './pty-manager'
 
 const MAX_PANE_ID_LENGTH = 128
 
@@ -189,4 +196,12 @@ export function registerIpcHandlers(): void {
 		assertSnippets(snippets)
 		saveSnippets(snippets)
 	})
+
+	ipcMain.handle(IPC.PTY_GET_PROCESS_INFO, (_e, id: unknown) => {
+		assertPaneId(id)
+		return getPtyProcessInfo(id)
+	})
+
+	// Start polling child processes for agent detection
+	startProcessPolling()
 }
