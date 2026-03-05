@@ -30,6 +30,8 @@ const mockApi = {
 	onPtyData: vi.fn(() => () => {}),
 	onPtyExit: vi.fn(() => () => {}),
 	onPtyCwdChanged: vi.fn(() => () => {}),
+	getPtyProcessInfo: vi.fn<(id: string) => Promise<null>>().mockResolvedValue(null),
+	onPtyProcessChanged: vi.fn(() => () => {}),
 }
 
 Object.defineProperty(window, 'api', {
