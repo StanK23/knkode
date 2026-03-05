@@ -1,18 +1,24 @@
 # HANDOFF
 
 ## Current State
-- Branch: `feature/agent-process-detection`
-- PR #59 open: agent process detection layer — review complete, fixes pending
+- Branch: `main`
+- PR #59 merged: agent process detection layer
 
 ## What Was Done
 - PR #58 merged: translucent pane backgrounds with blur
-- PR #59 created: agent process detection — process tree walking, IPC, store integration, agent badges
-- PR #59 review: 6 agents, 28 findings — all addressed in 6 fix commits
+- PR #59 merged: agent process detection — async process tree walking, IPC, store integration, agent badges
+  - 6-agent review: 28 findings, all must-fixes addressed in 6 commits
+  - Key fixes: async execFile, ppid-based ps, PowerShell for Windows, error discrimination
 
 ## Active Plan
 - `docs/plans/2026-03-06-agent-workspace-plan.md`
-- PR #1: agent process detection — PR #59 (review complete, fixes pending)
-- PR #2-#7: mode detection, ANSI parsing, block rendering, input bar, stream-json, settings
+- PR #1: agent process detection — **merged** (PR #59)
+- PR #2: alt screen buffer detection — next
+- PR #3: ANSI block parser for Ink-based CLIs
+- PR #4: collapsible block overlay UI
+- PR #5: per-pane agent status bar
+- PR #6: stream JSON renderer (opt-in)
+- PR #7: multi-agent overview dashboard
 
 ## Previous Work
 - PR #56 merged: snippet reorder via DnD + keyboard
@@ -22,6 +28,5 @@
 - PR #50: Dynamic workspace fonts
 
 ## Next Steps
-1. Apply review fixes on PR #59
-2. Merge PR #59
-3. Continue with PR #2 (mode detection layer)
+1. PR #2: Alt screen buffer detection (`feature/alt-screen-detection`)
+2. PR #3: ANSI block parser
