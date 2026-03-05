@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppState, IpcChannel, Snippet, Workspace } from '../shared/types'
+import type { AppState, IpcChannel, ProcessInfo, Snippet, Workspace } from '../shared/types'
 import { IPC } from '../shared/types'
 
 type Unsubscribe = () => void
@@ -48,6 +48,12 @@ const api = {
 		onIpcEvent<[string, number]>(IPC.PTY_EXIT, cb),
 	onPtyCwdChanged: (cb: (paneId: string, cwd: string) => void): Unsubscribe =>
 		onIpcEvent<[string, string]>(IPC.PTY_CWD_CHANGED, cb),
+
+	// Agent detection
+	getPtyProcessInfo: (id: string): Promise<ProcessInfo | null> =>
+		ipcRenderer.invoke(IPC.PTY_GET_PROCESS_INFO, id),
+	onPtyProcessChanged: (cb: (paneId: string, info: ProcessInfo | null) => void): Unsubscribe =>
+		onIpcEvent<[string, ProcessInfo | null]>(IPC.PTY_PROCESS_CHANGED, cb),
 }
 
 contextBridge.exposeInMainWorld('api', api)

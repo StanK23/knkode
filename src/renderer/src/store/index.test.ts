@@ -30,6 +30,8 @@ const mockApi = {
 	onPtyData: vi.fn(() => () => {}),
 	onPtyExit: vi.fn(() => () => {}),
 	onPtyCwdChanged: vi.fn(() => () => {}),
+	getPtyProcessInfo: vi.fn<(id: string) => Promise<null>>().mockResolvedValue(null),
+	onPtyProcessChanged: vi.fn(() => () => {}),
 }
 
 Object.defineProperty(window, 'api', {
@@ -70,6 +72,8 @@ function resetStore() {
 		focusGeneration: 0,
 		visitedWorkspaceIds: [],
 		activePtyIds: new Set(),
+		paneAgentTypes: new Map(),
+		paneProcessNames: new Map(),
 	})
 }
 
@@ -1024,5 +1028,150 @@ describe('store PTY lifecycle', () => {
 			expect(mockApi.killPty).toHaveBeenCalledWith('p2')
 			expect(useStore.getState().activePtyIds.size).toBe(0)
 		})
+	})
+})
+
+describe('store setPaneProcess', () => {
+	it('sets agent type and process name for known agent', () => {
+		useStore.getState().setPaneProcess('p1', { name: 'claude', pid: 1234 })
+
+		expect(useStore.getState().paneAgentTypes.get('p1')).toBe('claude-code')
+		expect(useStore.getState().paneProcessNames.get('p1')).toBe('claude')
+	})
+
+	it('sets process name but clears agent type for unknown process', () => {
+		// First set a known agent
+		useStore.getState().setPaneProcess('p1', { name: 'claude', pid: 1234 })
+		expect(useStore.getState().paneAgentTypes.get('p1')).toBe('claude-code')
+
+		// Now set an unknown process
+		useStore.getState().setPaneProcess('p1', { name: 'node', pid: 5678 })
+
+		expect(useStore.getState().paneProcessNames.get('p1')).toBe('node')
+		expect(useStore.getState().paneAgentTypes.has('p1')).toBe(false)
+	})
+
+	it('clears both maps when info is null', () => {
+		useStore.getState().setPaneProcess('p1', { name: 'claude', pid: 1234 })
+		expect(useStore.getState().paneAgentTypes.get('p1')).toBe('claude-code')
+
+		useStore.getState().setPaneProcess('p1', null)
+
+		expect(useStore.getState().paneAgentTypes.has('p1')).toBe(false)
+		expect(useStore.getState().paneProcessNames.has('p1')).toBe(false)
+	})
+
+	it('does not affect other panes', () => {
+		useStore.getState().setPaneProcess('p1', { name: 'claude', pid: 1234 })
+		useStore.getState().setPaneProcess('p2', { name: 'codex', pid: 5678 })
+
+		expect(useStore.getState().paneAgentTypes.get('p1')).toBe('claude-code')
+		expect(useStore.getState().paneAgentTypes.get('p2')).toBe('codex')
+
+		useStore.getState().setPaneProcess('p1', null)
+
+		expect(useStore.getState().paneAgentTypes.has('p1')).toBe(false)
+		expect(useStore.getState().paneAgentTypes.get('p2')).toBe('codex')
+	})
+})
+
+describe('store killPtys agent cleanup', () => {
+	it('clears agent state for killed pane IDs', () => {
+		useStore.setState({ activePtyIds: new Set(['p1', 'p2']) })
+		useStore.getState().setPaneProcess('p1', { name: 'claude', pid: 1234 })
+		useStore.getState().setPaneProcess('p2', { name: 'codex', pid: 5678 })
+
+		useStore.getState().killPtys(['p1'])
+
+		expect(useStore.getState().paneAgentTypes.has('p1')).toBe(false)
+		expect(useStore.getState().paneProcessNames.has('p1')).toBe(false)
+	})
+
+	it('preserves agent state for panes not killed', () => {
+		useStore.setState({ activePtyIds: new Set(['p1', 'p2']) })
+		useStore.getState().setPaneProcess('p1', { name: 'claude', pid: 1234 })
+		useStore.getState().setPaneProcess('p2', { name: 'codex', pid: 5678 })
+
+		useStore.getState().killPtys(['p1'])
+
+		expect(useStore.getState().paneAgentTypes.get('p2')).toBe('codex')
+		expect(useStore.getState().paneProcessNames.get('p2')).toBe('codex')
+	})
+})
+
+describe('store removePtyId agent cleanup', () => {
+	it('clears agent state on natural PTY exit', () => {
+		useStore.setState({ activePtyIds: new Set(['p1']) })
+		useStore.getState().setPaneProcess('p1', { name: 'claude', pid: 1234 })
+
+		useStore.getState().removePtyId('p1')
+
+		expect(useStore.getState().paneAgentTypes.has('p1')).toBe(false)
+		expect(useStore.getState().paneProcessNames.has('p1')).toBe(false)
+	})
+
+	it('preserves other panes agent state', () => {
+		useStore.setState({ activePtyIds: new Set(['p1', 'p2']) })
+		useStore.getState().setPaneProcess('p1', { name: 'claude', pid: 1234 })
+		useStore.getState().setPaneProcess('p2', { name: 'aider', pid: 5678 })
+
+		useStore.getState().removePtyId('p1')
+
+		expect(useStore.getState().paneAgentTypes.get('p2')).toBe('aider')
+	})
+})
+
+describe('store init agent listener', () => {
+	it('registers onPtyProcessChanged listener', async () => {
+		const ws = makeWorkspace()
+		mockApi.getWorkspaces.mockResolvedValue([ws])
+		mockApi.getAppState.mockResolvedValue({
+			openWorkspaceIds: ['ws-1'],
+			activeWorkspaceId: 'ws-1',
+			windowBounds: TEST_BOUNDS,
+		})
+		mockApi.getHomeDir.mockResolvedValue('/home')
+
+		await useStore.getState().init()
+
+		expect(mockApi.onPtyProcessChanged).toHaveBeenCalledTimes(1)
+	})
+
+	it('listener callback updates agent state', async () => {
+		const ws = makeWorkspace()
+		mockApi.getWorkspaces.mockResolvedValue([ws])
+		mockApi.getAppState.mockResolvedValue({
+			openWorkspaceIds: ['ws-1'],
+			activeWorkspaceId: 'ws-1',
+			windowBounds: TEST_BOUNDS,
+		})
+		mockApi.getHomeDir.mockResolvedValue('/home')
+
+		await useStore.getState().init()
+
+		// Capture the callback and invoke it
+		const callback = mockApi.onPtyProcessChanged.mock.calls[0]?.[0] as
+			| ((paneId: string, info: { name: string; pid: number }) => void)
+			| undefined
+		expect(callback).toBeDefined()
+		callback?.('p1', { name: 'claude', pid: 1234 })
+
+		expect(useStore.getState().paneAgentTypes.get('p1')).toBe('claude-code')
+	})
+
+	it('does not register duplicate listeners on second init call', async () => {
+		const ws = makeWorkspace()
+		mockApi.getWorkspaces.mockResolvedValue([ws])
+		mockApi.getAppState.mockResolvedValue({
+			openWorkspaceIds: ['ws-1'],
+			activeWorkspaceId: 'ws-1',
+			windowBounds: TEST_BOUNDS,
+		})
+		mockApi.getHomeDir.mockResolvedValue('/home')
+
+		await useStore.getState().init()
+		await useStore.getState().init()
+
+		expect(mockApi.onPtyProcessChanged).toHaveBeenCalledTimes(1)
 	})
 })

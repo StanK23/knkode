@@ -91,6 +91,45 @@ export interface Snippet {
 	readonly command: string
 }
 
+// Agent detection
+export const AGENT_TYPES = [
+	'claude-code',
+	'codex',
+	'gemini-cli',
+	'aider',
+	'opencode',
+	'kilo-code',
+] as const
+export type AgentType = (typeof AGENT_TYPES)[number]
+
+/** Map process executable names to agent types.
+ *  Lookup returns undefined for unknown process names. */
+export const PROCESS_TO_AGENT: Partial<Record<string, AgentType>> = {
+	claude: 'claude-code',
+	'claude-code': 'claude-code',
+	codex: 'codex',
+	gemini: 'gemini-cli',
+	aider: 'aider',
+	opencode: 'opencode',
+	'kilo-code': 'kilo-code',
+	kilo: 'kilo-code',
+}
+
+export interface ProcessInfo {
+	name: string
+	pid: number
+}
+
+/** Human-readable labels for agent types (used in UI badges). */
+export const AGENT_LABELS: Record<AgentType, string> = {
+	'claude-code': 'Claude',
+	codex: 'Codex',
+	'gemini-cli': 'Gemini',
+	aider: 'Aider',
+	opencode: 'OpenCode',
+	'kilo-code': 'Kilo',
+}
+
 // IPC channel names
 export const IPC = {
 	// Config
@@ -114,6 +153,8 @@ export const IPC = {
 	PTY_DATA: 'pty:data',
 	PTY_EXIT: 'pty:exit',
 	PTY_CWD_CHANGED: 'pty:cwd-changed',
+	PTY_PROCESS_CHANGED: 'pty:process-changed',
+	PTY_GET_PROCESS_INFO: 'pty:get-process-info',
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type {
+	AgentType,
 	AppState,
 	DropPosition,
 	LayoutLeaf,
@@ -7,6 +8,7 @@ import type {
 	LayoutPreset,
 	PaneConfig,
 	PaneTheme,
+	ProcessInfo,
 	Snippet,
 	SplitDirection,
 	Workspace,
@@ -16,6 +18,7 @@ import {
 	DEFAULT_CURSOR_STYLE,
 	DEFAULT_SCROLLBACK,
 	DEFAULT_UNFOCUSED_DIM,
+	PROCESS_TO_AGENT,
 	isLayoutBranch,
 } from '../../../shared/types'
 import { THEME_PRESETS } from '../data/theme-presets'
@@ -208,8 +211,14 @@ interface StoreState {
 	 *  Prevents double-creation on Allotment remount.
 	 *  IMPORTANT: Always create a new Set on mutation — Zustand uses reference equality. */
 	activePtyIds: Set<string>
+	/** Detected agent type per pane (absent from map = no agent detected). */
+	paneAgentTypes: Map<string, AgentType>
+	/** Raw process name per pane (for debugging). */
+	paneProcessNames: Map<string, string>
 
 	// Actions
+	/** Update agent type for a pane based on process info. */
+	setPaneProcess: (paneId: string, info: ProcessInfo | null) => void
 	setFocusedPane: (paneId: string | null) => void
 	/** Ensure a PTY exists for the given pane. No-op if already requested or active. */
 	ensurePty: (paneId: string, cwd: string, startupCommand: string | null) => void
@@ -277,6 +286,30 @@ export const useStore = create<StoreState>((set, get) => ({
 	focusGeneration: 0,
 	visitedWorkspaceIds: [],
 	activePtyIds: new Set(),
+	paneAgentTypes: new Map(),
+	paneProcessNames: new Map(),
+
+	setPaneProcess: (paneId, info) => {
+		set((state) => {
+			const newProcessNames = new Map(state.paneProcessNames)
+			const newAgentTypes = new Map(state.paneAgentTypes)
+
+			if (!info) {
+				newProcessNames.delete(paneId)
+				newAgentTypes.delete(paneId)
+			} else {
+				newProcessNames.set(paneId, info.name)
+				const agentType = PROCESS_TO_AGENT[info.name]
+				if (agentType) {
+					newAgentTypes.set(paneId, agentType)
+				} else {
+					newAgentTypes.delete(paneId)
+				}
+			}
+
+			return { paneProcessNames: newProcessNames, paneAgentTypes: newAgentTypes }
+		})
+	},
 
 	setFocusedPane: (paneId) =>
 		set((state) => ({ focusedPaneId: paneId, focusGeneration: state.focusGeneration + 1 })),
@@ -313,6 +346,14 @@ export const useStore = create<StoreState>((set, get) => ({
 			if (newSet.delete(id)) changed = true
 		}
 		if (changed) set({ activePtyIds: newSet })
+		// Clean up agent detection state
+		const agents = new Map(get().paneAgentTypes)
+		const procs = new Map(get().paneProcessNames)
+		for (const id of paneIds) {
+			agents.delete(id)
+			procs.delete(id)
+		}
+		set({ paneAgentTypes: agents, paneProcessNames: procs })
 	},
 
 	removePtyId: (paneId) => {
@@ -320,10 +361,16 @@ export const useStore = create<StoreState>((set, get) => ({
 		if (!current.has(paneId)) return
 		const newSet = new Set(current)
 		newSet.delete(paneId)
-		set({ activePtyIds: newSet })
+		// Clean up agent detection state so dead panes don't show stale badges
+		const agents = new Map(get().paneAgentTypes)
+		const procs = new Map(get().paneProcessNames)
+		agents.delete(paneId)
+		procs.delete(paneId)
+		set({ activePtyIds: newSet, paneAgentTypes: agents, paneProcessNames: procs })
 	},
 
 	init: async () => {
+		if (get().initialized) return
 		try {
 			const [workspaces, appState, homeDir, snippets] = await Promise.all([
 				window.api.getWorkspaces(),
@@ -369,6 +416,11 @@ export const useStore = create<StoreState>((set, get) => ({
 				visitedWorkspaceIds: initialVisited,
 				focusedPaneId: initialFocusedPaneId,
 				focusGeneration: initialFocusedPaneId ? 1 : 0,
+			})
+
+			// Listen for child process changes (agent detection)
+			window.api.onPtyProcessChanged((paneId, info) => {
+				get().setPaneProcess(paneId, info)
 			})
 		} catch (err) {
 			console.error('[store] Failed to initialize:', err)
@@ -919,7 +971,12 @@ export const useStore = create<StoreState>((set, get) => ({
 
 	reorderSnippets: (fromIndex, toIndex) => {
 		const snippets = [...get().snippets]
-		if (fromIndex < 0 || fromIndex >= snippets.length || toIndex < 0 || toIndex >= snippets.length) {
+		if (
+			fromIndex < 0 ||
+			fromIndex >= snippets.length ||
+			toIndex < 0 ||
+			toIndex >= snippets.length
+		) {
 			console.warn('[store] reorderSnippets: index out of range', {
 				fromIndex,
 				toIndex,
@@ -929,7 +986,8 @@ export const useStore = create<StoreState>((set, get) => ({
 		}
 		if (fromIndex === toIndex) return
 		const [moved] = snippets.splice(fromIndex, 1)
-		snippets.splice(toIndex, 0, moved!)
+		if (!moved) return
+		snippets.splice(toIndex, 0, moved)
 		set({ snippets })
 		persistSnippets(snippets)
 	},
