@@ -26,24 +26,27 @@ const BlockOverlayItem = memo(function BlockOverlayItem({
 	viewportRows,
 	onToggle,
 }: BlockOverlayItemProps) {
+	const handleClick = useCallback(() => onToggle(block.id), [block.id, onToggle])
+
 	const top = (block.startLine - viewportY) * cellHeight
+	// For streaming blocks (endLine null), extend to bottom of viewport
 	const endLine = block.endLine ?? block.startLine + viewportRows
 	const height = (endLine - block.startLine + 1) * cellHeight
+	const lineCount = endLine - block.startLine + 1
 	const viewportHeight = viewportRows * cellHeight
 
 	// Skip blocks outside viewport
 	if (top + height < 0 || top > viewportHeight) return null
 
-	const lineCount = (block.endLine ?? block.startLine) - block.startLine + 1
-	const handleClick = useCallback(() => onToggle(block.id), [block.id, onToggle])
-
 	if (isCollapsed) {
 		return (
 			<button
 				type="button"
-				className="absolute left-0 right-0 flex items-center gap-1 px-1.5 cursor-pointer pointer-events-auto bg-elevated/90 border-l-2 border-accent hover:bg-overlay/90 border-0 border-l-2 text-left"
+				className="absolute left-0 right-0 flex items-center gap-1 px-1.5 cursor-pointer pointer-events-auto bg-elevated/90 border-0 border-l-2 border-accent hover:bg-overlay/90 text-left"
 				style={{ top, height: cellHeight }}
 				onClick={handleClick}
+				aria-expanded={false}
+				aria-label={`Expand ${block.type}${block.metadata.tool ? `: ${block.metadata.tool}` : ''} (${lineCount} lines)`}
 			>
 				<span className="text-content-muted text-[10px] select-none shrink-0">{'\u25B6'}</span>
 				<AgentBlockSummary type={block.type} metadata={block.metadata} lineCount={lineCount} />
@@ -57,7 +60,8 @@ const BlockOverlayItem = memo(function BlockOverlayItem({
 			className="absolute left-0 w-4 flex items-start justify-center pt-px cursor-pointer pointer-events-auto hover:bg-overlay/50 rounded-sm bg-transparent border-none"
 			style={{ top, height }}
 			onClick={handleClick}
-			title={`${block.type}${block.metadata.tool ? `: ${block.metadata.tool}` : ''} (${lineCount} lines) — click to collapse`}
+			aria-expanded={true}
+			aria-label={`Collapse ${block.type}${block.metadata.tool ? `: ${block.metadata.tool}` : ''} (${lineCount} lines)`}
 		>
 			<span className="text-content-muted text-[10px] select-none">{'\u25BC'}</span>
 		</button>
@@ -70,6 +74,7 @@ function getTermInfo(term: XTerm | null) {
 	if (!el) return null
 	const viewport = el.querySelector('.xterm-viewport')
 	if (!viewport) return null
+	if (term.rows === 0) return null
 	const cellHeight = viewport.clientHeight / term.rows
 	return {
 		cellHeight,
