@@ -145,6 +145,15 @@ export class AgentBlockParser {
 		// Trim leading whitespace — TUI apps indent content with spaces in the terminal grid
 		const trimmed = stripped.trim()
 
+		// DEBUG: log what processLine actually receives
+		if (trimmed && lineIndex < 40) {
+			const hasTopLeft = trimmed.includes(TOP_LEFT)
+			const hasBottomLeft = trimmed.includes(BOTTOM_LEFT) || trimmed.includes('⎿')
+			const hasBullet = BULLET_PATTERN.test(trimmed)
+			const codes = [...trimmed.slice(0, 5)].map((c) => `U+${c.codePointAt(0)?.toString(16).padStart(4, '0')}`)
+			console.log('[processLine]', { lineIndex, trimmed: trimmed.slice(0, 80), hasTopLeft, hasBottomLeft, hasBullet, firstChars: codes })
+		}
+
 		// Block start: line contains ╭ (box-drawing top-left corner)
 		if (trimmed.includes(TOP_LEFT)) {
 			this.openNewBlock(classifier, trimmed, lineIndex)
