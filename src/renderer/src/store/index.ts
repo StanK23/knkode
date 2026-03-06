@@ -215,12 +215,11 @@ interface StoreState {
 	paneAgentTypes: Map<string, AgentType>
 	/** Raw process name per pane (for debugging). */
 	paneProcessNames: Map<string, string>
-	/** Pane IDs currently in alternate screen buffer (TUI mode like vim, htop).
-	 *  Block parsing must be disabled for these panes. */
+	/** Pane IDs currently in alternate screen buffer (TUI mode like vim, htop). */
 	altScreenPaneIds: Set<string>
 
 	// Actions
-	/** Update alt screen buffer state for a pane. */
+	/** Update alt screen buffer state for a pane. No-op if state already matches. */
 	setAltScreen: (paneId: string, isAlt: boolean) => void
 	/** Update agent type for a pane based on process info. */
 	setPaneProcess: (paneId: string, info: ProcessInfo | null) => void
