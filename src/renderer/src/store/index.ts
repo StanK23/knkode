@@ -626,6 +626,8 @@ export const useStore = create<StoreState>((set, get) => ({
 					? { type: 'preset', preset: source.layout.preset, tree: remappedTree }
 					: { type: 'custom', tree: remappedTree },
 			panes: newPanes,
+			cwd: source.cwd,
+			agentFlags: source.agentFlags ? { ...source.agentFlags } : undefined,
 		}
 		await window.api.saveWorkspace(workspace)
 		const newAppState = {
@@ -1030,7 +1032,7 @@ export const useStore = create<StoreState>((set, get) => ({
 		const state = get()
 		const workspace = state.workspaces.find((w) => w.id === workspaceId)
 		if (!workspace || !workspace.panes[paneId]) {
-			console.warn(`[store] setLaunchMode: workspace or pane not found`, { workspaceId, paneId })
+			console.warn('[store] setLaunchMode: workspace or pane not found', { workspaceId, paneId })
 			return
 		}
 
