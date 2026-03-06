@@ -1,10 +1,8 @@
 # HANDOFF
 
 ## Current State
-- Branch: `feature/stream-json-parser`
-- PR #68 open: stream JSON parser for Claude Code output (data layer)
-  - 6-agent review complete, 14/16 findings fixed, 2 skipped (premature optimization)
-  - 290 tests passing (27 parser + 134 store + 129 others)
+- Branch: `main`
+- PR #68 merged: stream JSON parser for Claude Code output (data layer)
 
 ## What Was Done
 - PR #58 merged: translucent pane backgrounds with blur
@@ -21,13 +19,15 @@
   - 6-agent review: 7 must-fix, 9 suggestions, 6 nitpicks — all addressed
 - PR #67 merged: agent flag settings — per-agent CLI flags in workspace config, settings panel tab refactor
   - 5-agent review: 3 must-fix, 6 suggestions, 2 nitpicks — all addressed
+- PR #68 merged: stream JSON parser — NDJSON parser, shared types, store state, PTY hook, 290 tests
+  - 6-agent review: 4 must-fix, 9 suggestions, 3 nitpicks — 14/16 addressed
 
 ## Active Plan — Agent Workspace (revised)
-Previous plan PRs #1-5 complete (PR #59-63). PR #6 complete (PR #66). PR #8 complete (PR #67). Remaining: JSON renderer.
+Previous plan PRs #1-5 complete (PR #59-63). PR #6 complete (PR #66). PR #8 complete (PR #67). PR #7a complete (PR #68). Remaining: JSON renderer UI.
 
 - ~~PR #6: pane launcher overlay~~ ← PR #66, merged
 - ~~PR #8: agent flag settings~~ ← PR #67, merged
-- PR #7a: stream JSON parser + store (data layer) ← PR #68, review complete, awaiting merge
+- ~~PR #7a: stream JSON parser + store~~ ← PR #68, merged
 - PR #7b: stream JSON renderer UI (components, rendered/raw toggle)
 
 ## Previous Work
@@ -38,5 +38,4 @@ Previous plan PRs #1-5 complete (PR #59-63). PR #6 complete (PR #66). PR #8 comp
 - PR #50: Dynamic workspace fonts
 
 ## Next Steps
-1. Merge PR #68 (stream JSON parser)
-2. PR #7b: stream JSON renderer UI components
+1. PR #7b: stream JSON renderer UI components
