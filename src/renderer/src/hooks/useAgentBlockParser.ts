@@ -1,16 +1,16 @@
 import type { Terminal as XTerm } from '@xterm/xterm'
 import { useEffect, useRef } from 'react'
-import type { AgentType } from '../../../shared/types'
 import { AgentBlockParser, supportsBlockParsing } from '../lib/agent-block-parser'
 import { useStore } from '../store'
 
 const PARSE_INTERVAL_MS = 200
 
 /**
- * Connects an AgentBlockParser to an xterm.js terminal buffer, periodically
- * parsing new lines and pushing blocks to the store. Only active when an
- * agent is detected, the agent supports block parsing, and the pane is not
- * in alternate screen mode.
+ * Hook that manages an AgentBlockParser for an xterm.js terminal buffer.
+ * Called unconditionally on every pane. Internally starts a periodic parsing
+ * interval only when an agent is detected, the agent supports block parsing,
+ * and the pane is not in alternate screen mode. When conditions are not met,
+ * any existing blocks are cleared.
  */
 export function useAgentBlockParser(paneId: string, termRef: React.RefObject<XTerm | null>): void {
 	const agentType = useStore((s) => s.paneAgentTypes.get(paneId) ?? null)
@@ -36,31 +36,38 @@ export function useAgentBlockParser(paneId: string, termRef: React.RefObject<XTe
 			return
 		}
 
-		parserRef.current = new AgentBlockParser(agentType as AgentType)
+		parserRef.current = new AgentBlockParser(agentType)
 
 		const interval = setInterval(() => {
 			const term = termRef.current
 			const parser = parserRef.current
 			if (!term || !parser) return
 
-			const buffer = term.buffer.active
-			const lineCount = buffer.length
+			try {
+				const buffer = term.buffer.active
+				const lineCount = buffer.length
 
-			parser.update((i) => buffer.getLine(i)?.translateToString(true) ?? '', lineCount)
+				parser.update((i) => buffer.getLine(i)?.translateToString(true) ?? '', lineCount)
 
-			const blocks = parser.getBlocks()
-			const lastBlock = blocks.length > 0 ? blocks[blocks.length - 1] : null
+				const blocks = parser.getBlocks()
+				const lastBlock = blocks.length > 0 ? blocks[blocks.length - 1] : null
 
-			// Only update store if blocks actually changed
-			if (
-				blocks.length !== prevBlockCountRef.current ||
-				lastBlock?.endLine !== prevLastEndLineRef.current ||
-				lastBlock?.type !== prevLastTypeRef.current
-			) {
-				prevBlockCountRef.current = blocks.length
-				prevLastEndLineRef.current = lastBlock?.endLine ?? null
-				prevLastTypeRef.current = lastBlock?.type ?? null
-				updateAgentBlocks(paneId, blocks)
+				// Heuristic: only update store when block count, last block's endLine, or
+				// last block's type changes. Does not detect metadata or mid-array mutations
+				// — acceptable since blocks are append-only and the last block is the one
+				// actively streaming.
+				if (
+					blocks.length !== prevBlockCountRef.current ||
+					lastBlock?.endLine !== prevLastEndLineRef.current ||
+					lastBlock?.type !== prevLastTypeRef.current
+				) {
+					prevBlockCountRef.current = blocks.length
+					prevLastEndLineRef.current = lastBlock?.endLine ?? null
+					prevLastTypeRef.current = lastBlock?.type ?? null
+					updateAgentBlocks(paneId, blocks)
+				}
+			} catch (err) {
+				console.error(`[agent-parser] Error parsing pane ${paneId}:`, err)
 			}
 		}, PARSE_INTERVAL_MS)
 
