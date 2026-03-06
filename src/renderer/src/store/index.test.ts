@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AppState, PaneTheme, Workspace } from '../../../shared/types'
 import { DEFAULT_UNFOCUSED_DIM, isLayoutBranch } from '../../../shared/types'
-import { createLayoutFromPreset, getEffectiveCwd, getPaneIdsInOrder, useStore } from './index'
+import {
+	_resetStreamParsers,
+	createLayoutFromPreset,
+	getEffectiveCwd,
+	getPaneIdsInOrder,
+	useStore,
+} from './index'
 
 const TEST_THEME: PaneTheme = {
 	background: '#000',
@@ -80,6 +86,8 @@ function resetStore() {
 		paneAgentStartTimes: new Map(),
 		paneAgentBlocks: new Map(),
 		collapsedBlockIds: new Map(),
+		paneStreamMessages: new Map(),
+		paneViewMode: new Map(),
 	})
 }
 
@@ -92,6 +100,7 @@ beforeEach(() => {
 	mockApi.killPty.mockResolvedValue(undefined)
 	mockApi.createPty.mockResolvedValue(undefined)
 	mockApi.getSnippets.mockResolvedValue([])
+	_resetStreamParsers()
 	resetStore()
 })
 
@@ -1659,5 +1668,125 @@ describe('getEffectiveCwd', () => {
 	it('returns homeDir when pane does not exist', () => {
 		const ws = makeWorkspace()
 		expect(getEffectiveCwd(ws, 'nonexistent', '/fallback')).toBe('/fallback')
+	})
+})
+
+// ── Stream JSON parser store integration ────────────────────────────────────
+
+/** Build a valid NDJSON stream_event line */
+function streamLine(event: Record<string, unknown>): string {
+	return `${JSON.stringify({ type: 'stream_event', event })}\n`
+}
+
+describe('feedStreamData', () => {
+	it('creates parser and stores messages on first feed', () => {
+		useStore.getState().feedStreamData(
+			'p1',
+			streamLine({
+				type: 'message_start',
+				message: { id: 'msg_001', role: 'assistant' },
+			}),
+		)
+
+		const msgs = useStore.getState().paneStreamMessages.get('p1')
+		expect(msgs).toHaveLength(1)
+		expect(msgs?.[0].id).toBe('msg_001')
+	})
+
+	it('accumulates content across multiple feeds', () => {
+		const { feedStreamData } = useStore.getState()
+		feedStreamData(
+			'p1',
+			streamLine({ type: 'message_start', message: { id: 'msg_001', role: 'assistant' } }),
+		)
+		feedStreamData(
+			'p1',
+			streamLine({ type: 'content_block_start', index: 0, content_block: { type: 'text' } }),
+		)
+		feedStreamData(
+			'p1',
+			streamLine({
+				type: 'content_block_delta',
+				index: 0,
+				delta: { type: 'text_delta', text: 'Hello' },
+			}),
+		)
+
+		const msgs = useStore.getState().paneStreamMessages.get('p1')
+		expect(msgs?.[0].blocks[0]).toEqual({ type: 'text', text: 'Hello' })
+	})
+
+	it('maintains separate parsers per pane', () => {
+		const { feedStreamData } = useStore.getState()
+		feedStreamData(
+			'p1',
+			streamLine({ type: 'message_start', message: { id: 'msg_p1', role: 'assistant' } }),
+		)
+		feedStreamData(
+			'p2',
+			streamLine({ type: 'message_start', message: { id: 'msg_p2', role: 'assistant' } }),
+		)
+
+		const p1 = useStore.getState().paneStreamMessages.get('p1')
+		const p2 = useStore.getState().paneStreamMessages.get('p2')
+		expect(p1?.[0].id).toBe('msg_p1')
+		expect(p2?.[0].id).toBe('msg_p2')
+	})
+})
+
+describe('setViewMode', () => {
+	it('sets view mode for a pane', () => {
+		useStore.getState().setViewMode('p1', 'rendered')
+		expect(useStore.getState().paneViewMode.get('p1')).toBe('rendered')
+	})
+
+	it('no-ops when mode already matches', () => {
+		useStore.getState().setViewMode('p1', 'raw')
+		const ref1 = useStore.getState().paneViewMode
+		useStore.getState().setViewMode('p1', 'raw')
+		const ref2 = useStore.getState().paneViewMode
+		expect(ref1).toBe(ref2)
+	})
+
+	it('updates mode when changed', () => {
+		useStore.getState().setViewMode('p1', 'raw')
+		useStore.getState().setViewMode('p1', 'rendered')
+		expect(useStore.getState().paneViewMode.get('p1')).toBe('rendered')
+	})
+})
+
+describe('clearStreamData', () => {
+	it('removes messages, view mode, and resets parser', () => {
+		const { feedStreamData, setViewMode, clearStreamData } = useStore.getState()
+
+		feedStreamData(
+			'p1',
+			streamLine({ type: 'message_start', message: { id: 'msg_001', role: 'assistant' } }),
+		)
+		setViewMode('p1', 'rendered')
+
+		clearStreamData('p1')
+
+		expect(useStore.getState().paneStreamMessages.has('p1')).toBe(false)
+		expect(useStore.getState().paneViewMode.has('p1')).toBe(false)
+	})
+
+	it('allows fresh data after clear', () => {
+		const { feedStreamData, clearStreamData } = useStore.getState()
+
+		feedStreamData(
+			'p1',
+			streamLine({ type: 'message_start', message: { id: 'msg_001', role: 'assistant' } }),
+		)
+		clearStreamData('p1')
+
+		feedStreamData(
+			'p1',
+			streamLine({ type: 'message_start', message: { id: 'msg_002', role: 'assistant' } }),
+		)
+
+		const msgs = useStore.getState().paneStreamMessages.get('p1')
+		expect(msgs).toHaveLength(1)
+		expect(msgs?.[0].id).toBe('msg_002')
 	})
 })
