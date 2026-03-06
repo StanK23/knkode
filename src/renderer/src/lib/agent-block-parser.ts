@@ -14,7 +14,10 @@ const CLASSIFIERS: Partial<Record<AgentType, BlockClassifier>> = {
 	'gemini-cli': classifyGeminiCli,
 }
 
-let nextBlockId = 0
+/** Mutable version of AgentBlock for internal parser use. */
+type MutableBlock = { -readonly [K in keyof AgentBlock]: AgentBlock[K] } & {
+	metadata: Record<string, string>
+}
 
 /**
  * Stateful parser that converts terminal buffer lines into AgentBlock objects.
@@ -29,9 +32,11 @@ let nextBlockId = 0
 export class AgentBlockParser {
 	private agent: AgentType
 	private classifier: BlockClassifier | null
-	private blocks: AgentBlock[] = []
-	private openBlock: AgentBlock | null = null
+	private blocks: MutableBlock[] = []
+	private openBlock: MutableBlock | null = null
 	private lastParsedLine = -1
+	/** Per-instance block ID counter. IDs are unique within this parser and reset with reset(). */
+	private nextBlockId = 0
 
 	constructor(agent: AgentType) {
 		this.agent = agent
@@ -51,9 +56,9 @@ export class AgentBlockParser {
 		this.lastParsedLine = lineCount - 1
 	}
 
-	/** Get all parsed blocks (including any open/streaming block). */
+	/** Get a snapshot of all parsed blocks (including any open/streaming block). */
 	getBlocks(): readonly AgentBlock[] {
-		return this.blocks
+		return this.blocks.slice()
 	}
 
 	/** Reset parser state (e.g. when terminal is cleared). */
@@ -61,25 +66,27 @@ export class AgentBlockParser {
 		this.blocks = []
 		this.openBlock = null
 		this.lastParsedLine = -1
+		this.nextBlockId = 0
 	}
 
 	private processLine(stripped: string, lineIndex: number): void {
+		const classifier = this.classifier
+		if (!classifier) return
+
 		// Check for block start: line contains ╭
 		if (stripped.includes(TOP_LEFT)) {
 			// Close any open block first
-			this.closeOpenBlock(lineIndex - 1)
+			this.closeOpenBlock(Math.max(lineIndex - 1, this.openBlock?.startLine ?? 0))
 
-			const classifier = this.classifier
-			if (!classifier) return
 			const classification = classifier(stripped)
-			const block: AgentBlock = {
-				id: `block-${++nextBlockId}`,
+			const block: MutableBlock = {
+				id: `block-${++this.nextBlockId}`,
 				type: classification.type,
 				agent: this.agent,
 				startLine: lineIndex,
 				endLine: null,
 				collapsed: false,
-				metadata: classification.metadata,
+				metadata: { ...classification.metadata },
 			}
 			this.openBlock = block
 			this.blocks.push(block)
@@ -94,9 +101,9 @@ export class AgentBlockParser {
 
 		// Mid-block content: check for diff markers or error patterns to refine type
 		if (this.openBlock && this.openBlock.type === 'unknown') {
-			if (/^[+-]\s/.test(stripped) || /^@@\s/.test(stripped)) {
+			if (/^([+-]\s|@@\s)/.test(stripped)) {
 				this.openBlock.type = 'diff'
-			} else if (/error|exception|failed/i.test(stripped)) {
+			} else if (/\b(error|exception|failed)\b/i.test(stripped)) {
 				this.openBlock.type = 'error'
 			}
 		}

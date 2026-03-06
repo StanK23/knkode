@@ -147,6 +147,20 @@ describe('AgentBlockParser', () => {
 			expect(blocks[0].type).toBe('error')
 		})
 
+		it('does not false-positive on error-like identifiers in content', () => {
+			const parser = new AgentBlockParser('claude-code')
+			const lines = [
+				'╭──────────╮',
+				'errorHandler = new ErrorHandler()',
+				'╰──────────╯',
+			]
+			parser.update(lineGetter(lines), lines.length)
+
+			const blocks = parser.getBlocks()
+			expect(blocks).toHaveLength(1)
+			expect(blocks[0].type).toBe('unknown')
+		})
+
 		it('does not refine already-classified blocks', () => {
 			const parser = new AgentBlockParser('claude-code')
 			const lines = [
@@ -160,6 +174,25 @@ describe('AgentBlockParser', () => {
 			expect(blocks).toHaveLength(1)
 			// Should stay as tool-call, not be overridden to error
 			expect(blocks[0].type).toBe('tool-call')
+		})
+	})
+
+	describe('getBlocks snapshot', () => {
+		it('returns a snapshot that does not mutate on subsequent updates', () => {
+			const parser = new AgentBlockParser('claude-code')
+			const lines = ['╭─ Read file.ts', '│ contents', '╰─────────']
+			parser.update(lineGetter(lines), lines.length)
+
+			const snapshot = parser.getBlocks()
+			expect(snapshot).toHaveLength(1)
+
+			lines.push('╭─ Bash', '│ npm test', '╰─────')
+			parser.update(lineGetter(lines), lines.length)
+
+			// Original snapshot unchanged
+			expect(snapshot).toHaveLength(1)
+			// New call reflects new state
+			expect(parser.getBlocks()).toHaveLength(2)
 		})
 	})
 
