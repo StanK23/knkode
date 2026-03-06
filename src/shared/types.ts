@@ -144,8 +144,20 @@ export const LAUNCHABLE_AGENTS = ['claude-code', 'gemini-cli'] as const
 export type LaunchableAgent = (typeof LAUNCHABLE_AGENTS)[number]
 
 /** Per-agent launch configuration: CLI command and default flags appended automatically. */
-export const AGENT_LAUNCH_CONFIG: Record<LaunchableAgent, { command: string; defaultFlags: string[] }> = {
-	'claude-code': { command: 'claude', defaultFlags: ['--output-format', 'stream-json'] },
+export const AGENT_LAUNCH_CONFIG: Record<
+	LaunchableAgent,
+	{ command: string; defaultFlags: string[] }
+> = {
+	'claude-code': {
+		command: 'claude',
+		defaultFlags: [
+			'--print',
+			'--verbose',
+			'--output-format',
+			'stream-json',
+			'--include-partial-messages',
+		],
+	},
 	'gemini-cli': { command: 'gemini', defaultFlags: [] },
 }
 

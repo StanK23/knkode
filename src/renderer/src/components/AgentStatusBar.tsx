@@ -1,10 +1,6 @@
 import { memo, useEffect, useState } from 'react'
 import { AGENT_LABELS, type AgentType } from '../../../shared/types'
-import {
-	BLOCK_TYPE_COLORS,
-	type AgentBlock,
-	type AgentBlockType,
-} from '../lib/agent-parsers/types'
+import { type AgentBlock, type AgentBlockType, BLOCK_TYPE_COLORS } from '../lib/agent-parsers/types'
 import { useStore } from '../store'
 
 const ACTIVITY_LABELS: Record<AgentBlockType, string> = {
@@ -69,6 +65,8 @@ export const AgentStatusBar = memo(function AgentStatusBar({
 }: AgentStatusBarProps) {
 	const blocks = useStore((s) => s.paneAgentBlocks.get(paneId))
 	const startTime = useStore((s) => s.paneAgentStartTimes.get(paneId))
+	const viewMode = useStore((s) => s.paneViewMode.get(paneId))
+	const setViewMode = useStore((s) => s.setViewMode)
 
 	const blockCount = blocks?.length ?? 0
 	const lastBlock = blocks?.at(-1)
@@ -90,6 +88,19 @@ export const AgentStatusBar = memo(function AgentStatusBar({
 			<span className={`min-w-0 truncate ${activityColor}`}>{activityLabel}</span>
 
 			<span className="flex-1" />
+
+			{viewMode !== undefined && (
+				<button
+					type="button"
+					onClick={() => setViewMode(paneId, viewMode === 'rendered' ? 'raw' : 'rendered')}
+					aria-pressed={viewMode === 'rendered'}
+					aria-label="Toggle view mode"
+					className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-px rounded-sm cursor-pointer border-none bg-overlay hover:bg-overlay-active text-content-secondary focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+					title={viewMode === 'rendered' ? 'Switch to raw terminal' : 'Switch to rendered view'}
+				>
+					{viewMode}
+				</button>
+			)}
 
 			{blockCount > 0 && (
 				<span className="text-content-muted">

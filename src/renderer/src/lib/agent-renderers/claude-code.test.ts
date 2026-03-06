@@ -462,6 +462,112 @@ describe('ClaudeCodeStreamParser', () => {
 		})
 	})
 
+	describe('verbose stream-json format', () => {
+		it('handles top-level system events (ignored)', () => {
+			const parser = new ClaudeCodeStreamParser()
+			parser.feed(`${JSON.stringify({ type: 'system', subtype: 'init', session_id: 'sess_1' })}\n`)
+			expect(parser.getMessages()).toHaveLength(0)
+		})
+
+		it('handles top-level assistant snapshots (ignored)', () => {
+			const parser = new ClaudeCodeStreamParser()
+			parser.feed(
+				`${JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'hi' }] } })}\n`,
+			)
+			expect(parser.getMessages()).toHaveLength(0)
+		})
+
+		it('handles top-level rate_limit_event (ignored)', () => {
+			const parser = new ClaudeCodeStreamParser()
+			parser.feed(
+				`${JSON.stringify({ type: 'rate_limit_event', rate_limit_info: { status: 'allowed' } })}\n`,
+			)
+			expect(parser.getMessages()).toHaveLength(0)
+		})
+
+		it('extracts session_id from result event', () => {
+			const parser = new ClaudeCodeStreamParser()
+			parser.feed(
+				line({
+					type: 'message_start',
+					message: { id: 'msg_001', role: 'assistant' },
+				}),
+			)
+			parser.feed(
+				line({
+					type: 'content_block_start',
+					index: 0,
+					content_block: { type: 'text' },
+				}),
+			)
+			parser.feed(
+				line({
+					type: 'content_block_delta',
+					index: 0,
+					delta: { type: 'text_delta', text: 'Hello!' },
+				}),
+			)
+			parser.feed(line({ type: 'message_stop' }))
+
+			// Result event from verbose stream-json
+			parser.feed(
+				`${JSON.stringify({
+					type: 'result',
+					session_id: 'abc-123-def',
+					stop_reason: 'end_turn',
+					usage: { input_tokens: 50, output_tokens: 10 },
+				})}\n`,
+			)
+
+			expect(parser.getSessionId()).toBe('abc-123-def')
+		})
+
+		it('result event marks streaming message as done', () => {
+			const parser = new ClaudeCodeStreamParser()
+			parser.feed(
+				line({
+					type: 'message_start',
+					message: { id: 'msg_001', role: 'assistant' },
+				}),
+			)
+			parser.feed(
+				line({
+					type: 'content_block_start',
+					index: 0,
+					content_block: { type: 'text' },
+				}),
+			)
+			parser.feed(
+				line({
+					type: 'content_block_delta',
+					index: 0,
+					delta: { type: 'text_delta', text: 'Hi' },
+				}),
+			)
+
+			// No message_stop — result event should finalize
+			parser.feed(
+				`${JSON.stringify({
+					type: 'result',
+					session_id: 'sess_1',
+					stop_reason: 'end_turn',
+				})}\n`,
+			)
+
+			expect(parser.getMessages()[0].streaming).toBe(false)
+			expect(parser.getMessages()[0].stopReason).toBe('end_turn')
+		})
+
+		it('preserves session_id across reset (for multi-turn --resume)', () => {
+			const parser = new ClaudeCodeStreamParser()
+			parser.feed(
+				`${JSON.stringify({ type: 'result', session_id: 'sess_keep' })}\n`,
+			)
+			parser.reset()
+			expect(parser.getSessionId()).toBe('sess_keep')
+		})
+	})
+
 	describe('edge cases', () => {
 		it('ignores deltas before message_start', () => {
 			const parser = new ClaudeCodeStreamParser()
@@ -554,6 +660,18 @@ describe('ClaudeCodeStreamParser', () => {
 			)
 			expect(parser.getMessages()).toHaveLength(1)
 			expect(parser.getMessages()[0].id).toBe('msg_001')
+		})
+
+		it('strips ANSI codes wrapping a JSON line and parses it', () => {
+			const parser = new ClaudeCodeStreamParser()
+			const json = JSON.stringify({
+				type: 'stream_event',
+				event: { type: 'message_start', message: { id: 'msg_ansi', role: 'assistant' } },
+			})
+			// Simulate PTY wrapping JSON in ANSI sequences
+			parser.feed(`\x1b[0m${json}\x1b[0m\n`)
+			expect(parser.getMessages()).toHaveLength(1)
+			expect(parser.getMessages()[0].id).toBe('msg_ansi')
 		})
 
 		it('handles \\r\\n (Windows-style) line endings', () => {

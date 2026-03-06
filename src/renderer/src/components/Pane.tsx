@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
 	AGENT_LABELS,
+	type AgentType,
 	DEFAULT_PANE_OPACITY,
 	type DropPosition,
 	type PaneConfig,
@@ -46,6 +47,7 @@ import { isValidCwd } from '../utils/validation'
 import { AgentStatusBar } from './AgentStatusBar'
 import { FontPicker } from './FontPicker'
 import { PaneLauncher } from './PaneLauncher'
+import { StreamRenderer } from './StreamRenderer'
 import { TerminalView } from './Terminal'
 
 interface ThemeInputFields {
@@ -194,6 +196,7 @@ export function Pane({
 	const outerRef = useRef<HTMLDivElement>(null)
 
 	const agentType = useStore((s) => s.paneAgentTypes.get(paneId) ?? null)
+	const rawViewMode = useStore((s) => s.paneViewMode.get(paneId))
 	const movePaneToWorkspace = useStore((s) => s.movePaneToWorkspace)
 	const swapPanes = useStore((s) => s.swapPanes)
 	const movePaneToPosition = useStore((s) => s.movePaneToPosition)
@@ -214,9 +217,19 @@ export function Pane({
 	const killPtys = useStore((s) => s.killPtys)
 	const setLaunchMode = useStore((s) => s.setLaunchMode)
 	const showLauncher = config.launchMode === null
-	// Capture initial values so config updates don't re-trigger PTY creation
+	// Capture initial values so config updates don't re-trigger PTY creation.
+	// Agent panes (claude-code, gemini-cli) don't use startup commands —
+	// they launch via sendAgentMessage when the user sends their first message.
+	const isAgent = config.launchMode !== null && config.launchMode !== 'terminal'
+	// Agent panes default to 'rendered' even before useStreamJsonParser's effect fires.
+	// Without this, the first render has viewMode=undefined, TerminalView steals focus,
+	// and the StreamRenderer overlay never receives keyboard input.
+	const viewMode = rawViewMode ?? (isAgent ? 'rendered' : undefined)
+	// Use process-detected agent type, falling back to launchMode for agent panes
+	// (before Claude starts, process detection returns null — but we still need the status bar)
+	const effectiveAgentType = agentType ?? (isAgent ? (config.launchMode as AgentType) : null)
 	const initialCwdRef = useRef(config.cwd)
-	const initialCmdRef = useRef(config.startupCommand)
+	const initialCmdRef = useRef(isAgent ? null : config.startupCommand)
 	useEffect(() => {
 		if (showLauncher) return
 		ensurePty(paneId, initialCwdRef.current, initialCmdRef.current)
@@ -744,7 +757,9 @@ export function Pane({
 				)}
 			</div>
 
-			{!showLauncher && agentType && <AgentStatusBar paneId={paneId} agentType={agentType} />}
+			{!showLauncher && effectiveAgentType && (
+				<AgentStatusBar paneId={paneId} agentType={effectiveAgentType} />
+			)}
 
 			{/* Dim overlay scoped to terminal area only (not the header/status bar).
 			    Always rendered to enable CSS transition; opacity toggled via class.
@@ -752,6 +767,28 @@ export function Pane({
 			<div className="flex-1 overflow-hidden p-px relative">
 				{showLauncher ? (
 					<PaneLauncher workspaceId={workspaceId} paneId={paneId} />
+				) : isAgent ? (
+					<>
+						{/* Terminal always mounted for agent panes so cache accumulates PTY data.
+						    Visible in raw mode, hidden behind StreamRenderer in rendered mode. */}
+						<TerminalView
+							paneId={paneId}
+							theme={workspaceTheme}
+							themeOverride={config.themeOverride}
+							focusGeneration={focusGeneration}
+							isFocused={isFocused && viewMode !== 'rendered'}
+							onFocus={handleFocus}
+						/>
+						{viewMode === 'rendered' && (
+							<div className="absolute inset-0 z-10">
+								<StreamRenderer
+									paneId={paneId}
+									theme={workspaceTheme}
+									themeOverride={config.themeOverride}
+								/>
+							</div>
+						)}
+					</>
 				) : (
 					<TerminalView
 						paneId={paneId}
@@ -764,7 +801,7 @@ export function Pane({
 				)}
 				{!showLauncher && (
 					<div
-						className={`absolute inset-0 bg-black pointer-events-none transition-opacity duration-150 ${
+						className={`absolute inset-0 bg-black pointer-events-none transition-opacity duration-150 z-20 ${
 							!isFocused && workspaceTheme.unfocusedDim > 0 ? '' : 'opacity-0'
 						}`}
 						style={

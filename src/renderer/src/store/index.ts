@@ -26,7 +26,7 @@ import {
 } from '../../../shared/types'
 import { THEME_PRESETS } from '../data/theme-presets'
 import type { AgentBlock } from '../lib/agent-parsers/types'
-import { ClaudeCodeStreamParser } from '../lib/agent-renderers/claude-code'
+import { ClaudeCodeStreamParser, stripAnsi } from '../lib/agent-renderers/claude-code'
 import type { StreamMessage, StreamParser } from '../lib/agent-renderers/types'
 
 function defaultTheme(): PaneTheme {
@@ -232,8 +232,14 @@ interface StoreState {
 	collapsedBlockIds: Map<string, Set<string>>
 	/** Parsed stream messages per pane (for JSON stream renderers). */
 	paneStreamMessages: Map<string, readonly StreamMessage[]>
+	/** ANSI-stripped raw text per pane — used by rendered view when NDJSON is unavailable. */
+	paneStreamText: Map<string, string>
+	/** Tracks panes that have received PTY data but parsed zero messages — diagnostic for format mismatch. */
+	paneStreamDataReceived: Map<string, boolean>
 	/** View mode per pane: 'rendered' = structured UI, 'raw' = xterm terminal. */
 	paneViewMode: Map<string, 'rendered' | 'raw'>
+	/** Session IDs per pane — extracted from result events, used for --resume multi-turn. */
+	paneSessionIds: Map<string, string>
 
 	// Actions
 	/** Update alt screen buffer state for a pane. No-op if state already matches. */
@@ -295,6 +301,8 @@ interface StoreState {
 	setViewMode: (paneId: string, mode: 'rendered' | 'raw') => void
 	/** Clear stream data and parser for a pane. */
 	clearStreamData: (paneId: string) => void
+	/** Send a user message to an agent pane. Constructs the appropriate CLI command. */
+	sendAgentMessage: (paneId: string, message: string) => void
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
 	saveState: () => Promise<void>
@@ -321,7 +329,10 @@ type PaneCleanupState = Pick<
 	| 'paneAgentBlocks'
 	| 'collapsedBlockIds'
 	| 'paneStreamMessages'
+	| 'paneStreamText'
+	| 'paneStreamDataReceived'
 	| 'paneViewMode'
+	| 'paneSessionIds'
 >
 
 /** Clone all per-pane Maps/Sets, delete entries for the given IDs, and return the partial state update. */
@@ -333,7 +344,10 @@ function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneClean
 	const blocks = new Map(state.paneAgentBlocks)
 	const collapsed = new Map(state.collapsedBlockIds)
 	const streamMsgs = new Map(state.paneStreamMessages)
+	const streamText = new Map(state.paneStreamText)
+	const streamReceived = new Map(state.paneStreamDataReceived)
 	const viewModes = new Map(state.paneViewMode)
+	const sessionIds = new Map(state.paneSessionIds)
 	for (const id of paneIds) {
 		agents.delete(id)
 		procs.delete(id)
@@ -342,7 +356,10 @@ function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneClean
 		blocks.delete(id)
 		collapsed.delete(id)
 		streamMsgs.delete(id)
+		streamText.delete(id)
+		streamReceived.delete(id)
 		viewModes.delete(id)
+		sessionIds.delete(id)
 		streamParsers.delete(id)
 	}
 	return {
@@ -353,7 +370,10 @@ function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneClean
 		paneAgentBlocks: blocks,
 		collapsedBlockIds: collapsed,
 		paneStreamMessages: streamMsgs,
+		paneStreamText: streamText,
+		paneStreamDataReceived: streamReceived,
 		paneViewMode: viewModes,
+		paneSessionIds: sessionIds,
 	}
 }
 
@@ -387,7 +407,10 @@ export const useStore = create<StoreState>((set, get) => ({
 	paneAgentBlocks: new Map(),
 	collapsedBlockIds: new Map(),
 	paneStreamMessages: new Map(),
+	paneStreamText: new Map(),
+	paneStreamDataReceived: new Map(),
 	paneViewMode: new Map(),
+	paneSessionIds: new Map(),
 
 	setAltScreen: (paneId, isAlt) => {
 		const current = get().altScreenPaneIds
@@ -523,6 +546,20 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 
 	feedStreamData: (paneId, chunk) => {
+		// Accumulate ANSI-stripped raw text for the rendered view
+		const MAX_STREAM_TEXT = 500_000
+		const textMap = get().paneStreamText
+		const prev = textMap.get(paneId) ?? ''
+		const cleaned = stripAnsi(chunk)
+		let newText = prev + cleaned
+		// Cap accumulated text to prevent unbounded memory growth
+		if (newText.length > MAX_STREAM_TEXT) {
+			newText = newText.slice(newText.length - MAX_STREAM_TEXT)
+		}
+		const nextText = new Map(textMap)
+		nextText.set(paneId, newText)
+
+		// Also try NDJSON parsing (works when --output-format stream-json is active)
 		let parser = streamParsers.get(paneId)
 		if (!parser) {
 			parser = new ClaudeCodeStreamParser()
@@ -534,12 +571,21 @@ export const useStore = create<StoreState>((set, get) => ({
 			console.error('[store] feedStreamData: parser.feed() failed, resetting parser:', err)
 			parser.reset()
 			streamParsers.delete(paneId)
-			return
 		}
 		const msgs = parser.getMessages()
-		const next = new Map(get().paneStreamMessages)
-		next.set(paneId, [...msgs])
-		set({ paneStreamMessages: next })
+		const nextMsgs = new Map(get().paneStreamMessages)
+		nextMsgs.set(paneId, [...msgs])
+
+		// Extract session ID from result events (for --resume multi-turn)
+		const sessionId = parser.getSessionId()
+		const updates: Partial<StoreState> = { paneStreamMessages: nextMsgs, paneStreamText: nextText }
+		if (sessionId && get().paneSessionIds.get(paneId) !== sessionId) {
+			const nextSessions = new Map(get().paneSessionIds)
+			nextSessions.set(paneId, sessionId)
+			updates.paneSessionIds = nextSessions
+		}
+
+		set(updates)
 	},
 
 	setViewMode: (paneId, mode) => {
@@ -553,10 +599,22 @@ export const useStore = create<StoreState>((set, get) => ({
 	clearStreamData: (paneId) => {
 		streamParsers.delete(paneId)
 		const msgs = new Map(get().paneStreamMessages)
+		const text = new Map(get().paneStreamText)
 		const modes = new Map(get().paneViewMode)
+		const received = new Map(get().paneStreamDataReceived)
+		const sessions = new Map(get().paneSessionIds)
 		msgs.delete(paneId)
+		text.delete(paneId)
 		modes.delete(paneId)
-		set({ paneStreamMessages: msgs, paneViewMode: modes })
+		received.delete(paneId)
+		sessions.delete(paneId)
+		set({
+			paneStreamMessages: msgs,
+			paneStreamText: text,
+			paneViewMode: modes,
+			paneStreamDataReceived: received,
+			paneSessionIds: sessions,
+		})
 	},
 
 	init: async () => {
@@ -1099,6 +1157,45 @@ export const useStore = create<StoreState>((set, get) => ({
 		})
 	},
 
+	sendAgentMessage: (paneId, message) => {
+		const state = get()
+		const workspace = state.workspaces.find((w) => w.panes[paneId])
+		if (!workspace) {
+			console.warn('[store] sendAgentMessage: pane not found', { paneId })
+			return
+		}
+		const paneConfig = workspace.panes[paneId]
+		const launchMode = paneConfig?.launchMode
+		if (!launchMode || launchMode === 'terminal') {
+			console.warn('[store] sendAgentMessage: invalid launchMode', { paneId, launchMode })
+			return
+		}
+
+		const config = AGENT_LAUNCH_CONFIG[launchMode]
+		if (!config) {
+			console.error('[store] sendAgentMessage: no config for launchMode', { launchMode })
+			return
+		}
+
+		const userFlags = workspace.agentFlags?.[launchMode as keyof typeof workspace.agentFlags] ?? ''
+		const sessionId = state.paneSessionIds.get(paneId)
+
+		// Build the command parts
+		const parts = [config.command]
+		if (userFlags.trim()) parts.push(userFlags.trim())
+		parts.push(...config.defaultFlags)
+		if (sessionId) parts.push('--resume', sessionId)
+
+		// Use heredoc to safely pass message without shell escaping issues.
+		// \r (carriage return) is used as line terminator — matches how PTY
+		// shells expect Enter key input (consistent with startup commands and xterm).
+		const heredocTag = 'KNKEOF'
+		const cmd = `${parts.join(' ')} <<'${heredocTag}'\r${message}\r${heredocTag}\r`
+		window.api.writePty(paneId, cmd).catch((err) => {
+			console.error('[store] sendAgentMessage: writePty failed', { paneId, err })
+		})
+	},
+
 	setLaunchMode: (workspaceId, paneId, mode) => {
 		const state = get()
 		const workspace = state.workspaces.find((w) => w.id === workspaceId)
@@ -1107,25 +1204,18 @@ export const useStore = create<StoreState>((set, get) => ({
 			return
 		}
 
-		// Validate agent command exists BEFORE mutating state
-		let command: string | null = null
-		if (mode !== 'terminal') {
-			const config = AGENT_LAUNCH_CONFIG[mode]
-			if (!config) {
-				console.error(`[store] No launch config for agent type: ${mode}`)
-				return
-			}
-			const userFlags = workspace.agentFlags?.[mode as keyof typeof workspace.agentFlags] ?? ''
-			const parts = [config.command]
-			if (userFlags.trim()) parts.push(userFlags.trim())
-			parts.push(...config.defaultFlags)
-			command = parts.join(' ')
+		if (mode !== 'terminal' && !AGENT_LAUNCH_CONFIG[mode]) {
+			console.error(`[store] No launch config for agent type: ${mode}`)
+			return
 		}
 
-		// Now safe to persist launchMode
-		get().updatePaneConfig(workspaceId, paneId, { launchMode: mode })
+		// Agent panes don't auto-start — user sends the first message via StreamRenderer,
+		// which constructs the CLI command with proper flags (--print --verbose etc.)
+		const command: string | null = null
 
-		// Spawn PTY
+		get().updatePaneConfig(workspaceId, paneId, { launchMode: mode, startupCommand: command })
+
+		// Spawn PTY (shell only — no startup command for agents)
 		const cwd = getEffectiveCwd(workspace, paneId, state.homeDir)
 		get().ensurePty(paneId, cwd, command)
 	},

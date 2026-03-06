@@ -55,6 +55,8 @@ export interface StreamParser {
 	feed(chunk: string): void
 	/** Get the current parsed conversation. */
 	getMessages(): readonly StreamMessage[]
+	/** Get the session ID from the last completed turn (for --resume). */
+	getSessionId(): string | null
 	/** Reset all state. */
 	reset(): void
 }
