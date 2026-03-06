@@ -275,6 +275,22 @@ function persistSnippets(snippets: Snippet[]): void {
 	})
 }
 
+/** Clone per-pane Maps/Sets, delete entries for the given IDs, and return the partial state update. */
+function cleanupPaneState(
+	paneIds: string[],
+	state: Pick<StoreState, 'paneAgentTypes' | 'paneProcessNames' | 'altScreenPaneIds'>,
+): Pick<StoreState, 'paneAgentTypes' | 'paneProcessNames' | 'altScreenPaneIds'> {
+	const agents = new Map(state.paneAgentTypes)
+	const procs = new Map(state.paneProcessNames)
+	const altIds = new Set(state.altScreenPaneIds)
+	for (const id of paneIds) {
+		agents.delete(id)
+		procs.delete(id)
+		altIds.delete(id)
+	}
+	return { paneAgentTypes: agents, paneProcessNames: procs, altScreenPaneIds: altIds }
+}
+
 export const useStore = create<StoreState>((set, get) => ({
 	workspaces: [],
 	appState: {
@@ -361,16 +377,7 @@ export const useStore = create<StoreState>((set, get) => ({
 			if (newSet.delete(id)) changed = true
 		}
 		if (changed) set({ activePtyIds: newSet })
-		// Clean up agent detection + alt screen state
-		const agents = new Map(get().paneAgentTypes)
-		const procs = new Map(get().paneProcessNames)
-		const altIds = new Set(get().altScreenPaneIds)
-		for (const id of paneIds) {
-			agents.delete(id)
-			procs.delete(id)
-			altIds.delete(id)
-		}
-		set({ paneAgentTypes: agents, paneProcessNames: procs, altScreenPaneIds: altIds })
+		set(cleanupPaneState(paneIds, get()))
 	},
 
 	removePtyId: (paneId) => {
@@ -378,19 +385,7 @@ export const useStore = create<StoreState>((set, get) => ({
 		if (!current.has(paneId)) return
 		const newSet = new Set(current)
 		newSet.delete(paneId)
-		// Clean up agent detection + alt screen state so dead panes don't show stale data
-		const agents = new Map(get().paneAgentTypes)
-		const procs = new Map(get().paneProcessNames)
-		const altIds = new Set(get().altScreenPaneIds)
-		agents.delete(paneId)
-		procs.delete(paneId)
-		altIds.delete(paneId)
-		set({
-			activePtyIds: newSet,
-			paneAgentTypes: agents,
-			paneProcessNames: procs,
-			altScreenPaneIds: altIds,
-		})
+		set({ activePtyIds: newSet, ...cleanupPaneState([paneId], get()) })
 	},
 
 	init: async () => {
