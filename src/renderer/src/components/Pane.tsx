@@ -772,7 +772,7 @@ export function Pane({
 							theme={workspaceTheme}
 							themeOverride={config.themeOverride}
 							focusGeneration={focusGeneration}
-							isFocused={isFocused}
+							isFocused={isFocused && viewMode !== 'rendered'}
 							onFocus={handleFocus}
 						/>
 						{viewMode === 'rendered' && (
