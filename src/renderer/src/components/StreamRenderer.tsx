@@ -52,7 +52,6 @@ function ToolCallBlockView({ block, streaming }: { block: ToolUseBlock; streamin
 	let displayJson = block.inputJson
 	if (!streaming && block.inputJson) {
 		try {
-			// Skip pretty-printing for very large payloads to avoid UI freeze
 			if (block.inputJson.length <= 100_000) {
 				displayJson = JSON.stringify(JSON.parse(block.inputJson), null, 2)
 			}
@@ -93,7 +92,6 @@ function BlockView({ block, streaming }: { block: ContentBlock; streaming: boole
 		case 'tool_use':
 			return <ToolCallBlockView block={block} streaming={streaming} />
 		case 'tool_result':
-			// TODO: implement ToolResultBlockView when tool_result blocks are produced
 			return null
 		default:
 			console.warn('[StreamRenderer] Unknown block type:', (block as { type: string }).type)
@@ -154,7 +152,6 @@ function MessageInput({ paneId, isStreaming }: { paneId: string; isStreaming: bo
 	}, [paneId, input])
 
 	const handleStop = useCallback(() => {
-		// Send Ctrl+C / ETX to interrupt the running process
 		window.api.writePty(paneId, '\x03')
 	}, [paneId])
 
@@ -172,7 +169,6 @@ function MessageInput({ paneId, isStreaming }: { paneId: string; isStreaming: bo
 		[handleSubmit],
 	)
 
-	// Auto-resize textarea to content — `input` is the intentional trigger
 	// biome-ignore lint/correctness/useExhaustiveDependencies: input change triggers resize
 	useEffect(() => {
 		const el = textareaRef.current
@@ -222,6 +218,56 @@ function MessageInput({ paneId, isStreaming }: { paneId: string; isStreaming: bo
 	)
 }
 
+// ── Raw Text View ───────────────────────────────────────────────────────────
+
+/** Fallback rendered view: shows ANSI-stripped PTY output as clean text. */
+function RawTextView({
+	text,
+	scrollRef,
+	onScroll,
+}: { text: string; scrollRef: React.RefObject<HTMLDivElement | null>; onScroll: () => void }) {
+	return (
+		<div
+			ref={scrollRef}
+			role="log"
+			aria-label="Agent conversation"
+			className="flex-1 overflow-y-auto p-3"
+			onScroll={onScroll}
+		>
+			<pre className="whitespace-pre-wrap break-words m-0 text-content text-xs leading-relaxed">
+				{text}
+			</pre>
+		</div>
+	)
+}
+
+// ── Structured Message View ─────────────────────────────────────────────────
+
+/** Structured view: shows parsed NDJSON messages (when --output-format stream-json is active). */
+function StructuredView({
+	messages,
+	scrollRef,
+	onScroll,
+}: {
+	messages: readonly StreamMessage[]
+	scrollRef: React.RefObject<HTMLDivElement | null>
+	onScroll: () => void
+}) {
+	return (
+		<div
+			ref={scrollRef}
+			role="log"
+			aria-label="Agent conversation"
+			className="flex-1 overflow-y-auto p-1.5"
+			onScroll={onScroll}
+		>
+			{messages.map((msg) => (
+				<MessageGroup key={msg.id} message={msg} />
+			))}
+		</div>
+	)
+}
+
 // ── Stream Renderer ─────────────────────────────────────────────────────────
 
 interface StreamRendererProps {
@@ -232,23 +278,23 @@ interface StreamRendererProps {
 
 export function StreamRenderer({ paneId, theme, themeOverride }: StreamRendererProps) {
 	const messages = useStore((s) => s.paneStreamMessages.get(paneId))
-	const hasReceivedData = useStore((s) => s.paneStreamDataReceived.get(paneId) ?? false)
+	const streamText = useStore((s) => s.paneStreamText.get(paneId))
 	const scrollRef = useRef<HTMLDivElement>(null)
 	const wasAtBottomRef = useRef(true)
 
 	const opacity = themeOverride?.paneOpacity ?? theme.paneOpacity ?? DEFAULT_PANE_OPACITY
 	const bg = resolveBackground(themeOverride?.background ?? theme.background, opacity)
 
+	const hasStructured = (messages?.length ?? 0) > 0
+	const hasText = (streamText?.length ?? 0) > 0
 	const isStreaming = messages?.some((m) => m.streaming) ?? false
 
-	// Auto-scroll to bottom when new content arrives (if user was at bottom).
-	// `messages` is an intentional trigger dep — it's a new array ref on every store update.
-	// biome-ignore lint/correctness/useExhaustiveDependencies: messages intentionally triggers auto-scroll
+	// biome-ignore lint/correctness/useExhaustiveDependencies: messages/streamText intentionally triggers auto-scroll
 	useEffect(() => {
 		const el = scrollRef.current
 		if (!el || !wasAtBottomRef.current) return
 		el.scrollTop = el.scrollHeight
-	}, [messages])
+	}, [messages, streamText])
 
 	const handleScroll = () => {
 		const el = scrollRef.current
@@ -258,30 +304,15 @@ export function StreamRenderer({ paneId, theme, themeOverride }: StreamRendererP
 
 	return (
 		<div className="w-full h-full flex flex-col" style={{ backgroundColor: bg }}>
-			<div
-				ref={scrollRef}
-				role="log"
-				aria-label="Agent conversation"
-				className="flex-1 overflow-y-auto p-1.5"
-				onScroll={handleScroll}
-			>
-				{messages?.length ? (
-					messages.map((msg) => <MessageGroup key={msg.id} message={msg} />)
-				) : (
-					<div className="h-full flex flex-col items-center justify-center text-content-muted text-xs gap-2">
-						{hasReceivedData ? (
-							<>
-								<span>Receiving data but no stream events detected.</span>
-								<span className="text-[10px]">
-									Switch to RAW view to check if --output-format stream-json is active.
-								</span>
-							</>
-						) : (
-							<span>Waiting for agent output...</span>
-						)}
-					</div>
-				)}
-			</div>
+			{hasStructured && messages ? (
+				<StructuredView messages={messages} scrollRef={scrollRef} onScroll={handleScroll} />
+			) : hasText && streamText ? (
+				<RawTextView text={streamText} scrollRef={scrollRef} onScroll={handleScroll} />
+			) : (
+				<div className="flex-1 flex items-center justify-center text-content-muted text-xs">
+					Waiting for agent output...
+				</div>
+			)}
 			<MessageInput paneId={paneId} isStreaming={isStreaming} />
 		</div>
 	)

@@ -26,7 +26,7 @@ import {
 } from '../../../shared/types'
 import { THEME_PRESETS } from '../data/theme-presets'
 import type { AgentBlock } from '../lib/agent-parsers/types'
-import { ClaudeCodeStreamParser } from '../lib/agent-renderers/claude-code'
+import { ClaudeCodeStreamParser, stripAnsi } from '../lib/agent-renderers/claude-code'
 import type { StreamMessage, StreamParser } from '../lib/agent-renderers/types'
 
 function defaultTheme(): PaneTheme {
@@ -232,6 +232,8 @@ interface StoreState {
 	collapsedBlockIds: Map<string, Set<string>>
 	/** Parsed stream messages per pane (for JSON stream renderers). */
 	paneStreamMessages: Map<string, readonly StreamMessage[]>
+	/** ANSI-stripped raw text per pane — used by rendered view when NDJSON is unavailable. */
+	paneStreamText: Map<string, string>
 	/** Tracks panes that have received PTY data but parsed zero messages — diagnostic for format mismatch. */
 	paneStreamDataReceived: Map<string, boolean>
 	/** View mode per pane: 'rendered' = structured UI, 'raw' = xterm terminal. */
@@ -323,6 +325,7 @@ type PaneCleanupState = Pick<
 	| 'paneAgentBlocks'
 	| 'collapsedBlockIds'
 	| 'paneStreamMessages'
+	| 'paneStreamText'
 	| 'paneStreamDataReceived'
 	| 'paneViewMode'
 >
@@ -336,6 +339,7 @@ function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneClean
 	const blocks = new Map(state.paneAgentBlocks)
 	const collapsed = new Map(state.collapsedBlockIds)
 	const streamMsgs = new Map(state.paneStreamMessages)
+	const streamText = new Map(state.paneStreamText)
 	const streamReceived = new Map(state.paneStreamDataReceived)
 	const viewModes = new Map(state.paneViewMode)
 	for (const id of paneIds) {
@@ -346,6 +350,7 @@ function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneClean
 		blocks.delete(id)
 		collapsed.delete(id)
 		streamMsgs.delete(id)
+		streamText.delete(id)
 		streamReceived.delete(id)
 		viewModes.delete(id)
 		streamParsers.delete(id)
@@ -358,6 +363,7 @@ function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneClean
 		paneAgentBlocks: blocks,
 		collapsedBlockIds: collapsed,
 		paneStreamMessages: streamMsgs,
+		paneStreamText: streamText,
 		paneStreamDataReceived: streamReceived,
 		paneViewMode: viewModes,
 	}
@@ -393,6 +399,7 @@ export const useStore = create<StoreState>((set, get) => ({
 	paneAgentBlocks: new Map(),
 	collapsedBlockIds: new Map(),
 	paneStreamMessages: new Map(),
+	paneStreamText: new Map(),
 	paneStreamDataReceived: new Map(),
 	paneViewMode: new Map(),
 
@@ -530,6 +537,20 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 
 	feedStreamData: (paneId, chunk) => {
+		// Accumulate ANSI-stripped raw text for the rendered view
+		const MAX_STREAM_TEXT = 500_000
+		const textMap = get().paneStreamText
+		const prev = textMap.get(paneId) ?? ''
+		const cleaned = stripAnsi(chunk)
+		let newText = prev + cleaned
+		// Cap accumulated text to prevent unbounded memory growth
+		if (newText.length > MAX_STREAM_TEXT) {
+			newText = newText.slice(newText.length - MAX_STREAM_TEXT)
+		}
+		const nextText = new Map(textMap)
+		nextText.set(paneId, newText)
+
+		// Also try NDJSON parsing (works when --output-format stream-json is active)
 		let parser = streamParsers.get(paneId)
 		if (!parser) {
 			parser = new ClaudeCodeStreamParser()
@@ -541,20 +562,12 @@ export const useStore = create<StoreState>((set, get) => ({
 			console.error('[store] feedStreamData: parser.feed() failed, resetting parser:', err)
 			parser.reset()
 			streamParsers.delete(paneId)
-			return
 		}
 		const msgs = parser.getMessages()
-		const next = new Map(get().paneStreamMessages)
-		next.set(paneId, [...msgs])
-		// Track that we've received data for this pane (diagnostic for format mismatch)
-		const received = get().paneStreamDataReceived
-		if (!received.get(paneId)) {
-			const nextReceived = new Map(received)
-			nextReceived.set(paneId, true)
-			set({ paneStreamMessages: next, paneStreamDataReceived: nextReceived })
-		} else {
-			set({ paneStreamMessages: next })
-		}
+		const nextMsgs = new Map(get().paneStreamMessages)
+		nextMsgs.set(paneId, [...msgs])
+
+		set({ paneStreamMessages: nextMsgs, paneStreamText: nextText })
 	},
 
 	setViewMode: (paneId, mode) => {
@@ -568,12 +581,19 @@ export const useStore = create<StoreState>((set, get) => ({
 	clearStreamData: (paneId) => {
 		streamParsers.delete(paneId)
 		const msgs = new Map(get().paneStreamMessages)
+		const text = new Map(get().paneStreamText)
 		const modes = new Map(get().paneViewMode)
 		const received = new Map(get().paneStreamDataReceived)
 		msgs.delete(paneId)
+		text.delete(paneId)
 		modes.delete(paneId)
 		received.delete(paneId)
-		set({ paneStreamMessages: msgs, paneViewMode: modes, paneStreamDataReceived: received })
+		set({
+			paneStreamMessages: msgs,
+			paneStreamText: text,
+			paneViewMode: modes,
+			paneStreamDataReceived: received,
+		})
 	},
 
 	init: async () => {

@@ -3,13 +3,13 @@ import type { LaunchMode } from '../../../shared/types'
 import { useStore } from '../store'
 
 /**
- * Hook that feeds raw PTY data to the stream JSON parser for a pane.
+ * Hook that feeds raw PTY data to the stream data store for agent panes.
  *
- * Active only when the pane's launchMode is a streaming agent (currently
- * only 'claude-code'). Subscribes to the PTY data IPC event independently
+ * Active only when the pane's launchMode is a known agent (currently
+ * 'claude-code'). Subscribes to the PTY data IPC event independently
  * from the Terminal component — both receive the same data.
  *
- * On mount (for streaming agents): sets view mode to 'rendered'.
+ * Enables the rendered/raw view toggle for agent panes.
  * On unmount or when agent changes: clears stream data.
  */
 export function useStreamJsonParser(paneId: string, launchMode?: LaunchMode | null): void {
@@ -17,12 +17,13 @@ export function useStreamJsonParser(paneId: string, launchMode?: LaunchMode | nu
 	const clearStreamData = useStore((s) => s.clearStreamData)
 	const setViewMode = useStore((s) => s.setViewMode)
 
-	const shouldParse = launchMode === 'claude-code'
+	const isAgent = launchMode === 'claude-code'
 
 	useEffect(() => {
-		if (!shouldParse) return
+		if (!isAgent) return
 
-		setViewMode(paneId, 'rendered')
+		// Default to raw view — rendered view is opt-in via toggle
+		setViewMode(paneId, 'raw')
 
 		const removeListener = window.api.onPtyData((id, data) => {
 			if (id === paneId) {
@@ -34,5 +35,5 @@ export function useStreamJsonParser(paneId: string, launchMode?: LaunchMode | nu
 			removeListener()
 			clearStreamData(paneId)
 		}
-	}, [paneId, shouldParse, feedStreamData, clearStreamData, setViewMode])
+	}, [paneId, isAgent, feedStreamData, clearStreamData, setViewMode])
 }
