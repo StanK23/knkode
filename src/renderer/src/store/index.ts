@@ -217,6 +217,10 @@ interface StoreState {
 	paneProcessNames: Map<string, string>
 	/** Pane IDs currently in alternate screen buffer (TUI mode like vim, htop). */
 	altScreenPaneIds: Set<string>
+	/** Parsed agent blocks per pane. Updated by useAgentBlockParser hook. */
+	paneAgentBlocks: Map<string, readonly import('../lib/agent-parsers/types').AgentBlock[]>
+	/** Collapsed block IDs per pane. */
+	collapsedBlockIds: Map<string, Set<string>>
 
 	// Actions
 	/** Update alt screen buffer state for a pane. No-op if state already matches. */
@@ -230,6 +234,17 @@ interface StoreState {
 	killPtys: (paneIds: string[]) => void
 	/** Remove a single pane ID from activePtyIds (e.g. on natural PTY exit). */
 	removePtyId: (paneId: string) => void
+	/** Update parsed agent blocks for a pane. Called by useAgentBlockParser hook. */
+	updateAgentBlocks: (
+		paneId: string,
+		blocks: readonly import('../lib/agent-parsers/types').AgentBlock[],
+	) => void
+	/** Toggle collapsed state for a single block. */
+	toggleBlockCollapse: (paneId: string, blockId: string) => void
+	/** Collapse all blocks in a pane. */
+	collapseAllBlocks: (paneId: string) => void
+	/** Expand all blocks in a pane. */
+	expandAllBlocks: (paneId: string) => void
 	init: () => Promise<void>
 	createWorkspace: (name: string, color: string, preset: LayoutPreset) => Promise<Workspace>
 	createDefaultWorkspace: () => Promise<Workspace>
@@ -278,17 +293,41 @@ function persistSnippets(snippets: Snippet[]): void {
 /** Clone per-pane Maps/Sets, delete entries for the given IDs, and return the partial state update. */
 function cleanupPaneState(
 	paneIds: string[],
-	state: Pick<StoreState, 'paneAgentTypes' | 'paneProcessNames' | 'altScreenPaneIds'>,
-): Pick<StoreState, 'paneAgentTypes' | 'paneProcessNames' | 'altScreenPaneIds'> {
+	state: Pick<
+		StoreState,
+		| 'paneAgentTypes'
+		| 'paneProcessNames'
+		| 'altScreenPaneIds'
+		| 'paneAgentBlocks'
+		| 'collapsedBlockIds'
+	>,
+): Pick<
+	StoreState,
+	| 'paneAgentTypes'
+	| 'paneProcessNames'
+	| 'altScreenPaneIds'
+	| 'paneAgentBlocks'
+	| 'collapsedBlockIds'
+> {
 	const agents = new Map(state.paneAgentTypes)
 	const procs = new Map(state.paneProcessNames)
 	const altIds = new Set(state.altScreenPaneIds)
+	const blocks = new Map(state.paneAgentBlocks)
+	const collapsed = new Map(state.collapsedBlockIds)
 	for (const id of paneIds) {
 		agents.delete(id)
 		procs.delete(id)
 		altIds.delete(id)
+		blocks.delete(id)
+		collapsed.delete(id)
 	}
-	return { paneAgentTypes: agents, paneProcessNames: procs, altScreenPaneIds: altIds }
+	return {
+		paneAgentTypes: agents,
+		paneProcessNames: procs,
+		altScreenPaneIds: altIds,
+		paneAgentBlocks: blocks,
+		collapsedBlockIds: collapsed,
+	}
 }
 
 export const useStore = create<StoreState>((set, get) => ({
@@ -309,6 +348,8 @@ export const useStore = create<StoreState>((set, get) => ({
 	paneAgentTypes: new Map(),
 	paneProcessNames: new Map(),
 	altScreenPaneIds: new Set(),
+	paneAgentBlocks: new Map(),
+	collapsedBlockIds: new Map(),
 
 	setAltScreen: (paneId, isAlt) => {
 		const current = get().altScreenPaneIds
@@ -386,6 +427,43 @@ export const useStore = create<StoreState>((set, get) => ({
 		const newSet = new Set(current)
 		newSet.delete(paneId)
 		set({ activePtyIds: newSet, ...cleanupPaneState([paneId], get()) })
+	},
+
+	updateAgentBlocks: (paneId, blocks) => {
+		const current = get().paneAgentBlocks
+		const prev = current.get(paneId)
+		if (prev === blocks) return
+		const next = new Map(current)
+		if (blocks.length === 0) next.delete(paneId)
+		else next.set(paneId, blocks)
+		set({ paneAgentBlocks: next })
+	},
+
+	toggleBlockCollapse: (paneId, blockId) => {
+		const current = get().collapsedBlockIds
+		const paneSet = current.get(paneId)
+		const next = new Map(current)
+		const newSet = new Set(paneSet)
+		if (newSet.has(blockId)) newSet.delete(blockId)
+		else newSet.add(blockId)
+		next.set(paneId, newSet)
+		set({ collapsedBlockIds: next })
+	},
+
+	collapseAllBlocks: (paneId) => {
+		const blocks = get().paneAgentBlocks.get(paneId)
+		if (!blocks?.length) return
+		const next = new Map(get().collapsedBlockIds)
+		next.set(paneId, new Set(blocks.map((b) => b.id)))
+		set({ collapsedBlockIds: next })
+	},
+
+	expandAllBlocks: (paneId) => {
+		const current = get().collapsedBlockIds
+		if (!current.has(paneId)) return
+		const next = new Map(current)
+		next.delete(paneId)
+		set({ collapsedBlockIds: next })
 	},
 
 	init: async () => {
