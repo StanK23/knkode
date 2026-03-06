@@ -22,6 +22,7 @@ import {
 	isLayoutBranch,
 } from '../../../shared/types'
 import { THEME_PRESETS } from '../data/theme-presets'
+import type { AgentBlock } from '../lib/agent-parsers/types'
 
 function defaultTheme(): PaneTheme {
 	return {
@@ -217,8 +218,8 @@ interface StoreState {
 	paneProcessNames: Map<string, string>
 	/** Pane IDs currently in alternate screen buffer (TUI mode like vim, htop). */
 	altScreenPaneIds: Set<string>
-	/** Parsed agent blocks per pane. Updated by useAgentBlockParser hook. */
-	paneAgentBlocks: Map<string, readonly import('../lib/agent-parsers/types').AgentBlock[]>
+	/** Parsed agent blocks per pane. Empty panes are removed from the map. */
+	paneAgentBlocks: Map<string, readonly AgentBlock[]>
 	/** Collapsed block IDs per pane. */
 	collapsedBlockIds: Map<string, Set<string>>
 
@@ -234,11 +235,8 @@ interface StoreState {
 	killPtys: (paneIds: string[]) => void
 	/** Remove a single pane ID from activePtyIds (e.g. on natural PTY exit). */
 	removePtyId: (paneId: string) => void
-	/** Update parsed agent blocks for a pane. Called by useAgentBlockParser hook. */
-	updateAgentBlocks: (
-		paneId: string,
-		blocks: readonly import('../lib/agent-parsers/types').AgentBlock[],
-	) => void
+	/** Update parsed agent blocks for a pane. No-op if same array reference. Removes entry when empty. */
+	updateAgentBlocks: (paneId: string, blocks: readonly AgentBlock[]) => void
 	/** Toggle collapsed state for a single block. */
 	toggleBlockCollapse: (paneId: string, blockId: string) => void
 	/** Collapse all blocks in a pane. */
@@ -290,7 +288,7 @@ function persistSnippets(snippets: Snippet[]): void {
 	})
 }
 
-/** Clone per-pane Maps/Sets, delete entries for the given IDs, and return the partial state update. */
+/** Clone all per-pane Maps/Sets, delete entries for the given IDs, and return the partial state update. */
 function cleanupPaneState(
 	paneIds: string[],
 	state: Pick<

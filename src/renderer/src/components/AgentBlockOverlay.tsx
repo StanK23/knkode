@@ -9,6 +9,12 @@ interface AgentBlockOverlayProps {
 	termRef: React.RefObject<XTerm | null>
 }
 
+interface TermInfo {
+	cellHeight: number
+	viewportY: number
+	viewportRows: number
+}
+
 interface BlockOverlayItemProps {
 	block: AgentBlock
 	isCollapsed: boolean
@@ -68,7 +74,7 @@ const BlockOverlayItem = memo(function BlockOverlayItem({
 	)
 })
 
-function getTermInfo(term: XTerm | null) {
+function getTermInfo(term: XTerm | null): TermInfo | null {
 	if (!term) return null
 	const el = term.element
 	if (!el) return null
