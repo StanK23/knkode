@@ -218,6 +218,8 @@ interface StoreState {
 	paneProcessNames: Map<string, string>
 	/** Pane IDs currently in alternate screen buffer (TUI mode like vim, htop). */
 	altScreenPaneIds: Set<string>
+	/** Timestamp (Date.now()) when each agent was first detected in a pane. */
+	paneAgentStartTimes: Map<string, number>
 	/** Parsed agent blocks per pane. Empty panes are removed from the map. */
 	paneAgentBlocks: Map<string, readonly AgentBlock[]>
 	/** Collapsed block IDs per pane. */
@@ -288,34 +290,29 @@ function persistSnippets(snippets: Snippet[]): void {
 	})
 }
 
-/** Clone all per-pane Maps/Sets, delete entries for the given IDs, and return the partial state update. */
-function cleanupPaneState(
-	paneIds: string[],
-	state: Pick<
-		StoreState,
-		| 'paneAgentTypes'
-		| 'paneProcessNames'
-		| 'altScreenPaneIds'
-		| 'paneAgentBlocks'
-		| 'collapsedBlockIds'
-	>,
-): Pick<
+type PaneCleanupState = Pick<
 	StoreState,
 	| 'paneAgentTypes'
 	| 'paneProcessNames'
 	| 'altScreenPaneIds'
+	| 'paneAgentStartTimes'
 	| 'paneAgentBlocks'
 	| 'collapsedBlockIds'
-> {
+>
+
+/** Clone all per-pane Maps/Sets, delete entries for the given IDs, and return the partial state update. */
+function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneCleanupState {
 	const agents = new Map(state.paneAgentTypes)
 	const procs = new Map(state.paneProcessNames)
 	const altIds = new Set(state.altScreenPaneIds)
+	const startTimes = new Map(state.paneAgentStartTimes)
 	const blocks = new Map(state.paneAgentBlocks)
 	const collapsed = new Map(state.collapsedBlockIds)
 	for (const id of paneIds) {
 		agents.delete(id)
 		procs.delete(id)
 		altIds.delete(id)
+		startTimes.delete(id)
 		blocks.delete(id)
 		collapsed.delete(id)
 	}
@@ -323,6 +320,7 @@ function cleanupPaneState(
 		paneAgentTypes: agents,
 		paneProcessNames: procs,
 		altScreenPaneIds: altIds,
+		paneAgentStartTimes: startTimes,
 		paneAgentBlocks: blocks,
 		collapsedBlockIds: collapsed,
 	}
@@ -346,6 +344,7 @@ export const useStore = create<StoreState>((set, get) => ({
 	paneAgentTypes: new Map(),
 	paneProcessNames: new Map(),
 	altScreenPaneIds: new Set(),
+	paneAgentStartTimes: new Map(),
 	paneAgentBlocks: new Map(),
 	collapsedBlockIds: new Map(),
 
@@ -363,21 +362,32 @@ export const useStore = create<StoreState>((set, get) => ({
 		set((state) => {
 			const newProcessNames = new Map(state.paneProcessNames)
 			const newAgentTypes = new Map(state.paneAgentTypes)
+			const newStartTimes = new Map(state.paneAgentStartTimes)
 
 			if (!info) {
 				newProcessNames.delete(paneId)
 				newAgentTypes.delete(paneId)
+				newStartTimes.delete(paneId)
 			} else {
 				newProcessNames.set(paneId, info.name)
 				const agentType = PROCESS_TO_AGENT[info.name]
 				if (agentType) {
 					newAgentTypes.set(paneId, agentType)
+					// Only set start time on first detection
+					if (!state.paneAgentStartTimes.has(paneId)) {
+						newStartTimes.set(paneId, Date.now())
+					}
 				} else {
 					newAgentTypes.delete(paneId)
+					newStartTimes.delete(paneId)
 				}
 			}
 
-			return { paneProcessNames: newProcessNames, paneAgentTypes: newAgentTypes }
+			return {
+				paneProcessNames: newProcessNames,
+				paneAgentTypes: newAgentTypes,
+				paneAgentStartTimes: newStartTimes,
+			}
 		})
 	},
 
