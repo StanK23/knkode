@@ -228,7 +228,7 @@ describe('AgentBlockParser', () => {
 			const blocks = parser.getBlocks()
 			expect(blocks).toHaveLength(1)
 			expect(blocks[0].type).toBe('tool-call')
-			expect(blocks[0].metadata.tool).toBe('write(index.js)')
+			expect(blocks[0].metadata.tool).toBe('write')
 			expect(blocks[0].startLine).toBe(0)
 			expect(blocks[0].endLine).toBeNull()
 		})

@@ -28,13 +28,12 @@ export const classifyClaudeCode: BlockClassifier = (headerText) => {
 	if (!trimmed) return UNKNOWN_BLOCK
 
 	// Check for known tool name as first word (before heuristic patterns to avoid false positives)
-	// Handle both "Write src/index.ts" and "Write(index.js)" formats
-	const firstToken = trimmed.split(/[\s(]/)[0]?.toLowerCase()
-	const firstWord = trimmed.split(/\s/)[0]?.toLowerCase()
+	// Handle both "Write src/index.ts" and "Write(index.js)" formats — split on whitespace or (
+	const toolName = trimmed.split(/[\s(]/)[0].toLowerCase()
 	// MCP tools use __ separators (e.g., mcp__server__tool_name) — match the prefix
-	const toolToken = firstToken?.split('__')[0]
-	if (firstToken && toolToken && TOOL_NAMES.has(toolToken)) {
-		return { type: 'tool-call', metadata: { tool: firstWord ?? firstToken } }
+	const toolPrefix = toolName.split('__')[0]
+	if (TOOL_NAMES.has(toolPrefix)) {
+		return { type: 'tool-call', metadata: { tool: toolName } }
 	}
 
 	// Permission prompts

@@ -90,10 +90,10 @@ describe('classifyClaudeCode', () => {
 	it('classifies bullet-prefixed Write(file) format', () => {
 		const result = classifyClaudeCode('● Write(index.js)')
 		expect(result.type).toBe('tool-call')
-		expect(result.metadata.tool).toBe('write(index.js)')
+		expect(result.metadata.tool).toBe('write')
 	})
 
-	it('classifies Searched as tool result', () => {
+	it('classifies Searched summary as tool-call', () => {
 		const result = classifyClaudeCode('● Searched for 1 pattern, read 1 file')
 		expect(result.type).toBe('tool-call')
 		expect(result.metadata.tool).toBe('search')
