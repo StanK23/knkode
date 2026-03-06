@@ -40,14 +40,13 @@ function getDropZone(e: React.DragEvent, el: HTMLElement): DropZone {
 const VIEWPORT_MARGIN = 8
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useInlineEdit } from '../hooks/useInlineEdit'
-import { useStreamJsonParser } from '../hooks/useStreamJsonParser'
 import { useStore } from '../store'
 import { modKey } from '../utils/platform'
 import { isValidCwd } from '../utils/validation'
 import { AgentStatusBar } from './AgentStatusBar'
+import { BufferRenderedView } from './BufferRenderedView'
 import { FontPicker } from './FontPicker'
 import { PaneLauncher } from './PaneLauncher'
-import { StreamRenderer } from './StreamRenderer'
 import { TerminalView } from './Terminal'
 
 interface ThemeInputFields {
@@ -221,22 +220,17 @@ export function Pane({
 	// Agent panes (claude-code, gemini-cli) don't use startup commands —
 	// they launch via sendAgentMessage when the user sends their first message.
 	const isAgent = config.launchMode !== null && config.launchMode !== 'terminal'
-	// Agent panes default to 'rendered' even before useStreamJsonParser's effect fires.
-	// Without this, the first render has viewMode=undefined, TerminalView steals focus,
-	// and the StreamRenderer overlay never receives keyboard input.
-	const viewMode = rawViewMode ?? (isAgent ? 'rendered' : undefined)
+	// Agent panes default to raw (terminal) view. User can toggle to rendered via status bar.
+	const viewMode = rawViewMode ?? (isAgent ? 'raw' : undefined)
 	// Use process-detected agent type, falling back to launchMode for agent panes
 	// (before Claude starts, process detection returns null — but we still need the status bar)
 	const effectiveAgentType = agentType ?? (isAgent ? (config.launchMode as AgentType) : null)
 	const initialCwdRef = useRef(config.cwd)
-	const initialCmdRef = useRef(isAgent ? null : config.startupCommand)
+	const initialCmdRef = useRef(config.startupCommand)
 	useEffect(() => {
 		if (showLauncher) return
 		ensurePty(paneId, initialCwdRef.current, initialCmdRef.current)
 	}, [paneId, ensurePty, showLauncher])
-
-	// Feed PTY data to stream JSON parser for agent panes (e.g. claude-code)
-	useStreamJsonParser(paneId, config.launchMode)
 
 	const { isEditing, inputProps, startEditing } = useInlineEdit(config.label, (label) =>
 		onUpdateConfig(paneId, { label }),
@@ -770,7 +764,7 @@ export function Pane({
 				) : isAgent ? (
 					<>
 						{/* Terminal always mounted for agent panes so cache accumulates PTY data.
-						    Visible in raw mode, hidden behind StreamRenderer in rendered mode. */}
+						    Visible in raw mode, hidden behind BufferRenderedView in rendered mode. */}
 						<TerminalView
 							paneId={paneId}
 							theme={workspaceTheme}
@@ -781,7 +775,7 @@ export function Pane({
 						/>
 						{viewMode === 'rendered' && (
 							<div className="absolute inset-0 z-10">
-								<StreamRenderer
+								<BufferRenderedView
 									paneId={paneId}
 									theme={workspaceTheme}
 									themeOverride={config.themeOverride}
