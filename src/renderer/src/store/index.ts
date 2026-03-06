@@ -1158,9 +1158,40 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 
 	sendAgentMessage: (paneId, message) => {
-		// Write text directly to the PTY — the agent TUI is already running
-		// (started by setLaunchMode startup command). \r sends Enter.
-		window.api.writePty(paneId, `${message}\r`).catch((err) => {
+		const state = get()
+		const workspace = state.workspaces.find((w) => w.panes[paneId])
+		if (!workspace) {
+			console.warn('[store] sendAgentMessage: pane not found', { paneId })
+			return
+		}
+		const paneConfig = workspace.panes[paneId]
+		const launchMode = paneConfig?.launchMode
+		if (!launchMode || launchMode === 'terminal') {
+			console.warn('[store] sendAgentMessage: invalid launchMode', { paneId, launchMode })
+			return
+		}
+
+		const config = AGENT_LAUNCH_CONFIG[launchMode]
+		if (!config) {
+			console.error('[store] sendAgentMessage: no config for launchMode', { launchMode })
+			return
+		}
+
+		const userFlags = workspace.agentFlags?.[launchMode as keyof typeof workspace.agentFlags] ?? ''
+		const sessionId = state.paneSessionIds.get(paneId)
+
+		// Build the command parts
+		const parts = [config.command]
+		if (userFlags.trim()) parts.push(userFlags.trim())
+		parts.push(...config.defaultFlags)
+		if (sessionId) parts.push('--resume', sessionId)
+
+		// Use heredoc to safely pass message without shell escaping issues.
+		// \r (carriage return) is used as line terminator — matches how PTY
+		// shells expect Enter key input (consistent with startup commands and xterm).
+		const heredocTag = 'KNKEOF'
+		const cmd = `${parts.join(' ')} <<'${heredocTag}'\r${message}\r${heredocTag}\r`
+		window.api.writePty(paneId, cmd).catch((err) => {
 			console.error('[store] sendAgentMessage: writePty failed', { paneId, err })
 		})
 	},
@@ -1173,24 +1204,18 @@ export const useStore = create<StoreState>((set, get) => ({
 			return
 		}
 
-		// Build startup command from agent config (interactive mode)
-		let command: string | null = null
-		if (mode !== 'terminal') {
-			const config = AGENT_LAUNCH_CONFIG[mode]
-			if (!config) {
-				console.error(`[store] No launch config for agent type: ${mode}`)
-				return
-			}
-			const userFlags = workspace.agentFlags?.[mode as keyof typeof workspace.agentFlags] ?? ''
-			const parts = [config.command]
-			if (userFlags.trim()) parts.push(userFlags.trim())
-			parts.push(...config.defaultFlags)
-			command = parts.join(' ')
+		if (mode !== 'terminal' && !AGENT_LAUNCH_CONFIG[mode]) {
+			console.error(`[store] No launch config for agent type: ${mode}`)
+			return
 		}
 
-		get().updatePaneConfig(workspaceId, paneId, { launchMode: mode })
+		// Agent panes don't auto-start — user sends the first message via StreamRenderer,
+		// which constructs the CLI command with proper flags (--print --verbose etc.)
+		const command: string | null = null
 
-		// Spawn PTY
+		get().updatePaneConfig(workspaceId, paneId, { launchMode: mode, startupCommand: command })
+
+		// Spawn PTY (shell only — no startup command for agents)
 		const cwd = getEffectiveCwd(workspace, paneId, state.homeDir)
 		get().ensurePty(paneId, cwd, command)
 	},

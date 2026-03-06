@@ -1472,7 +1472,7 @@ describe('setLaunchMode', () => {
 		expect(mockApi.createPty).toHaveBeenCalledWith('p1', '/home', null)
 	})
 
-	it('sets launchMode for agent and auto-starts with built command', () => {
+	it('sets launchMode for agent without startup command (user sends first message)', () => {
 		const ws = makeWorkspace({
 			panes: {
 				p1: {
@@ -1491,11 +1491,12 @@ describe('setLaunchMode', () => {
 
 		const pane = useStore.getState().workspaces[0].panes.p1
 		expect(pane.launchMode).toBe('claude-code')
-		// Agent auto-starts with built command (interactive TUI mode)
+		// Agent panes don't auto-start — user sends first message via StreamRenderer
+		expect(pane.startupCommand).toBeNull()
 		expect(mockApi.createPty).toHaveBeenCalledWith(
 			'p1',
 			'/projects',
-			'claude --dangerously-skip-permissions --output-format stream-json',
+			null,
 		)
 	})
 
@@ -1619,7 +1620,7 @@ describe('setLaunchMode guard clauses', () => {
 		expect(mockApi.createPty).not.toHaveBeenCalled()
 	})
 
-	it('spawns agent PTY with default flags when agentFlags is empty', () => {
+	it('spawns agent PTY without startup command when agentFlags is empty', () => {
 		const ws = makeWorkspace({
 			panes: {
 				p1: {
@@ -1638,7 +1639,7 @@ describe('setLaunchMode guard clauses', () => {
 		expect(mockApi.createPty).toHaveBeenCalledWith(
 			'p1',
 			'/projects',
-			'claude --output-format stream-json',
+			null,
 		)
 	})
 })
