@@ -68,4 +68,22 @@ describe('classifyClaudeCode', () => {
 		expect(result.type).toBe('tool-call')
 		expect(result.metadata.tool).toBe('bash')
 	})
+
+	it('classifies MCP tool call', () => {
+		const result = classifyClaudeCode('╭─ mcp__server__tool_name')
+		expect(result.type).toBe('tool-call')
+		expect(result.metadata.tool).toBe('mcp__server__tool_name')
+	})
+
+	it('does not misclassify tool call with "allow" in path as permission', () => {
+		const result = classifyClaudeCode('Edit src/allowlist.ts')
+		expect(result.type).toBe('tool-call')
+		expect(result.metadata.tool).toBe('edit')
+	})
+
+	it('does not misclassify tool call with "failed" in path as error', () => {
+		const result = classifyClaudeCode('Read failed-tests.log')
+		expect(result.type).toBe('tool-call')
+		expect(result.metadata.tool).toBe('read')
+	})
 })

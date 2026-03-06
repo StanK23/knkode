@@ -1,4 +1,4 @@
-import type { BlockClassification, BlockClassifier } from './types'
+import { type BlockClassifier, ERROR_PATTERN, UNKNOWN_BLOCK, stripBoxDrawing } from './types'
 
 /** Known tool names that Gemini CLI shows in block headers. */
 const TOOL_NAMES = new Set([
@@ -12,24 +12,22 @@ const TOOL_NAMES = new Set([
 	'webfetch',
 ])
 
-const NO_META: BlockClassification = { type: 'unknown', metadata: {} }
-
 /**
  * Classify a Gemini CLI block header line.
- * Gemini uses similar Ink-based box-drawing but with different tool names.
+ * Gemini CLI uses similar box-drawing characters but with different tool names.
  */
 export const classifyGeminiCli: BlockClassifier = (headerText) => {
-	const trimmed = headerText.replace(/[─╭╮│╰╯┬┴┤├┼]/g, '').trim()
+	const trimmed = stripBoxDrawing(headerText)
 
-	if (!trimmed) return NO_META
+	if (!trimmed) return UNKNOWN_BLOCK
 
 	// Error blocks
-	if (/^error|failed|exception/i.test(trimmed)) {
+	if (ERROR_PATTERN.test(trimmed)) {
 		return { type: 'error', metadata: {} }
 	}
 
 	// Thinking
-	if (/^thinking|reasoning/i.test(trimmed)) {
+	if (/^(thinking|reasoning)/i.test(trimmed)) {
 		return { type: 'thinking', metadata: {} }
 	}
 
@@ -44,5 +42,5 @@ export const classifyGeminiCli: BlockClassifier = (headerText) => {
 		return { type: 'tool-call', metadata: { tool: firstWord } }
 	}
 
-	return NO_META
+	return UNKNOWN_BLOCK
 }

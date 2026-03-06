@@ -49,4 +49,10 @@ describe('classifyGeminiCli', () => {
 		const result = classifyGeminiCli('hello world')
 		expect(result.type).toBe('unknown')
 	})
+
+	it('is case-insensitive for tool names', () => {
+		const result = classifyGeminiCli('SHELL ls -la')
+		expect(result.type).toBe('tool-call')
+		expect(result.metadata.tool).toBe('shell')
+	})
 })

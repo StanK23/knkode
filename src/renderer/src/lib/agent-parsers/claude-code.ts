@@ -1,6 +1,6 @@
-import type { BlockClassification, BlockClassifier } from './types'
+import { type BlockClassifier, ERROR_PATTERN, UNKNOWN_BLOCK, stripBoxDrawing } from './types'
 
-/** Known tool names that Claude Code shows in block headers. */
+/** Known tool names that Claude Code shows in block headers. Keep in sync with Claude Code's tool repertoire. */
 const TOOL_NAMES = new Set([
 	'read',
 	'write',
@@ -18,16 +18,22 @@ const TOOL_NAMES = new Set([
 	'todowrite',
 ])
 
-const NO_META: BlockClassification = { type: 'unknown', metadata: {} }
-
 /**
  * Classify a Claude Code block header line.
  * Falls back to 'unknown' if no pattern matches.
  */
 export const classifyClaudeCode: BlockClassifier = (headerText) => {
-	const trimmed = headerText.replace(/[─╭╮│╰╯┬┴┤├┼]/g, '').trim()
+	const trimmed = stripBoxDrawing(headerText)
 
-	if (!trimmed) return NO_META
+	if (!trimmed) return UNKNOWN_BLOCK
+
+	// Check for known tool name as first word (before heuristic patterns to avoid false positives)
+	const firstWord = trimmed.split(/\s/)[0]?.toLowerCase()
+	// MCP tools use __ separators (e.g., mcp__server__tool_name) — match the prefix
+	const toolName = firstWord?.split('__')[0]
+	if (firstWord && toolName && TOOL_NAMES.has(toolName)) {
+		return { type: 'tool-call', metadata: { tool: firstWord } }
+	}
 
 	// Permission prompts
 	if (/allow|deny|approve|permission|y\/n/i.test(trimmed)) {
@@ -35,20 +41,14 @@ export const classifyClaudeCode: BlockClassifier = (headerText) => {
 	}
 
 	// Error blocks
-	if (/^error|failed|exception/i.test(trimmed)) {
+	if (ERROR_PATTERN.test(trimmed)) {
 		return { type: 'error', metadata: {} }
 	}
 
 	// Thinking / reasoning
-	if (/^thinking|reasoning|chain.of.thought/i.test(trimmed)) {
+	if (/^(thinking|reasoning|chain\.of\.thought)/i.test(trimmed)) {
 		return { type: 'thinking', metadata: {} }
 	}
 
-	// Check for known tool name as first word
-	const firstWord = trimmed.split(/\s/)[0]?.toLowerCase()
-	if (firstWord && TOOL_NAMES.has(firstWord)) {
-		return { type: 'tool-call', metadata: { tool: firstWord } }
-	}
-
-	return NO_META
+	return UNKNOWN_BLOCK
 }
