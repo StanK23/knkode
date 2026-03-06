@@ -401,10 +401,10 @@ export function TerminalView({
 					if (!containerRef.current?.clientWidth) return
 					isFittingRef.current = true
 					fitAndPreserveScroll(term, fitAddon)
-					isFittingRef.current = false
 				} catch (err) {
-					isFittingRef.current = false
 					console.warn('[terminal] fit()/scroll failed during resize:', err)
+				} finally {
+					isFittingRef.current = false
 				}
 			})
 		})
