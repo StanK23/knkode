@@ -16,7 +16,7 @@ import type {
 	WorkspaceLayout,
 } from '../../../shared/types'
 import {
-	AGENT_COMMANDS,
+	AGENT_LAUNCH_CONFIG,
 	DEFAULT_CURSOR_STYLE,
 	DEFAULT_SCROLLBACK,
 	DEFAULT_UNFOCUSED_DIM,
@@ -1029,38 +1029,32 @@ export const useStore = create<StoreState>((set, get) => ({
 	setLaunchMode: (workspaceId, paneId, mode) => {
 		const state = get()
 		const workspace = state.workspaces.find((w) => w.id === workspaceId)
-		if (!workspace || !workspace.panes[paneId]) return
-
-		// Update pane config with launchMode
-		const updatedPanes = {
-			...workspace.panes,
-			[paneId]: { ...workspace.panes[paneId], launchMode: mode },
+		if (!workspace || !workspace.panes[paneId]) {
+			console.warn(`[store] setLaunchMode: workspace or pane not found`, { workspaceId, paneId })
+			return
 		}
-		const updated = { ...workspace, panes: updatedPanes }
-		window.api.saveWorkspace(updated).catch((err) => {
-			console.error('[store] Failed to save workspace:', err)
-		})
-		set({
-			workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
-		})
 
-		// Build and spawn PTY
-		const effectiveCwd = workspace.panes[paneId].cwd || workspace.cwd || state.homeDir
-		if (mode === 'terminal') {
-			get().ensurePty(paneId, effectiveCwd, null)
-		} else {
-			const baseCmd = AGENT_COMMANDS[mode]
-			if (!baseCmd) {
-				console.error(`[store] No command for agent type: ${mode}`)
+		// Validate agent command exists BEFORE mutating state
+		let command: string | null = null
+		if (mode !== 'terminal') {
+			const config = AGENT_LAUNCH_CONFIG[mode]
+			if (!config) {
+				console.error(`[store] No launch config for agent type: ${mode}`)
 				return
 			}
-			const userFlags = workspace.agentFlags?.[mode] ?? ''
-			const parts = [baseCmd]
+			const userFlags = workspace.agentFlags?.[mode as keyof typeof workspace.agentFlags] ?? ''
+			const parts = [config.command]
 			if (userFlags.trim()) parts.push(userFlags.trim())
-			parts.push('--output-format stream-json')
-			const command = parts.join(' ')
-			get().ensurePty(paneId, effectiveCwd, command)
+			parts.push(...config.defaultFlags)
+			command = parts.join(' ')
 		}
+
+		// Now safe to persist launchMode
+		get().updatePaneConfig(workspaceId, paneId, { launchMode: mode })
+
+		// Spawn PTY
+		const cwd = getEffectiveCwd(workspace, paneId, state.homeDir)
+		get().ensurePty(paneId, cwd, command)
 	},
 
 	setWorkspaceCwd: (workspaceId, cwd) => {

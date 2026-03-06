@@ -1,13 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect } from 'react'
 import {
-	AGENT_COMMANDS,
 	AGENT_LABELS,
-	type AgentType,
+	AGENT_LAUNCH_CONFIG,
 	LAUNCHABLE_AGENTS,
 	type LaunchMode,
+	type LaunchableAgent,
 } from '../../../shared/types'
-import { useStore } from '../store'
-import { getEffectiveCwd } from '../store'
+import { getEffectiveCwd, useStore } from '../store'
 
 interface PaneLauncherProps {
 	workspaceId: string
@@ -19,20 +18,17 @@ export function PaneLauncher({ workspaceId, paneId }: PaneLauncherProps) {
 	const updatePaneConfig = useStore((s) => s.updatePaneConfig)
 	const workspace = useStore((s) => s.workspaces.find((w) => w.id === workspaceId))
 	const homeDir = useStore((s) => s.homeDir)
-	const paneConfig = workspace?.panes[paneId]
+	const focusedPaneId = useStore((s) => s.focusedPaneId)
 	const effectiveCwd = workspace ? getEffectiveCwd(workspace, paneId, homeDir) : homeDir
 
-	const [cwdDisplay, setCwdDisplay] = useState(effectiveCwd)
-
-	useEffect(() => {
-		setCwdDisplay(effectiveCwd)
-	}, [effectiveCwd])
-
 	const handlePickFolder = useCallback(async () => {
-		const folder = await window.api.pickFolder()
-		if (folder) {
-			setCwdDisplay(folder)
-			updatePaneConfig(workspaceId, paneId, { cwd: folder })
+		try {
+			const folder = await window.api.pickFolder()
+			if (folder) {
+				updatePaneConfig(workspaceId, paneId, { cwd: folder })
+			}
+		} catch (err) {
+			console.warn('[PaneLauncher] Failed to open folder picker:', err)
 		}
 	}, [workspaceId, paneId, updatePaneConfig])
 
@@ -44,9 +40,13 @@ export function PaneLauncher({ workspaceId, paneId }: PaneLauncherProps) {
 	)
 
 	// Keyboard shortcuts: 1-N for agents, T for terminal
+	// Only fires when this pane is focused and target is not an input element
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
+			if (focusedPaneId !== paneId) return
 			if (e.metaKey || e.ctrlKey || e.altKey) return
+			const tag = (e.target as HTMLElement)?.tagName
+			if (tag === 'INPUT' || tag === 'TEXTAREA') return
 			if (e.key === 't' || e.key === 'T') {
 				e.preventDefault()
 				handleLaunch('terminal')
@@ -60,9 +60,9 @@ export function PaneLauncher({ workspaceId, paneId }: PaneLauncherProps) {
 		}
 		window.addEventListener('keydown', handler)
 		return () => window.removeEventListener('keydown', handler)
-	}, [handleLaunch])
+	}, [handleLaunch, focusedPaneId, paneId])
 
-	if (!workspace || !paneConfig) return null
+	if (!workspace?.panes[paneId]) return null
 
 	const agentFlags = workspace.agentFlags ?? {}
 
@@ -76,7 +76,7 @@ export function PaneLauncher({ workspaceId, paneId }: PaneLauncherProps) {
 				title="Click to change working directory"
 			>
 				<span className="text-content-muted">cwd:</span>
-				<span className="font-mono truncate max-w-80">{cwdDisplay}</span>
+				<span className="font-mono truncate max-w-80">{effectiveCwd}</span>
 			</button>
 
 			{/* Agent buttons */}
@@ -100,7 +100,7 @@ export function PaneLauncher({ workspaceId, paneId }: PaneLauncherProps) {
 					<span className="text-sm font-medium text-content group-hover:text-accent transition-colors">
 						Terminal
 					</span>
-					<span className="flex-1" />
+					<div className="flex-1" />
 					<kbd className="text-[10px] text-content-muted border border-edge rounded px-1.5 py-0.5">
 						T
 					</kbd>
@@ -116,13 +116,13 @@ function AgentButton({
 	flags,
 	onLaunch,
 }: {
-	agent: AgentType
+	agent: LaunchableAgent
 	shortcut: string
 	flags?: string
 	onLaunch: () => void
 }) {
 	const label = AGENT_LABELS[agent]
-	const command = AGENT_COMMANDS[agent] ?? agent
+	const command = AGENT_LAUNCH_CONFIG[agent]?.command ?? agent
 
 	return (
 		<button
@@ -139,7 +139,7 @@ function AgentButton({
 					{flags?.trim() ? ` ${flags.trim()}` : ''}
 				</span>
 			</div>
-			<span className="flex-1" />
+			<div className="flex-1" />
 			<kbd className="text-[10px] text-content-muted border border-edge rounded px-1.5 py-0.5">
 				{shortcut}
 			</kbd>
