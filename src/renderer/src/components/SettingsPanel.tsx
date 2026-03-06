@@ -345,14 +345,47 @@ function SnippetsSection() {
 	)
 }
 
-function AgentFlagsSection({
-	workspaceId,
-	agentFlags,
-}: {
+interface AgentFlagsSectionProps {
 	workspaceId: string
 	agentFlags?: Workspace['agentFlags']
-}) {
+}
+
+function AgentFlagsSection({ workspaceId, agentFlags }: AgentFlagsSectionProps) {
 	const setAgentFlags = useStore((s) => s.setAgentFlags)
+	const [localFlags, setLocalFlags] = useState<Record<string, string>>(() => {
+		const result: Record<string, string> = {}
+		for (const agent of LAUNCHABLE_AGENTS) {
+			result[agent] = agentFlags?.[agent] ?? ''
+		}
+		return result
+	})
+
+	// Sync local state when store value changes externally
+	useEffect(() => {
+		const next: Record<string, string> = {}
+		for (const agent of LAUNCHABLE_AGENTS) {
+			next[agent] = agentFlags?.[agent] ?? ''
+		}
+		setLocalFlags(next)
+	}, [agentFlags])
+
+	// Debounced persist to store
+	const mountedRef = useRef(false)
+	useEffect(() => {
+		if (!mountedRef.current) {
+			mountedRef.current = true
+			return
+		}
+		const timer = setTimeout(() => {
+			for (const agent of LAUNCHABLE_AGENTS) {
+				const storeVal = agentFlags?.[agent] ?? ''
+				if (localFlags[agent] !== storeVal) {
+					setAgentFlags(workspaceId, agent, localFlags[agent])
+				}
+			}
+		}, 300)
+		return () => clearTimeout(timer)
+	}, [localFlags, workspaceId, agentFlags, setAgentFlags])
 
 	return (
 		<SettingsSection label="Flags" gap={8}>
@@ -365,10 +398,11 @@ function AgentFlagsSection({
 						{AGENT_LABELS[agent]}
 					</span>
 					<input
-						value={agentFlags?.[agent] ?? ''}
-						onChange={(e) => setAgentFlags(workspaceId, agent, e.target.value)}
+						value={localFlags[agent] ?? ''}
+						onChange={(e) => setLocalFlags((prev) => ({ ...prev, [agent]: e.target.value }))}
 						className="settings-input flex-1 min-w-0"
-						placeholder="e.g. --dangerously-skip-permissions"
+						maxLength={1024}
+						placeholder="e.g. --model opus"
 						aria-label={`${AGENT_LABELS[agent]} CLI flags`}
 					/>
 				</label>
@@ -515,7 +549,6 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 				className="bg-canvas/80 backdrop-blur-2xl border border-edge/50 rounded-md w-[600px] max-w-[calc(100vw-2rem)] h-[85vh] max-h-[700px] flex flex-col shadow-panel animate-panel-in"
 				onClick={(e) => e.stopPropagation()}
 			>
-				{/* Header with tabs */}
 				<div className="border-b border-edge/50">
 					<div className="flex items-center justify-between px-6 pt-4 pb-0">
 						<h2 className="text-sm font-semibold tracking-wide">Workspace Settings</h2>
@@ -528,7 +561,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 							✕
 						</button>
 					</div>
-					<div className="flex gap-0 px-6 mt-3" role="tablist" aria-label="Settings tabs">
+					<div className="flex px-6 mt-3" role="tablist" aria-label="Settings tabs">
 						{SETTINGS_TABS.map((tab) => (
 							<button
 								key={tab}
@@ -536,7 +569,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								role="tab"
 								aria-selected={activeTab === tab}
 								onClick={() => setActiveTab(tab)}
-								className={`px-3 py-1.5 text-xs cursor-pointer bg-transparent border-none border-b-2 transition-colors focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
+								className={`px-3 py-1.5 text-xs cursor-pointer bg-transparent border-0 border-b-2 border-solid transition-colors focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
 									activeTab === tab
 										? 'border-accent text-content font-medium'
 										: 'border-transparent text-content-muted hover:text-content'
@@ -548,8 +581,10 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					</div>
 				</div>
 
-				{/* Tab content */}
-				<div className="px-6 py-6 flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-8">
+				<div
+					role="tabpanel"
+					className="px-6 py-6 flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-8"
+				>
 					{activeTab === 'Workspace' && (
 						<>
 							{/* General */}
