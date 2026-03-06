@@ -1,8 +1,8 @@
 # HANDOFF
 
 ## Current State
-- Branch: `main`
-- PR #66 merged: pane launcher overlay
+- Branch: `feature/agent-flag-settings`
+- PR #67 open: agent flag settings in workspace config — review fixes applied, awaiting merge
 
 ## What Was Done
 - PR #58 merged: translucent pane backgrounds with blur
@@ -17,13 +17,15 @@
 - PR #65 merged: status bar height, bullet block detection, scroll jump, isFittingRef scroll fix
 - PR #66 merged: pane launcher overlay — LaunchMode type, workspace CWD, PaneLauncher component, folder picker, AGENT_LAUNCH_CONFIG
   - 6-agent review: 7 must-fix, 9 suggestions, 6 nitpicks — all addressed
+- PR #67 open: agent flag settings — per-agent CLI flags in workspace config, settings panel tab refactor
+  - 5-agent review: 3 must-fix, 6 suggestions, 2 nitpicks — all addressed
 
 ## Active Plan — Agent Workspace (revised)
-Previous plan PRs #1-5 complete (PR #59-63). PR #6 complete (PR #66). Remaining: JSON renderer + agent flags.
+Previous plan PRs #1-5 complete (PR #59-63). PR #6 complete (PR #66). PR #8 in progress (PR #67). Remaining: JSON renderer.
 
 - ~~PR #6: pane launcher overlay~~ ← PR #66, merged
+- ~~PR #8: agent flag settings~~ ← PR #67, review complete, awaiting merge
 - PR #7: JSON stream renderer for Claude Code (parse stream-json, render tool calls/results)
-- PR #8: agent flag settings (per-agent flags string in workspace config)
 
 ## Previous Work
 - PR #56 merged: snippet reorder via DnD + keyboard
@@ -33,5 +35,5 @@ Previous plan PRs #1-5 complete (PR #59-63). PR #6 complete (PR #66). Remaining:
 - PR #50: Dynamic workspace fonts
 
 ## Next Steps
-1. PR #7: JSON stream renderer for Claude Code
-2. PR #8: agent flag settings
+1. Merge PR #67 (agent flag settings)
+2. PR #7: JSON stream renderer for Claude Code
