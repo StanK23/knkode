@@ -1528,6 +1528,40 @@ describe('setWorkspaceCwd', () => {
 	})
 })
 
+describe('setAgentFlags', () => {
+	it('sets agent flags and persists', () => {
+		const ws = makeWorkspace()
+		useStore.setState({ workspaces: [ws] })
+
+		useStore.getState().setAgentFlags('ws-1', 'claude-code', '--dangerously-skip-permissions')
+
+		expect(useStore.getState().workspaces[0].agentFlags).toEqual({
+			'claude-code': '--dangerously-skip-permissions',
+		})
+		expect(mockApi.saveWorkspace).toHaveBeenCalled()
+	})
+
+	it('clears agent flags when empty string', () => {
+		const ws = makeWorkspace({ agentFlags: { 'claude-code': '--model opus' } })
+		useStore.setState({ workspaces: [ws] })
+
+		useStore.getState().setAgentFlags('ws-1', 'claude-code', '')
+
+		expect(useStore.getState().workspaces[0].agentFlags).toBeUndefined()
+	})
+
+	it('clears only the specified agent, keeps others', () => {
+		const ws = makeWorkspace({
+			agentFlags: { 'claude-code': '--model opus', 'gemini-cli': '--fast' },
+		})
+		useStore.setState({ workspaces: [ws] })
+
+		useStore.getState().setAgentFlags('ws-1', 'claude-code', '')
+
+		expect(useStore.getState().workspaces[0].agentFlags).toEqual({ 'gemini-cli': '--fast' })
+	})
+})
+
 describe('createLayoutFromPreset launchMode', () => {
 	it('new panes get launchMode: null', () => {
 		const { panes } = createLayoutFromPreset('single', '/home')
