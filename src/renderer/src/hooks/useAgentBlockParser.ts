@@ -9,8 +9,8 @@ const PARSE_INTERVAL_MS = 200
 /**
  * Hook that manages an AgentBlockParser for an xterm.js terminal buffer.
  * Called unconditionally on every pane. Internally starts a periodic parsing
- * interval when an agent is detected (via process detection OR launchMode),
- * the agent supports block parsing, and the pane is not in alternate screen mode.
+ * interval when an agent is detected (via process detection OR launchMode)
+ * and the agent supports block parsing.
  * When conditions are not met, any existing blocks are cleared.
  */
 export function useAgentBlockParser(paneId: string, termRef: React.RefObject<XTerm | null>): boolean {
@@ -27,7 +27,9 @@ export function useAgentBlockParser(paneId: string, termRef: React.RefObject<XTe
 	})
 
 	const effectiveAgent = agentType ?? launchAgent
-	const shouldParse = effectiveAgent !== null && !isAltScreen && supportsBlockParsing(effectiveAgent)
+	// Agent panes must parse on alt screen — Claude Code's TUI renders there.
+	// Only skip alt screen for non-agent panes (vim, less, etc.)
+	const shouldParse = effectiveAgent !== null && supportsBlockParsing(effectiveAgent)
 	const parserRef = useRef<AgentBlockParser | null>(null)
 	const prevBlockCountRef = useRef(0)
 	const prevLastEndLineRef = useRef<number | null>(null)
@@ -91,7 +93,7 @@ export function useAgentBlockParser(paneId: string, termRef: React.RefObject<XTe
 			prevLastTypeRef.current = null
 			prevLastContentRef.current = ''
 		}
-	}, [paneId, effectiveAgent, shouldParse, updateAgentBlocks, termRef])
+	}, [paneId, effectiveAgent, shouldParse, isAltScreen, updateAgentBlocks, termRef])
 
 	return shouldParse
 }
