@@ -33,7 +33,7 @@ export interface BlockClassification {
 export type BlockClassifier = (headerText: string) => BlockClassification
 
 /** Strip box-drawing characters and bullet prefixes from a header line and trim whitespace. */
-export function stripBoxDrawing(text: string): string {
+export function stripBlockMarkers(text: string): string {
 	return text.replace(/[─╭╮│╰╯┬┴┤├┼●◆▶]/g, '').trim()
 }
 

@@ -1,4 +1,4 @@
-import { type BlockClassifier, ERROR_PATTERN, UNKNOWN_BLOCK, stripBoxDrawing } from './types'
+import { type BlockClassifier, ERROR_PATTERN, UNKNOWN_BLOCK, stripBlockMarkers } from './types'
 
 /** Known tool names that Claude Code shows in block headers. Keep in sync with Claude Code's tool repertoire. */
 const TOOL_NAMES = new Set([
@@ -23,7 +23,7 @@ const TOOL_NAMES = new Set([
  * Falls back to 'unknown' if no pattern matches.
  */
 export const classifyClaudeCode: BlockClassifier = (headerText) => {
-	const trimmed = stripBoxDrawing(headerText)
+	const trimmed = stripBlockMarkers(headerText)
 
 	if (!trimmed) return UNKNOWN_BLOCK
 

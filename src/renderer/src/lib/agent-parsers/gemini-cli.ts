@@ -1,4 +1,4 @@
-import { type BlockClassifier, ERROR_PATTERN, UNKNOWN_BLOCK, stripBoxDrawing } from './types'
+import { type BlockClassifier, ERROR_PATTERN, UNKNOWN_BLOCK, stripBlockMarkers } from './types'
 
 /** Known tool names that Gemini CLI shows in block headers. */
 const TOOL_NAMES = new Set([
@@ -17,7 +17,7 @@ const TOOL_NAMES = new Set([
  * Gemini CLI uses similar box-drawing characters but with different tool names.
  */
 export const classifyGeminiCli: BlockClassifier = (headerText) => {
-	const trimmed = stripBoxDrawing(headerText)
+	const trimmed = stripBlockMarkers(headerText)
 
 	if (!trimmed) return UNKNOWN_BLOCK
 
