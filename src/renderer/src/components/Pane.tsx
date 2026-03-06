@@ -229,7 +229,7 @@ export function Pane({
 	// (before Claude starts, process detection returns null — but we still need the status bar)
 	const effectiveAgentType = agentType ?? (isAgent ? (config.launchMode as AgentType) : null)
 	const initialCwdRef = useRef(config.cwd)
-	const initialCmdRef = useRef(isAgent ? null : config.startupCommand)
+	const initialCmdRef = useRef(config.startupCommand)
 	useEffect(() => {
 		if (showLauncher) return
 		ensurePty(paneId, initialCwdRef.current, initialCmdRef.current)

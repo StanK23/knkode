@@ -150,13 +150,7 @@ export const AGENT_LAUNCH_CONFIG: Record<
 > = {
 	'claude-code': {
 		command: 'claude',
-		defaultFlags: [
-			'--print',
-			'--verbose',
-			'--output-format',
-			'stream-json',
-			'--include-partial-messages',
-		],
+		defaultFlags: ['--output-format', 'stream-json'],
 	},
 	'gemini-cli': { command: 'gemini', defaultFlags: [] },
 }
