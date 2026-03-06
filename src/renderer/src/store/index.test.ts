@@ -75,6 +75,8 @@ function resetStore() {
 		paneAgentTypes: new Map(),
 		paneProcessNames: new Map(),
 		altScreenPaneIds: new Set(),
+		paneAgentBlocks: new Map(),
+		collapsedBlockIds: new Map(),
 	})
 }
 
@@ -1200,6 +1202,22 @@ describe('store removePtyId alt screen cleanup', () => {
 		useStore.getState().removePtyId('p1')
 
 		expect(useStore.getState().altScreenPaneIds.has('p1')).toBe(false)
+	})
+})
+
+describe('store removePtyId block cleanup', () => {
+	it('clears agent blocks and collapsed state on natural PTY exit', () => {
+		const blocks = [
+			{ id: 'b1', type: 'tool-call' as const, agent: 'claude-code' as const, startLine: 0, endLine: 2, metadata: {} },
+		]
+		useStore.setState({ activePtyIds: new Set(['p1']) })
+		useStore.getState().updateAgentBlocks('p1', blocks)
+		useStore.getState().toggleBlockCollapse('p1', 'b1')
+
+		useStore.getState().removePtyId('p1')
+
+		expect(useStore.getState().paneAgentBlocks.has('p1')).toBe(false)
+		expect(useStore.getState().collapsedBlockIds.has('p1')).toBe(false)
 	})
 })
 
