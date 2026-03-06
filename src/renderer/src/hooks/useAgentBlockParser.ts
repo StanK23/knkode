@@ -12,7 +12,7 @@ const PARSE_INTERVAL_MS = 200
  * and the pane is not in alternate screen mode. When conditions are not met,
  * any existing blocks are cleared.
  */
-export function useAgentBlockParser(paneId: string, termRef: React.RefObject<XTerm | null>): void {
+export function useAgentBlockParser(paneId: string, termRef: React.RefObject<XTerm | null>): boolean {
 	const agentType = useStore((s) => s.paneAgentTypes.get(paneId) ?? null)
 	const isAltScreen = useStore((s) => s.altScreenPaneIds.has(paneId))
 	const updateAgentBlocks = useStore((s) => s.updateAgentBlocks)
@@ -79,4 +79,6 @@ export function useAgentBlockParser(paneId: string, termRef: React.RefObject<XTe
 			prevLastTypeRef.current = null
 		}
 	}, [paneId, agentType, shouldParse, updateAgentBlocks, termRef])
+
+	return shouldParse
 }

@@ -13,7 +13,6 @@ import {
 } from '../../../shared/types'
 import { buildFontFamily, buildXtermTheme } from '../data/theme-presets'
 import { useAgentBlockParser } from '../hooks/useAgentBlockParser'
-import { supportsBlockParsing } from '../lib/agent-block-parser'
 import { useStore } from '../store'
 import { resolveBackground } from '../utils/colors'
 import { AgentBlockOverlay } from './AgentBlockOverlay'
@@ -185,11 +184,7 @@ export function TerminalView({
 	const isFocusedRef = useRef(isFocused)
 	isFocusedRef.current = isFocused
 
-	const agentType = useStore((s) => s.paneAgentTypes.get(paneId) ?? null)
-	const isAltScreen = useStore((s) => s.altScreenPaneIds.has(paneId))
-	const showBlockOverlay = agentType !== null && !isAltScreen && supportsBlockParsing(agentType)
-
-	useAgentBlockParser(paneId, termRef)
+	const showBlockOverlay = useAgentBlockParser(paneId, termRef)
 
 	const [isScrolledUp, setIsScrolledUp] = useState(false)
 	const [showSearch, setShowSearch] = useState(false)
