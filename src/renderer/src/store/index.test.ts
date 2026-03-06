@@ -1137,13 +1137,21 @@ describe('store setAltScreen', () => {
 		expect(useStore.getState().altScreenPaneIds.has('p1')).toBe(false)
 	})
 
-	it('is a no-op when state already matches', () => {
+	it('is a no-op when already in alt screen', () => {
 		useStore.setState({ altScreenPaneIds: new Set(['p1']) })
 		const before = useStore.getState().altScreenPaneIds
 
 		useStore.getState().setAltScreen('p1', true)
 
 		// Reference equality — no new Set created
+		expect(useStore.getState().altScreenPaneIds).toBe(before)
+	})
+
+	it('is a no-op when already absent from alt screen', () => {
+		const before = useStore.getState().altScreenPaneIds
+
+		useStore.getState().setAltScreen('p1', false)
+
 		expect(useStore.getState().altScreenPaneIds).toBe(before)
 	})
 
@@ -1167,6 +1175,17 @@ describe('store killPtys alt screen cleanup', () => {
 		useStore.getState().killPtys(['p1'])
 
 		expect(useStore.getState().altScreenPaneIds.has('p1')).toBe(false)
+		expect(useStore.getState().altScreenPaneIds.has('p2')).toBe(true)
+	})
+
+	it('preserves alt screen state for panes not killed', () => {
+		useStore.setState({
+			activePtyIds: new Set(['p1', 'p2']),
+			altScreenPaneIds: new Set(['p2']),
+		})
+
+		useStore.getState().killPtys(['p1'])
+
 		expect(useStore.getState().altScreenPaneIds.has('p2')).toBe(true)
 	})
 })
