@@ -84,19 +84,7 @@ export class AgentBlockParser {
 
 		// Block start: line contains ╭ (box-drawing top-left corner)
 		if (stripped.includes(TOP_LEFT)) {
-			this.closeOpenBlock(Math.max(lineIndex - 1, this.openBlock?.startLine ?? 0))
-
-			const classification = classifier(stripped)
-			const block: MutableBlock = {
-				id: `block-${++this.nextBlockId}`,
-				type: classification.type,
-				agent: this.agent,
-				startLine: lineIndex,
-				endLine: null,
-				metadata: { ...classification.metadata },
-			}
-			this.openBlock = block
-			this.blocks.push(block)
+			this.openNewBlock(classifier, stripped, lineIndex)
 			return
 		}
 
@@ -106,21 +94,9 @@ export class AgentBlockParser {
 			return
 		}
 
-		// Bullet block start: line starts with ● or similar marker
+		// Bullet block start: line starts with ●, ◆, or ▶
 		if (BULLET_PATTERN.test(stripped)) {
-			this.closeOpenBlock(Math.max(lineIndex - 1, this.openBlock?.startLine ?? 0))
-
-			const classification = classifier(stripped)
-			const block: MutableBlock = {
-				id: `block-${++this.nextBlockId}`,
-				type: classification.type,
-				agent: this.agent,
-				startLine: lineIndex,
-				endLine: null,
-				metadata: { ...classification.metadata },
-			}
-			this.openBlock = block
-			this.blocks.push(block)
+			this.openNewBlock(classifier, stripped, lineIndex)
 			return
 		}
 
@@ -132,6 +108,21 @@ export class AgentBlockParser {
 				this.openBlock.type = 'error'
 			}
 		}
+	}
+
+	private openNewBlock(classifier: BlockClassifier, stripped: string, lineIndex: number): void {
+		this.closeOpenBlock(Math.max(lineIndex - 1, this.openBlock?.startLine ?? 0))
+		const classification = classifier(stripped)
+		const block: MutableBlock = {
+			id: `block-${++this.nextBlockId}`,
+			type: classification.type,
+			agent: this.agent,
+			startLine: lineIndex,
+			endLine: null,
+			metadata: { ...classification.metadata },
+		}
+		this.openBlock = block
+		this.blocks.push(block)
 	}
 
 	private closeOpenBlock(endLine: number): void {
