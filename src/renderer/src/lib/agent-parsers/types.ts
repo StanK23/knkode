@@ -43,5 +43,18 @@ export const UNKNOWN_BLOCK: Readonly<BlockClassification> = Object.freeze({
 	metadata: Object.freeze({}) as Readonly<Record<string, string>>,
 })
 
+/** Shared color classes for rendering agent block types across components. */
+export const BLOCK_TYPE_COLORS: Record<AgentBlockType, string> = {
+	'tool-call': 'text-accent',
+	'tool-result': 'text-accent',
+	thinking: 'text-content-muted',
+	diff: 'text-green-400',
+	text: 'text-content',
+	status: 'text-content-muted',
+	permission: 'text-yellow-400',
+	error: 'text-danger',
+	unknown: 'text-content-muted',
+}
+
 /** Error detection pattern — matches lines starting with error keywords. */
 export const ERROR_PATTERN = /^(error|failed|exception)\b/i

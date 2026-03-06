@@ -42,6 +42,7 @@ import { useInlineEdit } from '../hooks/useInlineEdit'
 import { useStore } from '../store'
 import { modKey } from '../utils/platform'
 import { isValidCwd } from '../utils/validation'
+import { AgentStatusBar } from './AgentStatusBar'
 import { FontPicker } from './FontPicker'
 import { TerminalView } from './Terminal'
 
@@ -727,7 +728,9 @@ export function Pane({
 				)}
 			</div>
 
-			{/* Dim overlay scoped to terminal area only (not the header).
+			{agentType && <AgentStatusBar paneId={paneId} agentType={agentType} />}
+
+			{/* Dim overlay scoped to terminal area only (not the header/status bar).
 			    Always rendered to enable CSS transition; opacity toggled via class.
 			    Inline style required: Tailwind cannot express dynamic runtime opacity. */}
 			<div className="flex-1 overflow-hidden p-px relative">
