@@ -528,10 +528,17 @@ export const useStore = create<StoreState>((set, get) => ({
 			parser = new ClaudeCodeStreamParser()
 			streamParsers.set(paneId, parser)
 		}
-		parser.feed(chunk)
+		try {
+			parser.feed(chunk)
+		} catch (err) {
+			console.error('[store] feedStreamData: parser.feed() failed, resetting parser:', err)
+			parser.reset()
+			streamParsers.delete(paneId)
+			return
+		}
 		const msgs = parser.getMessages()
 		const next = new Map(get().paneStreamMessages)
-		next.set(paneId, msgs)
+		next.set(paneId, [...msgs])
 		set({ paneStreamMessages: next })
 	},
 
@@ -544,7 +551,6 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 
 	clearStreamData: (paneId) => {
-		streamParsers.get(paneId)?.reset()
 		streamParsers.delete(paneId)
 		const msgs = new Map(get().paneStreamMessages)
 		const modes = new Map(get().paneViewMode)

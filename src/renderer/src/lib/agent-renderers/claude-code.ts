@@ -1,5 +1,13 @@
 import type { ContentBlock, StreamMessage, StreamParser } from './types'
 
+/** Maximum line buffer size (1 MB). Protects against PTY data without newlines. */
+const MAX_BUFFER_SIZE = 1_048_576
+
+/** Maximum accumulated messages. Prevents unbounded memory growth in long sessions. */
+const MAX_MESSAGES = 500
+
+const VALID_ROLES = new Set<StreamMessage['role']>(['assistant', 'user', 'system'])
+
 /**
  * Parses Claude Code `--output-format stream-json` NDJSON output.
  *
@@ -12,9 +20,18 @@ export class ClaudeCodeStreamParser implements StreamParser {
 	private lineBuffer = ''
 	/** Map from content block index → blocks array index within the current message. */
 	private blockIndexMap = new Map<number, number>()
+	private consecutiveParseFailures = 0
 
 	feed(chunk: string): void {
 		this.lineBuffer += chunk
+
+		// Guard against unbounded buffer growth (e.g. PTY data without newlines)
+		if (this.lineBuffer.length > MAX_BUFFER_SIZE) {
+			console.warn('[stream-parser] lineBuffer exceeded max size, discarding')
+			this.lineBuffer = ''
+			return
+		}
+
 		const lines = this.lineBuffer.split('\n')
 		// Last element is either empty (line ended with \n) or a partial line
 		this.lineBuffer = lines.pop() ?? ''
@@ -34,6 +51,7 @@ export class ClaudeCodeStreamParser implements StreamParser {
 		this.messages = []
 		this.lineBuffer = ''
 		this.blockIndexMap.clear()
+		this.consecutiveParseFailures = 0
 	}
 
 	private parseLine(line: string): void {
@@ -41,9 +59,17 @@ export class ClaudeCodeStreamParser implements StreamParser {
 		try {
 			parsed = JSON.parse(line)
 		} catch {
-			// Not valid JSON — skip (could be shell prompt, startup text, etc.)
+			// Not valid JSON — could be shell prompt, startup text, ANSI sequences, etc.
+			this.consecutiveParseFailures++
+			if (this.consecutiveParseFailures >= 5) {
+				console.warn(
+					`[stream-parser] ${this.consecutiveParseFailures} consecutive JSON parse failures`,
+				)
+			}
 			return
 		}
+
+		this.consecutiveParseFailures = 0
 
 		if (!isStreamEvent(parsed)) return
 		const event = parsed.event
@@ -68,6 +94,10 @@ export class ClaudeCodeStreamParser implements StreamParser {
 			case 'message_stop':
 				this.handleMessageStop()
 				break
+			default:
+				// Unknown event types (e.g. error, ping, rate_limit) are intentionally dropped.
+				// The Claude Code streaming protocol may add new event types over time.
+				break
 		}
 	}
 
@@ -77,10 +107,21 @@ export class ClaudeCodeStreamParser implements StreamParser {
 
 		const usage = message.usage as Record<string, unknown> | undefined
 
+		const rawRole = String(message.role ?? 'assistant')
+		const role: StreamMessage['role'] = VALID_ROLES.has(rawRole as StreamMessage['role'])
+			? (rawRole as StreamMessage['role'])
+			: 'assistant'
+
 		this.blockIndexMap.clear()
+
+		// Trim old messages to prevent unbounded growth in long sessions
+		if (this.messages.length >= MAX_MESSAGES) {
+			this.messages.splice(0, this.messages.length - MAX_MESSAGES + 1)
+		}
+
 		this.messages.push({
 			id: String(message.id ?? `msg-${this.messages.length}`),
-			role: (message.role as StreamMessage['role']) ?? 'assistant',
+			role,
 			model: message.model as string | undefined,
 			blocks: [],
 			stopReason: null,
@@ -158,7 +199,9 @@ export class ClaudeCodeStreamParser implements StreamParser {
 					block.text += String(delta.thinking ?? '')
 				}
 				break
-			// signature_delta — ignored (verification metadata)
+			case 'signature_delta':
+				// Intentionally ignored — verification metadata
+				break
 		}
 	}
 
@@ -189,7 +232,7 @@ export class ClaudeCodeStreamParser implements StreamParser {
 	}
 
 	private currentMessage(): StreamMessage | null {
-		return this.messages.length > 0 ? this.messages[this.messages.length - 1] : null
+		return this.messages.at(-1) ?? null
 	}
 }
 
