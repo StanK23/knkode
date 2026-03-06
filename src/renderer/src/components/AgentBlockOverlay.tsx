@@ -54,7 +54,7 @@ const BlockOverlayItem = memo(function BlockOverlayItem({
 				aria-expanded={false}
 				aria-label={`Expand ${block.type}${block.metadata.tool ? `: ${block.metadata.tool}` : ''} (${lineCount} lines)`}
 			>
-				<span className="text-content-muted text-[10px] select-none shrink-0">{'\u25B6'}</span>
+				<span className="text-content-muted text-[10px] select-none shrink-0">{'\u25B8'}</span>
 				<AgentBlockSummary type={block.type} metadata={block.metadata} lineCount={lineCount} />
 			</button>
 		)
@@ -69,7 +69,7 @@ const BlockOverlayItem = memo(function BlockOverlayItem({
 			aria-expanded={true}
 			aria-label={`Collapse ${block.type}${block.metadata.tool ? `: ${block.metadata.tool}` : ''} (${lineCount} lines)`}
 		>
-			<span className="text-content-muted text-[10px] select-none">{'\u25BC'}</span>
+			<span className="text-content-muted text-[10px] select-none">{'\u25BE'}</span>
 		</button>
 	)
 })
