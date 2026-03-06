@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { DEFAULT_PANE_OPACITY, type PaneTheme } from '../../../shared/types'
 import type {
 	ContentBlock,
@@ -140,6 +140,88 @@ const MessageGroup = memo(function MessageGroup({ message }: { message: StreamMe
 	)
 })
 
+// ── Message Input ───────────────────────────────────────────────────────────
+
+function MessageInput({ paneId, isStreaming }: { paneId: string; isStreaming: boolean }) {
+	const [input, setInput] = useState('')
+	const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+	const handleSubmit = useCallback(() => {
+		const trimmed = input.trim()
+		if (!trimmed) return
+		window.api.writePty(paneId, `${trimmed}\n`)
+		setInput('')
+	}, [paneId, input])
+
+	const handleStop = useCallback(() => {
+		// Send Ctrl+C / ETX to interrupt the running process
+		window.api.writePty(paneId, '\x03')
+	}, [paneId])
+
+	const handleKeyDown = useCallback(
+		(e: React.KeyboardEvent) => {
+			if (e.key === 'Enter' && !e.shiftKey) {
+				e.preventDefault()
+				handleSubmit()
+			}
+			if (e.key === 'Escape') {
+				setInput('')
+				textareaRef.current?.blur()
+			}
+		},
+		[handleSubmit],
+	)
+
+	// Auto-resize textarea to content — `input` is the intentional trigger
+	// biome-ignore lint/correctness/useExhaustiveDependencies: input change triggers resize
+	useEffect(() => {
+		const el = textareaRef.current
+		if (!el) return
+		el.style.height = '0'
+		el.style.height = `${Math.min(el.scrollHeight, 120)}px`
+	}, [input])
+
+	return (
+		<div className="border-t border-edge px-3 py-2 shrink-0">
+			{isStreaming && (
+				<div className="flex items-center gap-2 mb-2">
+					<span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse motion-reduce:animate-none shrink-0" />
+					<span className="text-content-muted text-[11px]">Agent is responding...</span>
+					<button
+						type="button"
+						onClick={handleStop}
+						className="ml-auto text-[10px] px-1.5 py-0.5 rounded-sm cursor-pointer border border-edge bg-overlay hover:bg-overlay-active text-content-secondary focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+					>
+						Stop
+					</button>
+				</div>
+			)}
+			<div className="flex gap-2 items-end">
+				<textarea
+					ref={textareaRef}
+					value={input}
+					onChange={(e) => setInput(e.target.value)}
+					onKeyDown={handleKeyDown}
+					placeholder="Send a message... (Enter to send, Shift+Enter for newline)"
+					rows={1}
+					className="flex-1 resize-none bg-sunken border border-edge rounded-sm px-2 py-1.5 text-content text-xs leading-relaxed placeholder:text-content-muted/50 focus:outline-none focus:ring-1 focus:ring-accent"
+				/>
+				<button
+					type="button"
+					onClick={handleSubmit}
+					disabled={!input.trim()}
+					className="px-2 py-1.5 text-[11px] font-semibold rounded-sm cursor-pointer border-none bg-accent text-canvas hover:brightness-110 disabled:opacity-40 disabled:cursor-default focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+				>
+					Send
+				</button>
+			</div>
+			<div className="mt-1 text-[10px] text-content-muted/40">
+				Enter to send · Shift+Enter for newline · Esc to clear
+			</div>
+		</div>
+	)
+}
+
 // ── Stream Renderer ─────────────────────────────────────────────────────────
 
 interface StreamRendererProps {
@@ -150,11 +232,14 @@ interface StreamRendererProps {
 
 export function StreamRenderer({ paneId, theme, themeOverride }: StreamRendererProps) {
 	const messages = useStore((s) => s.paneStreamMessages.get(paneId))
+	const hasReceivedData = useStore((s) => s.paneStreamDataReceived.get(paneId) ?? false)
 	const scrollRef = useRef<HTMLDivElement>(null)
 	const wasAtBottomRef = useRef(true)
 
 	const opacity = themeOverride?.paneOpacity ?? theme.paneOpacity ?? DEFAULT_PANE_OPACITY
 	const bg = resolveBackground(themeOverride?.background ?? theme.background, opacity)
+
+	const isStreaming = messages?.some((m) => m.streaming) ?? false
 
 	// Auto-scroll to bottom when new content arrives (if user was at bottom).
 	// `messages` is an intentional trigger dep — it's a new array ref on every store update.
@@ -171,29 +256,33 @@ export function StreamRenderer({ paneId, theme, themeOverride }: StreamRendererP
 		wasAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 8
 	}
 
-	if (!messages?.length) {
-		return (
-			<div
-				className="w-full h-full flex items-center justify-center text-content-muted text-xs"
-				style={{ backgroundColor: bg }}
-			>
-				Waiting for agent output...
-			</div>
-		)
-	}
-
 	return (
-		<div
-			ref={scrollRef}
-			role="log"
-			aria-label="Agent conversation"
-			className="w-full h-full overflow-y-auto p-1.5"
-			style={{ backgroundColor: bg }}
-			onScroll={handleScroll}
-		>
-			{messages.map((msg) => (
-				<MessageGroup key={msg.id} message={msg} />
-			))}
+		<div className="w-full h-full flex flex-col" style={{ backgroundColor: bg }}>
+			<div
+				ref={scrollRef}
+				role="log"
+				aria-label="Agent conversation"
+				className="flex-1 overflow-y-auto p-1.5"
+				onScroll={handleScroll}
+			>
+				{messages?.length ? (
+					messages.map((msg) => <MessageGroup key={msg.id} message={msg} />)
+				) : (
+					<div className="h-full flex flex-col items-center justify-center text-content-muted text-xs gap-2">
+						{hasReceivedData ? (
+							<>
+								<span>Receiving data but no stream events detected.</span>
+								<span className="text-[10px]">
+									Switch to RAW view to check if --output-format stream-json is active.
+								</span>
+							</>
+						) : (
+							<span>Waiting for agent output...</span>
+						)}
+					</div>
+				)}
+			</div>
+			<MessageInput paneId={paneId} isStreaming={isStreaming} />
 		</div>
 	)
 }
