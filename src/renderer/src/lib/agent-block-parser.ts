@@ -151,8 +151,9 @@ export class AgentBlockParser {
 			return
 		}
 
-		// Block end: line contains ╰ or ⎿ (bottom-left corner variants)
-		if (trimmed.includes(BOTTOM_LEFT) || trimmed.includes('⎿')) {
+		// Block end: line contains ╰ (box-drawing bottom-left corner)
+		// Note: ⎿ is Claude Code's response indicator, NOT a block closer
+		if (trimmed.includes(BOTTOM_LEFT)) {
 			this.closeOpenBlock(lineIndex)
 			return
 		}
