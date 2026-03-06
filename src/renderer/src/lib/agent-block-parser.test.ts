@@ -216,6 +216,108 @@ describe('AgentBlockParser', () => {
 		})
 	})
 
+	describe('bullet-based block detection', () => {
+		it('detects ● bullet as block start', () => {
+			const parser = new AgentBlockParser('claude-code')
+			const lines = [
+				'● Write(index.js)',
+				'  Wrote 27 lines to index.js',
+			]
+			parser.update(lineGetter(lines), lines.length)
+
+			const blocks = parser.getBlocks()
+			expect(blocks).toHaveLength(1)
+			expect(blocks[0].type).toBe('tool-call')
+			expect(blocks[0].metadata.tool).toBe('write(index.js)')
+			expect(blocks[0].startLine).toBe(0)
+			expect(blocks[0].endLine).toBeNull()
+		})
+
+		it('closes bullet block when next bullet appears', () => {
+			const parser = new AgentBlockParser('claude-code')
+			const lines = [
+				'● Write(index.js)',
+				'  Wrote 27 lines',
+				'● Searched for 1 pattern, read 1 file',
+			]
+			parser.update(lineGetter(lines), lines.length)
+
+			const blocks = parser.getBlocks()
+			expect(blocks).toHaveLength(2)
+			expect(blocks[0].type).toBe('tool-call')
+			expect(blocks[0].endLine).toBe(1)
+			expect(blocks[1].type).toBe('tool-call')
+			expect(blocks[1].metadata.tool).toBe('search')
+			expect(blocks[1].startLine).toBe(2)
+		})
+
+		it('closes bullet block when box-drawing block starts', () => {
+			const parser = new AgentBlockParser('claude-code')
+			const lines = [
+				'● Write(index.js)',
+				'  Wrote 27 lines',
+				'╭─ Read src/main.ts',
+				'│ contents',
+				'╰─────────',
+			]
+			parser.update(lineGetter(lines), lines.length)
+
+			const blocks = parser.getBlocks()
+			expect(blocks).toHaveLength(2)
+			expect(blocks[0].endLine).toBe(1)
+			expect(blocks[1].type).toBe('tool-call')
+			expect(blocks[1].metadata.tool).toBe('read')
+		})
+
+		it('detects ◆ marker as block start', () => {
+			const parser = new AgentBlockParser('claude-code')
+			const lines = [
+				'◆ Tool Loaded.',
+			]
+			parser.update(lineGetter(lines), lines.length)
+
+			const blocks = parser.getBlocks()
+			expect(blocks).toHaveLength(1)
+			expect(blocks[0].type).toBe('status')
+		})
+
+		it('classifies text response blocks as unknown', () => {
+			const parser = new AgentBlockParser('claude-code')
+			const lines = [
+				'● The directory is completely empty.',
+				'  Would you like to initialize something?',
+			]
+			parser.update(lineGetter(lines), lines.length)
+
+			const blocks = parser.getBlocks()
+			expect(blocks).toHaveLength(1)
+			expect(blocks[0].type).toBe('unknown')
+		})
+
+		it('handles mixed box-drawing and bullet blocks', () => {
+			const parser = new AgentBlockParser('claude-code')
+			const lines = [
+				'╭── Claude Code v2.1.70 ──╮',
+				'│ Welcome back!',
+				'╰────────────────────────╯',
+				'● Write(index.js)',
+				'  Wrote 27 lines',
+				'● Created index.js with 4 routes.',
+			]
+			parser.update(lineGetter(lines), lines.length)
+
+			const blocks = parser.getBlocks()
+			expect(blocks).toHaveLength(3)
+			expect(blocks[0].type).toBe('unknown') // welcome splash
+			expect(blocks[0].endLine).toBe(2)
+			expect(blocks[1].type).toBe('tool-call')
+			expect(blocks[1].startLine).toBe(3)
+			expect(blocks[1].endLine).toBe(4)
+			expect(blocks[2].type).toBe('unknown') // text response
+			expect(blocks[2].startLine).toBe(5)
+		})
+	})
+
 	describe('unsupported agents', () => {
 		it('produces no blocks for unsupported agent types', () => {
 			const parser = new AgentBlockParser('aider')

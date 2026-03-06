@@ -28,11 +28,13 @@ export const classifyClaudeCode: BlockClassifier = (headerText) => {
 	if (!trimmed) return UNKNOWN_BLOCK
 
 	// Check for known tool name as first word (before heuristic patterns to avoid false positives)
+	// Handle both "Write src/index.ts" and "Write(index.js)" formats
+	const firstToken = trimmed.split(/[\s(]/)[0]?.toLowerCase()
 	const firstWord = trimmed.split(/\s/)[0]?.toLowerCase()
 	// MCP tools use __ separators (e.g., mcp__server__tool_name) — match the prefix
-	const toolName = firstWord?.split('__')[0]
-	if (firstWord && toolName && TOOL_NAMES.has(toolName)) {
-		return { type: 'tool-call', metadata: { tool: firstWord } }
+	const toolToken = firstToken?.split('__')[0]
+	if (firstToken && toolToken && TOOL_NAMES.has(toolToken)) {
+		return { type: 'tool-call', metadata: { tool: firstWord ?? firstToken } }
 	}
 
 	// Permission prompts
@@ -45,9 +47,19 @@ export const classifyClaudeCode: BlockClassifier = (headerText) => {
 		return { type: 'error', metadata: {} }
 	}
 
+	// Tool result summaries (e.g. "Searched for 1 pattern, read 1 file")
+	if (/^searched\b/i.test(trimmed)) {
+		return { type: 'tool-call', metadata: { tool: 'search' } }
+	}
+
 	// Thinking / reasoning
 	if (/^(thinking|reasoning|chain\.of\.thought)/i.test(trimmed)) {
 		return { type: 'thinking', metadata: {} }
+	}
+
+	// Status messages (e.g. "Tool Loaded.")
+	if (/^tool\s+loaded/i.test(trimmed)) {
+		return { type: 'status', metadata: {} }
 	}
 
 	return UNKNOWN_BLOCK
