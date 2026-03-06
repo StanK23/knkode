@@ -81,6 +81,7 @@ export const AgentStatusBar = memo(function AgentStatusBar({
 	return (
 		<div
 			role="status"
+			aria-live="polite"
 			aria-label={`${AGENT_LABELS[agentType]} agent status`}
 			className="h-7 flex items-center gap-2 px-2 text-xs bg-sunken border-b border-edge shrink-0 select-none"
 		>
