@@ -36,7 +36,7 @@ export type BlockClassifier = (headerText: string) => BlockClassification
 
 /** Strip box-drawing characters and bullet prefixes from a header line and trim whitespace. */
 export function stripBlockMarkers(text: string): string {
-	return text.replace(/[─╭╮│╰╯┬┴┤├┼●◆▶]/g, '').trim()
+	return text.replace(/[─╭╮│╰╯┬┴┤├┼●◆▶⏺❯⎿]/g, '').trim()
 }
 
 /** Classification returned when no pattern matches. Frozen to prevent accidental mutation. */

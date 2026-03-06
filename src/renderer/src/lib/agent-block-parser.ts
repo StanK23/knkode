@@ -8,17 +8,16 @@ import { stripAnsi } from './ansi'
 const TOP_LEFT = '╭'
 const BOTTOM_LEFT = '╰'
 
-/** Box-drawing characters stripped from content lines. */
-const BOX_CHARS_RE = /[╭╮╰╯│─┬┴┤├┼]/g
+/** Box-drawing and bracket characters stripped from content lines. */
+const BOX_CHARS_RE = /[╭╮╰╯│─┬┴┤├┼⎿]/g
 
 /**
- * Bullet/marker characters that start inline blocks (e.g. Claude Code's
- * "● Write(index.js)" tool calls or "◆ Tool Loaded." status messages).
- * These act as block boundaries similar to ╭/╰ but without a closing
- * marker — the block extends until the next boundary or end of buffer.
+ * Bullet/marker characters that start inline blocks.
+ * Claude Code uses ⏺ for tool calls, ❯ for prompts/status.
+ * Older versions used ● ◆ ▶. All are supported.
  * Requires at least one character after the marker to avoid false positives.
  */
-const BULLET_PATTERN = /^[●◆▶].+/
+const BULLET_PATTERN = /^[●◆▶⏺❯].+/
 
 /** Map agent types to their block classifiers. */
 const CLASSIFIERS: Partial<Record<AgentType, BlockClassifier>> = {
@@ -149,8 +148,8 @@ export class AgentBlockParser {
 			return
 		}
 
-		// Block end: line contains ╰ (box-drawing bottom-left corner)
-		if (stripped.includes(BOTTOM_LEFT)) {
+		// Block end: line contains ╰ or ⎿ (bottom-left corner variants)
+		if (stripped.includes(BOTTOM_LEFT) || stripped.includes('⎿')) {
 			this.closeOpenBlock(lineIndex)
 			return
 		}

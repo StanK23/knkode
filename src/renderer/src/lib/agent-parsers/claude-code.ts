@@ -27,6 +27,13 @@ export const classifyClaudeCode: BlockClassifier = (headerText) => {
 
 	if (!trimmed) return UNKNOWN_BLOCK
 
+	// MCP tool calls: "server - tool_name (MCP)(...)" format
+	const mcpMatch = trimmed.match(/^(.+?)\s*\(MCP\)/i)
+	if (mcpMatch) {
+		const mcpTool = mcpMatch[1].trim()
+		return { type: 'tool-call', metadata: { tool: mcpTool } }
+	}
+
 	// Check for known tool name as first word (before heuristic patterns to avoid false positives)
 	// Handle both "Write src/index.ts" and "Write(index.js)" formats — split on whitespace or (
 	const toolName = trimmed.split(/[\s(]/)[0].toLowerCase()
