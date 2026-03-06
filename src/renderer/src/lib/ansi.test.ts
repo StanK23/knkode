@@ -29,4 +29,13 @@ describe('stripAnsi', () => {
 	it('preserves box-drawing characters', () => {
 		expect(stripAnsi('\x1b[36m╭─ Read\x1b[0m')).toBe('╭─ Read')
 	})
+
+	it('strips CSI private-mode sequences', () => {
+		expect(stripAnsi('\x1b[?25htext')).toBe('text')
+		expect(stripAnsi('\x1b[?25l\x1b[?2004hvisible')).toBe('visible')
+	})
+
+	it('strips OSC sequences terminated by ST (ESC \\)', () => {
+		expect(stripAnsi('\x1b]0;title\x1b\\text')).toBe('text')
+	})
 })
