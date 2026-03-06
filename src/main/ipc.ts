@@ -134,11 +134,12 @@ export function registerIpcHandlers(): void {
 	})
 
 	ipcMain.handle(IPC.APP_PICK_FOLDER, async (e) => {
-		const win = BrowserWindow.fromWebContents(e.sender)
-		const result = await dialog.showOpenDialog(win ?? BrowserWindow.getFocusedWindow()!, {
+		const win = BrowserWindow.fromWebContents(e.sender) ?? BrowserWindow.getFocusedWindow()
+		if (!win) return null
+		const result = await dialog.showOpenDialog(win, {
 			properties: ['openDirectory'],
 		})
-		return result.canceled ? null : result.filePaths[0] ?? null
+		return result.canceled ? null : (result.filePaths[0] ?? null)
 	})
 
 	ipcMain.handle(IPC.CONFIG_GET_WORKSPACES, () => getWorkspaces())
