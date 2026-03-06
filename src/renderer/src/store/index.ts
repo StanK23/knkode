@@ -238,6 +238,8 @@ interface StoreState {
 	paneStreamDataReceived: Map<string, boolean>
 	/** View mode per pane: 'rendered' = structured UI, 'raw' = xterm terminal. */
 	paneViewMode: Map<string, 'rendered' | 'raw'>
+	/** Session IDs per pane — extracted from result events, used for --resume multi-turn. */
+	paneSessionIds: Map<string, string>
 
 	// Actions
 	/** Update alt screen buffer state for a pane. No-op if state already matches. */
@@ -299,6 +301,8 @@ interface StoreState {
 	setViewMode: (paneId: string, mode: 'rendered' | 'raw') => void
 	/** Clear stream data and parser for a pane. */
 	clearStreamData: (paneId: string) => void
+	/** Send a user message to an agent pane. Constructs the appropriate CLI command. */
+	sendAgentMessage: (paneId: string, message: string) => void
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
 	saveState: () => Promise<void>
@@ -328,6 +332,7 @@ type PaneCleanupState = Pick<
 	| 'paneStreamText'
 	| 'paneStreamDataReceived'
 	| 'paneViewMode'
+	| 'paneSessionIds'
 >
 
 /** Clone all per-pane Maps/Sets, delete entries for the given IDs, and return the partial state update. */
@@ -342,6 +347,7 @@ function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneClean
 	const streamText = new Map(state.paneStreamText)
 	const streamReceived = new Map(state.paneStreamDataReceived)
 	const viewModes = new Map(state.paneViewMode)
+	const sessionIds = new Map(state.paneSessionIds)
 	for (const id of paneIds) {
 		agents.delete(id)
 		procs.delete(id)
@@ -353,6 +359,7 @@ function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneClean
 		streamText.delete(id)
 		streamReceived.delete(id)
 		viewModes.delete(id)
+		sessionIds.delete(id)
 		streamParsers.delete(id)
 	}
 	return {
@@ -366,6 +373,7 @@ function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneClean
 		paneStreamText: streamText,
 		paneStreamDataReceived: streamReceived,
 		paneViewMode: viewModes,
+		paneSessionIds: sessionIds,
 	}
 }
 
@@ -402,6 +410,7 @@ export const useStore = create<StoreState>((set, get) => ({
 	paneStreamText: new Map(),
 	paneStreamDataReceived: new Map(),
 	paneViewMode: new Map(),
+	paneSessionIds: new Map(),
 
 	setAltScreen: (paneId, isAlt) => {
 		const current = get().altScreenPaneIds
@@ -567,7 +576,16 @@ export const useStore = create<StoreState>((set, get) => ({
 		const nextMsgs = new Map(get().paneStreamMessages)
 		nextMsgs.set(paneId, [...msgs])
 
-		set({ paneStreamMessages: nextMsgs, paneStreamText: nextText })
+		// Extract session ID from result events (for --resume multi-turn)
+		const sessionId = parser.getSessionId()
+		const updates: Partial<StoreState> = { paneStreamMessages: nextMsgs, paneStreamText: nextText }
+		if (sessionId && get().paneSessionIds.get(paneId) !== sessionId) {
+			const nextSessions = new Map(get().paneSessionIds)
+			nextSessions.set(paneId, sessionId)
+			updates.paneSessionIds = nextSessions
+		}
+
+		set(updates)
 	},
 
 	setViewMode: (paneId, mode) => {
@@ -584,15 +602,18 @@ export const useStore = create<StoreState>((set, get) => ({
 		const text = new Map(get().paneStreamText)
 		const modes = new Map(get().paneViewMode)
 		const received = new Map(get().paneStreamDataReceived)
+		const sessions = new Map(get().paneSessionIds)
 		msgs.delete(paneId)
 		text.delete(paneId)
 		modes.delete(paneId)
 		received.delete(paneId)
+		sessions.delete(paneId)
 		set({
 			paneStreamMessages: msgs,
 			paneStreamText: text,
 			paneViewMode: modes,
 			paneStreamDataReceived: received,
+			paneSessionIds: sessions,
 		})
 	},
 
@@ -1136,6 +1157,36 @@ export const useStore = create<StoreState>((set, get) => ({
 		})
 	},
 
+	sendAgentMessage: (paneId, message) => {
+		const state = get()
+		// Find the workspace and pane config
+		const workspace = state.workspaces.find((w) => w.panes[paneId])
+		if (!workspace) {
+			console.warn('[store] sendAgentMessage: pane not found', { paneId })
+			return
+		}
+		const paneConfig = workspace.panes[paneId]
+		const launchMode = paneConfig?.launchMode
+		if (!launchMode || launchMode === 'terminal') return
+
+		const config = AGENT_LAUNCH_CONFIG[launchMode]
+		if (!config) return
+
+		const userFlags = workspace.agentFlags?.[launchMode as keyof typeof workspace.agentFlags] ?? ''
+		const sessionId = state.paneSessionIds.get(paneId)
+
+		// Build the command parts
+		const parts = [config.command]
+		if (userFlags.trim()) parts.push(userFlags.trim())
+		parts.push(...config.defaultFlags)
+		if (sessionId) parts.push('--resume', sessionId)
+
+		// Use heredoc to safely pass message without shell escaping issues
+		const heredocTag = 'KNKEOF'
+		const cmd = `${parts.join(' ')} <<'${heredocTag}'\n${message}\n${heredocTag}\n`
+		window.api.writePty(paneId, cmd)
+	},
+
 	setLaunchMode: (workspaceId, paneId, mode) => {
 		const state = get()
 		const workspace = state.workspaces.find((w) => w.id === workspaceId)
@@ -1144,22 +1195,17 @@ export const useStore = create<StoreState>((set, get) => ({
 			return
 		}
 
-		// Validate agent command exists BEFORE mutating state
-		let command: string | null = null
-		if (mode !== 'terminal') {
-			const config = AGENT_LAUNCH_CONFIG[mode]
-			if (!config) {
-				console.error(`[store] No launch config for agent type: ${mode}`)
-				return
-			}
-			const userFlags = workspace.agentFlags?.[mode as keyof typeof workspace.agentFlags] ?? ''
-			const parts = [config.command]
-			if (userFlags.trim()) parts.push(userFlags.trim())
-			parts.push(...config.defaultFlags)
-			command = parts.join(' ')
+		// Validate agent config exists for non-terminal modes
+		if (mode !== 'terminal' && !AGENT_LAUNCH_CONFIG[mode]) {
+			console.error(`[store] No launch config for agent type: ${mode}`)
+			return
 		}
 
-		// Persist launchMode + startupCommand so agent command survives app restart
+		// Agent panes don't auto-start — user sends the first message via StreamRenderer,
+		// which constructs the CLI command with proper flags (--print --verbose etc.)
+		const command: string | null = null
+
+		// Persist launchMode (startupCommand is null — agents launch on first message)
 		get().updatePaneConfig(workspaceId, paneId, { launchMode: mode, startupCommand: command })
 
 		// Spawn PTY

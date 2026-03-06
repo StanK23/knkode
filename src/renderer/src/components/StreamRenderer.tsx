@@ -143,13 +143,14 @@ const MessageGroup = memo(function MessageGroup({ message }: { message: StreamMe
 function MessageInput({ paneId, isStreaming }: { paneId: string; isStreaming: boolean }) {
 	const [input, setInput] = useState('')
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
+	const sendAgentMessage = useStore((s) => s.sendAgentMessage)
 
 	const handleSubmit = useCallback(() => {
 		const trimmed = input.trim()
 		if (!trimmed) return
-		window.api.writePty(paneId, `${trimmed}\n`)
+		sendAgentMessage(paneId, trimmed)
 		setInput('')
-	}, [paneId, input])
+	}, [paneId, input, sendAgentMessage])
 
 	const handleStop = useCallback(() => {
 		window.api.writePty(paneId, '\x03')
@@ -205,7 +206,7 @@ function MessageInput({ paneId, isStreaming }: { paneId: string; isStreaming: bo
 				<button
 					type="button"
 					onClick={handleSubmit}
-					disabled={!input.trim()}
+					disabled={!input.trim() || isStreaming}
 					className="px-2 py-1.5 text-[11px] font-semibold rounded-sm cursor-pointer border-none bg-accent text-canvas hover:brightness-110 disabled:opacity-40 disabled:cursor-default focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 				>
 					Send
@@ -214,29 +215,6 @@ function MessageInput({ paneId, isStreaming }: { paneId: string; isStreaming: bo
 			<div className="mt-1 text-[10px] text-content-muted/40">
 				Enter to send · Shift+Enter for newline · Esc to clear
 			</div>
-		</div>
-	)
-}
-
-// ── Raw Text View ───────────────────────────────────────────────────────────
-
-/** Fallback rendered view: shows ANSI-stripped PTY output as clean text. */
-function RawTextView({
-	text,
-	scrollRef,
-	onScroll,
-}: { text: string; scrollRef: React.RefObject<HTMLDivElement | null>; onScroll: () => void }) {
-	return (
-		<div
-			ref={scrollRef}
-			role="log"
-			aria-label="Agent conversation"
-			className="flex-1 overflow-y-auto p-3"
-			onScroll={onScroll}
-		>
-			<pre className="whitespace-pre-wrap break-words m-0 text-content text-xs leading-relaxed">
-				{text}
-			</pre>
 		</div>
 	)
 }
@@ -278,7 +256,6 @@ interface StreamRendererProps {
 
 export function StreamRenderer({ paneId, theme, themeOverride }: StreamRendererProps) {
 	const messages = useStore((s) => s.paneStreamMessages.get(paneId))
-	const streamText = useStore((s) => s.paneStreamText.get(paneId))
 	const scrollRef = useRef<HTMLDivElement>(null)
 	const wasAtBottomRef = useRef(true)
 
@@ -286,15 +263,14 @@ export function StreamRenderer({ paneId, theme, themeOverride }: StreamRendererP
 	const bg = resolveBackground(themeOverride?.background ?? theme.background, opacity)
 
 	const hasStructured = (messages?.length ?? 0) > 0
-	const hasText = (streamText?.length ?? 0) > 0
 	const isStreaming = messages?.some((m) => m.streaming) ?? false
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: messages/streamText intentionally triggers auto-scroll
+	// biome-ignore lint/correctness/useExhaustiveDependencies: messages intentionally triggers auto-scroll
 	useEffect(() => {
 		const el = scrollRef.current
 		if (!el || !wasAtBottomRef.current) return
 		el.scrollTop = el.scrollHeight
-	}, [messages, streamText])
+	}, [messages])
 
 	const handleScroll = () => {
 		const el = scrollRef.current
@@ -306,11 +282,12 @@ export function StreamRenderer({ paneId, theme, themeOverride }: StreamRendererP
 		<div className="w-full h-full flex flex-col" style={{ backgroundColor: bg }}>
 			{hasStructured && messages ? (
 				<StructuredView messages={messages} scrollRef={scrollRef} onScroll={handleScroll} />
-			) : hasText && streamText ? (
-				<RawTextView text={streamText} scrollRef={scrollRef} onScroll={handleScroll} />
 			) : (
-				<div className="flex-1 flex items-center justify-center text-content-muted text-xs">
-					Waiting for agent output...
+				<div
+					ref={scrollRef}
+					className="flex-1 flex items-center justify-center text-content-muted text-xs"
+				>
+					Type a message below to start
 				</div>
 			)}
 			<MessageInput paneId={paneId} isStreaming={isStreaming} />

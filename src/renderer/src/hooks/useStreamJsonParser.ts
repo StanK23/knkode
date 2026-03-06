@@ -22,8 +22,8 @@ export function useStreamJsonParser(paneId: string, launchMode?: LaunchMode | nu
 	useEffect(() => {
 		if (!isAgent) return
 
-		// Default to raw view — rendered view is opt-in via toggle
-		setViewMode(paneId, 'raw')
+		// Default to rendered view for agent panes — NDJSON parsing is now reliable
+		setViewMode(paneId, 'rendered')
 
 		const removeListener = window.api.onPtyData((id, data) => {
 			if (id === paneId) {

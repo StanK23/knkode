@@ -148,7 +148,16 @@ export const AGENT_LAUNCH_CONFIG: Record<
 	LaunchableAgent,
 	{ command: string; defaultFlags: string[] }
 > = {
-	'claude-code': { command: 'claude', defaultFlags: [] },
+	'claude-code': {
+		command: 'claude',
+		defaultFlags: [
+			'--print',
+			'--verbose',
+			'--output-format',
+			'stream-json',
+			'--include-partial-messages',
+		],
+	},
 	'gemini-cli': { command: 'gemini', defaultFlags: [] },
 }
 
