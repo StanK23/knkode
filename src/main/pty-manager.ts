@@ -2,7 +2,7 @@ import { execFile as execFileCb, execFileSync } from 'node:child_process'
 import os from 'node:os'
 import { promisify } from 'node:util'
 import * as pty from 'node-pty'
-import { IPC, type ProcessInfo } from '../shared/types'
+import { IPC, PROCESS_TO_AGENT, type ProcessInfo } from '../shared/types'
 import { safeSend } from './main-window'
 
 const execFile = promisify(execFileCb)
@@ -132,13 +132,15 @@ async function getDeepestChild(shellPid: number): Promise<ProcessInfo | null> {
 				}
 			}
 
-			// Walk from shell PID to deepest child via ppid chain
+			// Walk from shell PID to deepest child via ppid chain.
+			// Return the first known agent found; fall back to deepest child.
 			let current = shellPid
 			let result: ProcessInfo | null = null
 			for (let depth = 0; depth < 10; depth++) {
 				const child = procs.find((p) => p.ppid === current && p.pid !== current)
 				if (!child) break
 				result = { name: child.name, pid: child.pid }
+				if (PROCESS_TO_AGENT[child.name]) return result
 				current = child.pid
 			}
 			return result
@@ -166,13 +168,16 @@ async function getDeepestChild(shellPid: number): Promise<ProcessInfo | null> {
 				return null
 			}
 
-			// Walk from shell PID to deepest child
+			// Walk from shell PID to deepest child.
+			// Return the first known agent found; fall back to deepest child.
 			let current = shellPid
 			let result: ProcessInfo | null = null
 			for (let depth = 0; depth < 10; depth++) {
 				const child = allProcs.find((p) => p.ParentProcessId === current && p.ProcessId !== current)
 				if (!child?.Name || !Number.isInteger(child.ProcessId) || child.ProcessId <= 0) break
-				result = { name: child.Name.replace(/\.exe$/i, ''), pid: child.ProcessId }
+				const name = child.Name.replace(/\.exe$/i, '')
+				result = { name, pid: child.ProcessId }
+				if (PROCESS_TO_AGENT[name]) return result
 				current = child.ProcessId
 			}
 			return result
