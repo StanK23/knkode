@@ -1,8 +1,8 @@
 # HANDOFF
 
 ## Current State
-- Branch: `fix/status-bar-and-block-detection` (PR #65)
-- Fixes: status bar height, bullet block detection, scroll jump, review findings
+- Branch: `main`
+- PR #65 merged: status bar height, bullet block detection, scroll jump
 
 ## What Was Done
 - PR #58 merged: translucent pane backgrounds with blur
@@ -14,22 +14,14 @@
 - PR #63 merged: per-pane agent status bar — AgentStatusBar component, elapsed timer, paneAgentStartTimes store, Pane integration
   - 9-agent review: 4 must-fix, 8 suggestions, 5 nitpicks — all addressed
 - PR #64 merged: agent detection walks past agent to subprocesses
-- PR #65: status bar height, block detection, scroll jump
-  - Increased status bar from h-5/text-[10px] to h-7/text-xs
-  - Added bullet marker (●◆▶) detection to AgentBlockParser
-  - Added isFittingRef to suppress scroll handler during fit operations
-  - 10-agent review: 3 must-fix, 8 suggestions, 3 nitpicks — all addressed
-  - Extracted openNewBlock(), renamed stripBlockMarkers, normalized metadata.tool, aria-live, 2 new tests
+- PR #65 merged: status bar height, bullet block detection, scroll jump, isFittingRef scroll fix
 
-## Active Plan
-- `docs/plans/2026-03-06-agent-workspace-plan.md`
-- PR #1: agent process detection — **merged** (PR #59)
-- PR #2: alt screen buffer detection — **merged** (PR #60)
-- PR #3: ANSI block parser for Ink-based CLIs — **merged** (PR #61)
-- PR #4: collapsible block overlay UI — **merged** (PR #62)
-- PR #5: per-pane agent status bar — **merged** (PR #63)
-- PR #6: stream JSON renderer (opt-in) — next
-- PR #7: multi-agent overview dashboard
+## Active Plan — Agent Workspace (revised)
+Previous plan PRs #1-5 complete (PR #59-63). New direction: pane launcher + JSON renderer.
+
+- PR #6: pane launcher overlay (workspace CWD, agent/terminal buttons, launchMode lifecycle)
+- PR #7: JSON stream renderer for Claude Code (parse stream-json, render tool calls/results)
+- PR #8: agent flag settings (per-agent flags string in workspace config)
 
 ## Previous Work
 - PR #56 merged: snippet reorder via DnD + keyboard
@@ -39,5 +31,6 @@
 - PR #50: Dynamic workspace fonts
 
 ## Next Steps
-1. PR #6: stream JSON renderer (opt-in)
-2. PR #7: multi-agent overview dashboard
+1. PR #6: pane launcher overlay
+2. PR #7: JSON stream renderer for Claude Code
+3. PR #8: agent flag settings
