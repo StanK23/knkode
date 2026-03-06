@@ -281,6 +281,36 @@ describe('AgentBlockParser', () => {
 			expect(blocks[0].type).toBe('status')
 		})
 
+		it('detects ▶ marker as block start', () => {
+			const parser = new AgentBlockParser('claude-code')
+			const lines = [
+				'▶ Running task...',
+			]
+			parser.update(lineGetter(lines), lines.length)
+
+			const blocks = parser.getBlocks()
+			expect(blocks).toHaveLength(1)
+			expect(blocks[0].startLine).toBe(0)
+			expect(blocks[0].endLine).toBeNull()
+		})
+
+		it('incrementally closes bullet block in subsequent update', () => {
+			const parser = new AgentBlockParser('claude-code')
+			const lines = [
+				'● Write(index.js)',
+				'  Wrote 27 lines',
+			]
+			parser.update(lineGetter(lines), lines.length)
+			expect(parser.getBlocks()).toHaveLength(1)
+			expect(parser.getBlocks()[0].endLine).toBeNull()
+
+			lines.push('● Searched for 1 pattern, read 1 file')
+			parser.update(lineGetter(lines), lines.length)
+			expect(parser.getBlocks()).toHaveLength(2)
+			expect(parser.getBlocks()[0].endLine).toBe(1)
+			expect(parser.getBlocks()[1].startLine).toBe(2)
+		})
+
 		it('classifies text response blocks as unknown', () => {
 			const parser = new AgentBlockParser('claude-code')
 			const lines = [

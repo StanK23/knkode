@@ -10,11 +10,12 @@ const BOTTOM_LEFT = '╰'
 
 /**
  * Bullet/marker characters that start inline blocks (e.g. Claude Code's
- * tool results: "● Write(index.js)"). These act as block boundaries
- * similar to ╭/╰ but without a closing marker — the block extends
- * until the next boundary or end of buffer.
+ * "● Write(index.js)" tool calls or "◆ Tool Loaded." status messages).
+ * These act as block boundaries similar to ╭/╰ but without a closing
+ * marker — the block extends until the next boundary or end of buffer.
+ * Requires at least one character after the marker to avoid false positives.
  */
-const BULLET_PATTERN = /^[●◆▶]/
+const BULLET_PATTERN = /^[●◆▶].+/
 
 /** Map agent types to their block classifiers. */
 const CLASSIFIERS: Partial<Record<AgentType, BlockClassifier>> = {
