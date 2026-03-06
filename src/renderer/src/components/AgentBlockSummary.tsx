@@ -1,4 +1,4 @@
-import type { AgentBlockType } from '../lib/agent-parsers/types'
+import { BLOCK_TYPE_COLORS, type AgentBlockType } from '../lib/agent-parsers/types'
 
 const TYPE_ICONS: Record<AgentBlockType, string> = {
 	'tool-call': '\u25B6',
@@ -12,18 +12,6 @@ const TYPE_ICONS: Record<AgentBlockType, string> = {
 	unknown: '\u2500',
 }
 
-const TYPE_COLORS: Record<AgentBlockType, string> = {
-	'tool-call': 'text-accent',
-	'tool-result': 'text-accent',
-	thinking: 'text-content-muted',
-	diff: 'text-green-400',
-	text: 'text-content',
-	status: 'text-content-muted',
-	permission: 'text-yellow-400',
-	error: 'text-danger',
-	unknown: 'text-content-muted',
-}
-
 interface AgentBlockSummaryProps {
 	type: AgentBlockType
 	metadata: Readonly<Record<string, string>>
@@ -32,7 +20,7 @@ interface AgentBlockSummaryProps {
 
 export function AgentBlockSummary({ type, metadata, lineCount }: AgentBlockSummaryProps) {
 	const icon = TYPE_ICONS[type]
-	const colorClass = TYPE_COLORS[type]
+	const colorClass = BLOCK_TYPE_COLORS[type]
 	const tool = metadata.tool
 	const label = tool ?? type
 
