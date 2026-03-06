@@ -12,8 +12,10 @@ import {
 	type PaneTheme,
 } from '../../../shared/types'
 import { buildFontFamily, buildXtermTheme } from '../data/theme-presets'
+import { useAgentBlockParser } from '../hooks/useAgentBlockParser'
 import { useStore } from '../store'
 import { resolveBackground } from '../utils/colors'
+import { AgentBlockOverlay } from './AgentBlockOverlay'
 
 const SEARCH_BTN =
 	'bg-transparent border-none text-content-muted cursor-pointer text-xs min-w-[28px] min-h-[28px] flex items-center justify-center hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none rounded-sm'
@@ -181,6 +183,8 @@ export function TerminalView({
 	// Ref allows the theme-update effect to re-focus without adding isFocused to its deps
 	const isFocusedRef = useRef(isFocused)
 	isFocusedRef.current = isFocused
+
+	const showBlockOverlay = useAgentBlockParser(paneId, termRef)
 
 	const [isScrolledUp, setIsScrolledUp] = useState(false)
 	const [showSearch, setShowSearch] = useState(false)
@@ -639,6 +643,7 @@ export function TerminalView({
 				</button>
 			)}
 			<div ref={containerRef} className="w-full h-full" />
+			{showBlockOverlay && <AgentBlockOverlay paneId={paneId} termRef={termRef} />}
 		</div>
 	)
 }

@@ -18,7 +18,6 @@ export interface AgentBlock {
 	readonly startLine: number
 	/** `null` while the block is still streaming (no closing border seen yet). */
 	readonly endLine: number | null
-	readonly collapsed: boolean
 	readonly metadata: Readonly<Record<string, string>>
 }
 
@@ -41,7 +40,7 @@ export function stripBoxDrawing(text: string): string {
 /** Classification returned when no pattern matches. Frozen to prevent accidental mutation. */
 export const UNKNOWN_BLOCK: Readonly<BlockClassification> = Object.freeze({
 	type: 'unknown' as const,
-	metadata: Object.freeze({}) as Record<string, string>,
+	metadata: Object.freeze({}) as Readonly<Record<string, string>>,
 })
 
 /** Error detection pattern — matches lines starting with error keywords. */
