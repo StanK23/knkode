@@ -1,8 +1,8 @@
 # HANDOFF
 
 ## Current State
-- Branch: `feature/agent-status-bar`
-- PR #63 open: per-pane agent status bar — review fixes applied, awaiting merge
+- Branch: `main`
+- PR #63 merged: per-pane agent status bar
 
 ## What Was Done
 - PR #58 merged: translucent pane backgrounds with blur
@@ -11,7 +11,7 @@
 - PR #61 merged: ANSI block parser — stateful incremental parser, agent-specific classifiers (Claude Code, Gemini CLI), shared helpers, 55 tests
 - PR #62 merged: collapsible block overlay UI — store state, parser hook, overlay components, Terminal integration
   - 10-agent review: 7 must-fix, 10 suggestions, 6 nitpicks — all addressed
-- PR #63 open: per-pane agent status bar — AgentStatusBar component, elapsed timer, paneAgentStartTimes store, Pane integration
+- PR #63 merged: per-pane agent status bar — AgentStatusBar component, elapsed timer, paneAgentStartTimes store, Pane integration
   - 9-agent review: 4 must-fix, 8 suggestions, 5 nitpicks — all addressed
   - Extracted shared BLOCK_TYPE_COLORS constant, React.memo, ARIA, deferred Map clone, 2 new tests
 
@@ -21,8 +21,8 @@
 - PR #2: alt screen buffer detection — **merged** (PR #60)
 - PR #3: ANSI block parser for Ink-based CLIs — **merged** (PR #61)
 - PR #4: collapsible block overlay UI — **merged** (PR #62)
-- PR #5: per-pane agent status bar — **open** (PR #63, review fixes applied)
-- PR #6: stream JSON renderer (opt-in)
+- PR #5: per-pane agent status bar — **merged** (PR #63)
+- PR #6: stream JSON renderer (opt-in) — next
 - PR #7: multi-agent overview dashboard
 
 ## Previous Work
@@ -33,6 +33,5 @@
 - PR #50: Dynamic workspace fonts
 
 ## Next Steps
-1. Merge PR #63 (per-pane agent status bar)
-2. PR #6: stream JSON renderer (opt-in)
-3. PR #7: multi-agent overview dashboard
+1. PR #6: stream JSON renderer (opt-in)
+2. PR #7: multi-agent overview dashboard
