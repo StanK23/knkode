@@ -19,6 +19,7 @@ export interface ToolUseBlock {
 	inputJson: string
 }
 
+/** Forward declaration — used by the UI layer (PR #7b) to render tool results. */
 export interface ToolResultBlock {
 	type: 'tool_result'
 	toolUseId: string

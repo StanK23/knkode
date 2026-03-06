@@ -12,10 +12,7 @@ import { useStore } from '../store'
  * On mount (for streaming agents): sets view mode to 'rendered'.
  * On unmount or when agent changes: clears stream data.
  */
-export function useStreamJsonParser(
-	paneId: string,
-	launchMode: LaunchMode | null | undefined,
-): void {
+export function useStreamJsonParser(paneId: string, launchMode?: LaunchMode | null): void {
 	const feedStreamData = useStore((s) => s.feedStreamData)
 	const clearStreamData = useStore((s) => s.clearStreamData)
 	const setViewMode = useStore((s) => s.setViewMode)
