@@ -142,29 +142,32 @@ export class AgentBlockParser {
 		const classifier = this.classifier
 		if (!classifier) return
 
+		// Trim leading whitespace — TUI apps indent content with spaces in the terminal grid
+		const trimmed = stripped.trim()
+
 		// Block start: line contains ╭ (box-drawing top-left corner)
-		if (stripped.includes(TOP_LEFT)) {
-			this.openNewBlock(classifier, stripped, lineIndex)
+		if (trimmed.includes(TOP_LEFT)) {
+			this.openNewBlock(classifier, trimmed, lineIndex)
 			return
 		}
 
 		// Block end: line contains ╰ or ⎿ (bottom-left corner variants)
-		if (stripped.includes(BOTTOM_LEFT) || stripped.includes('⎿')) {
+		if (trimmed.includes(BOTTOM_LEFT) || trimmed.includes('⎿')) {
 			this.closeOpenBlock(lineIndex)
 			return
 		}
 
-		// Bullet block start: line starts with ●, ◆, or ▶
-		if (BULLET_PATTERN.test(stripped)) {
-			this.openNewBlock(classifier, stripped, lineIndex)
+		// Bullet block start: line starts with ●, ◆, ▶, ⏺, or ❯
+		if (BULLET_PATTERN.test(trimmed)) {
+			this.openNewBlock(classifier, trimmed, lineIndex)
 			return
 		}
 
 		// Mid-block content: check for diff markers or error patterns to refine type
 		if (this.openBlock && this.openBlock.type === 'unknown') {
-			if (/^([+-]\s|@@\s)/.test(stripped)) {
+			if (/^([+-]\s|@@\s)/.test(trimmed)) {
 				this.openBlock.type = 'diff'
-			} else if (/\b(error|exception|failed)\b/i.test(stripped)) {
+			} else if (/\b(error|exception|failed)\b/i.test(trimmed)) {
 				this.openBlock.type = 'error'
 			}
 		}
