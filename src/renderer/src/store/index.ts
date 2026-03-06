@@ -362,12 +362,15 @@ export const useStore = create<StoreState>((set, get) => ({
 		set((state) => {
 			const newProcessNames = new Map(state.paneProcessNames)
 			const newAgentTypes = new Map(state.paneAgentTypes)
-			const newStartTimes = new Map(state.paneAgentStartTimes)
+			let newStartTimes = state.paneAgentStartTimes
 
 			if (!info) {
 				newProcessNames.delete(paneId)
 				newAgentTypes.delete(paneId)
-				newStartTimes.delete(paneId)
+				if (newStartTimes.has(paneId)) {
+					newStartTimes = new Map(newStartTimes)
+					newStartTimes.delete(paneId)
+				}
 			} else {
 				newProcessNames.set(paneId, info.name)
 				const agentType = PROCESS_TO_AGENT[info.name]
@@ -375,11 +378,15 @@ export const useStore = create<StoreState>((set, get) => ({
 					newAgentTypes.set(paneId, agentType)
 					// Only set start time on first detection
 					if (!state.paneAgentStartTimes.has(paneId)) {
+						newStartTimes = new Map(newStartTimes)
 						newStartTimes.set(paneId, Date.now())
 					}
 				} else {
 					newAgentTypes.delete(paneId)
-					newStartTimes.delete(paneId)
+					if (newStartTimes.has(paneId)) {
+						newStartTimes = new Map(newStartTimes)
+						newStartTimes.delete(paneId)
+					}
 				}
 			}
 
