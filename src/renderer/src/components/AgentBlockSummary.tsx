@@ -20,7 +20,7 @@ const TYPE_COLORS: Record<AgentBlockType, string> = {
 	text: 'text-content',
 	status: 'text-content-muted',
 	permission: 'text-yellow-400',
-	error: 'text-red-400',
+	error: 'text-danger',
 	unknown: 'text-content-muted',
 }
 
