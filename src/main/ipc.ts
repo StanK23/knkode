@@ -1,6 +1,6 @@
 import os from 'node:os'
 import path from 'node:path'
-import { ipcMain, shell } from 'electron'
+import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import type { AppState, Snippet, Workspace } from '../shared/types'
 import { IPC } from '../shared/types'
 import {
@@ -131,6 +131,14 @@ export function registerIpcHandlers(): void {
 			throw new Error('Only http/https URLs are allowed')
 		}
 		return shell.openExternal(parsed.href)
+	})
+
+	ipcMain.handle(IPC.APP_PICK_FOLDER, async (e) => {
+		const win = BrowserWindow.fromWebContents(e.sender)
+		const result = await dialog.showOpenDialog(win ?? BrowserWindow.getFocusedWindow()!, {
+			properties: ['openDirectory'],
+		})
+		return result.canceled ? null : result.filePaths[0] ?? null
 	})
 
 	ipcMain.handle(IPC.CONFIG_GET_WORKSPACES, () => getWorkspaces())
