@@ -30,7 +30,6 @@ export function useAgentBlockParser(paneId: string, termRef: React.RefObject<XTe
 	// Agent panes must parse on alt screen — Claude Code's TUI renders there.
 	// Only skip alt screen for non-agent panes (vim, less, etc.)
 	const shouldParse = effectiveAgent !== null && supportsBlockParsing(effectiveAgent)
-	const parserRef = useRef<AgentBlockParser | null>(null)
 	const prevBlockCountRef = useRef(0)
 	const prevLastEndLineRef = useRef<number | null>(null)
 	const prevLastTypeRef = useRef<string | null>(null)
@@ -39,10 +38,7 @@ export function useAgentBlockParser(paneId: string, termRef: React.RefObject<XTe
 	useEffect(() => {
 		if (!shouldParse || !effectiveAgent) {
 			// Clear blocks when parsing stops
-			if (parserRef.current) {
-				parserRef.current = null
-				updateAgentBlocks(paneId, [])
-			}
+			updateAgentBlocks(paneId, [])
 			prevBlockCountRef.current = 0
 			prevLastEndLineRef.current = null
 			prevLastTypeRef.current = null
@@ -50,24 +46,22 @@ export function useAgentBlockParser(paneId: string, termRef: React.RefObject<XTe
 			return
 		}
 
-		parserRef.current = new AgentBlockParser(effectiveAgent)
-
 		const interval = setInterval(() => {
 			const term = termRef.current
-			const parser = parserRef.current
-			if (!term || !parser) return
+			if (!term) return
 
 			try {
 				const buffer = term.buffer.active
 				const lineCount = buffer.length
 
+				// TUI apps redraw the screen in place — re-parse from line 0 every tick
+				const parser = new AgentBlockParser(effectiveAgent)
 				parser.update((i) => buffer.getLine(i)?.translateToString(true) ?? '', lineCount)
 
 				const blocks = parser.getBlocks()
 				const lastBlock = blocks.length > 0 ? blocks[blocks.length - 1] : null
 
-				// Heuristic: only update store when block count, last block's endLine,
-				// type, or content changes.
+				// Only update store when output actually changed
 				if (
 					blocks.length !== prevBlockCountRef.current ||
 					lastBlock?.endLine !== prevLastEndLineRef.current ||
@@ -87,7 +81,6 @@ export function useAgentBlockParser(paneId: string, termRef: React.RefObject<XTe
 
 		return () => {
 			clearInterval(interval)
-			parserRef.current = null
 			prevBlockCountRef.current = 0
 			prevLastEndLineRef.current = null
 			prevLastTypeRef.current = null
