@@ -1206,7 +1206,7 @@ describe('store removePtyId alt screen cleanup', () => {
 describe('store agent blocks', () => {
 	it('updateAgentBlocks stores blocks for a pane', () => {
 		const blocks = [
-			{ id: 'b1', type: 'tool-call' as const, agent: 'claude-code' as const, startLine: 0, endLine: 2, collapsed: false, metadata: { tool: 'read' } },
+			{ id: 'b1', type: 'tool-call' as const, agent: 'claude-code' as const, startLine: 0, endLine: 2, metadata: { tool: 'read' } },
 		]
 		useStore.getState().updateAgentBlocks('p1', blocks)
 		expect(useStore.getState().paneAgentBlocks.get('p1')).toBe(blocks)
@@ -1214,7 +1214,7 @@ describe('store agent blocks', () => {
 
 	it('updateAgentBlocks removes entry when blocks empty', () => {
 		const blocks = [
-			{ id: 'b1', type: 'tool-call' as const, agent: 'claude-code' as const, startLine: 0, endLine: 2, collapsed: false, metadata: { tool: 'read' } },
+			{ id: 'b1', type: 'tool-call' as const, agent: 'claude-code' as const, startLine: 0, endLine: 2, metadata: { tool: 'read' } },
 		]
 		useStore.getState().updateAgentBlocks('p1', blocks)
 		useStore.getState().updateAgentBlocks('p1', [])
@@ -1231,8 +1231,8 @@ describe('store agent blocks', () => {
 
 	it('collapseAllBlocks collapses all block IDs in a pane', () => {
 		const blocks = [
-			{ id: 'b1', type: 'tool-call' as const, agent: 'claude-code' as const, startLine: 0, endLine: 2, collapsed: false, metadata: {} },
-			{ id: 'b2', type: 'error' as const, agent: 'claude-code' as const, startLine: 3, endLine: 5, collapsed: false, metadata: {} },
+			{ id: 'b1', type: 'tool-call' as const, agent: 'claude-code' as const, startLine: 0, endLine: 2, metadata: {} },
+			{ id: 'b2', type: 'error' as const, agent: 'claude-code' as const, startLine: 3, endLine: 5, metadata: {} },
 		]
 		useStore.getState().updateAgentBlocks('p1', blocks)
 		useStore.getState().collapseAllBlocks('p1')
@@ -1251,7 +1251,7 @@ describe('store agent blocks', () => {
 
 	it('killPtys cleans up agent blocks and collapsed state', () => {
 		const blocks = [
-			{ id: 'b1', type: 'tool-call' as const, agent: 'claude-code' as const, startLine: 0, endLine: 2, collapsed: false, metadata: {} },
+			{ id: 'b1', type: 'tool-call' as const, agent: 'claude-code' as const, startLine: 0, endLine: 2, metadata: {} },
 		]
 		useStore.setState({ activePtyIds: new Set(['p1']) })
 		useStore.getState().updateAgentBlocks('p1', blocks)

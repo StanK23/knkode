@@ -18,7 +18,6 @@ export interface AgentBlock {
 	readonly startLine: number
 	/** `null` while the block is still streaming (no closing border seen yet). */
 	readonly endLine: number | null
-	readonly collapsed: boolean
 	readonly metadata: Readonly<Record<string, string>>
 }
 

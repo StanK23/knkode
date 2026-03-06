@@ -85,7 +85,6 @@ export class AgentBlockParser {
 				agent: this.agent,
 				startLine: lineIndex,
 				endLine: null,
-				collapsed: false,
 				metadata: { ...classification.metadata },
 			}
 			this.openBlock = block
