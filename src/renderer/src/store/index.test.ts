@@ -75,6 +75,7 @@ function resetStore() {
 		paneAgentTypes: new Map(),
 		paneProcessNames: new Map(),
 		altScreenPaneIds: new Set(),
+		paneAgentStartTimes: new Map(),
 		paneAgentBlocks: new Map(),
 		collapsedBlockIds: new Map(),
 	})
@@ -1075,6 +1076,50 @@ describe('store setPaneProcess', () => {
 
 		expect(useStore.getState().paneAgentTypes.has('p1')).toBe(false)
 		expect(useStore.getState().paneAgentTypes.get('p2')).toBe('codex')
+	})
+})
+
+describe('store agent start times', () => {
+	it('sets start time on first agent detection', () => {
+		useStore.getState().setPaneProcess('p1', { name: 'claude', pid: 1234 })
+
+		const startTime = useStore.getState().paneAgentStartTimes.get('p1')
+		expect(startTime).toBeDefined()
+		expect(typeof startTime).toBe('number')
+	})
+
+	it('preserves start time on repeated detections', () => {
+		useStore.getState().setPaneProcess('p1', { name: 'claude', pid: 1234 })
+		const firstStartTime = useStore.getState().paneAgentStartTimes.get('p1')
+
+		useStore.getState().setPaneProcess('p1', { name: 'claude', pid: 1234 })
+		const secondStartTime = useStore.getState().paneAgentStartTimes.get('p1')
+
+		expect(secondStartTime).toBe(firstStartTime)
+	})
+
+	it('clears start time when agent exits', () => {
+		useStore.getState().setPaneProcess('p1', { name: 'claude', pid: 1234 })
+		expect(useStore.getState().paneAgentStartTimes.has('p1')).toBe(true)
+
+		useStore.getState().setPaneProcess('p1', null)
+		expect(useStore.getState().paneAgentStartTimes.has('p1')).toBe(false)
+	})
+
+	it('clears start time when switching to non-agent process', () => {
+		useStore.getState().setPaneProcess('p1', { name: 'claude', pid: 1234 })
+		expect(useStore.getState().paneAgentStartTimes.has('p1')).toBe(true)
+
+		useStore.getState().setPaneProcess('p1', { name: 'node', pid: 5678 })
+		expect(useStore.getState().paneAgentStartTimes.has('p1')).toBe(false)
+	})
+
+	it('killPtys clears start times', () => {
+		useStore.setState({ activePtyIds: new Set(['p1']) })
+		useStore.getState().setPaneProcess('p1', { name: 'claude', pid: 1234 })
+
+		useStore.getState().killPtys(['p1'])
+		expect(useStore.getState().paneAgentStartTimes.has('p1')).toBe(false)
 	})
 })
 
