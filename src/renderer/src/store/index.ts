@@ -1167,10 +1167,16 @@ export const useStore = create<StoreState>((set, get) => ({
 		}
 		const paneConfig = workspace.panes[paneId]
 		const launchMode = paneConfig?.launchMode
-		if (!launchMode || launchMode === 'terminal') return
+		if (!launchMode || launchMode === 'terminal') {
+			console.warn('[store] sendAgentMessage: invalid launchMode', { paneId, launchMode })
+			return
+		}
 
 		const config = AGENT_LAUNCH_CONFIG[launchMode]
-		if (!config) return
+		if (!config) {
+			console.error('[store] sendAgentMessage: no config for launchMode', { launchMode })
+			return
+		}
 
 		const userFlags = workspace.agentFlags?.[launchMode as keyof typeof workspace.agentFlags] ?? ''
 		const sessionId = state.paneSessionIds.get(paneId)
@@ -1181,10 +1187,14 @@ export const useStore = create<StoreState>((set, get) => ({
 		parts.push(...config.defaultFlags)
 		if (sessionId) parts.push('--resume', sessionId)
 
-		// Use heredoc to safely pass message without shell escaping issues
+		// Use heredoc to safely pass message without shell escaping issues.
+		// \r (carriage return) is used as line terminator — matches how PTY
+		// shells expect Enter key input (consistent with startup commands and xterm).
 		const heredocTag = 'KNKEOF'
-		const cmd = `${parts.join(' ')} <<'${heredocTag}'\n${message}\n${heredocTag}\n`
-		window.api.writePty(paneId, cmd)
+		const cmd = `${parts.join(' ')} <<'${heredocTag}'\r${message}\r${heredocTag}\r`
+		window.api.writePty(paneId, cmd).catch((err) => {
+			console.error('[store] sendAgentMessage: writePty failed', { paneId, err })
+		})
 	},
 
 	setLaunchMode: (workspaceId, paneId, mode) => {

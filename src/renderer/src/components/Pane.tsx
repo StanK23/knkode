@@ -196,7 +196,7 @@ export function Pane({
 	const outerRef = useRef<HTMLDivElement>(null)
 
 	const agentType = useStore((s) => s.paneAgentTypes.get(paneId) ?? null)
-	const viewMode = useStore((s) => s.paneViewMode.get(paneId))
+	const rawViewMode = useStore((s) => s.paneViewMode.get(paneId))
 	const movePaneToWorkspace = useStore((s) => s.movePaneToWorkspace)
 	const swapPanes = useStore((s) => s.swapPanes)
 	const movePaneToPosition = useStore((s) => s.movePaneToPosition)
@@ -221,6 +221,10 @@ export function Pane({
 	// Agent panes (claude-code, gemini-cli) don't use startup commands —
 	// they launch via sendAgentMessage when the user sends their first message.
 	const isAgent = config.launchMode !== null && config.launchMode !== 'terminal'
+	// Agent panes default to 'rendered' even before useStreamJsonParser's effect fires.
+	// Without this, the first render has viewMode=undefined, TerminalView steals focus,
+	// and the StreamRenderer overlay never receives keyboard input.
+	const viewMode = rawViewMode ?? (isAgent ? 'rendered' : undefined)
 	// Use process-detected agent type, falling back to launchMode for agent panes
 	// (before Claude starts, process detection returns null — but we still need the status bar)
 	const effectiveAgentType = agentType ?? (isAgent ? (config.launchMode as AgentType) : null)

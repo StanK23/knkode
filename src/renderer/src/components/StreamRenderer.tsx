@@ -170,6 +170,13 @@ function MessageInput({ paneId, isStreaming }: { paneId: string; isStreaming: bo
 		[handleSubmit],
 	)
 
+	// Auto-focus textarea on mount — critical because the xterm terminal behind
+	// the StreamRenderer overlay steals focus during the initial render cycle
+	// (viewMode is briefly undefined before useStreamJsonParser sets it to 'rendered')
+	useEffect(() => {
+		textareaRef.current?.focus()
+	}, [])
+
 	// biome-ignore lint/correctness/useExhaustiveDependencies: input change triggers resize
 	useEffect(() => {
 		const el = textareaRef.current
@@ -256,6 +263,7 @@ interface StreamRendererProps {
 
 export function StreamRenderer({ paneId, theme, themeOverride }: StreamRendererProps) {
 	const messages = useStore((s) => s.paneStreamMessages.get(paneId))
+	const rawText = useStore((s) => s.paneStreamText.get(paneId))
 	const scrollRef = useRef<HTMLDivElement>(null)
 	const wasAtBottomRef = useRef(true)
 
@@ -264,13 +272,16 @@ export function StreamRenderer({ paneId, theme, themeOverride }: StreamRendererP
 
 	const hasStructured = (messages?.length ?? 0) > 0
 	const isStreaming = messages?.some((m) => m.streaming) ?? false
+	// Show raw PTY output when data was received but parser produced no JSON messages.
+	// This makes CLI errors ("command not found", auth errors, flag errors) visible.
+	const hasRawOnly = !hasStructured && !!rawText && rawText.length > 0
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: messages intentionally triggers auto-scroll
+	// biome-ignore lint/correctness/useExhaustiveDependencies: messages/rawText intentionally trigger auto-scroll
 	useEffect(() => {
 		const el = scrollRef.current
 		if (!el || !wasAtBottomRef.current) return
 		el.scrollTop = el.scrollHeight
-	}, [messages])
+	}, [messages, rawText])
 
 	const handleScroll = () => {
 		const el = scrollRef.current
@@ -282,6 +293,15 @@ export function StreamRenderer({ paneId, theme, themeOverride }: StreamRendererP
 		<div className="w-full h-full flex flex-col" style={{ backgroundColor: bg }}>
 			{hasStructured && messages ? (
 				<StructuredView messages={messages} scrollRef={scrollRef} onScroll={handleScroll} />
+			) : hasRawOnly ? (
+				<div ref={scrollRef} className="flex-1 overflow-y-auto p-3" onScroll={handleScroll}>
+					<div className="text-[11px] text-content-muted mb-2">
+						Raw output (no JSON stream detected — check terminal for errors):
+					</div>
+					<pre className="whitespace-pre-wrap break-words m-0 text-content-secondary text-xs leading-relaxed">
+						{rawText}
+					</pre>
+				</div>
 			) : (
 				<div
 					ref={scrollRef}
