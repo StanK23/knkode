@@ -512,7 +512,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 				role="dialog"
 				aria-modal="true"
 				aria-label="Workspace Settings"
-				className="bg-canvas/80 backdrop-blur-2xl border border-edge/50 rounded-md w-[600px] max-w-[calc(100vw-2rem)] max-h-[85vh] flex flex-col shadow-panel animate-panel-in"
+				className="bg-canvas/80 backdrop-blur-2xl border border-edge/50 rounded-md w-[600px] max-w-[calc(100vw-2rem)] h-[85vh] max-h-[700px] flex flex-col shadow-panel animate-panel-in"
 				onClick={(e) => e.stopPropagation()}
 			>
 				{/* Header with tabs */}
@@ -549,7 +549,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 				</div>
 
 				{/* Tab content */}
-				<div className="px-6 py-6 overflow-y-auto overflow-x-hidden flex flex-col gap-8">
+				<div className="px-6 py-6 flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-8">
 					{activeTab === 'Workspace' && (
 						<>
 							{/* General */}
