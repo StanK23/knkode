@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+	AGENT_LABELS,
 	CURSOR_STYLES,
 	DEFAULT_CURSOR_STYLE,
 	DEFAULT_PANE_OPACITY,
 	DEFAULT_SCROLLBACK,
+	LAUNCHABLE_AGENTS,
 	type LayoutPreset,
 	MAX_SCROLLBACK,
 	MIN_SCROLLBACK,
@@ -336,6 +338,38 @@ function SnippetsSection() {
 					+ Add Snippet
 				</button>
 			)}
+		</SettingsSection>
+	)
+}
+
+function AgentFlagsSection({
+	workspaceId,
+	agentFlags,
+}: {
+	workspaceId: string
+	agentFlags?: Workspace['agentFlags']
+}) {
+	const setAgentFlags = useStore((s) => s.setAgentFlags)
+
+	return (
+		<SettingsSection label="Agent Flags" gap={8}>
+			<span className="text-[10px] text-content-muted -mt-1 mb-1">
+				Extra CLI flags appended when launching agents from this workspace
+			</span>
+			{LAUNCHABLE_AGENTS.map((agent) => (
+				<label key={agent} className="flex items-center gap-3">
+					<span className="text-xs text-content-secondary w-20 shrink-0">
+						{AGENT_LABELS[agent]}
+					</span>
+					<input
+						value={agentFlags?.[agent] ?? ''}
+						onChange={(e) => setAgentFlags(workspaceId, agent, e.target.value)}
+						className="settings-input flex-1 min-w-0"
+						placeholder="e.g. --dangerously-skip-permissions"
+						aria-label={`${AGENT_LABELS[agent]} CLI flags`}
+					/>
+				</label>
+			))}
 		</SettingsSection>
 	)
 }
@@ -698,6 +732,8 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					</SettingsSection>
 					{/* Layout */}
 					<LayoutPicker current={currentPreset} onSelect={handleLayoutChange} />
+					{/* Agent Flags */}
+					<AgentFlagsSection workspaceId={workspace.id} agentFlags={workspace.agentFlags} />
 					{/* Snippets */}
 					<SnippetsSection />
 				</div>
