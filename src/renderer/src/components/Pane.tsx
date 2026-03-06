@@ -39,6 +39,7 @@ function getDropZone(e: React.DragEvent, el: HTMLElement): DropZone {
 const VIEWPORT_MARGIN = 8
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useInlineEdit } from '../hooks/useInlineEdit'
+import { useStreamJsonParser } from '../hooks/useStreamJsonParser'
 import { useStore } from '../store'
 import { modKey } from '../utils/platform'
 import { isValidCwd } from '../utils/validation'
@@ -220,6 +221,9 @@ export function Pane({
 		if (showLauncher) return
 		ensurePty(paneId, initialCwdRef.current, initialCmdRef.current)
 	}, [paneId, ensurePty, showLauncher])
+
+	// Feed PTY data to stream JSON parser for agent panes (e.g. claude-code)
+	useStreamJsonParser(paneId, config.launchMode)
 
 	const { isEditing, inputProps, startEditing } = useInlineEdit(config.label, (label) =>
 		onUpdateConfig(paneId, { label }),
