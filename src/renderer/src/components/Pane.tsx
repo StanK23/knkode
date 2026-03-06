@@ -216,9 +216,12 @@ export function Pane({
 	const killPtys = useStore((s) => s.killPtys)
 	const setLaunchMode = useStore((s) => s.setLaunchMode)
 	const showLauncher = config.launchMode === null
-	// Capture initial values so config updates don't re-trigger PTY creation
+	// Capture initial values so config updates don't re-trigger PTY creation.
+	// Agent panes (claude-code, gemini-cli) don't use startup commands —
+	// they launch via sendAgentMessage when the user sends their first message.
+	const isAgent = config.launchMode !== null && config.launchMode !== 'terminal'
 	const initialCwdRef = useRef(config.cwd)
-	const initialCmdRef = useRef(config.startupCommand)
+	const initialCmdRef = useRef(isAgent ? null : config.startupCommand)
 	useEffect(() => {
 		if (showLauncher) return
 		ensurePty(paneId, initialCwdRef.current, initialCmdRef.current)

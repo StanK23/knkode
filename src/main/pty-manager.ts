@@ -29,13 +29,16 @@ export function createPty(id: string, cwd: string, startupCommand: string | null
 	const shell = process.env.SHELL || (os.platform() === 'win32' ? 'powershell.exe' : '/bin/sh')
 
 	const isWin = os.platform() === 'win32'
+	// Strip CLAUDECODE env var to allow spawning claude --print inside agent panes
+	// (otherwise Claude Code refuses to start with "nested sessions" error)
+	const { CLAUDECODE: _, ...cleanEnv } = process.env
 	const ptyProcess = pty.spawn(shell, isWin ? [] : ['-l'], {
 		name: 'xterm-256color',
 		cols: 80,
 		rows: 24,
 		cwd,
 		env: {
-			...process.env,
+			...cleanEnv,
 			TERM: 'xterm-256color',
 			COLORTERM: 'truecolor',
 		},
