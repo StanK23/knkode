@@ -1,8 +1,8 @@
 # HANDOFF
 
 ## Current State
-- Branch: `main`
-- PR #63 merged: per-pane agent status bar
+- Branch: `fix/status-bar-and-block-detection` (PR #65)
+- Fixes: status bar height, bullet block detection, scroll jump, review findings
 
 ## What Was Done
 - PR #58 merged: translucent pane backgrounds with blur
@@ -13,7 +13,13 @@
   - 10-agent review: 7 must-fix, 10 suggestions, 6 nitpicks — all addressed
 - PR #63 merged: per-pane agent status bar — AgentStatusBar component, elapsed timer, paneAgentStartTimes store, Pane integration
   - 9-agent review: 4 must-fix, 8 suggestions, 5 nitpicks — all addressed
-  - Extracted shared BLOCK_TYPE_COLORS constant, React.memo, ARIA, deferred Map clone, 2 new tests
+- PR #64 merged: agent detection walks past agent to subprocesses
+- PR #65: status bar height, block detection, scroll jump
+  - Increased status bar from h-5/text-[10px] to h-7/text-xs
+  - Added bullet marker (●◆▶) detection to AgentBlockParser
+  - Added isFittingRef to suppress scroll handler during fit operations
+  - 10-agent review: 3 must-fix, 8 suggestions, 3 nitpicks — all addressed
+  - Extracted openNewBlock(), renamed stripBlockMarkers, normalized metadata.tool, aria-live, 2 new tests
 
 ## Active Plan
 - `docs/plans/2026-03-06-agent-workspace-plan.md`
