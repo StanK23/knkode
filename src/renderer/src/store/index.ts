@@ -215,8 +215,12 @@ interface StoreState {
 	paneAgentTypes: Map<string, AgentType>
 	/** Raw process name per pane (for debugging). */
 	paneProcessNames: Map<string, string>
+	/** Pane IDs currently in alternate screen buffer (TUI mode like vim, htop). */
+	altScreenPaneIds: Set<string>
 
 	// Actions
+	/** Update alt screen buffer state for a pane. No-op if state already matches. */
+	setAltScreen: (paneId: string, isAlt: boolean) => void
 	/** Update agent type for a pane based on process info. */
 	setPaneProcess: (paneId: string, info: ProcessInfo | null) => void
 	setFocusedPane: (paneId: string | null) => void
@@ -271,6 +275,22 @@ function persistSnippets(snippets: Snippet[]): void {
 	})
 }
 
+/** Clone per-pane Maps/Sets, delete entries for the given IDs, and return the partial state update. */
+function cleanupPaneState(
+	paneIds: string[],
+	state: Pick<StoreState, 'paneAgentTypes' | 'paneProcessNames' | 'altScreenPaneIds'>,
+): Pick<StoreState, 'paneAgentTypes' | 'paneProcessNames' | 'altScreenPaneIds'> {
+	const agents = new Map(state.paneAgentTypes)
+	const procs = new Map(state.paneProcessNames)
+	const altIds = new Set(state.altScreenPaneIds)
+	for (const id of paneIds) {
+		agents.delete(id)
+		procs.delete(id)
+		altIds.delete(id)
+	}
+	return { paneAgentTypes: agents, paneProcessNames: procs, altScreenPaneIds: altIds }
+}
+
 export const useStore = create<StoreState>((set, get) => ({
 	workspaces: [],
 	appState: {
@@ -288,6 +308,17 @@ export const useStore = create<StoreState>((set, get) => ({
 	activePtyIds: new Set(),
 	paneAgentTypes: new Map(),
 	paneProcessNames: new Map(),
+	altScreenPaneIds: new Set(),
+
+	setAltScreen: (paneId, isAlt) => {
+		const current = get().altScreenPaneIds
+		const has = current.has(paneId)
+		if (isAlt === has) return
+		const next = new Set(current)
+		if (isAlt) next.add(paneId)
+		else next.delete(paneId)
+		set({ altScreenPaneIds: next })
+	},
 
 	setPaneProcess: (paneId, info) => {
 		set((state) => {
@@ -346,14 +377,7 @@ export const useStore = create<StoreState>((set, get) => ({
 			if (newSet.delete(id)) changed = true
 		}
 		if (changed) set({ activePtyIds: newSet })
-		// Clean up agent detection state
-		const agents = new Map(get().paneAgentTypes)
-		const procs = new Map(get().paneProcessNames)
-		for (const id of paneIds) {
-			agents.delete(id)
-			procs.delete(id)
-		}
-		set({ paneAgentTypes: agents, paneProcessNames: procs })
+		set(cleanupPaneState(paneIds, get()))
 	},
 
 	removePtyId: (paneId) => {
@@ -361,12 +385,7 @@ export const useStore = create<StoreState>((set, get) => ({
 		if (!current.has(paneId)) return
 		const newSet = new Set(current)
 		newSet.delete(paneId)
-		// Clean up agent detection state so dead panes don't show stale badges
-		const agents = new Map(get().paneAgentTypes)
-		const procs = new Map(get().paneProcessNames)
-		agents.delete(paneId)
-		procs.delete(paneId)
-		set({ activePtyIds: newSet, paneAgentTypes: agents, paneProcessNames: procs })
+		set({ activePtyIds: newSet, ...cleanupPaneState([paneId], get()) })
 	},
 
 	init: async () => {

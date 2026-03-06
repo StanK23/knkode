@@ -329,6 +329,11 @@ export function TerminalView({
 				})
 			})
 
+			// Track alternate screen buffer transitions (vim, htop, etc.)
+			term.buffer.onBufferChange((buf) => {
+				useStore.getState().setAltScreen(paneId, buf.type === 'alternate')
+			})
+
 			// All fields initialized — safe to store in cache
 			terminalCache.set(paneId, entry)
 			cached = entry

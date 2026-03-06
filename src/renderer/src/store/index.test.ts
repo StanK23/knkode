@@ -74,6 +74,7 @@ function resetStore() {
 		activePtyIds: new Set(),
 		paneAgentTypes: new Map(),
 		paneProcessNames: new Map(),
+		altScreenPaneIds: new Set(),
 	})
 }
 
@@ -1118,6 +1119,87 @@ describe('store removePtyId agent cleanup', () => {
 		useStore.getState().removePtyId('p1')
 
 		expect(useStore.getState().paneAgentTypes.get('p2')).toBe('aider')
+	})
+})
+
+describe('store setAltScreen', () => {
+	it('adds pane to altScreenPaneIds when entering alt screen', () => {
+		useStore.getState().setAltScreen('p1', true)
+
+		expect(useStore.getState().altScreenPaneIds.has('p1')).toBe(true)
+	})
+
+	it('removes pane from altScreenPaneIds when leaving alt screen', () => {
+		useStore.setState({ altScreenPaneIds: new Set(['p1']) })
+
+		useStore.getState().setAltScreen('p1', false)
+
+		expect(useStore.getState().altScreenPaneIds.has('p1')).toBe(false)
+	})
+
+	it('is a no-op when already in alt screen', () => {
+		useStore.setState({ altScreenPaneIds: new Set(['p1']) })
+		const before = useStore.getState().altScreenPaneIds
+
+		useStore.getState().setAltScreen('p1', true)
+
+		// Reference equality — no new Set created
+		expect(useStore.getState().altScreenPaneIds).toBe(before)
+	})
+
+	it('is a no-op when already absent from alt screen', () => {
+		const before = useStore.getState().altScreenPaneIds
+
+		useStore.getState().setAltScreen('p1', false)
+
+		expect(useStore.getState().altScreenPaneIds).toBe(before)
+	})
+
+	it('does not affect other panes', () => {
+		useStore.setState({ altScreenPaneIds: new Set(['p1']) })
+
+		useStore.getState().setAltScreen('p2', true)
+
+		expect(useStore.getState().altScreenPaneIds.has('p1')).toBe(true)
+		expect(useStore.getState().altScreenPaneIds.has('p2')).toBe(true)
+	})
+})
+
+describe('store killPtys alt screen cleanup', () => {
+	it('clears alt screen state for killed panes', () => {
+		useStore.setState({
+			activePtyIds: new Set(['p1', 'p2']),
+			altScreenPaneIds: new Set(['p1', 'p2']),
+		})
+
+		useStore.getState().killPtys(['p1'])
+
+		expect(useStore.getState().altScreenPaneIds.has('p1')).toBe(false)
+		expect(useStore.getState().altScreenPaneIds.has('p2')).toBe(true)
+	})
+
+	it('preserves alt screen state for panes not killed', () => {
+		useStore.setState({
+			activePtyIds: new Set(['p1', 'p2']),
+			altScreenPaneIds: new Set(['p2']),
+		})
+
+		useStore.getState().killPtys(['p1'])
+
+		expect(useStore.getState().altScreenPaneIds.has('p2')).toBe(true)
+	})
+})
+
+describe('store removePtyId alt screen cleanup', () => {
+	it('clears alt screen state on natural PTY exit', () => {
+		useStore.setState({
+			activePtyIds: new Set(['p1']),
+			altScreenPaneIds: new Set(['p1']),
+		})
+
+		useStore.getState().removePtyId('p1')
+
+		expect(useStore.getState().altScreenPaneIds.has('p1')).toBe(false)
 	})
 })
 
