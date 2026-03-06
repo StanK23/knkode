@@ -8,6 +8,15 @@ import { stripAnsi } from './ansi'
 const TOP_LEFT = '╭'
 const BOTTOM_LEFT = '╰'
 
+/**
+ * Bullet/marker characters that start inline blocks (e.g. Claude Code's
+ * "● Write(index.js)" tool calls or "◆ Tool Loaded." status messages).
+ * These act as block boundaries similar to ╭/╰ but without a closing
+ * marker — the block extends until the next boundary or end of buffer.
+ * Requires at least one character after the marker to avoid false positives.
+ */
+const BULLET_PATTERN = /^[●◆▶].+/
+
 /** Map agent types to their block classifiers. */
 const CLASSIFIERS: Partial<Record<AgentType, BlockClassifier>> = {
 	'claude-code': classifyClaudeCode,
@@ -24,7 +33,8 @@ type MutableBlock = { -readonly [K in keyof AgentBlock]: AgentBlock[K] } & {
  *
  * Create one instance per pane. Feed it lines from the xterm.js buffer
  * whenever the buffer changes. It detects block boundaries via box-drawing
- * characters and classifies blocks using agent-specific classifiers.
+ * characters and bullet markers, then classifies blocks using agent-specific
+ * classifiers.
  *
  * The parser is additive — it only processes new lines and never re-scans
  * previously parsed lines. Call `reset()` when the terminal is cleared.
@@ -73,28 +83,21 @@ export class AgentBlockParser {
 		const classifier = this.classifier
 		if (!classifier) return
 
-		// Check for block start: line contains ╭
+		// Block start: line contains ╭ (box-drawing top-left corner)
 		if (stripped.includes(TOP_LEFT)) {
-			// Close any open block first
-			this.closeOpenBlock(Math.max(lineIndex - 1, this.openBlock?.startLine ?? 0))
-
-			const classification = classifier(stripped)
-			const block: MutableBlock = {
-				id: `block-${++this.nextBlockId}`,
-				type: classification.type,
-				agent: this.agent,
-				startLine: lineIndex,
-				endLine: null,
-				metadata: { ...classification.metadata },
-			}
-			this.openBlock = block
-			this.blocks.push(block)
+			this.openNewBlock(classifier, stripped, lineIndex)
 			return
 		}
 
-		// Check for block end: line contains ╰
+		// Block end: line contains ╰ (box-drawing bottom-left corner)
 		if (stripped.includes(BOTTOM_LEFT)) {
 			this.closeOpenBlock(lineIndex)
+			return
+		}
+
+		// Bullet block start: line starts with ●, ◆, or ▶
+		if (BULLET_PATTERN.test(stripped)) {
+			this.openNewBlock(classifier, stripped, lineIndex)
 			return
 		}
 
@@ -106,6 +109,21 @@ export class AgentBlockParser {
 				this.openBlock.type = 'error'
 			}
 		}
+	}
+
+	private openNewBlock(classifier: BlockClassifier, stripped: string, lineIndex: number): void {
+		this.closeOpenBlock(Math.max(lineIndex - 1, this.openBlock?.startLine ?? 0))
+		const classification = classifier(stripped)
+		const block: MutableBlock = {
+			id: `block-${++this.nextBlockId}`,
+			type: classification.type,
+			agent: this.agent,
+			startLine: lineIndex,
+			endLine: null,
+			metadata: { ...classification.metadata },
+		}
+		this.openBlock = block
+		this.blocks.push(block)
 	}
 
 	private closeOpenBlock(endLine: number): void {

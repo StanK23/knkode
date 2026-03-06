@@ -1,4 +1,4 @@
-import { type BlockClassifier, ERROR_PATTERN, UNKNOWN_BLOCK, stripBoxDrawing } from './types'
+import { type BlockClassifier, ERROR_PATTERN, UNKNOWN_BLOCK, stripBlockMarkers } from './types'
 
 /** Known tool names that Claude Code shows in block headers. Keep in sync with Claude Code's tool repertoire. */
 const TOOL_NAMES = new Set([
@@ -23,16 +23,17 @@ const TOOL_NAMES = new Set([
  * Falls back to 'unknown' if no pattern matches.
  */
 export const classifyClaudeCode: BlockClassifier = (headerText) => {
-	const trimmed = stripBoxDrawing(headerText)
+	const trimmed = stripBlockMarkers(headerText)
 
 	if (!trimmed) return UNKNOWN_BLOCK
 
 	// Check for known tool name as first word (before heuristic patterns to avoid false positives)
-	const firstWord = trimmed.split(/\s/)[0]?.toLowerCase()
+	// Handle both "Write src/index.ts" and "Write(index.js)" formats — split on whitespace or (
+	const toolName = trimmed.split(/[\s(]/)[0].toLowerCase()
 	// MCP tools use __ separators (e.g., mcp__server__tool_name) — match the prefix
-	const toolName = firstWord?.split('__')[0]
-	if (firstWord && toolName && TOOL_NAMES.has(toolName)) {
-		return { type: 'tool-call', metadata: { tool: firstWord } }
+	const toolPrefix = toolName.split('__')[0]
+	if (TOOL_NAMES.has(toolPrefix)) {
+		return { type: 'tool-call', metadata: { tool: toolName } }
 	}
 
 	// Permission prompts
@@ -45,9 +46,19 @@ export const classifyClaudeCode: BlockClassifier = (headerText) => {
 		return { type: 'error', metadata: {} }
 	}
 
+	// Tool result summaries (e.g. "Searched for 1 pattern, read 1 file")
+	if (/^searched\b/i.test(trimmed)) {
+		return { type: 'tool-call', metadata: { tool: 'search' } }
+	}
+
 	// Thinking / reasoning
 	if (/^(thinking|reasoning|chain\.of\.thought)/i.test(trimmed)) {
 		return { type: 'thinking', metadata: {} }
+	}
+
+	// Status messages (e.g. "Tool Loaded.")
+	if (/^tool\s+loaded/i.test(trimmed)) {
+		return { type: 'status', metadata: {} }
 	}
 
 	return UNKNOWN_BLOCK

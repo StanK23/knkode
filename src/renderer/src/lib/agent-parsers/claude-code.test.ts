@@ -86,4 +86,26 @@ describe('classifyClaudeCode', () => {
 		expect(result.type).toBe('tool-call')
 		expect(result.metadata.tool).toBe('read')
 	})
+
+	it('classifies bullet-prefixed Write(file) format', () => {
+		const result = classifyClaudeCode('● Write(index.js)')
+		expect(result.type).toBe('tool-call')
+		expect(result.metadata.tool).toBe('write')
+	})
+
+	it('classifies Searched summary as tool-call', () => {
+		const result = classifyClaudeCode('● Searched for 1 pattern, read 1 file')
+		expect(result.type).toBe('tool-call')
+		expect(result.metadata.tool).toBe('search')
+	})
+
+	it('classifies Tool Loaded as status', () => {
+		const result = classifyClaudeCode('◆ Tool Loaded.')
+		expect(result.type).toBe('status')
+	})
+
+	it('classifies text response bullet as unknown', () => {
+		const result = classifyClaudeCode('● The directory is completely empty')
+		expect(result.type).toBe('unknown')
+	})
 })
