@@ -55,7 +55,11 @@ describe('ClaudeCodeStreamParser', () => {
 			parser.feed(
 				line({
 					type: 'message_start',
-					message: { id: 'msg_001', role: 'assistant', usage: { input_tokens: 50, output_tokens: 0 } },
+					message: {
+						id: 'msg_001',
+						role: 'assistant',
+						usage: { input_tokens: 50, output_tokens: 0 },
+					},
 				}),
 			)
 			parser.feed(
@@ -301,7 +305,7 @@ describe('ClaudeCodeStreamParser', () => {
 	})
 
 	describe('multi-message sequences', () => {
-		it('handles multiple messages (tool use → tool result → response)', () => {
+		it('handles multiple messages (tool use → next response)', () => {
 			const parser = new ClaudeCodeStreamParser()
 
 			// First message: assistant with tool use
@@ -377,16 +381,26 @@ describe('ClaudeCodeStreamParser', () => {
 			)
 
 			// Thinking block
-			parser.feed(line({ type: 'content_block_start', index: 0, content_block: { type: 'thinking' } }))
 			parser.feed(
-				line({ type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'Hmm...' } }),
+				line({ type: 'content_block_start', index: 0, content_block: { type: 'thinking' } }),
+			)
+			parser.feed(
+				line({
+					type: 'content_block_delta',
+					index: 0,
+					delta: { type: 'thinking_delta', thinking: 'Hmm...' },
+				}),
 			)
 			parser.feed(line({ type: 'content_block_stop', index: 0 }))
 
 			// Text block
 			parser.feed(line({ type: 'content_block_start', index: 1, content_block: { type: 'text' } }))
 			parser.feed(
-				line({ type: 'content_block_delta', index: 1, delta: { type: 'text_delta', text: 'I will read' } }),
+				line({
+					type: 'content_block_delta',
+					index: 1,
+					delta: { type: 'text_delta', text: 'I will read' },
+				}),
 			)
 			parser.feed(line({ type: 'content_block_stop', index: 1 }))
 
@@ -526,6 +540,99 @@ describe('ClaudeCodeStreamParser', () => {
 				}),
 			)
 			expect(parser.getMessages()[0].usage).toEqual({ inputTokens: 0, outputTokens: 42 })
+		})
+
+		it('handles ANSI escape sequences mixed with NDJSON', () => {
+			const parser = new ClaudeCodeStreamParser()
+			parser.feed('\x1b[?2004h\n')
+			parser.feed('\x1b[0m\n')
+			parser.feed(
+				line({
+					type: 'message_start',
+					message: { id: 'msg_001', role: 'assistant' },
+				}),
+			)
+			expect(parser.getMessages()).toHaveLength(1)
+			expect(parser.getMessages()[0].id).toBe('msg_001')
+		})
+
+		it('handles \\r\\n (Windows-style) line endings', () => {
+			const parser = new ClaudeCodeStreamParser()
+			const event = JSON.stringify({
+				type: 'stream_event',
+				event: { type: 'message_start', message: { id: 'msg_001', role: 'assistant' } },
+			})
+			parser.feed(`${event}\r\n`)
+			expect(parser.getMessages()).toHaveLength(1)
+			expect(parser.getMessages()[0].id).toBe('msg_001')
+		})
+
+		it('ignores text_delta sent to a tool_use block (delta-type mismatch)', () => {
+			const parser = new ClaudeCodeStreamParser()
+			parser.feed(
+				line({
+					type: 'message_start',
+					message: { id: 'msg_001', role: 'assistant' },
+				}),
+			)
+			parser.feed(
+				line({
+					type: 'content_block_start',
+					index: 0,
+					content_block: { type: 'tool_use', id: 'toolu_1', name: 'bash', input: {} },
+				}),
+			)
+			// Send text_delta to a tool_use block — should be a no-op
+			parser.feed(
+				line({
+					type: 'content_block_delta',
+					index: 0,
+					delta: { type: 'text_delta', text: 'should not appear' },
+				}),
+			)
+			const block = parser.getMessages()[0].blocks[0]
+			expect(block.type).toBe('tool_use')
+			if (block.type === 'tool_use') {
+				expect(block.inputJson).toBe('')
+			}
+		})
+
+		it('ignores message_start without message property', () => {
+			const parser = new ClaudeCodeStreamParser()
+			parser.feed(line({ type: 'message_start' }))
+			expect(parser.getMessages()).toHaveLength(0)
+		})
+
+		it('validates role and defaults invalid values to assistant', () => {
+			const parser = new ClaudeCodeStreamParser()
+			parser.feed(
+				line({
+					type: 'message_start',
+					message: { id: 'msg_001', role: 'tool' },
+				}),
+			)
+			expect(parser.getMessages()[0].role).toBe('assistant')
+		})
+
+		it('discards partial line buffer on reset', () => {
+			const parser = new ClaudeCodeStreamParser()
+			// Feed half a line (no newline), then reset
+			const fullLine = JSON.stringify({
+				type: 'stream_event',
+				event: { type: 'message_start', message: { id: 'msg_001', role: 'assistant' } },
+			})
+			parser.feed(fullLine.slice(0, 20))
+			parser.reset()
+
+			// Feed a completely different message — should not produce a frankenstein line
+			parser.feed(
+				line({
+					type: 'message_start',
+					message: { id: 'msg_002', role: 'assistant' },
+				}),
+			)
+			expect(parser.getMessages()).toHaveLength(1)
+			expect(parser.getMessages()[0].id).toBe('msg_002')
 		})
 	})
 })
