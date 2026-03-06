@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
 	AGENT_LABELS,
+	type AgentType,
 	DEFAULT_PANE_OPACITY,
 	type DropPosition,
 	type PaneConfig,
@@ -220,6 +221,9 @@ export function Pane({
 	// Agent panes (claude-code, gemini-cli) don't use startup commands —
 	// they launch via sendAgentMessage when the user sends their first message.
 	const isAgent = config.launchMode !== null && config.launchMode !== 'terminal'
+	// Use process-detected agent type, falling back to launchMode for agent panes
+	// (before Claude starts, process detection returns null — but we still need the status bar)
+	const effectiveAgentType = agentType ?? (isAgent ? (config.launchMode as AgentType) : null)
 	const initialCwdRef = useRef(config.cwd)
 	const initialCmdRef = useRef(isAgent ? null : config.startupCommand)
 	useEffect(() => {
@@ -749,26 +753,20 @@ export function Pane({
 				)}
 			</div>
 
-			{!showLauncher && agentType && <AgentStatusBar paneId={paneId} agentType={agentType} />}
+			{!showLauncher && effectiveAgentType && (
+				<AgentStatusBar paneId={paneId} agentType={effectiveAgentType} />
+			)}
 
 			{/* Dim overlay scoped to terminal area only (not the header/status bar).
 			    Always rendered to enable CSS transition; opacity toggled via class.
 			    Inline style required: Tailwind cannot express dynamic runtime opacity. */}
 			<div className="flex-1 overflow-hidden p-px relative">
-				{(() => {
-					if (showLauncher) {
-						return <PaneLauncher workspaceId={workspaceId} paneId={paneId} />
-					}
-					if (viewMode === 'rendered') {
-						return (
-							<StreamRenderer
-								paneId={paneId}
-								theme={workspaceTheme}
-								themeOverride={config.themeOverride}
-							/>
-						)
-					}
-					return (
+				{showLauncher ? (
+					<PaneLauncher workspaceId={workspaceId} paneId={paneId} />
+				) : isAgent ? (
+					<>
+						{/* Terminal always mounted for agent panes so cache accumulates PTY data.
+						    Visible in raw mode, hidden behind StreamRenderer in rendered mode. */}
 						<TerminalView
 							paneId={paneId}
 							theme={workspaceTheme}
@@ -777,11 +775,29 @@ export function Pane({
 							isFocused={isFocused}
 							onFocus={handleFocus}
 						/>
-					)
-				})()}
+						{viewMode === 'rendered' && (
+							<div className="absolute inset-0 z-10">
+								<StreamRenderer
+									paneId={paneId}
+									theme={workspaceTheme}
+									themeOverride={config.themeOverride}
+								/>
+							</div>
+						)}
+					</>
+				) : (
+					<TerminalView
+						paneId={paneId}
+						theme={workspaceTheme}
+						themeOverride={config.themeOverride}
+						focusGeneration={focusGeneration}
+						isFocused={isFocused}
+						onFocus={handleFocus}
+					/>
+				)}
 				{!showLauncher && (
 					<div
-						className={`absolute inset-0 bg-black pointer-events-none transition-opacity duration-150 ${
+						className={`absolute inset-0 bg-black pointer-events-none transition-opacity duration-150 z-20 ${
 							!isFocused && workspaceTheme.unfocusedDim > 0 ? '' : 'opacity-0'
 						}`}
 						style={
