@@ -1,5 +1,6 @@
 import type { Terminal as XTerm } from '@xterm/xterm'
 import { useEffect, useRef } from 'react'
+import type { AgentType } from '../../../shared/types'
 import { AgentBlockParser, supportsBlockParsing } from '../lib/agent-block-parser'
 import { useStore } from '../store'
 
@@ -8,23 +9,33 @@ const PARSE_INTERVAL_MS = 200
 /**
  * Hook that manages an AgentBlockParser for an xterm.js terminal buffer.
  * Called unconditionally on every pane. Internally starts a periodic parsing
- * interval only when an agent is detected, the agent supports block parsing,
- * and the pane is not in alternate screen mode. When conditions are not met,
- * any existing blocks are cleared.
+ * interval when an agent is detected (via process detection OR launchMode),
+ * the agent supports block parsing, and the pane is not in alternate screen mode.
+ * When conditions are not met, any existing blocks are cleared.
  */
 export function useAgentBlockParser(paneId: string, termRef: React.RefObject<XTerm | null>): boolean {
 	const agentType = useStore((s) => s.paneAgentTypes.get(paneId) ?? null)
 	const isAltScreen = useStore((s) => s.altScreenPaneIds.has(paneId))
 	const updateAgentBlocks = useStore((s) => s.updateAgentBlocks)
 
-	const shouldParse = agentType !== null && !isAltScreen && supportsBlockParsing(agentType)
+	// Use launchMode as fallback when process detection hasn't fired yet
+	const launchAgent = useStore((s) => {
+		const ws = s.workspaces.find((w) => paneId in w.panes)
+		const mode = ws?.panes[paneId]?.launchMode
+		if (mode && mode !== 'terminal') return mode as AgentType
+		return null
+	})
+
+	const effectiveAgent = agentType ?? launchAgent
+	const shouldParse = effectiveAgent !== null && !isAltScreen && supportsBlockParsing(effectiveAgent)
 	const parserRef = useRef<AgentBlockParser | null>(null)
 	const prevBlockCountRef = useRef(0)
 	const prevLastEndLineRef = useRef<number | null>(null)
 	const prevLastTypeRef = useRef<string | null>(null)
+	const prevLastContentRef = useRef<string>('')
 
 	useEffect(() => {
-		if (!shouldParse || !agentType) {
+		if (!shouldParse || !effectiveAgent) {
 			// Clear blocks when parsing stops
 			if (parserRef.current) {
 				parserRef.current = null
@@ -33,10 +44,11 @@ export function useAgentBlockParser(paneId: string, termRef: React.RefObject<XTe
 			prevBlockCountRef.current = 0
 			prevLastEndLineRef.current = null
 			prevLastTypeRef.current = null
+			prevLastContentRef.current = ''
 			return
 		}
 
-		parserRef.current = new AgentBlockParser(agentType)
+		parserRef.current = new AgentBlockParser(effectiveAgent)
 
 		const interval = setInterval(() => {
 			const term = termRef.current
@@ -52,18 +64,18 @@ export function useAgentBlockParser(paneId: string, termRef: React.RefObject<XTe
 				const blocks = parser.getBlocks()
 				const lastBlock = blocks.length > 0 ? blocks[blocks.length - 1] : null
 
-				// Heuristic: only update store when block count, last block's endLine, or
-				// last block's type changes. Does not detect metadata or mid-array mutations
-				// — acceptable since blocks are append-only and the last block is the one
-				// actively streaming.
+				// Heuristic: only update store when block count, last block's endLine,
+				// type, or content changes.
 				if (
 					blocks.length !== prevBlockCountRef.current ||
 					lastBlock?.endLine !== prevLastEndLineRef.current ||
-					lastBlock?.type !== prevLastTypeRef.current
+					lastBlock?.type !== prevLastTypeRef.current ||
+					lastBlock?.content !== prevLastContentRef.current
 				) {
 					prevBlockCountRef.current = blocks.length
 					prevLastEndLineRef.current = lastBlock?.endLine ?? null
 					prevLastTypeRef.current = lastBlock?.type ?? null
+					prevLastContentRef.current = lastBlock?.content ?? ''
 					updateAgentBlocks(paneId, blocks)
 				}
 			} catch (err) {
@@ -77,8 +89,9 @@ export function useAgentBlockParser(paneId: string, termRef: React.RefObject<XTe
 			prevBlockCountRef.current = 0
 			prevLastEndLineRef.current = null
 			prevLastTypeRef.current = null
+			prevLastContentRef.current = ''
 		}
-	}, [paneId, agentType, shouldParse, updateAgentBlocks, termRef])
+	}, [paneId, effectiveAgent, shouldParse, updateAgentBlocks, termRef])
 
 	return shouldParse
 }
