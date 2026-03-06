@@ -1,6 +1,6 @@
 import os from 'node:os'
 import path from 'node:path'
-import { ipcMain, shell } from 'electron'
+import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import type { AppState, Snippet, Workspace } from '../shared/types'
 import { IPC } from '../shared/types'
 import {
@@ -78,6 +78,32 @@ function assertWorkspace(value: unknown): asserts value is Workspace {
 	}
 	if (!obj.panes || typeof obj.panes !== 'object')
 		throw new Error('Invalid workspace: missing or invalid panes')
+	// Validate optional cwd field
+	if (obj.cwd !== undefined && obj.cwd !== null) {
+		if (typeof obj.cwd !== 'string') throw new Error('Invalid workspace: cwd must be a string')
+		if (!path.isAbsolute(obj.cwd))
+			throw new Error('Invalid workspace: cwd must be an absolute path')
+		if (obj.cwd.includes('\0')) throw new Error('Invalid workspace: cwd contains null byte')
+	}
+	// Validate optional agentFlags field — reject shell metacharacters
+	if (obj.agentFlags !== undefined) {
+		if (!obj.agentFlags || typeof obj.agentFlags !== 'object')
+			throw new Error('Invalid workspace: agentFlags must be an object')
+		const SHELL_METACHAR = /[;|&`$(){}[\]\n\r]/
+		const MAX_FLAG_LENGTH = 1024
+		for (const [key, val] of Object.entries(obj.agentFlags as Record<string, unknown>)) {
+			if (typeof val !== 'string')
+				throw new Error(`Invalid workspace: agentFlags.${key} must be a string`)
+			if (val.length > MAX_FLAG_LENGTH)
+				throw new Error(
+					`Invalid workspace: agentFlags.${key} exceeds ${MAX_FLAG_LENGTH} characters`,
+				)
+			if (SHELL_METACHAR.test(val))
+				throw new Error(
+					`Invalid workspace: agentFlags.${key} contains disallowed shell metacharacters`,
+				)
+		}
+	}
 }
 
 const MAX_SNIPPETS = 500
@@ -131,6 +157,23 @@ export function registerIpcHandlers(): void {
 			throw new Error('Only http/https URLs are allowed')
 		}
 		return shell.openExternal(parsed.href)
+	})
+
+	ipcMain.handle(IPC.APP_PICK_FOLDER, async (e) => {
+		const win = BrowserWindow.fromWebContents(e.sender) ?? BrowserWindow.getFocusedWindow()
+		if (!win) {
+			console.warn('[ipc] APP_PICK_FOLDER: no window available')
+			return null
+		}
+		try {
+			const result = await dialog.showOpenDialog(win, {
+				properties: ['openDirectory'],
+			})
+			return result.canceled ? null : (result.filePaths[0] ?? null)
+		} catch (err) {
+			console.error('[ipc] APP_PICK_FOLDER failed:', err)
+			throw new Error('Failed to open folder picker. Please try again.')
+		}
 	})
 
 	ipcMain.handle(IPC.CONFIG_GET_WORKSPACES, () => getWorkspaces())

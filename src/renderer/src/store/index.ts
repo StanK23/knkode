@@ -3,6 +3,7 @@ import type {
 	AgentType,
 	AppState,
 	DropPosition,
+	LaunchMode,
 	LayoutLeaf,
 	LayoutNode,
 	LayoutPreset,
@@ -15,6 +16,7 @@ import type {
 	WorkspaceLayout,
 } from '../../../shared/types'
 import {
+	AGENT_LAUNCH_CONFIG,
 	DEFAULT_CURSOR_STYLE,
 	DEFAULT_SCROLLBACK,
 	DEFAULT_UNFOCUSED_DIM,
@@ -47,6 +49,7 @@ function createLayoutFromPreset(
 		cwd: homeDir,
 		startupCommand: null,
 		themeOverride: null,
+		launchMode: null,
 	})
 
 	const panes: Record<string, PaneConfig> = {}
@@ -273,6 +276,10 @@ interface StoreState {
 		targetPaneId: string,
 		position: DropPosition,
 	) => void
+	/** Set the launch mode for a pane, build the spawn command, and start the PTY. */
+	setLaunchMode: (workspaceId: string, paneId: string, mode: LaunchMode) => void
+	/** Update workspace-level CWD. */
+	setWorkspaceCwd: (workspaceId: string, cwd: string) => void
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
 	saveState: () => Promise<void>
@@ -619,6 +626,8 @@ export const useStore = create<StoreState>((set, get) => ({
 					? { type: 'preset', preset: source.layout.preset, tree: remappedTree }
 					: { type: 'custom', tree: remappedTree },
 			panes: newPanes,
+			cwd: source.cwd,
+			agentFlags: source.agentFlags ? { ...source.agentFlags } : undefined,
 		}
 		await window.api.saveWorkspace(workspace)
 		const newAppState = {
@@ -766,6 +775,7 @@ export const useStore = create<StoreState>((set, get) => ({
 				cwd: workspace.panes[paneId].cwd,
 				startupCommand: null,
 				themeOverride: null,
+				launchMode: null,
 			}
 
 			const newTree = replaceLeafInTree(workspace.layout.tree, paneId, (leaf) => ({
@@ -1018,6 +1028,51 @@ export const useStore = create<StoreState>((set, get) => ({
 		})
 	},
 
+	setLaunchMode: (workspaceId, paneId, mode) => {
+		const state = get()
+		const workspace = state.workspaces.find((w) => w.id === workspaceId)
+		if (!workspace || !workspace.panes[paneId]) {
+			console.warn('[store] setLaunchMode: workspace or pane not found', { workspaceId, paneId })
+			return
+		}
+
+		// Validate agent command exists BEFORE mutating state
+		let command: string | null = null
+		if (mode !== 'terminal') {
+			const config = AGENT_LAUNCH_CONFIG[mode]
+			if (!config) {
+				console.error(`[store] No launch config for agent type: ${mode}`)
+				return
+			}
+			const userFlags = workspace.agentFlags?.[mode as keyof typeof workspace.agentFlags] ?? ''
+			const parts = [config.command]
+			if (userFlags.trim()) parts.push(userFlags.trim())
+			parts.push(...config.defaultFlags)
+			command = parts.join(' ')
+		}
+
+		// Now safe to persist launchMode
+		get().updatePaneConfig(workspaceId, paneId, { launchMode: mode })
+
+		// Spawn PTY
+		const cwd = getEffectiveCwd(workspace, paneId, state.homeDir)
+		get().ensurePty(paneId, cwd, command)
+	},
+
+	setWorkspaceCwd: (workspaceId, cwd) => {
+		set((state) => {
+			const workspace = state.workspaces.find((w) => w.id === workspaceId)
+			if (!workspace) return state
+			const updated = { ...workspace, cwd }
+			window.api.saveWorkspace(updated).catch((err) => {
+				console.error('[store] Failed to save workspace:', err)
+			})
+			return {
+				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
+			}
+		})
+	},
+
 	updatePaneConfig: (workspaceId, paneId, updates) => {
 		set((state) => {
 			const workspace = state.workspaces.find((w) => w.id === workspaceId)
@@ -1212,6 +1267,12 @@ function applyPresetWithRemap(
 		panes,
 		killedPaneIds,
 	}
+}
+
+/** Resolve the effective CWD for a pane: pane.cwd > workspace.cwd > homeDir. */
+export function getEffectiveCwd(workspace: Workspace, paneId: string, homeDir: string): string {
+	const pane = workspace.panes[paneId]
+	return pane?.cwd || workspace.cwd || homeDir
 }
 
 export { WORKSPACE_COLORS, applyPresetWithRemap, createLayoutFromPreset, getPaneIdsInOrder }

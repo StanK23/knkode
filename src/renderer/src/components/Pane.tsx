@@ -44,6 +44,7 @@ import { modKey } from '../utils/platform'
 import { isValidCwd } from '../utils/validation'
 import { AgentStatusBar } from './AgentStatusBar'
 import { FontPicker } from './FontPicker'
+import { PaneLauncher } from './PaneLauncher'
 import { TerminalView } from './Terminal'
 
 interface ThemeInputFields {
@@ -206,14 +207,19 @@ export function Pane({
 	// Ensure PTY exists for this pane. Uses store's activePtyIds to avoid
 	// double-creation on Allotment remounts (e.g. when splitting panes).
 	// PTY kill is handled by store actions and layout-change helpers.
+	// Panes with launchMode: null show the launcher overlay — no auto-spawn.
+	// Panes with launchMode: undefined (legacy) are treated as 'terminal'.
 	const ensurePty = useStore((s) => s.ensurePty)
 	const killPtys = useStore((s) => s.killPtys)
+	const setLaunchMode = useStore((s) => s.setLaunchMode)
+	const showLauncher = config.launchMode === null
 	// Capture initial values so config updates don't re-trigger PTY creation
 	const initialCwdRef = useRef(config.cwd)
 	const initialCmdRef = useRef(config.startupCommand)
 	useEffect(() => {
+		if (showLauncher) return
 		ensurePty(paneId, initialCwdRef.current, initialCmdRef.current)
-	}, [paneId, ensurePty])
+	}, [paneId, ensurePty, showLauncher])
 
 	const { isEditing, inputProps, startEditing } = useInlineEdit(config.label, (label) =>
 		onUpdateConfig(paneId, { label }),
@@ -700,18 +706,24 @@ export function Pane({
 							</div>
 						)}
 						<div className="ctx-separator" />
-						<button
-							type="button"
-							className="ctx-item"
-							onClick={() => {
-								killPtys([paneId])
-								ensurePty(paneId, config.cwd, config.startupCommand)
-								closeContext()
-								onFocus(paneId)
-							}}
-						>
-							Restart Pane
-						</button>
+						{!showLauncher && (
+							<button
+								type="button"
+								className="ctx-item"
+								onClick={() => {
+									killPtys([paneId])
+									if (config.launchMode && config.launchMode !== 'terminal') {
+										setLaunchMode(workspaceId, paneId, config.launchMode)
+									} else {
+										ensurePty(paneId, config.cwd, config.startupCommand)
+									}
+									closeContext()
+									onFocus(paneId)
+								}}
+							>
+								Restart Pane
+							</button>
+						)}
 						{canClose && (
 							<button
 								type="button"
@@ -728,30 +740,36 @@ export function Pane({
 				)}
 			</div>
 
-			{agentType && <AgentStatusBar paneId={paneId} agentType={agentType} />}
+			{!showLauncher && agentType && <AgentStatusBar paneId={paneId} agentType={agentType} />}
 
 			{/* Dim overlay scoped to terminal area only (not the header/status bar).
 			    Always rendered to enable CSS transition; opacity toggled via class.
 			    Inline style required: Tailwind cannot express dynamic runtime opacity. */}
 			<div className="flex-1 overflow-hidden p-px relative">
-				<TerminalView
-					paneId={paneId}
-					theme={workspaceTheme}
-					themeOverride={config.themeOverride}
-					focusGeneration={focusGeneration}
-					isFocused={isFocused}
-					onFocus={handleFocus}
-				/>
-				<div
-					className={`absolute inset-0 bg-black pointer-events-none transition-opacity duration-150 ${
-						!isFocused && workspaceTheme.unfocusedDim > 0 ? '' : 'opacity-0'
-					}`}
-					style={
-						!isFocused && workspaceTheme.unfocusedDim > 0
-							? { opacity: Math.max(0, Math.min(0.7, workspaceTheme.unfocusedDim)) }
-							: undefined
-					}
-				/>
+				{showLauncher ? (
+					<PaneLauncher workspaceId={workspaceId} paneId={paneId} />
+				) : (
+					<TerminalView
+						paneId={paneId}
+						theme={workspaceTheme}
+						themeOverride={config.themeOverride}
+						focusGeneration={focusGeneration}
+						isFocused={isFocused}
+						onFocus={handleFocus}
+					/>
+				)}
+				{!showLauncher && (
+					<div
+						className={`absolute inset-0 bg-black pointer-events-none transition-opacity duration-150 ${
+							!isFocused && workspaceTheme.unfocusedDim > 0 ? '' : 'opacity-0'
+						}`}
+						style={
+							!isFocused && workspaceTheme.unfocusedDim > 0
+								? { opacity: Math.max(0, Math.min(0.7, workspaceTheme.unfocusedDim)) }
+								: undefined
+						}
+					/>
+				)}
 			</div>
 
 			{/* Drop zone overlay — shows where the dragged pane will land
