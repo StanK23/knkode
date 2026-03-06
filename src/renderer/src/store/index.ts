@@ -26,6 +26,8 @@ import {
 } from '../../../shared/types'
 import { THEME_PRESETS } from '../data/theme-presets'
 import type { AgentBlock } from '../lib/agent-parsers/types'
+import { ClaudeCodeStreamParser } from '../lib/agent-renderers/claude-code'
+import type { StreamMessage, StreamParser } from '../lib/agent-renderers/types'
 
 function defaultTheme(): PaneTheme {
 	return {
@@ -228,6 +230,10 @@ interface StoreState {
 	paneAgentBlocks: Map<string, readonly AgentBlock[]>
 	/** Collapsed block IDs per pane. */
 	collapsedBlockIds: Map<string, Set<string>>
+	/** Parsed stream messages per pane (for JSON stream renderers). */
+	paneStreamMessages: Map<string, readonly StreamMessage[]>
+	/** View mode per pane: 'rendered' = structured UI, 'raw' = xterm terminal. */
+	paneViewMode: Map<string, 'rendered' | 'raw'>
 
 	// Actions
 	/** Update alt screen buffer state for a pane. No-op if state already matches. */
@@ -283,6 +289,12 @@ interface StoreState {
 	setWorkspaceCwd: (workspaceId: string, cwd: string) => void
 	/** Update per-agent CLI flags for a workspace. Empty string clears the flag. */
 	setAgentFlags: (workspaceId: string, agent: LaunchableAgent, flags: string) => void
+	/** Feed raw PTY data to the stream parser for a pane. Creates parser on first call. */
+	feedStreamData: (paneId: string, chunk: string) => void
+	/** Toggle between rendered and raw view for a pane. */
+	setViewMode: (paneId: string, mode: 'rendered' | 'raw') => void
+	/** Clear stream data and parser for a pane. */
+	clearStreamData: (paneId: string) => void
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
 	saveState: () => Promise<void>
@@ -308,6 +320,8 @@ type PaneCleanupState = Pick<
 	| 'paneAgentStartTimes'
 	| 'paneAgentBlocks'
 	| 'collapsedBlockIds'
+	| 'paneStreamMessages'
+	| 'paneViewMode'
 >
 
 /** Clone all per-pane Maps/Sets, delete entries for the given IDs, and return the partial state update. */
@@ -318,6 +332,8 @@ function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneClean
 	const startTimes = new Map(state.paneAgentStartTimes)
 	const blocks = new Map(state.paneAgentBlocks)
 	const collapsed = new Map(state.collapsedBlockIds)
+	const streamMsgs = new Map(state.paneStreamMessages)
+	const viewModes = new Map(state.paneViewMode)
 	for (const id of paneIds) {
 		agents.delete(id)
 		procs.delete(id)
@@ -325,6 +341,9 @@ function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneClean
 		startTimes.delete(id)
 		blocks.delete(id)
 		collapsed.delete(id)
+		streamMsgs.delete(id)
+		viewModes.delete(id)
+		streamParsers.delete(id)
 	}
 	return {
 		paneAgentTypes: agents,
@@ -333,7 +352,17 @@ function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneClean
 		paneAgentStartTimes: startTimes,
 		paneAgentBlocks: blocks,
 		collapsedBlockIds: collapsed,
+		paneStreamMessages: streamMsgs,
+		paneViewMode: viewModes,
 	}
+}
+
+/** Module-level parser instances — not serializable, not in Zustand state. */
+const streamParsers = new Map<string, StreamParser>()
+
+/** @internal — test-only: clear module-level parser cache. */
+export function _resetStreamParsers(): void {
+	streamParsers.clear()
 }
 
 export const useStore = create<StoreState>((set, get) => ({
@@ -357,6 +386,8 @@ export const useStore = create<StoreState>((set, get) => ({
 	paneAgentStartTimes: new Map(),
 	paneAgentBlocks: new Map(),
 	collapsedBlockIds: new Map(),
+	paneStreamMessages: new Map(),
+	paneViewMode: new Map(),
 
 	setAltScreen: (paneId, isAlt) => {
 		const current = get().altScreenPaneIds
@@ -489,6 +520,43 @@ export const useStore = create<StoreState>((set, get) => ({
 		const next = new Map(current)
 		next.delete(paneId)
 		set({ collapsedBlockIds: next })
+	},
+
+	feedStreamData: (paneId, chunk) => {
+		let parser = streamParsers.get(paneId)
+		if (!parser) {
+			parser = new ClaudeCodeStreamParser()
+			streamParsers.set(paneId, parser)
+		}
+		try {
+			parser.feed(chunk)
+		} catch (err) {
+			console.error('[store] feedStreamData: parser.feed() failed, resetting parser:', err)
+			parser.reset()
+			streamParsers.delete(paneId)
+			return
+		}
+		const msgs = parser.getMessages()
+		const next = new Map(get().paneStreamMessages)
+		next.set(paneId, [...msgs])
+		set({ paneStreamMessages: next })
+	},
+
+	setViewMode: (paneId, mode) => {
+		const current = get().paneViewMode
+		if (current.get(paneId) === mode) return
+		const next = new Map(current)
+		next.set(paneId, mode)
+		set({ paneViewMode: next })
+	},
+
+	clearStreamData: (paneId) => {
+		streamParsers.delete(paneId)
+		const msgs = new Map(get().paneStreamMessages)
+		const modes = new Map(get().paneViewMode)
+		msgs.delete(paneId)
+		modes.delete(paneId)
+		set({ paneStreamMessages: msgs, paneViewMode: modes })
 	},
 
 	init: async () => {

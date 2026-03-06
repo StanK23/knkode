@@ -1,0 +1,250 @@
+import type { ContentBlock, StreamMessage, StreamParser } from './types'
+
+/** Maximum line buffer size (1 MB). Protects against PTY data without newlines. */
+const MAX_BUFFER_SIZE = 1_048_576
+
+/** Maximum accumulated messages. Prevents unbounded memory growth in long sessions. */
+const MAX_MESSAGES = 500
+
+const VALID_ROLES = new Set<StreamMessage['role']>(['assistant', 'user', 'system'])
+
+/**
+ * Parses Claude Code `--output-format stream-json` NDJSON output.
+ *
+ * Each line is `{ type: "stream_event", event: { type: "...", ... } }`.
+ * Handles partial lines (buffering until newline), accumulates deltas
+ * into complete content blocks, and builds a conversation of StreamMessages.
+ */
+export class ClaudeCodeStreamParser implements StreamParser {
+	private messages: StreamMessage[] = []
+	private lineBuffer = ''
+	/** Map from content block index → blocks array index within the current message. */
+	private blockIndexMap = new Map<number, number>()
+	private consecutiveParseFailures = 0
+
+	feed(chunk: string): void {
+		this.lineBuffer += chunk
+
+		// Guard against unbounded buffer growth (e.g. PTY data without newlines)
+		if (this.lineBuffer.length > MAX_BUFFER_SIZE) {
+			console.warn('[stream-parser] lineBuffer exceeded max size, discarding')
+			this.lineBuffer = ''
+			return
+		}
+
+		const lines = this.lineBuffer.split('\n')
+		// Last element is either empty (line ended with \n) or a partial line
+		this.lineBuffer = lines.pop() ?? ''
+
+		for (const line of lines) {
+			const trimmed = line.trim()
+			if (!trimmed) continue
+			this.parseLine(trimmed)
+		}
+	}
+
+	getMessages(): readonly StreamMessage[] {
+		return this.messages
+	}
+
+	reset(): void {
+		this.messages = []
+		this.lineBuffer = ''
+		this.blockIndexMap.clear()
+		this.consecutiveParseFailures = 0
+	}
+
+	private parseLine(line: string): void {
+		let parsed: unknown
+		try {
+			parsed = JSON.parse(line)
+		} catch {
+			// Not valid JSON — could be shell prompt, startup text, ANSI sequences, etc.
+			this.consecutiveParseFailures++
+			if (this.consecutiveParseFailures >= 5) {
+				console.warn(
+					`[stream-parser] ${this.consecutiveParseFailures} consecutive JSON parse failures`,
+				)
+			}
+			return
+		}
+
+		this.consecutiveParseFailures = 0
+
+		if (!isStreamEvent(parsed)) return
+		const event = parsed.event
+		const eventType = event.type
+
+		switch (eventType) {
+			case 'message_start':
+				this.handleMessageStart(event)
+				break
+			case 'content_block_start':
+				this.handleContentBlockStart(event)
+				break
+			case 'content_block_delta':
+				this.handleContentBlockDelta(event)
+				break
+			case 'content_block_stop':
+				// No action needed — block is already accumulated
+				break
+			case 'message_delta':
+				this.handleMessageDelta(event)
+				break
+			case 'message_stop':
+				this.handleMessageStop()
+				break
+			default:
+				// Unknown event types (e.g. error, ping, rate_limit) are intentionally dropped.
+				// The Claude Code streaming protocol may add new event types over time.
+				break
+		}
+	}
+
+	private handleMessageStart(event: Record<string, unknown>): void {
+		const message = event.message as Record<string, unknown> | undefined
+		if (!message) return
+
+		const usage = message.usage as Record<string, unknown> | undefined
+
+		const rawRole = String(message.role ?? 'assistant')
+		const role: StreamMessage['role'] = VALID_ROLES.has(rawRole as StreamMessage['role'])
+			? (rawRole as StreamMessage['role'])
+			: 'assistant'
+
+		this.blockIndexMap.clear()
+
+		// Trim old messages to prevent unbounded growth in long sessions
+		if (this.messages.length >= MAX_MESSAGES) {
+			this.messages.splice(0, this.messages.length - MAX_MESSAGES + 1)
+		}
+
+		this.messages.push({
+			id: String(message.id ?? `msg-${this.messages.length}`),
+			role,
+			model: message.model as string | undefined,
+			blocks: [],
+			stopReason: null,
+			usage: usage
+				? {
+						inputTokens: Number(usage.input_tokens ?? 0),
+						outputTokens: Number(usage.output_tokens ?? 0),
+					}
+				: null,
+			streaming: true,
+		})
+	}
+
+	private handleContentBlockStart(event: Record<string, unknown>): void {
+		const msg = this.currentMessage()
+		if (!msg) return
+
+		const index = Number(event.index ?? 0)
+		const contentBlock = event.content_block as Record<string, unknown> | undefined
+		if (!contentBlock) return
+
+		const blockType = String(contentBlock.type ?? 'text')
+		let block: ContentBlock
+
+		switch (blockType) {
+			case 'tool_use':
+				block = {
+					type: 'tool_use',
+					id: String(contentBlock.id ?? ''),
+					name: String(contentBlock.name ?? ''),
+					inputJson: '',
+				}
+				break
+			case 'thinking':
+				block = { type: 'thinking', text: '' }
+				break
+			default:
+				block = { type: 'text', text: '' }
+				break
+		}
+
+		this.blockIndexMap.set(index, msg.blocks.length)
+		msg.blocks.push(block)
+	}
+
+	private handleContentBlockDelta(event: Record<string, unknown>): void {
+		const msg = this.currentMessage()
+		if (!msg) return
+
+		const index = Number(event.index ?? 0)
+		const blockIdx = this.blockIndexMap.get(index)
+		if (blockIdx === undefined) return
+
+		const block = msg.blocks[blockIdx]
+		if (!block) return
+
+		const delta = event.delta as Record<string, unknown> | undefined
+		if (!delta) return
+
+		const deltaType = String(delta.type ?? '')
+
+		switch (deltaType) {
+			case 'text_delta':
+				if (block.type === 'text') {
+					block.text += String(delta.text ?? '')
+				}
+				break
+			case 'input_json_delta':
+				if (block.type === 'tool_use') {
+					block.inputJson += String(delta.partial_json ?? '')
+				}
+				break
+			case 'thinking_delta':
+				if (block.type === 'thinking') {
+					block.text += String(delta.thinking ?? '')
+				}
+				break
+			case 'signature_delta':
+				// Intentionally ignored — verification metadata
+				break
+		}
+	}
+
+	private handleMessageDelta(event: Record<string, unknown>): void {
+		const msg = this.currentMessage()
+		if (!msg) return
+
+		const delta = event.delta as Record<string, unknown> | undefined
+		if (delta?.stop_reason) {
+			msg.stopReason = String(delta.stop_reason)
+		}
+
+		const usage = event.usage as Record<string, unknown> | undefined
+		if (usage) {
+			if (!msg.usage) {
+				msg.usage = { inputTokens: 0, outputTokens: 0 }
+			}
+			if (usage.output_tokens !== undefined) {
+				msg.usage.outputTokens = Number(usage.output_tokens)
+			}
+		}
+	}
+
+	private handleMessageStop(): void {
+		const msg = this.currentMessage()
+		if (!msg) return
+		msg.streaming = false
+	}
+
+	private currentMessage(): StreamMessage | null {
+		return this.messages.at(-1) ?? null
+	}
+}
+
+// ── Type Guards ─────────────────────────────────────────────────────────────
+
+interface StreamEventEnvelope {
+	type: 'stream_event'
+	event: Record<string, unknown>
+}
+
+function isStreamEvent(value: unknown): value is StreamEventEnvelope {
+	if (typeof value !== 'object' || value === null) return false
+	const obj = value as Record<string, unknown>
+	return obj.type === 'stream_event' && typeof obj.event === 'object' && obj.event !== null
+}
