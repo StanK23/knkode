@@ -752,24 +752,30 @@ export function Pane({
 			    Always rendered to enable CSS transition; opacity toggled via class.
 			    Inline style required: Tailwind cannot express dynamic runtime opacity. */}
 			<div className="flex-1 overflow-hidden p-px relative">
-				{showLauncher ? (
-					<PaneLauncher workspaceId={workspaceId} paneId={paneId} />
-				) : viewMode === 'rendered' ? (
-					<StreamRenderer
-						paneId={paneId}
-						theme={workspaceTheme}
-						themeOverride={config.themeOverride}
-					/>
-				) : (
-					<TerminalView
-						paneId={paneId}
-						theme={workspaceTheme}
-						themeOverride={config.themeOverride}
-						focusGeneration={focusGeneration}
-						isFocused={isFocused}
-						onFocus={handleFocus}
-					/>
-				)}
+				{(() => {
+					if (showLauncher) {
+						return <PaneLauncher workspaceId={workspaceId} paneId={paneId} />
+					}
+					if (viewMode === 'rendered') {
+						return (
+							<StreamRenderer
+								paneId={paneId}
+								theme={workspaceTheme}
+								themeOverride={config.themeOverride}
+							/>
+						)
+					}
+					return (
+						<TerminalView
+							paneId={paneId}
+							theme={workspaceTheme}
+							themeOverride={config.themeOverride}
+							focusGeneration={focusGeneration}
+							isFocused={isFocused}
+							onFocus={handleFocus}
+						/>
+					)
+				})()}
 				{!showLauncher && (
 					<div
 						className={`absolute inset-0 bg-black pointer-events-none transition-opacity duration-150 ${
