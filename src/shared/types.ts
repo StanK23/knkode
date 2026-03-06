@@ -31,11 +31,16 @@ export interface PaneTheme {
 	paneOpacity?: number
 }
 
+export const LAUNCH_MODES = ['claude-code', 'gemini-cli', 'terminal'] as const
+export type LaunchMode = (typeof LAUNCH_MODES)[number]
+
 export interface PaneConfig {
 	label: string
 	cwd: string
 	startupCommand: string | null
 	themeOverride: Partial<PaneTheme> | null
+	/** How this pane was launched. null = show launcher overlay (new panes). Missing = treat as 'terminal' (backwards compat). */
+	launchMode?: LaunchMode | null
 }
 
 export type SplitDirection = 'horizontal' | 'vertical'
@@ -71,6 +76,10 @@ export interface Workspace {
 	theme: PaneTheme
 	layout: WorkspaceLayout
 	panes: Record<string, PaneConfig>
+	/** Workspace-level working directory. Pane CWD overrides this. Falls back to os.homedir(). */
+	cwd?: string | null
+	/** Per-agent CLI flags (e.g. "--dangerously-skip-permissions"). Keyed by AgentType. */
+	agentFlags?: Partial<Record<AgentType, string>>
 }
 
 export interface AppState {
@@ -130,6 +139,16 @@ export const AGENT_LABELS: Record<AgentType, string> = {
 	'kilo-code': 'Kilo',
 }
 
+/** Base CLI commands for launchable agents. */
+export const AGENT_COMMANDS: Partial<Record<AgentType, string>> = {
+	'claude-code': 'claude',
+	'gemini-cli': 'gemini',
+}
+
+/** Agents available in the pane launcher. Subset of AGENT_TYPES that have a known CLI command. */
+export const LAUNCHABLE_AGENTS = ['claude-code', 'gemini-cli'] as const
+export type LaunchableAgent = (typeof LAUNCHABLE_AGENTS)[number]
+
 // IPC channel names
 export const IPC = {
 	// Config
@@ -144,6 +163,7 @@ export const IPC = {
 	// App
 	APP_GET_HOME_DIR: 'app:get-home-dir',
 	APP_OPEN_EXTERNAL: 'app:open-external',
+	APP_PICK_FOLDER: 'app:pick-folder',
 
 	// PTY
 	PTY_CREATE: 'pty:create',
