@@ -32,6 +32,8 @@ const mockApi = {
 	onPtyCwdChanged: vi.fn(() => () => {}),
 	getPtyProcessInfo: vi.fn<(id: string) => Promise<null>>().mockResolvedValue(null),
 	onPtyProcessChanged: vi.fn(() => () => {}),
+	openExternal: vi.fn<(url: string) => Promise<void>>(),
+	pickFolder: vi.fn<() => Promise<string | null>>().mockResolvedValue(null),
 }
 
 Object.defineProperty(window, 'api', {
@@ -1393,5 +1395,81 @@ describe('store init agent listener', () => {
 		await useStore.getState().init()
 
 		expect(mockApi.onPtyProcessChanged).toHaveBeenCalledTimes(1)
+	})
+})
+
+describe('setLaunchMode', () => {
+	it('sets launchMode on pane config and spawns terminal PTY', () => {
+		const ws = makeWorkspace({
+			panes: { p1: { label: 'test', cwd: '/home', startupCommand: null, themeOverride: null, launchMode: null } },
+		})
+		useStore.setState({ workspaces: [ws], homeDir: '/home' })
+
+		useStore.getState().setLaunchMode('ws-1', 'p1', 'terminal')
+
+		const pane = useStore.getState().workspaces[0].panes.p1
+		expect(pane.launchMode).toBe('terminal')
+		expect(mockApi.createPty).toHaveBeenCalledWith('p1', '/home', null)
+	})
+
+	it('sets launchMode and spawns agent with command + flags', () => {
+		const ws = makeWorkspace({
+			panes: { p1: { label: 'test', cwd: '/projects', startupCommand: null, themeOverride: null, launchMode: null } },
+			agentFlags: { 'claude-code': '--dangerously-skip-permissions' },
+		})
+		useStore.setState({ workspaces: [ws], homeDir: '/home' })
+
+		useStore.getState().setLaunchMode('ws-1', 'p1', 'claude-code')
+
+		const pane = useStore.getState().workspaces[0].panes.p1
+		expect(pane.launchMode).toBe('claude-code')
+		expect(mockApi.createPty).toHaveBeenCalledWith(
+			'p1',
+			'/projects',
+			'claude --dangerously-skip-permissions --output-format stream-json',
+		)
+	})
+
+	it('uses workspace CWD when pane CWD is empty', () => {
+		const ws = makeWorkspace({
+			cwd: '/workspace-dir',
+			panes: { p1: { label: 'test', cwd: '', startupCommand: null, themeOverride: null, launchMode: null } },
+		})
+		useStore.setState({ workspaces: [ws], homeDir: '/home' })
+
+		useStore.getState().setLaunchMode('ws-1', 'p1', 'terminal')
+
+		expect(mockApi.createPty).toHaveBeenCalledWith('p1', '/workspace-dir', null)
+	})
+
+	it('falls back to homeDir when both CWDs are empty', () => {
+		const ws = makeWorkspace({
+			panes: { p1: { label: 'test', cwd: '', startupCommand: null, themeOverride: null, launchMode: null } },
+		})
+		useStore.setState({ workspaces: [ws], homeDir: '/fallback' })
+
+		useStore.getState().setLaunchMode('ws-1', 'p1', 'terminal')
+
+		expect(mockApi.createPty).toHaveBeenCalledWith('p1', '/fallback', null)
+	})
+})
+
+describe('setWorkspaceCwd', () => {
+	it('updates workspace CWD and persists', () => {
+		const ws = makeWorkspace()
+		useStore.setState({ workspaces: [ws] })
+
+		useStore.getState().setWorkspaceCwd('ws-1', '/new-dir')
+
+		expect(useStore.getState().workspaces[0].cwd).toBe('/new-dir')
+		expect(mockApi.saveWorkspace).toHaveBeenCalled()
+	})
+})
+
+describe('createLayoutFromPreset launchMode', () => {
+	it('new panes get launchMode: null', () => {
+		const { panes } = createLayoutFromPreset('single', '/home')
+		const pane = Object.values(panes)[0]
+		expect(pane.launchMode).toBeNull()
 	})
 })
