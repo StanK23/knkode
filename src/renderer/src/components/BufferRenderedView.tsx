@@ -1,15 +1,10 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { DEFAULT_PANE_OPACITY, type PaneTheme } from '../../../shared/types'
-import { stripAnsi } from '../lib/ansi'
 import { BLOCK_TYPE_COLORS, type AgentBlock, type AgentBlockType } from '../lib/agent-parsers/types'
 import { useStore } from '../store'
 import { resolveBackground } from '../utils/colors'
-import { getTerminal } from './Terminal'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
-
-/** Box-drawing characters used by Claude's TUI borders. */
-const BOX_CHARS_RE = /[╭╮╰╯│─┬┴┤├┼]/g
 
 const BLOCK_LABELS: Record<AgentBlockType, string> = {
 	'tool-call': 'Tool',
@@ -23,30 +18,13 @@ const BLOCK_LABELS: Record<AgentBlockType, string> = {
 	unknown: 'Output',
 }
 
-/** Read and clean the content lines for a block from the xterm buffer. */
-function extractContent(paneId: string, block: AgentBlock): string {
-	const term = getTerminal(paneId)
-	if (!term) return ''
-	const buffer = term.buffer.active
-	const end = Math.min(block.endLine ?? buffer.length - 1, buffer.length - 1)
-	const lines: string[] = []
-	// Skip startLine (header — already shown as block label)
-	for (let i = block.startLine + 1; i <= end; i++) {
-		const raw = buffer.getLine(i)?.translateToString(true) ?? ''
-		const cleaned = stripAnsi(raw).replace(BOX_CHARS_RE, '').trim()
-		if (cleaned) lines.push(cleaned)
-	}
-	return lines.join('\n')
-}
-
 // ── Block Item ──────────────────────────────────────────────────────────────
 
 interface BlockItemProps {
 	block: AgentBlock
-	paneId: string
 }
 
-const BlockItem = memo(function BlockItem({ block, paneId }: BlockItemProps) {
+const BlockItem = memo(function BlockItem({ block }: BlockItemProps) {
 	const isStreaming = block.endLine === null
 	const label = BLOCK_LABELS[block.type]
 	const toolName = block.metadata.tool
@@ -54,13 +32,13 @@ const BlockItem = memo(function BlockItem({ block, paneId }: BlockItemProps) {
 
 	const [expanded, setExpanded] = useState(() => block.type !== 'thinking')
 
-	const content = useMemo(() => extractContent(paneId, block), [paneId, block])
-
 	return (
 		<div className="border-b border-edge/50 last:border-b-0">
 			<button
 				type="button"
 				onClick={() => setExpanded((e) => !e)}
+				aria-expanded={expanded}
+				aria-label={`${label}${toolName ? `: ${toolName}` : ''}`}
 				className="w-full flex items-center gap-1.5 px-3 py-1.5 bg-transparent border-none cursor-pointer text-left hover:bg-overlay/30 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 			>
 				{isStreaming && (
@@ -73,9 +51,9 @@ const BlockItem = memo(function BlockItem({ block, paneId }: BlockItemProps) {
 				</span>
 				{isStreaming && <span className="text-content-muted text-[10px] italic">streaming...</span>}
 			</button>
-			{expanded && content && (
+			{expanded && block.content && (
 				<pre className="whitespace-pre-wrap break-words m-0 px-3 pb-2 text-content-secondary text-[11px] leading-relaxed max-h-80 overflow-y-auto">
-					{content}
+					{block.content}
 				</pre>
 			)}
 		</div>
@@ -87,15 +65,14 @@ const BlockItem = memo(function BlockItem({ block, paneId }: BlockItemProps) {
 function MessageInput({ paneId }: { paneId: string }) {
 	const [input, setInput] = useState('')
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
+	const sendAgentMessage = useStore((s) => s.sendAgentMessage)
 
 	const handleSubmit = useCallback(() => {
 		const trimmed = input.trim()
 		if (!trimmed) return
-		window.api.writePty(paneId, `${trimmed}\r`).catch((err) => {
-			console.error('[BufferRenderedView] writePty failed:', err)
-		})
+		sendAgentMessage(paneId, trimmed)
 		setInput('')
-	}, [paneId, input])
+	}, [paneId, input, sendAgentMessage])
 
 	const handleStop = useCallback(() => {
 		window.api.writePty(paneId, '\x03').catch((err) => {
@@ -151,7 +128,7 @@ function MessageInput({ paneId }: { paneId: string }) {
 					value={input}
 					onChange={(e) => setInput(e.target.value)}
 					onKeyDown={handleKeyDown}
-					placeholder="Send a message... (Enter to send)"
+					placeholder="Send a message..."
 					rows={1}
 					className="flex-1 resize-none bg-sunken border border-edge rounded-sm px-2 py-1.5 text-content text-xs leading-relaxed placeholder:text-content-muted/50 focus:outline-none focus:ring-1 focus:ring-accent"
 				/>
@@ -189,7 +166,7 @@ export function BufferRenderedView({ paneId, theme, themeOverride }: BufferRende
 
 	const hasBlocks = (blocks?.length ?? 0) > 0
 
-	// Auto-scroll when new blocks appear
+	// Auto-scroll when new blocks appear or content changes
 	// biome-ignore lint/correctness/useExhaustiveDependencies: blocks intentionally triggers auto-scroll
 	useEffect(() => {
 		const el = scrollRef.current
@@ -206,16 +183,13 @@ export function BufferRenderedView({ paneId, theme, themeOverride }: BufferRende
 	return (
 		<div className="w-full h-full flex flex-col" style={{ backgroundColor: bg }}>
 			{hasBlocks && blocks ? (
-				<div ref={scrollRef} className="flex-1 overflow-y-auto" onScroll={handleScroll}>
+				<div ref={scrollRef} role="log" aria-label="Agent conversation" className="flex-1 overflow-y-auto" onScroll={handleScroll}>
 					{blocks.map((block) => (
-						<BlockItem key={block.id} block={block} paneId={paneId} />
+						<BlockItem key={block.id} block={block} />
 					))}
 				</div>
 			) : (
-				<div
-					ref={scrollRef}
-					className="flex-1 flex items-center justify-center text-content-muted text-xs"
-				>
+				<div className="flex-1 flex items-center justify-center text-content-muted text-xs">
 					Waiting for agent output...
 				</div>
 			)}

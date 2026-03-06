@@ -1283,6 +1283,7 @@ describe('store removePtyId block cleanup', () => {
 				agent: 'claude-code' as const,
 				startLine: 0,
 				endLine: 2,
+				content: '',
 				metadata: {},
 			},
 		]
@@ -1306,6 +1307,7 @@ describe('store agent blocks', () => {
 				agent: 'claude-code' as const,
 				startLine: 0,
 				endLine: 2,
+				content: '',
 				metadata: { tool: 'read' },
 			},
 		]
@@ -1321,6 +1323,7 @@ describe('store agent blocks', () => {
 				agent: 'claude-code' as const,
 				startLine: 0,
 				endLine: 2,
+				content: '',
 				metadata: { tool: 'read' },
 			},
 		]
@@ -1345,6 +1348,7 @@ describe('store agent blocks', () => {
 				agent: 'claude-code' as const,
 				startLine: 0,
 				endLine: 2,
+				content: '',
 				metadata: {},
 			},
 			{
@@ -1353,6 +1357,7 @@ describe('store agent blocks', () => {
 				agent: 'claude-code' as const,
 				startLine: 3,
 				endLine: 5,
+				content: '',
 				metadata: {},
 			},
 		]
@@ -1379,6 +1384,7 @@ describe('store agent blocks', () => {
 				agent: 'claude-code' as const,
 				startLine: 0,
 				endLine: 2,
+				content: '',
 				metadata: {},
 			},
 		]
@@ -1491,11 +1497,11 @@ describe('setLaunchMode', () => {
 
 		const pane = useStore.getState().workspaces[0].panes.p1
 		expect(pane.launchMode).toBe('claude-code')
-		// Agent auto-starts with built command (interactive TUI mode)
+		// Agent auto-starts with built command
 		expect(mockApi.createPty).toHaveBeenCalledWith(
 			'p1',
 			'/projects',
-			'claude --dangerously-skip-permissions --output-format stream-json',
+			'claude --dangerously-skip-permissions',
 		)
 	})
 
@@ -1638,7 +1644,7 @@ describe('setLaunchMode guard clauses', () => {
 		expect(mockApi.createPty).toHaveBeenCalledWith(
 			'p1',
 			'/projects',
-			'claude --output-format stream-json',
+			'claude',
 		)
 	})
 })

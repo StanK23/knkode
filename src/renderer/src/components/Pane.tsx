@@ -217,14 +217,13 @@ export function Pane({
 	const setLaunchMode = useStore((s) => s.setLaunchMode)
 	const showLauncher = config.launchMode === null
 	// Capture initial values so config updates don't re-trigger PTY creation.
-	// Agent panes (claude-code, gemini-cli) don't use startup commands —
-	// they launch via sendAgentMessage when the user sends their first message.
-	const isAgent = config.launchMode !== null && config.launchMode !== 'terminal'
+	// Agent panes auto-launch via setLaunchMode startup command.
+	const isAgent = config.launchMode != null && config.launchMode !== 'terminal'
 	// Agent panes default to raw (terminal) view. User can toggle to rendered via status bar.
 	const viewMode = rawViewMode ?? (isAgent ? 'raw' : undefined)
 	// Use process-detected agent type, falling back to launchMode for agent panes
 	// (before Claude starts, process detection returns null — but we still need the status bar)
-	const effectiveAgentType = agentType ?? (isAgent ? (config.launchMode as AgentType) : null)
+	const effectiveAgentType = agentType ?? (isAgent && config.launchMode ? (config.launchMode as AgentType) : null)
 	const initialCwdRef = useRef(config.cwd)
 	const initialCmdRef = useRef(config.startupCommand)
 	useEffect(() => {

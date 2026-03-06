@@ -18,6 +18,8 @@ export interface AgentBlock {
 	readonly startLine: number
 	/** `null` while the block is still streaming (no closing border seen yet). */
 	readonly endLine: number | null
+	/** Accumulated text content (ANSI-stripped, box chars removed). Populated by stream parser. */
+	readonly content: string
 	readonly metadata: Readonly<Record<string, string>>
 }
 

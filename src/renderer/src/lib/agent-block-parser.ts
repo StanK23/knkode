@@ -8,6 +8,9 @@ import { stripAnsi } from './ansi'
 const TOP_LEFT = '╭'
 const BOTTOM_LEFT = '╰'
 
+/** Box-drawing characters stripped from content lines. */
+const BOX_CHARS_RE = /[╭╮╰╯│─┬┴┤├┼]/g
+
 /**
  * Bullet/marker characters that start inline blocks (e.g. Claude Code's
  * "● Write(index.js)" tool calls or "◆ Tool Loaded." status messages).
@@ -24,20 +27,27 @@ const CLASSIFIERS: Partial<Record<AgentType, BlockClassifier>> = {
 }
 
 /** Mutable version of AgentBlock for internal parser use. */
-type MutableBlock = { -readonly [K in keyof AgentBlock]: AgentBlock[K] } & {
+type MutableBlock = {
+	id: string
+	type: AgentBlock['type']
+	agent: AgentBlock['agent']
+	startLine: number
+	endLine: number | null
 	metadata: Record<string, string>
+	contentLines: string[]
 }
 
 /**
- * Stateful parser that converts terminal buffer lines into AgentBlock objects.
+ * Stateful parser that converts terminal output into AgentBlock objects.
  *
- * Create one instance per pane. Feed it lines from the xterm.js buffer
- * whenever the buffer changes. It detects block boundaries via box-drawing
- * characters and bullet markers, then classifies blocks using agent-specific
- * classifiers.
+ * Supports two modes:
+ * - **Stream mode:** `feedChunk(rawData)` — processes raw PTY data as it arrives.
+ *   Handles partial lines, ANSI stripping, and content accumulation.
+ * - **Buffer mode:** `update(getLine, lineCount)` — scans xterm buffer lines.
+ *   Used by the block overlay in raw terminal mode.
  *
- * The parser is additive — it only processes new lines and never re-scans
- * previously parsed lines. Call `reset()` when the terminal is cleared.
+ * Create one instance per pane. The parser is additive — it only processes
+ * new data and never re-scans. Call `reset()` when the terminal is cleared.
  */
 export class AgentBlockParser {
 	private agent: AgentType
@@ -47,13 +57,45 @@ export class AgentBlockParser {
 	private lastParsedLine = -1
 	/** Per-instance block ID counter. IDs are unique within this parser and reset with reset(). */
 	private nextBlockId = 0
+	/** Partial line from previous chunk (stream mode only). */
+	private lineBuffer = ''
 
 	constructor(agent: AgentType) {
 		this.agent = agent
 		this.classifier = CLASSIFIERS[agent] ?? null
 	}
 
-	/** Parse new lines from the terminal buffer. Only processes lines after lastParsedLine. */
+	/**
+	 * Feed a raw PTY data chunk (stream mode).
+	 * Strips ANSI, splits into lines, processes complete lines.
+	 * Partial lines are buffered until the next chunk completes them.
+	 */
+	feedChunk(rawChunk: string): void {
+		if (!this.classifier) return
+
+		const data = this.lineBuffer + stripAnsi(rawChunk)
+		const parts = data.split('\n')
+
+		// Last part may be incomplete — save for next chunk
+		this.lineBuffer = parts.pop() ?? ''
+
+		for (const part of parts) {
+			const line = part.replace(/\r$/, '')
+			this.lastParsedLine++
+			const blockBefore = this.openBlock
+			this.processLine(line, this.lastParsedLine)
+
+			// Accumulate content for the open block (skip the header line that just opened it)
+			if (this.openBlock && this.openBlock === blockBefore) {
+				const clean = line.replace(BOX_CHARS_RE, '').trim()
+				if (clean || this.openBlock.contentLines.length > 0) {
+					this.openBlock.contentLines.push(clean)
+				}
+			}
+		}
+	}
+
+	/** Parse new lines from the terminal buffer (buffer mode). Only processes lines after lastParsedLine. */
 	update(getLine: (index: number) => string, lineCount: number): void {
 		if (!this.classifier) return
 
@@ -61,14 +103,31 @@ export class AgentBlockParser {
 		for (let i = start; i < lineCount; i++) {
 			const raw = getLine(i)
 			const stripped = stripAnsi(raw)
+			const blockBefore = this.openBlock
 			this.processLine(stripped, i)
+
+			// Accumulate content (same logic as stream mode)
+			if (this.openBlock && this.openBlock === blockBefore) {
+				const clean = stripped.replace(BOX_CHARS_RE, '').trim()
+				if (clean || this.openBlock.contentLines.length > 0) {
+					this.openBlock.contentLines.push(clean)
+				}
+			}
 		}
 		this.lastParsedLine = lineCount - 1
 	}
 
 	/** Get a snapshot of all parsed blocks (including any open/streaming block). */
 	getBlocks(): readonly AgentBlock[] {
-		return this.blocks.slice()
+		return this.blocks.map((b) => ({
+			id: b.id,
+			type: b.type,
+			agent: b.agent,
+			startLine: b.startLine,
+			endLine: b.endLine,
+			content: b.contentLines.join('\n'),
+			metadata: { ...b.metadata },
+		}))
 	}
 
 	/** Reset parser state (e.g. when terminal is cleared). */
@@ -77,6 +136,7 @@ export class AgentBlockParser {
 		this.openBlock = null
 		this.lastParsedLine = -1
 		this.nextBlockId = 0
+		this.lineBuffer = ''
 	}
 
 	private processLine(stripped: string, lineIndex: number): void {
@@ -121,6 +181,7 @@ export class AgentBlockParser {
 			startLine: lineIndex,
 			endLine: null,
 			metadata: { ...classification.metadata },
+			contentLines: [],
 		}
 		this.openBlock = block
 		this.blocks.push(block)

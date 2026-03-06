@@ -309,7 +309,15 @@ export function TerminalView({
 			})
 
 			entry.removeDataListener = window.api.onPtyData((id, data) => {
-				if (id === paneId) term.write(data)
+				if (id !== paneId) return
+				term.write(data)
+				// Feed raw PTY data to agent block parser (stream-based, no polling needed)
+				const state = useStore.getState()
+				const ws = state.workspaces.find((w) => paneId in w.panes)
+				const launchMode = ws?.panes[paneId]?.launchMode
+				if (launchMode && launchMode !== 'terminal') {
+					state.feedAgentData(paneId, launchMode as import('../../../shared/types').AgentType, data)
+				}
 			})
 
 			entry.removeExitListener = window.api.onPtyExit((id, exitCode) => {

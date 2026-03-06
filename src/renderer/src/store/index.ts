@@ -25,6 +25,7 @@ import {
 	isLayoutBranch,
 } from '../../../shared/types'
 import { THEME_PRESETS } from '../data/theme-presets'
+import { AgentBlockParser } from '../lib/agent-block-parser'
 import type { AgentBlock } from '../lib/agent-parsers/types'
 import { ClaudeCodeStreamParser, stripAnsi } from '../lib/agent-renderers/claude-code'
 import type { StreamMessage, StreamParser } from '../lib/agent-renderers/types'
@@ -295,6 +296,8 @@ interface StoreState {
 	setWorkspaceCwd: (workspaceId: string, cwd: string) => void
 	/** Update per-agent CLI flags for a workspace. Empty string clears the flag. */
 	setAgentFlags: (workspaceId: string, agent: LaunchableAgent, flags: string) => void
+	/** Feed raw PTY data to the agent block parser for a pane. Creates parser on first call. */
+	feedAgentData: (paneId: string, agentType: AgentType, chunk: string) => void
 	/** Feed raw PTY data to the stream parser for a pane. Creates parser on first call. */
 	feedStreamData: (paneId: string, chunk: string) => void
 	/** Toggle between rendered and raw view for a pane. */
@@ -361,6 +364,7 @@ function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneClean
 		viewModes.delete(id)
 		sessionIds.delete(id)
 		streamParsers.delete(id)
+		agentParsers.delete(id)
 	}
 	return {
 		paneAgentTypes: agents,
@@ -379,10 +383,13 @@ function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneClean
 
 /** Module-level parser instances — not serializable, not in Zustand state. */
 const streamParsers = new Map<string, StreamParser>()
+/** Module-level agent block parsers — fed by raw PTY data stream. */
+const agentParsers = new Map<string, AgentBlockParser>()
 
 /** @internal — test-only: clear module-level parser cache. */
 export function _resetStreamParsers(): void {
 	streamParsers.clear()
+	agentParsers.clear()
 }
 
 export const useStore = create<StoreState>((set, get) => ({
@@ -545,6 +552,35 @@ export const useStore = create<StoreState>((set, get) => ({
 		set({ collapsedBlockIds: next })
 	},
 
+	feedAgentData: (paneId, agentType, chunk) => {
+		let parser = agentParsers.get(paneId)
+		if (!parser) {
+			parser = new AgentBlockParser(agentType)
+			agentParsers.set(paneId, parser)
+		}
+
+		parser.feedChunk(chunk)
+
+		const blocks = parser.getBlocks()
+		const current = get().paneAgentBlocks
+		const prev = current.get(paneId)
+
+		// Heuristic: only update store when block count or last block state changes
+		const lastBlock = blocks.length > 0 ? blocks[blocks.length - 1] : null
+		const prevLast = prev?.length ? prev[prev.length - 1] : null
+		if (
+			blocks.length !== (prev?.length ?? 0) ||
+			lastBlock?.endLine !== (prevLast?.endLine ?? null) ||
+			lastBlock?.type !== (prevLast?.type ?? null) ||
+			lastBlock?.content !== (prevLast?.content ?? '')
+		) {
+			const next = new Map(current)
+			if (blocks.length === 0) next.delete(paneId)
+			else next.set(paneId, blocks)
+			set({ paneAgentBlocks: next })
+		}
+	},
+
 	feedStreamData: (paneId, chunk) => {
 		// Accumulate ANSI-stripped raw text for the rendered view
 		const MAX_STREAM_TEXT = 500_000
@@ -598,6 +634,7 @@ export const useStore = create<StoreState>((set, get) => ({
 
 	clearStreamData: (paneId) => {
 		streamParsers.delete(paneId)
+		agentParsers.delete(paneId)
 		const msgs = new Map(get().paneStreamMessages)
 		const text = new Map(get().paneStreamText)
 		const modes = new Map(get().paneViewMode)
@@ -1189,6 +1226,11 @@ export const useStore = create<StoreState>((set, get) => ({
 		}
 
 		get().updatePaneConfig(workspaceId, paneId, { launchMode: mode })
+
+		// Initialize viewMode for agent panes so the toggle button appears
+		if (mode !== 'terminal') {
+			get().setViewMode(paneId, 'raw')
+		}
 
 		// Spawn PTY with startup command — agent launches immediately
 		const cwd = getEffectiveCwd(workspace, paneId, state.homeDir)
