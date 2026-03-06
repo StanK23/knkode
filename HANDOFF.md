@@ -1,8 +1,10 @@
 # HANDOFF
 
 ## Current State
-- Branch: `main`
-- PR #67 merged: agent flag settings in workspace config
+- Branch: `feature/stream-json-parser`
+- PR #68 open: stream JSON parser for Claude Code output (data layer)
+  - 6-agent review complete, 14/16 findings fixed, 2 skipped (premature optimization)
+  - 290 tests passing (27 parser + 134 store + 129 others)
 
 ## What Was Done
 - PR #58 merged: translucent pane backgrounds with blur
@@ -25,7 +27,8 @@ Previous plan PRs #1-5 complete (PR #59-63). PR #6 complete (PR #66). PR #8 comp
 
 - ~~PR #6: pane launcher overlay~~ ← PR #66, merged
 - ~~PR #8: agent flag settings~~ ← PR #67, merged
-- PR #7: JSON stream renderer for Claude Code (parse stream-json, render tool calls/results)
+- PR #7a: stream JSON parser + store (data layer) ← PR #68, review complete, awaiting merge
+- PR #7b: stream JSON renderer UI (components, rendered/raw toggle)
 
 ## Previous Work
 - PR #56 merged: snippet reorder via DnD + keyboard
@@ -35,4 +38,5 @@ Previous plan PRs #1-5 complete (PR #59-63). PR #6 complete (PR #66). PR #8 comp
 - PR #50: Dynamic workspace fonts
 
 ## Next Steps
-1. PR #7: JSON stream renderer for Claude Code
+1. Merge PR #68 (stream JSON parser)
+2. PR #7b: stream JSON renderer UI components
