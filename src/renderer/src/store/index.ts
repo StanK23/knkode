@@ -280,6 +280,8 @@ interface StoreState {
 	setLaunchMode: (workspaceId: string, paneId: string, mode: LaunchMode) => void
 	/** Update workspace-level CWD. */
 	setWorkspaceCwd: (workspaceId: string, cwd: string) => void
+	/** Update per-agent CLI flags for a workspace. Empty string clears the flag. */
+	setAgentFlags: (workspaceId: string, agent: string, flags: string) => void
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
 	saveState: () => Promise<void>
@@ -1064,6 +1066,30 @@ export const useStore = create<StoreState>((set, get) => ({
 			const workspace = state.workspaces.find((w) => w.id === workspaceId)
 			if (!workspace) return state
 			const updated = { ...workspace, cwd }
+			window.api.saveWorkspace(updated).catch((err) => {
+				console.error('[store] Failed to save workspace:', err)
+			})
+			return {
+				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
+			}
+		})
+	},
+
+	setAgentFlags: (workspaceId, agent, flags) => {
+		set((state) => {
+			const workspace = state.workspaces.find((w) => w.id === workspaceId)
+			if (!workspace) return state
+			const current = { ...workspace.agentFlags }
+			const trimmed = flags.trim()
+			if (trimmed) {
+				current[agent as keyof typeof current] = trimmed
+			} else {
+				delete current[agent as keyof typeof current]
+			}
+			const updated = {
+				...workspace,
+				agentFlags: Object.keys(current).length > 0 ? current : undefined,
+			}
 			window.api.saveWorkspace(updated).catch((err) => {
 				console.error('[store] Failed to save workspace:', err)
 			})
