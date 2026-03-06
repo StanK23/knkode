@@ -1,8 +1,15 @@
 # HANDOFF
 
 ## Current State
-- Branch: `main`
-- PR #68 merged: stream JSON parser for Claude Code output (data layer)
+- Branch: `feature/stream-renderer-ui`
+- PR #69 open: stream JSON renderer UI — review complete, fixing findings
+
+## Active Reviews
+
+### PR #69 — feat: stream JSON renderer UI for Claude Code
+- State: `docs/reviews/PR-69/_state.json`
+- Agents: 6/6 completed
+- Phase: done — compiled report ready, fixing findings
 
 ## What Was Done
 - PR #58 merged: translucent pane backgrounds with blur
