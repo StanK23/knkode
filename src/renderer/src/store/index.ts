@@ -1122,8 +1122,8 @@ export const useStore = create<StoreState>((set, get) => ({
 			command = parts.join(' ')
 		}
 
-		// Now safe to persist launchMode
-		get().updatePaneConfig(workspaceId, paneId, { launchMode: mode })
+		// Persist launchMode + startupCommand so agent command survives app restart
+		get().updatePaneConfig(workspaceId, paneId, { launchMode: mode, startupCommand: command })
 
 		// Spawn PTY
 		const cwd = getEffectiveCwd(workspace, paneId, state.homeDir)

@@ -1468,6 +1468,7 @@ describe('setLaunchMode', () => {
 
 		const pane = useStore.getState().workspaces[0].panes.p1
 		expect(pane.launchMode).toBe('terminal')
+		expect(pane.startupCommand).toBeNull()
 		expect(mockApi.createPty).toHaveBeenCalledWith('p1', '/home', null)
 	})
 
@@ -1490,6 +1491,9 @@ describe('setLaunchMode', () => {
 
 		const pane = useStore.getState().workspaces[0].panes.p1
 		expect(pane.launchMode).toBe('claude-code')
+		expect(pane.startupCommand).toBe(
+			'claude --dangerously-skip-permissions --output-format stream-json',
+		)
 		expect(mockApi.createPty).toHaveBeenCalledWith(
 			'p1',
 			'/projects',

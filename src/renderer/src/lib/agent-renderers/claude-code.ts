@@ -3,6 +3,13 @@ import type { ContentBlock, StreamMessage, StreamParser } from './types'
 /** Maximum line buffer size (1 MB). Protects against PTY data without newlines. */
 const MAX_BUFFER_SIZE = 1_048_576
 
+/** Strip ANSI escape sequences from a string. PTYs may wrap JSON lines in terminal codes. */
+// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape matching requires control chars
+const ANSI_RE = /\x1b\[[0-9;]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b\[[\?]?[0-9;]*[hlm]/g
+function stripAnsi(str: string): string {
+	return str.replace(ANSI_RE, '')
+}
+
 /** Maximum accumulated messages. Prevents unbounded memory growth in long sessions. */
 const MAX_MESSAGES = 500
 
@@ -55,9 +62,12 @@ export class ClaudeCodeStreamParser implements StreamParser {
 	}
 
 	private parseLine(line: string): void {
+		// Strip ANSI escape sequences — PTYs may wrap JSON in terminal codes
+		const clean = line.includes('\x1b') ? stripAnsi(line).trim() : line
+
 		let parsed: unknown
 		try {
-			parsed = JSON.parse(line)
+			parsed = JSON.parse(clean)
 		} catch {
 			// Not valid JSON — could be shell prompt, startup text, ANSI sequences, etc.
 			this.consecutiveParseFailures++

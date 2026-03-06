@@ -556,6 +556,18 @@ describe('ClaudeCodeStreamParser', () => {
 			expect(parser.getMessages()[0].id).toBe('msg_001')
 		})
 
+		it('strips ANSI codes wrapping a JSON line and parses it', () => {
+			const parser = new ClaudeCodeStreamParser()
+			const json = JSON.stringify({
+				type: 'stream_event',
+				event: { type: 'message_start', message: { id: 'msg_ansi', role: 'assistant' } },
+			})
+			// Simulate PTY wrapping JSON in ANSI sequences
+			parser.feed(`\x1b[0m${json}\x1b[0m\n`)
+			expect(parser.getMessages()).toHaveLength(1)
+			expect(parser.getMessages()[0].id).toBe('msg_ansi')
+		})
+
 		it('handles \\r\\n (Windows-style) line endings', () => {
 			const parser = new ClaudeCodeStreamParser()
 			const event = JSON.stringify({
