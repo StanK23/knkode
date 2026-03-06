@@ -1203,6 +1203,67 @@ describe('store removePtyId alt screen cleanup', () => {
 	})
 })
 
+describe('store agent blocks', () => {
+	it('updateAgentBlocks stores blocks for a pane', () => {
+		const blocks = [
+			{ id: 'b1', type: 'tool-call' as const, agent: 'claude-code' as const, startLine: 0, endLine: 2, collapsed: false, metadata: { tool: 'read' } },
+		]
+		useStore.getState().updateAgentBlocks('p1', blocks)
+		expect(useStore.getState().paneAgentBlocks.get('p1')).toBe(blocks)
+	})
+
+	it('updateAgentBlocks removes entry when blocks empty', () => {
+		const blocks = [
+			{ id: 'b1', type: 'tool-call' as const, agent: 'claude-code' as const, startLine: 0, endLine: 2, collapsed: false, metadata: { tool: 'read' } },
+		]
+		useStore.getState().updateAgentBlocks('p1', blocks)
+		useStore.getState().updateAgentBlocks('p1', [])
+		expect(useStore.getState().paneAgentBlocks.has('p1')).toBe(false)
+	})
+
+	it('toggleBlockCollapse adds then removes block ID', () => {
+		useStore.getState().toggleBlockCollapse('p1', 'b1')
+		expect(useStore.getState().collapsedBlockIds.get('p1')?.has('b1')).toBe(true)
+
+		useStore.getState().toggleBlockCollapse('p1', 'b1')
+		expect(useStore.getState().collapsedBlockIds.get('p1')?.has('b1')).toBe(false)
+	})
+
+	it('collapseAllBlocks collapses all block IDs in a pane', () => {
+		const blocks = [
+			{ id: 'b1', type: 'tool-call' as const, agent: 'claude-code' as const, startLine: 0, endLine: 2, collapsed: false, metadata: {} },
+			{ id: 'b2', type: 'error' as const, agent: 'claude-code' as const, startLine: 3, endLine: 5, collapsed: false, metadata: {} },
+		]
+		useStore.getState().updateAgentBlocks('p1', blocks)
+		useStore.getState().collapseAllBlocks('p1')
+
+		const collapsed = useStore.getState().collapsedBlockIds.get('p1')
+		expect(collapsed?.has('b1')).toBe(true)
+		expect(collapsed?.has('b2')).toBe(true)
+	})
+
+	it('expandAllBlocks clears all collapsed IDs for a pane', () => {
+		useStore.getState().toggleBlockCollapse('p1', 'b1')
+		useStore.getState().toggleBlockCollapse('p1', 'b2')
+		useStore.getState().expandAllBlocks('p1')
+		expect(useStore.getState().collapsedBlockIds.has('p1')).toBe(false)
+	})
+
+	it('killPtys cleans up agent blocks and collapsed state', () => {
+		const blocks = [
+			{ id: 'b1', type: 'tool-call' as const, agent: 'claude-code' as const, startLine: 0, endLine: 2, collapsed: false, metadata: {} },
+		]
+		useStore.setState({ activePtyIds: new Set(['p1']) })
+		useStore.getState().updateAgentBlocks('p1', blocks)
+		useStore.getState().toggleBlockCollapse('p1', 'b1')
+
+		useStore.getState().killPtys(['p1'])
+
+		expect(useStore.getState().paneAgentBlocks.has('p1')).toBe(false)
+		expect(useStore.getState().collapsedBlockIds.has('p1')).toBe(false)
+	})
+})
+
 describe('store init agent listener', () => {
 	it('registers onPtyProcessChanged listener', async () => {
 		const ws = makeWorkspace()
@@ -1232,7 +1293,8 @@ describe('store init agent listener', () => {
 		await useStore.getState().init()
 
 		// Capture the callback and invoke it
-		const callback = mockApi.onPtyProcessChanged.mock.calls[0]?.[0] as
+		// biome-ignore lint/suspicious/noExplicitAny: test mock extraction
+		const callback = (mockApi.onPtyProcessChanged.mock.calls as any[][])[0]?.[0] as
 			| ((paneId: string, info: { name: string; pid: number }) => void)
 			| undefined
 		expect(callback).toBeDefined()
