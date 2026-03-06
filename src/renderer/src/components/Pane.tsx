@@ -706,22 +706,24 @@ export function Pane({
 							</div>
 						)}
 						<div className="ctx-separator" />
-						<button
-							type="button"
-							className="ctx-item"
-							onClick={() => {
-								killPtys([paneId])
-								if (config.launchMode && config.launchMode !== 'terminal') {
-									setLaunchMode(workspaceId, paneId, config.launchMode)
-								} else {
-									ensurePty(paneId, config.cwd, config.startupCommand)
-								}
-								closeContext()
-								onFocus(paneId)
-							}}
-						>
-							Restart Pane
-						</button>
+						{!showLauncher && (
+							<button
+								type="button"
+								className="ctx-item"
+								onClick={() => {
+									killPtys([paneId])
+									if (config.launchMode && config.launchMode !== 'terminal') {
+										setLaunchMode(workspaceId, paneId, config.launchMode)
+									} else {
+										ensurePty(paneId, config.cwd, config.startupCommand)
+									}
+									closeContext()
+									onFocus(paneId)
+								}}
+							>
+								Restart Pane
+							</button>
+						)}
 						{canClose && (
 							<button
 								type="button"
