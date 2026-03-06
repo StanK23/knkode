@@ -4,6 +4,7 @@ import type {
 	AppState,
 	DropPosition,
 	LaunchMode,
+	LaunchableAgent,
 	LayoutLeaf,
 	LayoutNode,
 	LayoutPreset,
@@ -281,7 +282,7 @@ interface StoreState {
 	/** Update workspace-level CWD. */
 	setWorkspaceCwd: (workspaceId: string, cwd: string) => void
 	/** Update per-agent CLI flags for a workspace. Empty string clears the flag. */
-	setAgentFlags: (workspaceId: string, agent: string, flags: string) => void
+	setAgentFlags: (workspaceId: string, agent: LaunchableAgent, flags: string) => void
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
 	saveState: () => Promise<void>
@@ -1079,12 +1080,12 @@ export const useStore = create<StoreState>((set, get) => ({
 		set((state) => {
 			const workspace = state.workspaces.find((w) => w.id === workspaceId)
 			if (!workspace) return state
-			const current = { ...workspace.agentFlags }
+			const current = { ...(workspace.agentFlags ?? {}) }
 			const trimmed = flags.trim()
 			if (trimmed) {
-				current[agent as keyof typeof current] = trimmed
+				current[agent] = trimmed
 			} else {
-				delete current[agent as keyof typeof current]
+				delete current[agent]
 			}
 			const updated = {
 				...workspace,
