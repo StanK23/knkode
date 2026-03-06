@@ -1114,6 +1114,18 @@ describe('store agent start times', () => {
 		expect(useStore.getState().paneAgentStartTimes.has('p1')).toBe(false)
 	})
 
+	it('resets start time when agent exits and restarts', () => {
+		useStore.getState().setPaneProcess('p1', { name: 'claude', pid: 1234 })
+		const firstStartTime = useStore.getState().paneAgentStartTimes.get('p1')
+
+		useStore.getState().setPaneProcess('p1', null)
+		useStore.getState().setPaneProcess('p1', { name: 'claude', pid: 9999 })
+		const secondStartTime = useStore.getState().paneAgentStartTimes.get('p1')
+
+		expect(secondStartTime).toBeDefined()
+		expect(secondStartTime).toBeGreaterThanOrEqual(firstStartTime!)
+	})
+
 	it('killPtys clears start times', () => {
 		useStore.setState({ activePtyIds: new Set(['p1']) })
 		useStore.getState().setPaneProcess('p1', { name: 'claude', pid: 1234 })
@@ -1156,6 +1168,7 @@ describe('store removePtyId agent cleanup', () => {
 
 		expect(useStore.getState().paneAgentTypes.has('p1')).toBe(false)
 		expect(useStore.getState().paneProcessNames.has('p1')).toBe(false)
+		expect(useStore.getState().paneAgentStartTimes.has('p1')).toBe(false)
 	})
 
 	it('preserves other panes agent state', () => {
