@@ -1560,6 +1560,25 @@ describe('setAgentFlags', () => {
 
 		expect(useStore.getState().workspaces[0].agentFlags).toEqual({ 'gemini-cli': '--fast' })
 	})
+
+	it('does nothing for nonexistent workspace', () => {
+		const ws = makeWorkspace()
+		useStore.setState({ workspaces: [ws] })
+
+		useStore.getState().setAgentFlags('nonexistent', 'claude-code', '--flag')
+
+		expect(useStore.getState().workspaces[0].agentFlags).toBeUndefined()
+		expect(mockApi.saveWorkspace).not.toHaveBeenCalled()
+	})
+
+	it('treats whitespace-only flags as empty (clears)', () => {
+		const ws = makeWorkspace({ agentFlags: { 'claude-code': '--model opus' } })
+		useStore.setState({ workspaces: [ws] })
+
+		useStore.getState().setAgentFlags('ws-1', 'claude-code', '   ')
+
+		expect(useStore.getState().workspaces[0].agentFlags).toBeUndefined()
+	})
 })
 
 describe('createLayoutFromPreset launchMode', () => {
