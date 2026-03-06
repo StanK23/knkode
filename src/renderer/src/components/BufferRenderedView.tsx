@@ -11,29 +11,61 @@ const BLOCK_LABELS: Record<AgentBlockType, string> = {
 	'tool-result': 'Result',
 	thinking: 'Thinking',
 	diff: 'Diff',
-	text: 'Output',
+	text: '',
 	status: 'Status',
 	permission: 'Permission',
 	error: 'Error',
 	unknown: 'Output',
 }
 
-// ── Block Item ──────────────────────────────────────────────────────────────
+/** Block types that should be collapsible (tool calls, diffs, etc.) */
+const COLLAPSIBLE_TYPES = new Set<AgentBlockType>(['tool-call', 'tool-result', 'diff', 'error', 'permission', 'unknown'])
 
-interface BlockItemProps {
-	block: AgentBlock
-}
+/** Block types to hide from the conversation view */
+const HIDDEN_TYPES = new Set<AgentBlockType>(['status'])
 
-const BlockItem = memo(function BlockItem({ block }: BlockItemProps) {
+// ── Text Block ──────────────────────────────────────────────────────────────
+
+const TextBlock = memo(function TextBlock({ block }: { block: AgentBlock }) {
+	return (
+		<div className="px-3 py-2">
+			<pre className="whitespace-pre-wrap break-words m-0 text-content text-xs leading-relaxed">
+				{block.content || '\u00A0'}
+			</pre>
+		</div>
+	)
+})
+
+// ── Thinking Block ──────────────────────────────────────────────────────────
+
+const ThinkingBlock = memo(function ThinkingBlock({ block }: { block: AgentBlock }) {
+	const isStreaming = block.endLine === null
+	const duration = block.metadata.duration
+
+	return (
+		<div className="px-3 py-1.5 flex items-center gap-2">
+			{isStreaming && (
+				<span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse motion-reduce:animate-none shrink-0" />
+			)}
+			<span className="text-content-muted text-[11px] italic">
+				{isStreaming ? 'Thinking...' : `Thought${duration ? ` ${duration}` : ''}`}
+			</span>
+		</div>
+	)
+})
+
+// ── Collapsible Block ───────────────────────────────────────────────────────
+
+const CollapsibleBlock = memo(function CollapsibleBlock({ block }: { block: AgentBlock }) {
 	const isStreaming = block.endLine === null
 	const label = BLOCK_LABELS[block.type]
 	const toolName = block.metadata.tool
 	const colorClass = BLOCK_TYPE_COLORS[block.type]
 
-	const [expanded, setExpanded] = useState(() => block.type !== 'thinking')
+	const [expanded, setExpanded] = useState(false)
 
 	return (
-		<div className="border-b border-edge/50 last:border-b-0">
+		<div className="border-b border-edge/30 last:border-b-0">
 			<button
 				type="button"
 				onClick={() => setExpanded((e) => !e)}
@@ -49,7 +81,7 @@ const BlockItem = memo(function BlockItem({ block }: BlockItemProps) {
 					{label}
 					{toolName ? `: ${toolName}` : ''}
 				</span>
-				{isStreaming && <span className="text-content-muted text-[10px] italic">streaming...</span>}
+				{isStreaming && <span className="text-content-muted text-[10px] italic ml-1">streaming...</span>}
 			</button>
 			{expanded && block.content && (
 				<pre className="whitespace-pre-wrap break-words m-0 px-3 pb-2 text-content-secondary text-[11px] leading-relaxed max-h-80 overflow-y-auto">
@@ -60,12 +92,26 @@ const BlockItem = memo(function BlockItem({ block }: BlockItemProps) {
 	)
 })
 
+// ── Block Router ────────────────────────────────────────────────────────────
+
+const BlockItem = memo(function BlockItem({ block }: { block: AgentBlock }) {
+	if (HIDDEN_TYPES.has(block.type)) return null
+	if (block.type === 'text') return <TextBlock block={block} />
+	if (block.type === 'thinking') return <ThinkingBlock block={block} />
+	if (COLLAPSIBLE_TYPES.has(block.type)) return <CollapsibleBlock block={block} />
+	return <TextBlock block={block} />
+})
+
 // ── Message Input ───────────────────────────────────────────────────────────
 
 function MessageInput({ paneId }: { paneId: string }) {
 	const [input, setInput] = useState('')
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
 	const sendAgentMessage = useStore((s) => s.sendAgentMessage)
+
+	const isStreaming = useStore(
+		(s) => s.paneAgentBlocks.get(paneId)?.at(-1)?.endLine === null,
+	)
 
 	const handleSubmit = useCallback(() => {
 		const trimmed = input.trim()
@@ -75,8 +121,8 @@ function MessageInput({ paneId }: { paneId: string }) {
 	}, [paneId, input, sendAgentMessage])
 
 	const handleStop = useCallback(() => {
-		window.api.writePty(paneId, '\x03').catch((err) => {
-			console.error('[BufferRenderedView] writePty Ctrl+C failed:', err)
+		window.api.writePty(paneId, '\x1b').catch((err) => {
+			console.error('[BufferRenderedView] writePty Esc failed:', err)
 		})
 	}, [paneId])
 
@@ -87,11 +133,15 @@ function MessageInput({ paneId }: { paneId: string }) {
 				handleSubmit()
 			}
 			if (e.key === 'Escape') {
-				setInput('')
-				textareaRef.current?.blur()
+				if (isStreaming) {
+					handleStop()
+				} else {
+					setInput('')
+					textareaRef.current?.blur()
+				}
 			}
 		},
-		[handleSubmit],
+		[handleSubmit, handleStop, isStreaming],
 	)
 
 	// Auto-resize textarea
@@ -103,47 +153,46 @@ function MessageInput({ paneId }: { paneId: string }) {
 		el.style.height = `${Math.min(el.scrollHeight, 120)}px`
 	}, [input])
 
-	const isStreaming = useStore(
-		(s) => s.paneAgentBlocks.get(paneId)?.at(-1)?.endLine === null,
-	)
-
 	return (
 		<div className="border-t border-edge px-3 py-2 shrink-0">
-			{isStreaming && (
-				<div className="flex items-center gap-2 mb-2">
+			{isStreaming ? (
+				<div className="flex items-center gap-2 py-1">
 					<span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse motion-reduce:animate-none shrink-0" />
 					<span className="text-content-muted text-[11px]">Agent is responding...</span>
 					<button
 						type="button"
 						onClick={handleStop}
-						className="ml-auto text-[10px] px-1.5 py-0.5 rounded-sm cursor-pointer border border-edge bg-overlay hover:bg-overlay-active text-content-secondary focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+						className="ml-auto text-[10px] px-2 py-1 rounded-sm cursor-pointer border border-edge bg-overlay hover:bg-overlay-active text-content-secondary focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 					>
-						Stop
+						Esc to interrupt
 					</button>
 				</div>
+			) : (
+				<>
+					<div className="flex gap-2 items-end">
+						<textarea
+							ref={textareaRef}
+							value={input}
+							onChange={(e) => setInput(e.target.value)}
+							onKeyDown={handleKeyDown}
+							placeholder="Send a message..."
+							rows={1}
+							className="flex-1 resize-none bg-sunken border border-edge rounded-sm px-2 py-1.5 text-content text-xs leading-relaxed placeholder:text-content-muted/50 focus:outline-none focus:ring-1 focus:ring-accent"
+						/>
+						<button
+							type="button"
+							onClick={handleSubmit}
+							disabled={!input.trim()}
+							className="px-2 py-1.5 text-[11px] font-semibold rounded-sm cursor-pointer border-none bg-accent text-canvas hover:brightness-110 disabled:opacity-40 disabled:cursor-default focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+						>
+							Send
+						</button>
+					</div>
+					<div className="mt-1 text-[10px] text-content-muted/40">
+						Enter to send · Shift+Enter for newline
+					</div>
+				</>
 			)}
-			<div className="flex gap-2 items-end">
-				<textarea
-					ref={textareaRef}
-					value={input}
-					onChange={(e) => setInput(e.target.value)}
-					onKeyDown={handleKeyDown}
-					placeholder="Send a message..."
-					rows={1}
-					className="flex-1 resize-none bg-sunken border border-edge rounded-sm px-2 py-1.5 text-content text-xs leading-relaxed placeholder:text-content-muted/50 focus:outline-none focus:ring-1 focus:ring-accent"
-				/>
-				<button
-					type="button"
-					onClick={handleSubmit}
-					disabled={!input.trim()}
-					className="px-2 py-1.5 text-[11px] font-semibold rounded-sm cursor-pointer border-none bg-accent text-canvas hover:brightness-110 disabled:opacity-40 disabled:cursor-default focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
-				>
-					Send
-				</button>
-			</div>
-			<div className="mt-1 text-[10px] text-content-muted/40">
-				Enter to send · Shift+Enter for newline · Esc to clear
-			</div>
 		</div>
 	)
 }

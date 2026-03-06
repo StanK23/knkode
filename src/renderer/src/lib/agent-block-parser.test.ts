@@ -40,14 +40,16 @@ describe('AgentBlockParser', () => {
 			parser.update(lineGetter(lines), lines.length)
 
 			const blocks = parser.getBlocks()
-			expect(blocks).toHaveLength(2)
+			expect(blocks).toHaveLength(3)
 			expect(blocks[0].type).toBe('tool-call')
 			expect(blocks[0].metadata.tool).toBe('read')
 			expect(blocks[0].endLine).toBe(2)
-			expect(blocks[1].type).toBe('tool-call')
-			expect(blocks[1].metadata.tool).toBe('bash')
-			expect(blocks[1].startLine).toBe(4)
-			expect(blocks[1].endLine).toBe(6)
+			expect(blocks[1].type).toBe('text')
+			expect(blocks[1].startLine).toBe(3)
+			expect(blocks[2].type).toBe('tool-call')
+			expect(blocks[2].metadata.tool).toBe('bash')
+			expect(blocks[2].startLine).toBe(4)
+			expect(blocks[2].endLine).toBe(6)
 		})
 
 		it('handles open/streaming block (no closing border)', () => {

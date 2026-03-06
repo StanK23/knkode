@@ -13,11 +13,17 @@ const BOX_CHARS_RE = /[╭╮╰╯│─┬┴┤├┼⎿]/g
 
 /**
  * Bullet/marker characters that start inline blocks.
- * Claude Code uses ⏺ for tool calls, ❯ for prompts/status.
+ * Claude Code uses ⏺ for tool calls, ❯ for prompts/status, ✻ for thinking.
  * Older versions used ● ◆ ▶. All are supported.
  * Requires at least one character after the marker to avoid false positives.
  */
-const BULLET_PATTERN = /^[●◆▶⏺❯].+/
+const BULLET_PATTERN = /^[●◆▶⏺❯✻].+/
+
+/** Horizontal rule — marks the end of content and start of status bar. */
+const HRULE_PATTERN = /^[─━]{4,}$/
+
+/** Status bar / TUI chrome lines to skip. */
+const STATUS_BAR_PATTERN = /^[▪▸▹⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏\s]*$/
 
 /** Map agent types to their block classifiers. */
 const CLASSIFIERS: Partial<Record<AgentType, BlockClassifier>> = {
@@ -136,7 +142,11 @@ export class AgentBlockParser {
 		this.lastParsedLine = -1
 		this.nextBlockId = 0
 		this.lineBuffer = ''
+		this.pastStatusBar = false
 	}
+
+	/** Whether we've hit the status bar boundary (horizontal rule). */
+	private pastStatusBar = false
 
 	private processLine(stripped: string, lineIndex: number): void {
 		const classifier = this.classifier
@@ -144,6 +154,22 @@ export class AgentBlockParser {
 
 		// Trim leading whitespace — TUI apps indent content with spaces in the terminal grid
 		const trimmed = stripped.trim()
+
+		// Skip empty lines when no block is open
+		if (!trimmed) return
+
+		// Horizontal rule = status bar boundary — stop processing
+		if (HRULE_PATTERN.test(trimmed)) {
+			this.closeOpenBlock(lineIndex - 1)
+			this.pastStatusBar = true
+			return
+		}
+
+		// Once past the status bar, ignore everything (TUI chrome)
+		if (this.pastStatusBar) return
+
+		// Skip status bar spinner / progress lines
+		if (STATUS_BAR_PATTERN.test(trimmed)) return
 
 		// Block start: line contains ╭ (box-drawing top-left corner)
 		if (trimmed.includes(TOP_LEFT)) {
@@ -158,14 +184,30 @@ export class AgentBlockParser {
 			return
 		}
 
-		// Bullet block start: line starts with ●, ◆, ▶, ⏺, or ❯
+		// Bullet block start: line starts with ●, ◆, ▶, ⏺, ❯, or ✻
 		if (BULLET_PATTERN.test(trimmed)) {
 			this.openNewBlock(classifier, trimmed, lineIndex)
 			return
 		}
 
+		// If no block is open, start a 'text' block for agent/user text
+		if (!this.openBlock) {
+			const block: MutableBlock = {
+				id: `block-${++this.nextBlockId}`,
+				type: 'text',
+				agent: this.agent,
+				startLine: lineIndex,
+				endLine: null,
+				metadata: {},
+				contentLines: [trimmed],
+			}
+			this.openBlock = block
+			this.blocks.push(block)
+			return
+		}
+
 		// Mid-block content: check for diff markers or error patterns to refine type
-		if (this.openBlock && this.openBlock.type === 'unknown') {
+		if (this.openBlock.type === 'unknown') {
 			if (/^([+-]\s|@@\s)/.test(trimmed)) {
 				this.openBlock.type = 'diff'
 			} else if (/\b(error|exception|failed)\b/i.test(trimmed)) {

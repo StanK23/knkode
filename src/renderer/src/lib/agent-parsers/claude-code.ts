@@ -27,6 +27,13 @@ export const classifyClaudeCode: BlockClassifier = (headerText) => {
 
 	if (!trimmed) return UNKNOWN_BLOCK
 
+	// Thinking indicator: "Sautéed for 34s", "Thinking..." etc.
+	// The ✻ marker is stripped by stripBlockMarkers, leaving e.g. "Sautéed for 34s"
+	const thinkingMatch = trimmed.match(/^(?:saut[ée]+d|thinking|reasoning)\s*(.*)/i)
+	if (thinkingMatch) {
+		return { type: 'thinking', metadata: { duration: thinkingMatch[1]?.trim() || '' } }
+	}
+
 	// MCP tool calls: "server - tool_name (MCP)(...)" format
 	const mcpMatch = trimmed.match(/^(.+?)\s*\(MCP\)/i)
 	if (mcpMatch) {
@@ -58,13 +65,8 @@ export const classifyClaudeCode: BlockClassifier = (headerText) => {
 		return { type: 'tool-call', metadata: { tool: 'search' } }
 	}
 
-	// Thinking / reasoning
-	if (/^(thinking|reasoning|chain\.of\.thought)/i.test(trimmed)) {
-		return { type: 'thinking', metadata: {} }
-	}
-
-	// Status messages (e.g. "Tool Loaded.")
-	if (/^tool\s+loaded/i.test(trimmed)) {
+	// Status messages (e.g. "Tool Loaded.", "status")
+	if (/^(tool\s+loaded|status)\b/i.test(trimmed)) {
 		return { type: 'status', metadata: {} }
 	}
 
