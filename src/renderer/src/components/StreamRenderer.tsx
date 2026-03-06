@@ -31,7 +31,8 @@ function ThinkingBlockView({ block, streaming }: { block: ThinkingBlock; streami
 			<button
 				type="button"
 				onClick={() => setExpanded((e) => !e)}
-				className="bg-transparent border-none cursor-pointer text-content-muted text-[11px] flex items-center gap-1 p-0 hover:text-content-secondary"
+				aria-expanded={expanded}
+				className="bg-transparent border-none cursor-pointer text-content-muted text-[11px] flex items-center gap-1 p-0 hover:text-content-secondary focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 			>
 				<span className="text-[9px]">{expanded ? '\u25BE' : '\u25B8'}</span>
 				<span className="italic">Thinking{streaming ? '...' : ''}</span>
@@ -51,9 +52,12 @@ function ToolCallBlockView({ block, streaming }: { block: ToolUseBlock; streamin
 	let displayJson = block.inputJson
 	if (!streaming && block.inputJson) {
 		try {
-			displayJson = JSON.stringify(JSON.parse(block.inputJson), null, 2)
-		} catch {
-			// Keep raw — partial or malformed JSON
+			// Skip pretty-printing for very large payloads to avoid UI freeze
+			if (block.inputJson.length <= 100_000) {
+				displayJson = JSON.stringify(JSON.parse(block.inputJson), null, 2)
+			}
+		} catch (err) {
+			console.warn('[StreamRenderer] JSON format failed, keeping raw:', err)
 		}
 	}
 
@@ -62,7 +66,8 @@ function ToolCallBlockView({ block, streaming }: { block: ToolUseBlock; streamin
 			<button
 				type="button"
 				onClick={() => setExpanded((e) => !e)}
-				className="w-full flex items-center gap-1.5 px-2 py-1 bg-sunken border-none cursor-pointer text-left hover:bg-overlay"
+				aria-expanded={expanded}
+				className="w-full flex items-center gap-1.5 px-2 py-1 bg-sunken border-none cursor-pointer text-left hover:bg-overlay focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 			>
 				<span className="text-[9px] text-content-muted">{expanded ? '\u25BE' : '\u25B8'}</span>
 				<span className="text-accent text-[11px] font-semibold">{block.name || 'tool'}</span>
@@ -87,7 +92,11 @@ function BlockView({ block, streaming }: { block: ContentBlock; streaming: boole
 			return <ThinkingBlockView block={block} streaming={streaming} />
 		case 'tool_use':
 			return <ToolCallBlockView block={block} streaming={streaming} />
+		case 'tool_result':
+			// TODO: implement ToolResultBlockView when tool_result blocks are produced
+			return null
 		default:
+			console.warn('[StreamRenderer] Unknown block type:', (block as { type: string }).type)
 			return null
 	}
 }
@@ -99,7 +108,7 @@ const MessageGroup = memo(function MessageGroup({ message }: { message: StreamMe
 		<div className="py-2 px-3 border-b border-edge/50 last:border-b-0">
 			<div className="flex items-center gap-2 mb-1.5 text-[11px]">
 				{message.streaming && (
-					<span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse shrink-0" />
+					<span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse motion-reduce:animate-none shrink-0" />
 				)}
 				<span className="font-semibold text-content-secondary">{message.role}</span>
 				{message.model && <span className="text-content-muted">{message.model}</span>}
@@ -176,6 +185,8 @@ export function StreamRenderer({ paneId, theme, themeOverride }: StreamRendererP
 	return (
 		<div
 			ref={scrollRef}
+			role="log"
+			aria-label="Agent conversation"
 			className="w-full h-full overflow-y-auto p-1.5"
 			style={{ backgroundColor: bg }}
 			onScroll={handleScroll}

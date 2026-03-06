@@ -89,14 +89,16 @@ export const AgentStatusBar = memo(function AgentStatusBar({
 
 			<span className="flex-1" />
 
-			{viewMode && (
+			{viewMode !== undefined && (
 				<button
 					type="button"
 					onClick={() => setViewMode(paneId, viewMode === 'rendered' ? 'raw' : 'rendered')}
-					className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-px rounded-sm cursor-pointer border-none bg-overlay hover:bg-overlay-active text-content-secondary"
+					aria-pressed={viewMode === 'rendered'}
+					aria-label="Toggle view mode"
+					className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-px rounded-sm cursor-pointer border-none bg-overlay hover:bg-overlay-active text-content-secondary focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
 					title={viewMode === 'rendered' ? 'Switch to raw terminal' : 'Switch to rendered view'}
 				>
-					{viewMode === 'rendered' ? 'rendered' : 'raw'}
+					{viewMode}
 				</button>
 			)}
 
