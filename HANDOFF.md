@@ -1,8 +1,8 @@
 # HANDOFF
 
 ## Current State
-- Branch: `main`
-- PR #60 merged: alt screen buffer detection
+- Branch: `feature/ansi-block-parser`
+- PR #61 open: ANSI block parser for Ink-based CLIs — review fixes applied, ready for merge
 
 ## What Was Done
 - PR #58 merged: translucent pane backgrounds with blur
@@ -14,7 +14,7 @@
 - `docs/plans/2026-03-06-agent-workspace-plan.md`
 - PR #1: agent process detection — **merged** (PR #59)
 - PR #2: alt screen buffer detection — **merged** (PR #60)
-- PR #3: ANSI block parser for Ink-based CLIs — next
+- PR #3: ANSI block parser for Ink-based CLIs — **PR #61 open, review complete**
 - PR #4: collapsible block overlay UI
 - PR #5: per-pane agent status bar
 - PR #6: stream JSON renderer (opt-in)
@@ -28,5 +28,5 @@
 - PR #50: Dynamic workspace fonts
 
 ## Next Steps
-1. PR #3: ANSI block parser (`feature/ansi-block-parser`)
+1. Merge PR #61
 2. PR #4: collapsible block overlay UI
