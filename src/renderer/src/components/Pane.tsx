@@ -46,6 +46,7 @@ import { isValidCwd } from '../utils/validation'
 import { AgentStatusBar } from './AgentStatusBar'
 import { FontPicker } from './FontPicker'
 import { PaneLauncher } from './PaneLauncher'
+import { StreamRenderer } from './StreamRenderer'
 import { TerminalView } from './Terminal'
 
 interface ThemeInputFields {
@@ -194,6 +195,7 @@ export function Pane({
 	const outerRef = useRef<HTMLDivElement>(null)
 
 	const agentType = useStore((s) => s.paneAgentTypes.get(paneId) ?? null)
+	const viewMode = useStore((s) => s.paneViewMode.get(paneId))
 	const movePaneToWorkspace = useStore((s) => s.movePaneToWorkspace)
 	const swapPanes = useStore((s) => s.swapPanes)
 	const movePaneToPosition = useStore((s) => s.movePaneToPosition)
@@ -752,6 +754,12 @@ export function Pane({
 			<div className="flex-1 overflow-hidden p-px relative">
 				{showLauncher ? (
 					<PaneLauncher workspaceId={workspaceId} paneId={paneId} />
+				) : viewMode === 'rendered' ? (
+					<StreamRenderer
+						paneId={paneId}
+						theme={workspaceTheme}
+						themeOverride={config.themeOverride}
+					/>
 				) : (
 					<TerminalView
 						paneId={paneId}
