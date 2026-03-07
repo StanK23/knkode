@@ -119,6 +119,7 @@ function assertWorkspace(value: unknown): asserts value is Workspace {
 	}
 }
 
+const MAX_AGENT_MESSAGE_LENGTH = 1_000_000 // 1MB
 const MAX_SNIPPETS = 500
 const MAX_SNIPPET_NAME_LENGTH = 256
 const MAX_SNIPPET_COMMAND_LENGTH = 4096
@@ -274,6 +275,9 @@ export function registerIpcHandlers(): void {
 	ipcMain.handle(IPC.AGENT_SEND, (_e, id: unknown, message: unknown) => {
 		assertPaneId(id)
 		assertNonEmptyString(message, 'message')
+		if ((message as string).length > MAX_AGENT_MESSAGE_LENGTH) {
+			throw new Error(`Message too long: max ${MAX_AGENT_MESSAGE_LENGTH} characters`)
+		}
 		sendAgentMessage(id, message)
 	})
 
