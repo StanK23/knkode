@@ -50,6 +50,12 @@ function assertLaunchableAgent(value: unknown): asserts value is LaunchableAgent
 	}
 }
 
+function assertAbsolutePath(value: unknown, name: string): asserts value is string {
+	assertString(value, name)
+	if (!path.isAbsolute(value)) throw new Error(`Invalid ${name}: must be an absolute path`)
+	if (value.includes('\0')) throw new Error(`Invalid ${name}: contains null byte`)
+}
+
 function assertIntInRange(
 	value: unknown,
 	name: string,
@@ -90,10 +96,7 @@ function assertWorkspace(value: unknown): asserts value is Workspace {
 		throw new Error('Invalid workspace: missing or invalid panes')
 	// Validate optional cwd field
 	if (obj.cwd !== undefined && obj.cwd !== null) {
-		if (typeof obj.cwd !== 'string') throw new Error('Invalid workspace: cwd must be a string')
-		if (!path.isAbsolute(obj.cwd))
-			throw new Error('Invalid workspace: cwd must be an absolute path')
-		if (obj.cwd.includes('\0')) throw new Error('Invalid workspace: cwd contains null byte')
+		assertAbsolutePath(obj.cwd, 'workspace cwd')
 	}
 	// Validate optional agentFlags field — reject shell metacharacters
 	if (obj.agentFlags !== undefined) {
@@ -207,9 +210,7 @@ export function registerIpcHandlers(): void {
 
 	ipcMain.handle(IPC.PTY_CREATE, async (_e, id: unknown, cwd: unknown, startupCommand: unknown) => {
 		assertPaneId(id)
-		assertString(cwd, 'cwd')
-		if (!path.isAbsolute(cwd)) throw new Error('Invalid cwd: must be an absolute path')
-		if (cwd.includes('\0')) throw new Error('Invalid cwd: contains null byte')
+		assertAbsolutePath(cwd, 'cwd')
 		if (startupCommand !== null && typeof startupCommand !== 'string') {
 			throw new Error('Invalid startup command')
 		}
@@ -259,9 +260,7 @@ export function registerIpcHandlers(): void {
 	ipcMain.handle(IPC.AGENT_SPAWN, (_e, id: unknown, agentType: unknown, cwd: unknown) => {
 		assertPaneId(id)
 		assertLaunchableAgent(agentType)
-		assertString(cwd, 'cwd')
-		if (!path.isAbsolute(cwd)) throw new Error('Invalid cwd: must be an absolute path')
-		if (cwd.includes('\0')) throw new Error('Invalid cwd: contains null byte')
+		assertAbsolutePath(cwd, 'cwd')
 		try {
 			spawnAgent(id, agentType, path.resolve(cwd))
 		} catch (err) {
