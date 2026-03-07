@@ -111,8 +111,3 @@ export function killAllAgents(): void {
 		killAgent(id)
 	}
 }
-
-/** Check if a pane has an active agent subprocess. */
-export function hasAgentSession(paneId: string): boolean {
-	return sessions.has(paneId)
-}
