@@ -305,6 +305,7 @@ function MessageInput({ paneId, isStreaming }: { paneId: string; isStreaming: bo
 	const [input, setInput] = useState('')
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
 	const sendAgentMessage = useStore((s) => s.sendAgentMessage)
+	const killAgents = useStore((s) => s.killAgents)
 	const isSubprocess = useStore((s) => s.activeAgentIds.has(paneId))
 
 	const handleSubmit = useCallback(() => {
@@ -316,11 +317,13 @@ function MessageInput({ paneId, isStreaming }: { paneId: string; isStreaming: bo
 
 	const handleStop = useCallback(() => {
 		if (isSubprocess) {
-			window.api.killAgent(paneId)
+			killAgents([paneId])
 		} else {
-			window.api.writePty(paneId, '\x03')
+			window.api.writePty(paneId, '\x03').catch((err) => {
+				console.warn('[StreamRenderer] writePty stop failed:', err)
+			})
 		}
-	}, [paneId, isSubprocess])
+	}, [paneId, isSubprocess, killAgents])
 
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
@@ -369,6 +372,7 @@ function MessageInput({ paneId, isStreaming }: { paneId: string; isStreaming: bo
 					value={input}
 					onChange={(e) => setInput(e.target.value)}
 					onKeyDown={handleKeyDown}
+					aria-label="Message to agent"
 					placeholder="Send a message... (Enter to send, Shift+Enter for newline)"
 					rows={1}
 					className="flex-1 resize-none bg-sunken border border-edge rounded-sm px-2 py-1.5 text-content text-xs leading-relaxed placeholder:text-content-muted/50 focus:outline-none focus:ring-1 focus:ring-accent"

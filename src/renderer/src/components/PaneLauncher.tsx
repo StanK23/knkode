@@ -67,7 +67,10 @@ export function PaneLauncher({ workspaceId, paneId }: PaneLauncherProps) {
 	const agentFlags = workspace.agentFlags ?? {}
 
 	return (
-		<div className="flex flex-col items-center justify-center h-full w-full select-none gap-6 p-8">
+		<div
+			aria-label="Choose pane type"
+			className="flex flex-col items-center justify-center h-full w-full select-none gap-6 p-8"
+		>
 			{/* CWD selector */}
 			<button
 				type="button"

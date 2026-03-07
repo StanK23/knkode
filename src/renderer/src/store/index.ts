@@ -25,8 +25,9 @@ import {
 	isLayoutBranch,
 } from '../../../shared/types'
 import { THEME_PRESETS } from '../data/theme-presets'
-import { ClaudeCodeStreamParser, stripAnsi } from '../lib/agent-renderers/claude-code'
+import { ClaudeCodeStreamParser } from '../lib/agent-renderers/claude-code'
 import type { StreamMessage, StreamParser } from '../lib/agent-renderers/types'
+import { stripAnsi } from '../lib/ansi'
 
 function defaultTheme(): PaneTheme {
 	return {
@@ -231,8 +232,6 @@ interface StoreState {
 	paneStreamMessages: Map<string, readonly StreamMessage[]>
 	/** ANSI-stripped raw text per pane — used by rendered view when NDJSON is unavailable. */
 	paneStreamText: Map<string, string>
-	/** Tracks panes that have received PTY data but parsed zero messages — diagnostic for format mismatch. */
-	paneStreamDataReceived: Map<string, boolean>
 	/** Session IDs per pane — extracted from result events, used for --resume multi-turn. */
 	paneSessionIds: Map<string, string>
 
@@ -315,7 +314,6 @@ type PaneCleanupState = Pick<
 	| 'paneAgentStartTimes'
 	| 'paneStreamMessages'
 	| 'paneStreamText'
-	| 'paneStreamDataReceived'
 	| 'paneSessionIds'
 >
 
@@ -327,7 +325,6 @@ function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneClean
 	const startTimes = new Map(state.paneAgentStartTimes)
 	const streamMsgs = new Map(state.paneStreamMessages)
 	const streamText = new Map(state.paneStreamText)
-	const streamReceived = new Map(state.paneStreamDataReceived)
 	const sessionIds = new Map(state.paneSessionIds)
 	for (const id of paneIds) {
 		agents.delete(id)
@@ -336,7 +333,6 @@ function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneClean
 		startTimes.delete(id)
 		streamMsgs.delete(id)
 		streamText.delete(id)
-		streamReceived.delete(id)
 		sessionIds.delete(id)
 		streamParsers.delete(id)
 	}
@@ -347,7 +343,6 @@ function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneClean
 		paneAgentStartTimes: startTimes,
 		paneStreamMessages: streamMsgs,
 		paneStreamText: streamText,
-		paneStreamDataReceived: streamReceived,
 		paneSessionIds: sessionIds,
 	}
 }
@@ -387,7 +382,6 @@ export const useStore = create<StoreState>((set, get) => ({
 	paneAgentStartTimes: new Map(),
 	paneStreamMessages: new Map(),
 	paneStreamText: new Map(),
-	paneStreamDataReceived: new Map(),
 	paneSessionIds: new Map(),
 
 	setAltScreen: (paneId, isAlt) => {
@@ -574,8 +568,8 @@ export const useStore = create<StoreState>((set, get) => ({
 		}
 
 		if (pendingStreamFlush.has(paneId)) return
-		if (typeof requestAnimationFrame === 'function' && typeof process === 'undefined') {
-			// Browser — batch updates per animation frame
+		if (typeof requestAnimationFrame === 'function' && process.env.NODE_ENV !== 'test') {
+			// Electron renderer — batch updates per animation frame
 			const rafId = requestAnimationFrame(flushToStore)
 			pendingStreamFlush.set(paneId, rafId)
 		} else {
@@ -593,16 +587,13 @@ export const useStore = create<StoreState>((set, get) => ({
 		streamParsers.delete(paneId)
 		const msgs = new Map(get().paneStreamMessages)
 		const text = new Map(get().paneStreamText)
-		const received = new Map(get().paneStreamDataReceived)
 		const sessions = new Map(get().paneSessionIds)
 		msgs.delete(paneId)
 		text.delete(paneId)
-		received.delete(paneId)
 		sessions.delete(paneId)
 		set({
 			paneStreamMessages: msgs,
 			paneStreamText: text,
-			paneStreamDataReceived: received,
 			paneSessionIds: sessions,
 		})
 	},
@@ -625,6 +616,8 @@ export const useStore = create<StoreState>((set, get) => ({
 			})
 			window.api.onAgentError((paneId, error) => {
 				console.error(`[store] agent error for pane ${paneId}:`, error)
+				// Surface agent stderr to user by feeding it as raw stream data
+				get().feedStreamData(paneId, error)
 			})
 			window.api.onAgentExit((paneId, code, signal) => {
 				console.log(`[store] agent exited for pane ${paneId}:`, { code, signal })
@@ -1221,17 +1214,18 @@ export const useStore = create<StoreState>((set, get) => ({
 				window.api.spawnAgent(paneId, mode, cwd).catch((err) => {
 					console.error(`[store] spawnAgent failed for pane ${paneId}:`, err)
 					const current = get().activeAgentIds
-					if (current.has(paneId)) {
-						const rollback = new Set(current)
-						rollback.delete(paneId)
-						set({ activeAgentIds: rollback })
-					}
+					const rollback = new Set(current)
+					rollback.delete(paneId)
+					// Reset launchMode to null so launcher reappears instead of zombie state
+					get().updatePaneConfig(workspaceId, paneId, { launchMode: null })
+					set({ activeAgentIds: rollback })
 				})
 				return
 			}
 
 			// Non-subprocess agents: launch via PTY with startup command
-			const userFlags = workspace.agentFlags?.[mode as keyof typeof workspace.agentFlags] ?? ''
+			const agent = mode as LaunchableAgent
+			const userFlags = workspace.agentFlags?.[agent] ?? ''
 			const parts = [config.command]
 			if (userFlags.trim()) parts.push(userFlags.trim())
 			parts.push(...config.defaultFlags)

@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
 	AGENT_LABELS,
-	type AgentType,
 	DEFAULT_PANE_OPACITY,
 	type DropPosition,
-	type LaunchMode,
 	type PaneConfig,
 	type PaneTheme,
 } from '../../../shared/types'
@@ -220,23 +218,41 @@ export function Pane({
 	const isAgent = config.launchMode != null && config.launchMode !== 'terminal'
 	// Use process-detected agent type, falling back to launchMode for agent panes
 	const effectiveAgentType =
-		agentType ?? (isAgent && config.launchMode ? (config.launchMode as AgentType) : null)
+		agentType ??
+		(isAgent && config.launchMode && config.launchMode !== 'terminal' ? config.launchMode : null)
 	const initialCwdRef = useRef(config.cwd)
 	const initialCmdRef = useRef(config.startupCommand)
 	const spawnedRef = useRef(false)
+	// Reset spawnedRef when agent exits (isSubprocess goes false) so re-spawn can occur
+	const prevSubprocessRef = useRef(isSubprocess)
+	useEffect(() => {
+		if (prevSubprocessRef.current && !isSubprocess) {
+			spawnedRef.current = false
+		}
+		prevSubprocessRef.current = isSubprocess
+	}, [isSubprocess])
 	// Subprocess panes are spawned by setLaunchMode — only ensure PTY for non-subprocess panes.
 	// On reload, agent panes have launchMode persisted but no active subprocess — re-spawn them.
 	useEffect(() => {
 		if (showLauncher) return
-		if (isAgent && !isSubprocess && !spawnedRef.current) {
+		if (isAgent && !isSubprocess && !spawnedRef.current && config.launchMode) {
 			spawnedRef.current = true
-			setLaunchMode(workspaceId, paneId, config.launchMode as LaunchMode)
+			setLaunchMode(workspaceId, paneId, config.launchMode)
 			return
 		}
 		if (!isAgent && !isSubprocess) {
 			ensurePty(paneId, initialCwdRef.current, initialCmdRef.current)
 		}
-	}, [paneId, ensurePty, showLauncher, isSubprocess, isAgent, setLaunchMode, workspaceId, config.launchMode])
+	}, [
+		paneId,
+		ensurePty,
+		showLauncher,
+		isSubprocess,
+		isAgent,
+		setLaunchMode,
+		workspaceId,
+		config.launchMode,
+	])
 
 	const { isEditing, inputProps, startEditing } = useInlineEdit(config.label, (label) =>
 		onUpdateConfig(paneId, { label }),

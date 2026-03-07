@@ -1,14 +1,10 @@
+import { stripAnsi } from '../ansi'
 import type { ContentBlock, StreamMessage, StreamParser } from './types'
 
-/** Maximum line buffer size (1 MB). Protects against PTY data without newlines. */
-const MAX_BUFFER_SIZE = 1_048_576
+export { stripAnsi }
 
-/** Strip ANSI escape sequences from a string. PTYs may wrap JSON lines in terminal codes. */
-// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape matching requires control chars
-const ANSI_RE = /\x1b\[[0-9;]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b\[[\?]?[0-9;]*[hlm]/g
-export function stripAnsi(str: string): string {
-	return str.replace(ANSI_RE, '')
-}
+/** Maximum line buffer size (1 MB). Protects against malformed output without newlines. */
+const MAX_BUFFER_SIZE = 1_048_576
 
 /** Maximum accumulated messages. Prevents unbounded memory growth in long sessions. */
 const MAX_MESSAGES = 500
