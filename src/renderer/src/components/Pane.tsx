@@ -223,15 +223,17 @@ export function Pane({
 		agentType ?? (isAgent && config.launchMode ? (config.launchMode as AgentType) : null)
 	const initialCwdRef = useRef(config.cwd)
 	const initialCmdRef = useRef(config.startupCommand)
+	const spawnedRef = useRef(false)
 	// Subprocess panes are spawned by setLaunchMode — only ensure PTY for non-subprocess panes.
 	// On reload, agent panes have launchMode persisted but no active subprocess — re-spawn them.
 	useEffect(() => {
 		if (showLauncher) return
-		if (isAgent && !isSubprocess) {
+		if (isAgent && !isSubprocess && !spawnedRef.current) {
+			spawnedRef.current = true
 			setLaunchMode(workspaceId, paneId, config.launchMode as LaunchMode)
 			return
 		}
-		if (!isSubprocess) {
+		if (!isAgent && !isSubprocess) {
 			ensurePty(paneId, initialCwdRef.current, initialCmdRef.current)
 		}
 	}, [paneId, ensurePty, showLauncher, isSubprocess, isAgent, setLaunchMode, workspaceId, config.launchMode])

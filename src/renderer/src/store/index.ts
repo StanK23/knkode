@@ -573,6 +573,28 @@ export const useStore = create<StoreState>((set, get) => ({
 	init: async () => {
 		if (get().initialized) return
 		try {
+			// Register IPC event listeners FIRST — before any async work.
+			// Agent subprocesses can spawn immediately on pane mount and start
+			// sending data. If listeners aren't registered yet, events are lost.
+			window.api.onPtyProcessChanged((paneId, info) => {
+				get().setPaneProcess(paneId, info)
+			})
+			window.api.onAgentData((paneId, data) => {
+				get().feedStreamData(paneId, data)
+			})
+			window.api.onAgentError((paneId, error) => {
+				console.error(`[store] agent error for pane ${paneId}:`, error)
+			})
+			window.api.onAgentExit((paneId, code, signal) => {
+				console.log(`[store] agent exited for pane ${paneId}:`, { code, signal })
+				const current = get().activeAgentIds
+				if (current.has(paneId)) {
+					const newSet = new Set(current)
+					newSet.delete(paneId)
+					set({ activeAgentIds: newSet })
+				}
+			})
+
 			const [workspaces, appState, homeDir, snippets] = await Promise.all([
 				window.api.getWorkspaces(),
 				window.api.getAppState(),
@@ -619,27 +641,6 @@ export const useStore = create<StoreState>((set, get) => ({
 				focusGeneration: initialFocusedPaneId ? 1 : 0,
 			})
 
-			// Listen for child process changes (agent detection)
-			window.api.onPtyProcessChanged((paneId, info) => {
-				get().setPaneProcess(paneId, info)
-			})
-
-			// Agent subprocess events (bidirectional stream-json)
-			window.api.onAgentData((paneId, data) => {
-				get().feedStreamData(paneId, data)
-			})
-			window.api.onAgentError((paneId, error) => {
-				console.error(`[store] agent error for pane ${paneId}:`, error)
-			})
-			window.api.onAgentExit((paneId, code, signal) => {
-				console.log(`[store] agent exited for pane ${paneId}:`, { code, signal })
-				const current = get().activeAgentIds
-				if (current.has(paneId)) {
-					const newSet = new Set(current)
-					newSet.delete(paneId)
-					set({ activeAgentIds: newSet })
-				}
-			})
 		} catch (err) {
 			console.error('[store] Failed to initialize:', err)
 			set({ initError: String(err), initialized: true })
