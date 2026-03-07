@@ -52,7 +52,8 @@ export function useAgentBlockParser(paneId: string, termRef: React.RefObject<XTe
 
 			try {
 				const buffer = term.buffer.active
-				const lineCount = buffer.length
+				// Skip last 3 lines — TUI status bar (hrule + prompt + progress)
+				const lineCount = Math.max(0, buffer.length - 3)
 
 				// TUI apps redraw the screen in place — re-parse from line 0 every tick
 				const parser = new AgentBlockParser(effectiveAgent)
