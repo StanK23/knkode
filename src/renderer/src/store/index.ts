@@ -1,24 +1,33 @@
 import { create } from 'zustand'
 import type {
+	AgentType,
 	AppState,
 	DropPosition,
+	LaunchMode,
+	LaunchableAgent,
 	LayoutLeaf,
 	LayoutNode,
 	LayoutPreset,
 	PaneConfig,
 	PaneTheme,
+	ProcessInfo,
 	Snippet,
 	SplitDirection,
 	Workspace,
 	WorkspaceLayout,
 } from '../../../shared/types'
 import {
+	AGENT_LAUNCH_CONFIG,
 	DEFAULT_CURSOR_STYLE,
 	DEFAULT_SCROLLBACK,
 	DEFAULT_UNFOCUSED_DIM,
+	PROCESS_TO_AGENT,
 	isLayoutBranch,
 } from '../../../shared/types'
 import { THEME_PRESETS } from '../data/theme-presets'
+import { ClaudeCodeStreamParser } from '../lib/agent-renderers/claude-code'
+import type { StreamMessage, StreamParser } from '../lib/agent-renderers/types'
+import { stripAnsi } from '../lib/ansi'
 
 function defaultTheme(): PaneTheme {
 	return {
@@ -43,6 +52,7 @@ function createLayoutFromPreset(
 		cwd: homeDir,
 		startupCommand: null,
 		themeOverride: null,
+		launchMode: null,
 	})
 
 	const panes: Record<string, PaneConfig> = {}
@@ -208,13 +218,35 @@ interface StoreState {
 	 *  Prevents double-creation on Allotment remount.
 	 *  IMPORTANT: Always create a new Set on mutation — Zustand uses reference equality. */
 	activePtyIds: Set<string>
+	/** Pane IDs running an agent subprocess (bidirectional stream-json). */
+	activeAgentIds: Set<string>
+	/** Detected agent type per pane (absent from map = no agent detected). */
+	paneAgentTypes: Map<string, AgentType>
+	/** Raw process name per pane (for debugging). */
+	paneProcessNames: Map<string, string>
+	/** Pane IDs currently in alternate screen buffer (TUI mode like vim, htop). */
+	altScreenPaneIds: Set<string>
+	/** Timestamp (Date.now()) when each agent was first detected in a pane. */
+	paneAgentStartTimes: Map<string, number>
+	/** Parsed stream messages per pane (for JSON stream renderers). */
+	paneStreamMessages: Map<string, readonly StreamMessage[]>
+	/** ANSI-stripped raw text per pane — used by rendered view when NDJSON is unavailable. */
+	paneStreamText: Map<string, string>
+	/** Session IDs per pane — extracted from result events, used for --resume multi-turn. */
+	paneSessionIds: Map<string, string>
 
 	// Actions
+	/** Update alt screen buffer state for a pane. No-op if state already matches. */
+	setAltScreen: (paneId: string, isAlt: boolean) => void
+	/** Update agent type for a pane based on process info. */
+	setPaneProcess: (paneId: string, info: ProcessInfo | null) => void
 	setFocusedPane: (paneId: string | null) => void
 	/** Ensure a PTY exists for the given pane. No-op if already requested or active. */
 	ensurePty: (paneId: string, cwd: string, startupCommand: string | null) => void
 	/** Kill PTYs for the given pane IDs and remove them from activePtyIds. */
 	killPtys: (paneIds: string[]) => void
+	/** Kill agent subprocesses for the given pane IDs. */
+	killAgents: (paneIds: string[]) => void
 	/** Remove a single pane ID from activePtyIds (e.g. on natural PTY exit). */
 	removePtyId: (paneId: string) => void
 	init: () => Promise<void>
@@ -245,6 +277,18 @@ interface StoreState {
 		targetPaneId: string,
 		position: DropPosition,
 	) => void
+	/** Set the launch mode for a pane and start it — either as a PTY (terminal/TUI agents) or an agent subprocess (stream-json agents). */
+	setLaunchMode: (workspaceId: string, paneId: string, mode: LaunchMode) => void
+	/** Update workspace-level CWD. */
+	setWorkspaceCwd: (workspaceId: string, cwd: string) => void
+	/** Update per-agent CLI flags for a workspace. Empty string clears the flag. */
+	setAgentFlags: (workspaceId: string, agent: LaunchableAgent, flags: string) => void
+	/** Feed raw agent subprocess output to the stream parser for a pane. Creates parser on first call. */
+	feedStreamData: (paneId: string, chunk: string) => void
+	/** Clear stream data and parser for a pane. */
+	clearStreamData: (paneId: string) => void
+	/** Send a user message to an agent pane. Uses structured IPC for subprocesses or raw PTY write for TUI agents. */
+	sendAgentMessage: (paneId: string, message: string) => void
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
 	saveState: () => Promise<void>
@@ -262,6 +306,63 @@ function persistSnippets(snippets: Snippet[]): void {
 	})
 }
 
+type PaneCleanupState = Pick<
+	StoreState,
+	| 'paneAgentTypes'
+	| 'paneProcessNames'
+	| 'altScreenPaneIds'
+	| 'paneAgentStartTimes'
+	| 'paneStreamMessages'
+	| 'paneStreamText'
+	| 'paneSessionIds'
+>
+
+/** Clone all per-pane Maps/Sets, delete entries for the given IDs, and return the partial state update. */
+function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneCleanupState {
+	const agents = new Map(state.paneAgentTypes)
+	const procs = new Map(state.paneProcessNames)
+	const altIds = new Set(state.altScreenPaneIds)
+	const startTimes = new Map(state.paneAgentStartTimes)
+	const streamMsgs = new Map(state.paneStreamMessages)
+	const streamText = new Map(state.paneStreamText)
+	const sessionIds = new Map(state.paneSessionIds)
+	for (const id of paneIds) {
+		agents.delete(id)
+		procs.delete(id)
+		altIds.delete(id)
+		startTimes.delete(id)
+		streamMsgs.delete(id)
+		streamText.delete(id)
+		sessionIds.delete(id)
+		streamParsers.delete(id)
+	}
+	return {
+		paneAgentTypes: agents,
+		paneProcessNames: procs,
+		altScreenPaneIds: altIds,
+		paneAgentStartTimes: startTimes,
+		paneStreamMessages: streamMsgs,
+		paneStreamText: streamText,
+		paneSessionIds: sessionIds,
+	}
+}
+
+/** Module-level parser instances — not serializable, not in Zustand state. */
+const streamParsers = new Map<string, StreamParser>()
+
+/** Tracks pending rAF flush per pane for throttled stream updates. */
+const pendingStreamFlush = new Map<string, number>()
+/** Accumulated raw text between flushes. */
+const pendingRawText = new Map<string, string>()
+
+/** Maximum raw stream text kept per pane (500 KB). */
+const MAX_STREAM_TEXT = 500_000
+
+/** @internal — test-only: clear module-level parser cache. */
+export function _resetStreamParsers(): void {
+	streamParsers.clear()
+}
+
 export const useStore = create<StoreState>((set, get) => ({
 	workspaces: [],
 	appState: {
@@ -277,6 +378,64 @@ export const useStore = create<StoreState>((set, get) => ({
 	focusGeneration: 0,
 	visitedWorkspaceIds: [],
 	activePtyIds: new Set(),
+	activeAgentIds: new Set(),
+	paneAgentTypes: new Map(),
+	paneProcessNames: new Map(),
+	altScreenPaneIds: new Set(),
+	paneAgentStartTimes: new Map(),
+	paneStreamMessages: new Map(),
+	paneStreamText: new Map(),
+	paneSessionIds: new Map(),
+
+	setAltScreen: (paneId, isAlt) => {
+		const current = get().altScreenPaneIds
+		const has = current.has(paneId)
+		if (isAlt === has) return
+		const next = new Set(current)
+		if (isAlt) next.add(paneId)
+		else next.delete(paneId)
+		set({ altScreenPaneIds: next })
+	},
+
+	setPaneProcess: (paneId, info) => {
+		set((state) => {
+			const newProcessNames = new Map(state.paneProcessNames)
+			const newAgentTypes = new Map(state.paneAgentTypes)
+			let newStartTimes = state.paneAgentStartTimes
+
+			if (!info) {
+				newProcessNames.delete(paneId)
+				newAgentTypes.delete(paneId)
+				if (newStartTimes.has(paneId)) {
+					newStartTimes = new Map(newStartTimes)
+					newStartTimes.delete(paneId)
+				}
+			} else {
+				newProcessNames.set(paneId, info.name)
+				const agentType = PROCESS_TO_AGENT[info.name]
+				if (agentType) {
+					newAgentTypes.set(paneId, agentType)
+					// Only set start time on first detection
+					if (!state.paneAgentStartTimes.has(paneId)) {
+						newStartTimes = new Map(newStartTimes)
+						newStartTimes.set(paneId, Date.now())
+					}
+				} else {
+					newAgentTypes.delete(paneId)
+					if (newStartTimes.has(paneId)) {
+						newStartTimes = new Map(newStartTimes)
+						newStartTimes.delete(paneId)
+					}
+				}
+			}
+
+			return {
+				paneProcessNames: newProcessNames,
+				paneAgentTypes: newAgentTypes,
+				paneAgentStartTimes: newStartTimes,
+			}
+		})
+	},
 
 	setFocusedPane: (paneId) =>
 		set((state) => ({ focusedPaneId: paneId, focusGeneration: state.focusGeneration + 1 })),
@@ -302,17 +461,46 @@ export const useStore = create<StoreState>((set, get) => ({
 
 	killPtys: (paneIds) => {
 		for (const id of paneIds) {
+			// Kill both PTY and agent subprocess (pane might have either)
+			if (get().activeAgentIds.has(id)) {
+				window.api.killAgent(id).catch((err) => {
+					console.warn(`[store] killAgent failed for pane ${id}:`, err)
+				})
+			}
 			window.api.killPty(id).catch((err) => {
 				console.warn(`[store] killPty failed for pane ${id}:`, err)
 			})
 		}
-		const current = get().activePtyIds
+		const ptyIds = get().activePtyIds
+		const newPtySet = new Set(ptyIds)
+		const agentIds = get().activeAgentIds
+		const newAgentSet = new Set(agentIds)
+		let ptyChanged = false
+		let agentChanged = false
+		for (const id of paneIds) {
+			if (newPtySet.delete(id)) ptyChanged = true
+			if (newAgentSet.delete(id)) agentChanged = true
+		}
+		const updates: Partial<StoreState> = {}
+		if (ptyChanged) updates.activePtyIds = newPtySet
+		if (agentChanged) updates.activeAgentIds = newAgentSet
+		set({ ...updates, ...cleanupPaneState(paneIds, get()) })
+	},
+
+	killAgents: (paneIds) => {
+		for (const id of paneIds) {
+			window.api.killAgent(id).catch((err) => {
+				console.warn(`[store] killAgent failed for pane ${id}:`, err)
+			})
+		}
+		const current = get().activeAgentIds
 		const newSet = new Set(current)
 		let changed = false
 		for (const id of paneIds) {
 			if (newSet.delete(id)) changed = true
 		}
-		if (changed) set({ activePtyIds: newSet })
+		if (changed) set({ activeAgentIds: newSet })
+		set(cleanupPaneState(paneIds, get()))
 	},
 
 	removePtyId: (paneId) => {
@@ -320,11 +508,119 @@ export const useStore = create<StoreState>((set, get) => ({
 		if (!current.has(paneId)) return
 		const newSet = new Set(current)
 		newSet.delete(paneId)
-		set({ activePtyIds: newSet })
+		set({ activePtyIds: newSet, ...cleanupPaneState([paneId], get()) })
+	},
+
+	feedStreamData: (paneId, chunk) => {
+		// 1. Feed parser immediately — no data loss
+		let parser = streamParsers.get(paneId)
+		if (!parser) {
+			parser = new ClaudeCodeStreamParser()
+			streamParsers.set(paneId, parser)
+		}
+		try {
+			parser.feed(chunk)
+		} catch (err) {
+			console.error('[store] feedStreamData: parser.feed() failed, resetting parser:', err)
+			parser.reset()
+			streamParsers.delete(paneId)
+		}
+
+		// Accumulate raw text in-place (module-level, not in store yet)
+		const prev = pendingRawText.get(paneId) ?? get().paneStreamText.get(paneId) ?? ''
+		const cleaned = stripAnsi(chunk)
+		let newText = prev + cleaned
+		if (newText.length > MAX_STREAM_TEXT) {
+			newText = newText.slice(-MAX_STREAM_TEXT)
+		}
+		pendingRawText.set(paneId, newText)
+
+		// 2. Batch React state update — rAF in browser, sync in tests
+		const flushToStore = () => {
+			pendingStreamFlush.delete(paneId)
+			const currentParser = streamParsers.get(paneId)
+			if (!currentParser) return
+
+			const msgs = currentParser.getMessages()
+			const nextMsgs = new Map(get().paneStreamMessages)
+			nextMsgs.set(
+				paneId,
+				msgs.map((m) => ({ ...m, blocks: [...m.blocks] })),
+			)
+
+			const rawText = pendingRawText.get(paneId)
+			const nextText = new Map(get().paneStreamText)
+			if (rawText !== undefined) {
+				nextText.set(paneId, rawText)
+				pendingRawText.delete(paneId)
+			}
+
+			const sessionId = currentParser.getSessionId()
+			const updates: Partial<StoreState> = {
+				paneStreamMessages: nextMsgs,
+				paneStreamText: nextText,
+			}
+			if (sessionId && get().paneSessionIds.get(paneId) !== sessionId) {
+				const nextSessions = new Map(get().paneSessionIds)
+				nextSessions.set(paneId, sessionId)
+				updates.paneSessionIds = nextSessions
+			}
+
+			set(updates)
+		}
+
+		if (pendingStreamFlush.has(paneId)) return
+		if (typeof requestAnimationFrame === 'function' && process.env.NODE_ENV !== 'test') {
+			// Electron renderer — batch updates per animation frame
+			const rafId = requestAnimationFrame(flushToStore)
+			pendingStreamFlush.set(paneId, rafId)
+		} else {
+			// Node/test — flush synchronously
+			flushToStore()
+		}
+	},
+
+	clearStreamData: (paneId) => {
+		// Cancel any pending rAF flush and clear module-level caches
+		const rafId = pendingStreamFlush.get(paneId)
+		if (rafId) cancelAnimationFrame(rafId)
+		pendingStreamFlush.delete(paneId)
+		pendingRawText.delete(paneId)
+		// cleanupPaneState handles streamParsers + all per-pane Maps/Sets
+		set(cleanupPaneState([paneId], get()))
 	},
 
 	init: async () => {
+		if (get().initialized) return
+		// Set immediately to prevent double-registration from concurrent calls.
+		// The async work below takes time, and React StrictMode / HMR can trigger
+		// init() again before the first call completes.
+		set({ initialized: true })
 		try {
+			// Register IPC event listeners FIRST — before any async work.
+			// Agent subprocesses can spawn immediately on pane mount and start
+			// sending data. If listeners aren't registered yet, events are lost.
+			window.api.onPtyProcessChanged((paneId, info) => {
+				get().setPaneProcess(paneId, info)
+			})
+			window.api.onAgentData((paneId, data) => {
+				get().feedStreamData(paneId, data)
+			})
+			window.api.onAgentError((paneId, error) => {
+				console.error(`[store] agent error for pane ${paneId}:`, error)
+				// Surface agent stderr to user by feeding it as raw stream data
+				get().feedStreamData(paneId, error)
+			})
+			window.api.onAgentExit((paneId, code, signal) => {
+				console.log(`[store] agent exited for pane ${paneId}:`, { code, signal })
+				const current = get().activeAgentIds
+				if (current.has(paneId)) {
+					const newSet = new Set(current)
+					newSet.delete(paneId)
+					set({ activeAgentIds: newSet })
+				}
+			})
+
 			const [workspaces, appState, homeDir, snippets] = await Promise.all([
 				window.api.getWorkspaces(),
 				window.api.getAppState(),
@@ -365,14 +661,13 @@ export const useStore = create<StoreState>((set, get) => ({
 				appState,
 				homeDir,
 				snippets,
-				initialized: true,
 				visitedWorkspaceIds: initialVisited,
 				focusedPaneId: initialFocusedPaneId,
 				focusGeneration: initialFocusedPaneId ? 1 : 0,
 			})
 		} catch (err) {
 			console.error('[store] Failed to initialize:', err)
-			set({ initError: String(err), initialized: true })
+			set({ initError: String(err) })
 		}
 	},
 
@@ -455,6 +750,8 @@ export const useStore = create<StoreState>((set, get) => ({
 					? { type: 'preset', preset: source.layout.preset, tree: remappedTree }
 					: { type: 'custom', tree: remappedTree },
 			panes: newPanes,
+			cwd: source.cwd,
+			agentFlags: source.agentFlags ? { ...source.agentFlags } : undefined,
 		}
 		await window.api.saveWorkspace(workspace)
 		const newAppState = {
@@ -602,6 +899,7 @@ export const useStore = create<StoreState>((set, get) => ({
 				cwd: workspace.panes[paneId].cwd,
 				startupCommand: null,
 				themeOverride: null,
+				launchMode: null,
 			}
 
 			const newTree = replaceLeafInTree(workspace.layout.tree, paneId, (leaf) => ({
@@ -854,6 +1152,121 @@ export const useStore = create<StoreState>((set, get) => ({
 		})
 	},
 
+	sendAgentMessage: (paneId, message) => {
+		if (get().activeAgentIds.has(paneId)) {
+			// Inject user message into parser so it's visible in the conversation
+			let parser = streamParsers.get(paneId)
+			if (!parser) {
+				parser = new ClaudeCodeStreamParser()
+				streamParsers.set(paneId, parser)
+			}
+			parser.addUserMessage(message)
+			const nextMsgs = new Map(get().paneStreamMessages)
+			nextMsgs.set(paneId, [...parser.getMessages()])
+			set({ paneStreamMessages: nextMsgs })
+
+			// Subprocess mode — send structured message via IPC
+			window.api.sendAgentMessage(paneId, message).catch((err) => {
+				console.error('[store] sendAgentMessage: IPC send failed', { paneId, err })
+			})
+		} else {
+			// PTY mode — write text directly to the agent TUI
+			window.api.writePty(paneId, `${message}\r`).catch((err) => {
+				console.error('[store] sendAgentMessage: writePty failed', { paneId, err })
+			})
+		}
+	},
+
+	setLaunchMode: (workspaceId, paneId, mode) => {
+		const state = get()
+		const workspace = state.workspaces.find((w) => w.id === workspaceId)
+		if (!workspace || !workspace.panes[paneId]) {
+			console.warn('[store] setLaunchMode: workspace or pane not found', { workspaceId, paneId })
+			return
+		}
+
+		get().updatePaneConfig(workspaceId, paneId, { launchMode: mode })
+		const cwd = getEffectiveCwd(workspace, paneId, state.homeDir)
+
+		if (mode !== 'terminal') {
+			const config = AGENT_LAUNCH_CONFIG[mode]
+			if (!config) {
+				console.error(`[store] No launch config for agent type: ${mode}`)
+				return
+			}
+
+			// Agents with subprocess config use bidirectional stream-json mode
+			if (config.subprocess) {
+				// Record agent start time immediately (no need to wait for process detection)
+				const newStartTimes = new Map(get().paneAgentStartTimes)
+				newStartTimes.set(paneId, Date.now())
+				const newAgentIds = new Set(get().activeAgentIds)
+				newAgentIds.add(paneId)
+				set({ activeAgentIds: newAgentIds, paneAgentStartTimes: newStartTimes })
+				window.api.spawnAgent(paneId, mode, cwd).catch((err) => {
+					console.error(`[store] spawnAgent failed for pane ${paneId}:`, err)
+					const current = get().activeAgentIds
+					const rollback = new Set(current)
+					rollback.delete(paneId)
+					// Reset launchMode to null so launcher reappears instead of zombie state
+					get().updatePaneConfig(workspaceId, paneId, { launchMode: null })
+					set({ activeAgentIds: rollback })
+				})
+				return
+			}
+
+			// Non-subprocess agents: launch via PTY with startup command
+			const agent = mode as LaunchableAgent
+			const userFlags = workspace.agentFlags?.[agent] ?? ''
+			const parts = [config.command]
+			if (userFlags.trim()) parts.push(userFlags.trim())
+			parts.push(...config.defaultFlags)
+			get().ensurePty(paneId, cwd, parts.join(' '))
+			return
+		}
+
+		// Terminal mode — plain PTY, no agent
+		get().ensurePty(paneId, cwd, null)
+	},
+
+	setWorkspaceCwd: (workspaceId, cwd) => {
+		set((state) => {
+			const workspace = state.workspaces.find((w) => w.id === workspaceId)
+			if (!workspace) return state
+			const updated = { ...workspace, cwd }
+			window.api.saveWorkspace(updated).catch((err) => {
+				console.error('[store] Failed to save workspace:', err)
+			})
+			return {
+				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
+			}
+		})
+	},
+
+	setAgentFlags: (workspaceId, agent, flags) => {
+		set((state) => {
+			const workspace = state.workspaces.find((w) => w.id === workspaceId)
+			if (!workspace) return state
+			const current = { ...(workspace.agentFlags ?? {}) }
+			const trimmed = flags.trim()
+			if (trimmed) {
+				current[agent] = trimmed
+			} else {
+				delete current[agent]
+			}
+			const updated = {
+				...workspace,
+				agentFlags: Object.keys(current).length > 0 ? current : undefined,
+			}
+			window.api.saveWorkspace(updated).catch((err) => {
+				console.error('[store] Failed to save workspace:', err)
+			})
+			return {
+				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
+			}
+		})
+	},
+
 	updatePaneConfig: (workspaceId, paneId, updates) => {
 		set((state) => {
 			const workspace = state.workspaces.find((w) => w.id === workspaceId)
@@ -919,7 +1332,12 @@ export const useStore = create<StoreState>((set, get) => ({
 
 	reorderSnippets: (fromIndex, toIndex) => {
 		const snippets = [...get().snippets]
-		if (fromIndex < 0 || fromIndex >= snippets.length || toIndex < 0 || toIndex >= snippets.length) {
+		if (
+			fromIndex < 0 ||
+			fromIndex >= snippets.length ||
+			toIndex < 0 ||
+			toIndex >= snippets.length
+		) {
 			console.warn('[store] reorderSnippets: index out of range', {
 				fromIndex,
 				toIndex,
@@ -929,7 +1347,8 @@ export const useStore = create<StoreState>((set, get) => ({
 		}
 		if (fromIndex === toIndex) return
 		const [moved] = snippets.splice(fromIndex, 1)
-		snippets.splice(toIndex, 0, moved!)
+		if (!moved) return
+		snippets.splice(toIndex, 0, moved)
 		set({ snippets })
 		persistSnippets(snippets)
 	},
@@ -1042,6 +1461,12 @@ function applyPresetWithRemap(
 		panes,
 		killedPaneIds,
 	}
+}
+
+/** Resolve the effective CWD for a pane: pane.cwd > workspace.cwd > homeDir. */
+export function getEffectiveCwd(workspace: Workspace, paneId: string, homeDir: string): string {
+	const pane = workspace.panes[paneId]
+	return pane?.cwd || workspace.cwd || homeDir
 }
 
 export { WORKSPACE_COLORS, applyPresetWithRemap, createLayoutFromPreset, getPaneIdsInOrder }
