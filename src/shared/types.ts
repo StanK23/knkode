@@ -145,7 +145,7 @@ export type LaunchableAgent = (typeof LAUNCHABLE_AGENTS)[number]
 
 /** Message formatter for agent subprocess stdin.
  *  Takes the user's text and returns the JSON object to write as NDJSON. */
-export type AgentMessageFormatter = (text: string) => unknown
+export type AgentMessageFormatter = (text: string) => Record<string, unknown>
 
 /** Per-agent subprocess configuration for bidirectional stream-json mode.
  *  Agents that support subprocess mode have this defined; others are null. */
