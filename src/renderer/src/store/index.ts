@@ -277,17 +277,17 @@ interface StoreState {
 		targetPaneId: string,
 		position: DropPosition,
 	) => void
-	/** Set the launch mode for a pane, build the spawn command, and start the PTY. */
+	/** Set the launch mode for a pane and start it — either as a PTY (terminal/TUI agents) or an agent subprocess (stream-json agents). */
 	setLaunchMode: (workspaceId: string, paneId: string, mode: LaunchMode) => void
 	/** Update workspace-level CWD. */
 	setWorkspaceCwd: (workspaceId: string, cwd: string) => void
 	/** Update per-agent CLI flags for a workspace. Empty string clears the flag. */
 	setAgentFlags: (workspaceId: string, agent: LaunchableAgent, flags: string) => void
-	/** Feed raw PTY data to the stream parser for a pane. Creates parser on first call. */
+	/** Feed raw agent subprocess output to the stream parser for a pane. Creates parser on first call. */
 	feedStreamData: (paneId: string, chunk: string) => void
 	/** Clear stream data and parser for a pane. */
 	clearStreamData: (paneId: string) => void
-	/** Send a user message to an agent pane. Constructs the appropriate CLI command. */
+	/** Send a user message to an agent pane. Uses structured IPC for subprocesses or raw PTY write for TUI agents. */
 	sendAgentMessage: (paneId: string, message: string) => void
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
@@ -354,6 +354,9 @@ const streamParsers = new Map<string, StreamParser>()
 const pendingStreamFlush = new Map<string, number>()
 /** Accumulated raw text between flushes. */
 const pendingRawText = new Map<string, string>()
+
+/** Maximum raw stream text kept per pane (500 KB). */
+const MAX_STREAM_TEXT = 500_000
 
 /** @internal — test-only: clear module-level parser cache. */
 export function _resetStreamParsers(): void {
@@ -524,12 +527,11 @@ export const useStore = create<StoreState>((set, get) => ({
 		}
 
 		// Accumulate raw text in-place (module-level, not in store yet)
-		const MAX_STREAM_TEXT = 500_000
 		const prev = pendingRawText.get(paneId) ?? get().paneStreamText.get(paneId) ?? ''
 		const cleaned = stripAnsi(chunk)
 		let newText = prev + cleaned
 		if (newText.length > MAX_STREAM_TEXT) {
-			newText = newText.slice(newText.length - MAX_STREAM_TEXT)
+			newText = newText.slice(-MAX_STREAM_TEXT)
 		}
 		pendingRawText.set(paneId, newText)
 
@@ -579,23 +581,13 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 
 	clearStreamData: (paneId) => {
-		// Cancel any pending rAF flush
+		// Cancel any pending rAF flush and clear module-level caches
 		const rafId = pendingStreamFlush.get(paneId)
 		if (rafId) cancelAnimationFrame(rafId)
 		pendingStreamFlush.delete(paneId)
 		pendingRawText.delete(paneId)
-		streamParsers.delete(paneId)
-		const msgs = new Map(get().paneStreamMessages)
-		const text = new Map(get().paneStreamText)
-		const sessions = new Map(get().paneSessionIds)
-		msgs.delete(paneId)
-		text.delete(paneId)
-		sessions.delete(paneId)
-		set({
-			paneStreamMessages: msgs,
-			paneStreamText: text,
-			paneSessionIds: sessions,
-		})
+		// cleanupPaneState handles streamParsers + all per-pane Maps/Sets
+		set(cleanupPaneState([paneId], get()))
 	},
 
 	init: async () => {

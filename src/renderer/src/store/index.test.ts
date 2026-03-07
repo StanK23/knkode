@@ -92,6 +92,9 @@ function resetStore() {
 		altScreenPaneIds: new Set(),
 		paneAgentStartTimes: new Map(),
 		paneStreamMessages: new Map(),
+		paneStreamText: new Map(),
+		paneSessionIds: new Map(),
+		snippets: [],
 	})
 }
 
@@ -1280,7 +1283,6 @@ describe('store removePtyId alt screen cleanup', () => {
 		expect(useStore.getState().altScreenPaneIds.has('p1')).toBe(false)
 	})
 })
-
 
 describe('store init agent listener', () => {
 	it('registers onPtyProcessChanged listener', async () => {

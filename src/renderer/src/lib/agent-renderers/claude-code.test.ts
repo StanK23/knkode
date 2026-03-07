@@ -1028,10 +1028,6 @@ describe('TRACE: multi-turn merge flow', () => {
 		parser.feed(line({ type: 'message_delta', delta: { stop_reason: 'tool_use' } }))
 		parser.feed(line({ type: 'message_stop' }))
 
-		console.log(
-			'Turn 1 blocks:',
-			parser.getMessages()[0]?.blocks.map((b) => b.type),
-		)
 		expect(parser.getMessages()[0].blocks.map((b) => b.type)).toEqual([
 			'thinking',
 			'text',
@@ -1043,10 +1039,6 @@ describe('TRACE: multi-turn merge flow', () => {
 			`${JSON.stringify({ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_001', content: 'Read' }] } })}\n`,
 		)
 
-		console.log(
-			'After result:',
-			parser.getMessages()[0]?.blocks.map((b) => b.type),
-		)
 		expect(parser.getMessages()[0].blocks.map((b) => b.type)).toEqual([
 			'thinking',
 			'text',
@@ -1074,10 +1066,6 @@ describe('TRACE: multi-turn merge flow', () => {
 		parser.feed(line({ type: 'message_delta', delta: { stop_reason: 'tool_use' } }))
 		parser.feed(line({ type: 'message_stop' }))
 
-		console.log(
-			'Turn 2 blocks:',
-			parser.getMessages()[0]?.blocks.map((b) => b.type),
-		)
 		const bashBlock = parser.getMessages()[0].blocks[4]
 		expect(bashBlock.type).toBe('tool_use')
 		if (bashBlock.type === 'tool_use') {
@@ -1098,10 +1086,6 @@ describe('TRACE: multi-turn merge flow', () => {
 		parser.feed(line({ type: 'content_block_stop', index: 0 }))
 		parser.feed(line({ type: 'message_stop' }))
 
-		console.log(
-			'Turn 3 blocks:',
-			parser.getMessages()[0]?.blocks.map((b) => b.type),
-		)
 		expect(parser.getMessages()).toHaveLength(1)
 		expect(parser.getMessages()[0].blocks.map((b) => b.type)).toEqual([
 			'thinking',

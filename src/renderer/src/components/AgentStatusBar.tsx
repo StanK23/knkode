@@ -14,7 +14,7 @@ function formatElapsed(ms: number): string {
 }
 
 function ElapsedTimer({ startTime }: { startTime: number }) {
-	const [now, setNow] = useState(Date.now)
+	const [now, setNow] = useState(() => Date.now())
 
 	useEffect(() => {
 		const interval = setInterval(() => setNow(Date.now()), 1000)
@@ -39,13 +39,12 @@ export const AgentStatusBar = memo(function AgentStatusBar({
 
 	const isStreaming = messages?.some((m) => m.streaming) ?? false
 	const msgCount = messages?.length ?? 0
-	const activityLabel = isStreaming
-		? 'Working'
-		: msgCount > 0
-			? 'Idle'
-			: isSubprocess
-				? 'Starting'
-				: 'Running'
+
+	let activityLabel: string
+	if (isStreaming) activityLabel = 'Working'
+	else if (msgCount > 0) activityLabel = 'Idle'
+	else if (isSubprocess) activityLabel = 'Starting'
+	else activityLabel = 'Running'
 
 	return (
 		<div

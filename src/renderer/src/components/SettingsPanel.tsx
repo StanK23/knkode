@@ -567,7 +567,9 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								key={tab}
 								type="button"
 								role="tab"
+								id={`tab-${tab}`}
 								aria-selected={activeTab === tab}
+								aria-controls={`tabpanel-${activeTab}`}
 								onClick={() => setActiveTab(tab)}
 								className={`px-3 py-1.5 text-xs cursor-pointer bg-transparent border-0 border-b-2 border-solid transition-colors focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
 									activeTab === tab
@@ -583,6 +585,8 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 
 				<div
 					role="tabpanel"
+					id={`tabpanel-${activeTab}`}
+					aria-labelledby={`tab-${activeTab}`}
 					className="px-6 py-6 flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-8"
 				>
 					{activeTab === 'Workspace' && (

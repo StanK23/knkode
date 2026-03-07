@@ -3,7 +3,7 @@ import type { ContentBlock, StreamMessage, StreamParser } from './types'
 
 export { stripAnsi }
 
-/** Maximum line buffer size (1 MB). Protects against malformed output without newlines. */
+/** Maximum line buffer size (1 MB). Protects against subprocess output without newlines. */
 const MAX_BUFFER_SIZE = 1_048_576
 
 /** Maximum accumulated messages. Prevents unbounded memory growth in long sessions. */
@@ -36,7 +36,7 @@ export class ClaudeCodeStreamParser implements StreamParser {
 	feed(chunk: string): void {
 		this.lineBuffer += chunk
 
-		// Guard against unbounded buffer growth (e.g. PTY data without newlines)
+		// Guard against unbounded buffer growth (e.g. subprocess output without newlines)
 		if (this.lineBuffer.length > MAX_BUFFER_SIZE) {
 			console.warn('[stream-parser] lineBuffer exceeded max size, discarding')
 			this.lineBuffer = ''
@@ -82,7 +82,7 @@ export class ClaudeCodeStreamParser implements StreamParser {
 	}
 
 	private parseLine(line: string): void {
-		// Strip ANSI escape sequences — PTYs may wrap JSON in terminal codes
+		// Strip ANSI escape sequences — defensive, subprocess stdout may contain escape codes
 		const clean = line.includes('\x1b') ? stripAnsi(line).trim() : line
 
 		let parsed: unknown

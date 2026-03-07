@@ -259,10 +259,7 @@ const AssistantMessage = memo(function AssistantMessage({ message }: { message: 
 	const segments = segmentBlocks(message.blocks)
 
 	return (
-		<div
-			className="py-1 px-3"
-			style={{ contentVisibility: 'auto', containIntrinsicHeight: 'auto 40px' }}
-		>
+		<div className="py-1 px-3 [content-visibility:auto] [contain-intrinsic-height:auto_40px]">
 			{message.streaming && segments.length === 0 && (
 				<span className="inline-block w-1.5 h-1.5 rounded-full bg-accent animate-pulse motion-reduce:animate-none" />
 			)}
@@ -454,11 +451,11 @@ export function StreamRenderer({ paneId, theme, themeOverride }: StreamRendererP
 		})
 	}, [messages, rawText])
 
-	const handleScroll = () => {
+	const handleScroll = useCallback(() => {
 		const el = scrollRef.current
 		if (!el) return
 		wasAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 8
-	}
+	}, [])
 
 	return (
 		<div className="w-full h-full flex flex-col" style={{ backgroundColor: bg }}>
@@ -467,7 +464,7 @@ export function StreamRenderer({ paneId, theme, themeOverride }: StreamRendererP
 			) : hasRawOnly ? (
 				<div ref={scrollRef} className="flex-1 overflow-y-auto p-3" onScroll={handleScroll}>
 					<div className="text-[11px] text-content-muted mb-2">
-						Raw output (no JSON stream detected — check terminal for errors):
+						Raw output (no JSON stream detected — the agent may have startup errors):
 					</div>
 					<pre className="whitespace-pre-wrap break-words m-0 text-content-secondary text-xs leading-relaxed">
 						{rawText}
