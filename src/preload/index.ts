@@ -1,5 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppState, IpcChannel, ProcessInfo, Snippet, Workspace } from '../shared/types'
+import type {
+	AppState,
+	IpcChannel,
+	LaunchableAgent,
+	ProcessInfo,
+	Snippet,
+	Workspace,
+} from '../shared/types'
 import { IPC } from '../shared/types'
 
 type Unsubscribe = () => void
@@ -55,6 +62,20 @@ const api = {
 		ipcRenderer.invoke(IPC.PTY_GET_PROCESS_INFO, id),
 	onPtyProcessChanged: (cb: (paneId: string, info: ProcessInfo | null) => void): Unsubscribe =>
 		onIpcEvent<[string, ProcessInfo | null]>(IPC.PTY_PROCESS_CHANGED, cb),
+
+	// Agent subprocess (bidirectional stream-json)
+	spawnAgent: (id: string, agentType: LaunchableAgent, cwd: string): Promise<void> =>
+		ipcRenderer.invoke(IPC.AGENT_SPAWN, id, agentType, cwd),
+	sendAgentMessage: (id: string, message: string): Promise<void> =>
+		ipcRenderer.invoke(IPC.AGENT_SEND, id, message),
+	killAgent: (id: string): Promise<void> => ipcRenderer.invoke(IPC.AGENT_KILL, id),
+	onAgentData: (cb: (paneId: string, data: string) => void): Unsubscribe =>
+		onIpcEvent<[string, string]>(IPC.AGENT_DATA, cb),
+	onAgentError: (cb: (paneId: string, error: string) => void): Unsubscribe =>
+		onIpcEvent<[string, string]>(IPC.AGENT_ERROR, cb),
+	onAgentExit: (
+		cb: (paneId: string, code: number | null, signal: string | null) => void,
+	): Unsubscribe => onIpcEvent<[string, number | null, string | null]>(IPC.AGENT_EXIT, cb),
 }
 
 contextBridge.exposeInMainWorld('api', api)

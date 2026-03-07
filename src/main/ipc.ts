@@ -1,8 +1,9 @@
 import os from 'node:os'
 import path from 'node:path'
 import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
-import type { AppState, Snippet, Workspace } from '../shared/types'
-import { IPC } from '../shared/types'
+import type { AppState, LaunchableAgent, Snippet, Workspace } from '../shared/types'
+import { IPC, LAUNCHABLE_AGENTS } from '../shared/types'
+import { killAgent, sendAgentMessage, spawnAgent } from './agent-subprocess'
 import {
 	deleteWorkspace,
 	getAppState,
@@ -38,6 +39,21 @@ function assertPaneId(value: unknown): asserts value is string {
 	if ((value as string).length > MAX_PANE_ID_LENGTH) {
 		throw new Error(`Invalid pane id: exceeds ${MAX_PANE_ID_LENGTH} characters`)
 	}
+}
+
+function assertLaunchableAgent(value: unknown): asserts value is LaunchableAgent {
+	assertNonEmptyString(value, 'agentType')
+	if (!LAUNCHABLE_AGENTS.includes(value as LaunchableAgent)) {
+		throw new Error(
+			`Invalid agentType: '${value}' is not a supported agent. Must be one of: ${LAUNCHABLE_AGENTS.join(', ')}`,
+		)
+	}
+}
+
+function assertAbsolutePath(value: unknown, name: string): asserts value is string {
+	assertString(value, name)
+	if (!path.isAbsolute(value)) throw new Error(`Invalid ${name}: must be an absolute path`)
+	if (value.includes('\0')) throw new Error(`Invalid ${name}: contains null byte`)
 }
 
 function assertIntInRange(
@@ -80,10 +96,7 @@ function assertWorkspace(value: unknown): asserts value is Workspace {
 		throw new Error('Invalid workspace: missing or invalid panes')
 	// Validate optional cwd field
 	if (obj.cwd !== undefined && obj.cwd !== null) {
-		if (typeof obj.cwd !== 'string') throw new Error('Invalid workspace: cwd must be a string')
-		if (!path.isAbsolute(obj.cwd))
-			throw new Error('Invalid workspace: cwd must be an absolute path')
-		if (obj.cwd.includes('\0')) throw new Error('Invalid workspace: cwd contains null byte')
+		assertAbsolutePath(obj.cwd, 'workspace cwd')
 	}
 	// Validate optional agentFlags field — reject shell metacharacters
 	if (obj.agentFlags !== undefined) {
@@ -106,6 +119,7 @@ function assertWorkspace(value: unknown): asserts value is Workspace {
 	}
 }
 
+const MAX_AGENT_MESSAGE_LENGTH = 1_000_000 // 1MB
 const MAX_SNIPPETS = 500
 const MAX_SNIPPET_NAME_LENGTH = 256
 const MAX_SNIPPET_COMMAND_LENGTH = 4096
@@ -197,9 +211,7 @@ export function registerIpcHandlers(): void {
 
 	ipcMain.handle(IPC.PTY_CREATE, async (_e, id: unknown, cwd: unknown, startupCommand: unknown) => {
 		assertPaneId(id)
-		assertString(cwd, 'cwd')
-		if (!path.isAbsolute(cwd)) throw new Error('Invalid cwd: must be an absolute path')
-		if (cwd.includes('\0')) throw new Error('Invalid cwd: contains null byte')
+		assertAbsolutePath(cwd, 'cwd')
 		if (startupCommand !== null && typeof startupCommand !== 'string') {
 			throw new Error('Invalid startup command')
 		}
@@ -243,6 +255,35 @@ export function registerIpcHandlers(): void {
 	ipcMain.handle(IPC.PTY_GET_PROCESS_INFO, (_e, id: unknown) => {
 		assertPaneId(id)
 		return getPtyProcessInfo(id)
+	})
+
+	// Agent subprocess (bidirectional stream-json)
+	ipcMain.handle(IPC.AGENT_SPAWN, (_e, id: unknown, agentType: unknown, cwd: unknown) => {
+		assertPaneId(id)
+		assertLaunchableAgent(agentType)
+		assertAbsolutePath(cwd, 'cwd')
+		try {
+			spawnAgent(id, agentType, path.resolve(cwd))
+		} catch (err) {
+			console.error(`[ipc] AGENT_SPAWN failed for pane ${id}:`, err)
+			throw new Error(
+				`Failed to spawn ${agentType} in ${cwd}. Check that '${agentType}' is installed and on your PATH.`,
+			)
+		}
+	})
+
+	ipcMain.handle(IPC.AGENT_SEND, (_e, id: unknown, message: unknown) => {
+		assertPaneId(id)
+		assertNonEmptyString(message, 'message')
+		if ((message as string).length > MAX_AGENT_MESSAGE_LENGTH) {
+			throw new Error(`Message too long: max ${MAX_AGENT_MESSAGE_LENGTH} characters`)
+		}
+		sendAgentMessage(id, message)
+	})
+
+	ipcMain.handle(IPC.AGENT_KILL, (_e, id: unknown) => {
+		assertPaneId(id)
+		killAgent(id)
 	})
 
 	// Start polling child processes for agent detection
