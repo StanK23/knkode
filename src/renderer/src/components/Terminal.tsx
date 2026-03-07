@@ -182,10 +182,6 @@ export function TerminalView({
 	const isFocusedRef = useRef(isFocused)
 	isFocusedRef.current = isFocused
 
-	// Suppresses handleViewportScroll during fitAndPreserveScroll to prevent
-	// intermediate scroll positions from corrupting savedScrollRef.
-	const isFittingRef = useRef(false)
-
 	const [isScrolledUp, setIsScrolledUp] = useState(false)
 	const [showSearch, setShowSearch] = useState(false)
 	const [searchQuery, setSearchQuery] = useState('')
@@ -333,11 +329,6 @@ export function TerminalView({
 				})
 			})
 
-			// Track alternate screen buffer transitions (vim, htop, etc.)
-			term.buffer.onBufferChange((buf) => {
-				useStore.getState().setAltScreen(paneId, buf.type === 'alternate')
-			})
-
 			// All fields initialized — safe to store in cache
 			terminalCache.set(paneId, entry)
 			cached = entry
@@ -369,11 +360,9 @@ export function TerminalView({
 		// term.onScroll fires synchronously during term.write() before the DOM
 		// scrollTop updates, giving stale isTermAtBottom() readings that corrupt
 		// savedScrollRef and cause panes to jump to top on workspace switch.
-		// Also suppress during fitAndPreserveScroll — fit() triggers viewport
-		// scroll events with intermediate positions that corrupt savedScrollRef.
 		const viewport = term.element?.querySelector('.xterm-viewport')
 		const handleViewportScroll = () => {
-			if (!isActiveRef.current || isFittingRef.current) return
+			if (!isActiveRef.current) return
 			const atBottom = isTermAtBottom(term)
 			setIsScrolledUp(!atBottom)
 			savedScrollRef.current = { atBottom, linesFromBottom: getLinesFromBottom(term) }
@@ -395,12 +384,9 @@ export function TerminalView({
 			requestAnimationFrame(() => {
 				try {
 					if (!containerRef.current?.clientWidth) return
-					isFittingRef.current = true
 					fitAndPreserveScroll(term, fitAddon)
 				} catch (err) {
 					console.warn('[terminal] fit()/scroll failed during resize:', err)
-				} finally {
-					isFittingRef.current = false
 				}
 			})
 		})
@@ -492,13 +478,10 @@ export function TerminalView({
 		}
 		if (metricsChanged) {
 			try {
-				isFittingRef.current = true
 				fitAndPreserveScroll(termRef.current, fitAddonRef.current)
 				if (isFocusedRef.current) termRef.current.focus()
 			} catch (err) {
 				console.warn('[terminal] fit()/scroll failed during theme update:', err)
-			} finally {
-				isFittingRef.current = false
 			}
 		}
 		// paneId needed because the effect reads from terminalCache by paneId

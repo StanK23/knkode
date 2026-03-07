@@ -1,11 +1,10 @@
 import path from 'node:path'
 import { BrowserWindow, app, nativeImage, shell } from 'electron'
-import { killAllAgents } from './agent-subprocess'
 import { getAppState, saveAppState } from './config-store'
 import { startCwdTracking, stopCwdTracking } from './cwd-tracker'
 import { registerIpcHandlers } from './ipc'
 import { getMainWindow, setMainWindow } from './main-window'
-import { killAllPtys, stopProcessPolling } from './pty-manager'
+import { killAllPtys } from './pty-manager'
 
 // Override the default "Electron" app name (visible in macOS dock tooltip and Windows taskbar)
 app.setName('knkode')
@@ -116,9 +115,7 @@ function cleanup(): void {
 	if (cleanedUp) return
 	cleanedUp = true
 	stopCwdTracking()
-	stopProcessPolling()
 	killAllPtys()
-	killAllAgents()
 }
 
 app

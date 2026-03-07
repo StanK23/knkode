@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-	AGENT_LABELS,
 	CURSOR_STYLES,
 	DEFAULT_CURSOR_STYLE,
 	DEFAULT_PANE_OPACITY,
 	DEFAULT_SCROLLBACK,
-	LAUNCHABLE_AGENTS,
 	type LayoutPreset,
 	MAX_SCROLLBACK,
 	MIN_SCROLLBACK,
@@ -21,9 +19,6 @@ import { isValidCwd } from '../utils/validation'
 import { FontPicker } from './FontPicker'
 import { LayoutPicker } from './LayoutPicker'
 import { SettingsSection } from './SettingsSection'
-
-const SETTINGS_TABS = ['Workspace', 'Terminal', 'Agents'] as const
-type SettingsTab = (typeof SETTINGS_TABS)[number]
 
 /** Read the latest workspace from the store to avoid stale-snapshot races
  *  when multiple auto-persist effects fire in close succession. */
@@ -345,72 +340,6 @@ function SnippetsSection() {
 	)
 }
 
-interface AgentFlagsSectionProps {
-	workspaceId: string
-	agentFlags?: Workspace['agentFlags']
-}
-
-function AgentFlagsSection({ workspaceId, agentFlags }: AgentFlagsSectionProps) {
-	const setAgentFlags = useStore((s) => s.setAgentFlags)
-	const [localFlags, setLocalFlags] = useState<Record<string, string>>(() => {
-		const result: Record<string, string> = {}
-		for (const agent of LAUNCHABLE_AGENTS) {
-			result[agent] = agentFlags?.[agent] ?? ''
-		}
-		return result
-	})
-
-	// Sync local state when store value changes externally
-	useEffect(() => {
-		const next: Record<string, string> = {}
-		for (const agent of LAUNCHABLE_AGENTS) {
-			next[agent] = agentFlags?.[agent] ?? ''
-		}
-		setLocalFlags(next)
-	}, [agentFlags])
-
-	// Debounced persist to store
-	const mountedRef = useRef(false)
-	useEffect(() => {
-		if (!mountedRef.current) {
-			mountedRef.current = true
-			return
-		}
-		const timer = setTimeout(() => {
-			for (const agent of LAUNCHABLE_AGENTS) {
-				const storeVal = agentFlags?.[agent] ?? ''
-				if (localFlags[agent] !== storeVal) {
-					setAgentFlags(workspaceId, agent, localFlags[agent])
-				}
-			}
-		}, 300)
-		return () => clearTimeout(timer)
-	}, [localFlags, workspaceId, agentFlags, setAgentFlags])
-
-	return (
-		<SettingsSection label="Flags" gap={8}>
-			<span className="text-[10px] text-content-muted -mt-1 mb-1">
-				Extra CLI flags appended when launching agents from this workspace
-			</span>
-			{LAUNCHABLE_AGENTS.map((agent) => (
-				<label key={agent} className="flex items-center gap-3">
-					<span className="text-xs text-content-secondary w-20 shrink-0">
-						{AGENT_LABELS[agent]}
-					</span>
-					<input
-						value={localFlags[agent] ?? ''}
-						onChange={(e) => setLocalFlags((prev) => ({ ...prev, [agent]: e.target.value }))}
-						className="settings-input flex-1 min-w-0"
-						maxLength={1024}
-						placeholder="e.g. --model opus"
-						aria-label={`${AGENT_LABELS[agent]} CLI flags`}
-					/>
-				</label>
-			))}
-		</SettingsSection>
-	)
-}
-
 interface SettingsPanelProps {
 	workspace: Workspace
 	onClose: () => void
@@ -423,7 +352,6 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const killPtys = useStore((s) => s.killPtys)
 	const homeDir = useStore((s) => s.homeDir)
 
-	const [activeTab, setActiveTab] = useState<SettingsTab>('Workspace')
 	const [name, setName] = useState(workspace.name)
 	const [color, setColor] = useState(workspace.color)
 	const [bg, setBg] = useState(workspace.theme.background)
@@ -546,275 +474,232 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 				role="dialog"
 				aria-modal="true"
 				aria-label="Workspace Settings"
-				className="bg-canvas/80 backdrop-blur-2xl border border-edge/50 rounded-md w-[600px] max-w-[calc(100vw-2rem)] h-[85vh] max-h-[700px] flex flex-col shadow-panel animate-panel-in"
+				className="bg-canvas/80 backdrop-blur-2xl border border-edge/50 rounded-md w-[600px] max-w-[calc(100vw-2rem)] max-h-[85vh] flex flex-col shadow-panel animate-panel-in"
 				onClick={(e) => e.stopPropagation()}
 			>
-				<div className="border-b border-edge/50">
-					<div className="flex items-center justify-between px-6 pt-4 pb-0">
-						<h2 className="text-sm font-semibold tracking-wide">Workspace Settings</h2>
-						<button
-							type="button"
-							onClick={onClose}
-							aria-label="Close settings"
-							className="bg-transparent border-none text-content-muted cursor-pointer text-sm hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
-						>
-							✕
-						</button>
-					</div>
-					<div className="flex px-6 mt-3" role="tablist" aria-label="Settings tabs">
-						{SETTINGS_TABS.map((tab) => (
-							<button
-								key={tab}
-								type="button"
-								role="tab"
-								id={`tab-${tab}`}
-								aria-selected={activeTab === tab}
-								aria-controls={`tabpanel-${activeTab}`}
-								onClick={() => setActiveTab(tab)}
-								className={`px-3 py-1.5 text-xs cursor-pointer bg-transparent border-0 border-b-2 border-solid transition-colors focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
-									activeTab === tab
-										? 'border-accent text-content font-medium'
-										: 'border-transparent text-content-muted hover:text-content'
-								}`}
-							>
-								{tab}
-							</button>
-						))}
-					</div>
+				<div className="flex items-center justify-between px-6 py-4 border-b border-edge/50">
+					<h2 className="text-sm font-semibold tracking-wide">Workspace Settings</h2>
+					<button
+						type="button"
+						onClick={onClose}
+						aria-label="Close settings"
+						className="bg-transparent border-none text-content-muted cursor-pointer text-sm hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+					>
+						✕
+					</button>
 				</div>
 
-				<div
-					role="tabpanel"
-					id={`tabpanel-${activeTab}`}
-					aria-labelledby={`tab-${activeTab}`}
-					className="px-6 py-6 flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-8"
-				>
-					{activeTab === 'Workspace' && (
-						<>
-							{/* General */}
-							<SettingsSection label="General">
-								<label className="flex items-center gap-3">
-									<span className="text-xs text-content-secondary w-16 shrink-0">Name</span>
-									<input
-										value={name}
-										onChange={(e) => setName(e.target.value)}
-										maxLength={128}
-										className="settings-input flex-1 min-w-0"
-									/>
-								</label>
-								<label className="flex items-center gap-3">
-									<span className="text-xs text-content-secondary w-16 shrink-0">Color</span>
+				<div className="px-6 py-6 overflow-y-auto overflow-x-hidden flex flex-col gap-8">
+					{/* General */}
+					<SettingsSection label="General">
+						<label className="flex items-center gap-3">
+							<span className="text-xs text-content-secondary w-16 shrink-0">Name</span>
+							<input
+								value={name}
+								onChange={(e) => setName(e.target.value)}
+								maxLength={128}
+								className="settings-input flex-1 min-w-0"
+							/>
+						</label>
+						<label className="flex items-center gap-3">
+							<span className="text-xs text-content-secondary w-16 shrink-0">Color</span>
+							<input
+								type="color"
+								value={color}
+								onChange={(e) => setColor(e.target.value)}
+								className="color-swatch"
+							/>
+						</label>
+					</SettingsSection>
+					{/* Panes */}
+					<SettingsSection label="Panes" gap={8}>
+						{Object.entries(workspace.panes).map(([paneId, pane]) => (
+							<div key={paneId} className="flex gap-1.5">
+								<input
+									value={pane.label}
+									onChange={(e) => handlePaneUpdate(paneId, { label: e.target.value })}
+									className="settings-input w-24 shrink-0"
+									placeholder="Label"
+									aria-label={`Pane ${pane.label} label`}
+								/>
+								<CwdInput
+									value={pane.cwd}
+									homeDir={homeDir}
+									onChange={(cwd) => handlePaneUpdate(paneId, { cwd })}
+									aria-label={`Pane ${pane.label} working directory`}
+								/>
+								<input
+									value={pane.startupCommand || ''}
+									onChange={(e) =>
+										handlePaneUpdate(paneId, {
+											startupCommand: e.target.value || null,
+										})
+									}
+									className="settings-input flex-[2] min-w-0"
+									placeholder="Startup command"
+									aria-label={`Pane ${pane.label} startup command`}
+								/>
+							</div>
+						))}
+					</SettingsSection>
+					{/* Terminal */}
+					<SettingsSection label="Terminal" gap={16}>
+						{/* Theme preset grid — each name is rendered in its own theme colors as a live preview */}
+						<div className="grid grid-cols-4 gap-1.5">
+							{THEME_PRESETS.map((preset) => {
+								const isActive = bg === preset.background && fg === preset.foreground
+								return (
+									<button
+										type="button"
+										key={preset.name}
+										onClick={() => handlePresetClick(preset.background, preset.foreground)}
+										aria-pressed={isActive}
+										className={`py-1.5 px-1 rounded-md cursor-pointer border text-center focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
+											isActive
+												? 'border-accent ring-1 ring-accent'
+												: 'border-transparent hover:border-content-muted'
+										}`}
+										title={preset.name}
+										aria-label={preset.name}
+										style={{ background: preset.background, color: preset.foreground }}
+									>
+										<span className="text-[11px] font-medium leading-tight block truncate">
+											{preset.name}
+										</span>
+									</button>
+								)
+							})}
+						</div>
+
+						<div className="flex flex-col gap-3">
+							{/* Custom colors */}
+							<div className="flex items-center gap-4">
+								<label className="flex items-center gap-2">
+									<span className="text-xs text-content-secondary shrink-0">Background</span>
 									<input
 										type="color"
-										value={color}
-										onChange={(e) => setColor(e.target.value)}
+										value={bg}
+										onChange={(e) => setBg(e.target.value)}
 										className="color-swatch"
 									/>
 								</label>
-							</SettingsSection>
-							{/* Layout */}
-							<LayoutPicker current={currentPreset} onSelect={handleLayoutChange} />
-							{/* Panes */}
-							<SettingsSection label="Panes" gap={8}>
-								{Object.entries(workspace.panes).map(([paneId, pane]) => (
-									<div key={paneId} className="flex gap-1.5">
-										<input
-											value={pane.label}
-											onChange={(e) => handlePaneUpdate(paneId, { label: e.target.value })}
-											className="settings-input w-24 shrink-0"
-											placeholder="Label"
-											aria-label={`Pane ${pane.label} label`}
-										/>
-										<CwdInput
-											value={pane.cwd}
-											homeDir={homeDir}
-											onChange={(cwd) => handlePaneUpdate(paneId, { cwd })}
-											aria-label={`Pane ${pane.label} working directory`}
-										/>
-										<input
-											value={pane.startupCommand || ''}
-											onChange={(e) =>
-												handlePaneUpdate(paneId, {
-													startupCommand: e.target.value || null,
-												})
-											}
-											className="settings-input flex-[2] min-w-0"
-											placeholder="Startup command"
-											aria-label={`Pane ${pane.label} startup command`}
-										/>
-									</div>
-								))}
-							</SettingsSection>
-						</>
-					)}
-
-					{activeTab === 'Terminal' && (
-						<SettingsSection label="Theme" gap={16}>
-							{/* Theme preset grid */}
-							<div className="grid grid-cols-4 gap-1.5">
-								{THEME_PRESETS.map((preset) => {
-									const isActive = bg === preset.background && fg === preset.foreground
-									return (
-										<button
-											type="button"
-											key={preset.name}
-											onClick={() => handlePresetClick(preset.background, preset.foreground)}
-											aria-pressed={isActive}
-											className={`py-1.5 px-1 rounded-md cursor-pointer border text-center focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
-												isActive
-													? 'border-accent ring-1 ring-accent'
-													: 'border-transparent hover:border-content-muted'
-											}`}
-											title={preset.name}
-											aria-label={preset.name}
-											style={{
-												background: preset.background,
-												color: preset.foreground,
-											}}
-										>
-											<span className="text-[11px] font-medium leading-tight block truncate">
-												{preset.name}
-											</span>
-										</button>
-									)
-								})}
+								<label className="flex items-center gap-2">
+									<span className="text-xs text-content-secondary shrink-0">Foreground</span>
+									<input
+										type="color"
+										value={fg}
+										onChange={(e) => setFg(e.target.value)}
+										className="color-swatch"
+									/>
+								</label>
 							</div>
 
-							<div className="flex flex-col gap-3">
-								{/* Custom colors */}
-								<div className="flex items-center gap-4">
-									<label className="flex items-center gap-2">
-										<span className="text-xs text-content-secondary shrink-0">Background</span>
-										<input
-											type="color"
-											value={bg}
-											onChange={(e) => setBg(e.target.value)}
-											className="color-swatch"
-										/>
-									</label>
-									<label className="flex items-center gap-2">
-										<span className="text-xs text-content-secondary shrink-0">Foreground</span>
-										<input
-											type="color"
-											value={fg}
-											onChange={(e) => setFg(e.target.value)}
-											className="color-swatch"
-										/>
-									</label>
+							{/* Font settings */}
+							<div className="flex items-center gap-3">
+								<span className="text-xs text-content-secondary w-20 shrink-0">Font</span>
+								<div className="flex-1 min-w-0">
+									<FontPicker value={fontFamily} onChange={setFontFamily} />
 								</div>
+							</div>
 
-								{/* Font settings */}
-								<div className="flex items-center gap-3">
-									<span className="text-xs text-content-secondary w-20 shrink-0">Font</span>
-									<div className="flex-1 min-w-0">
-										<FontPicker value={fontFamily} onChange={setFontFamily} />
-									</div>
-								</div>
-
-								<div className="flex items-center gap-3">
-									<span className="text-xs text-content-secondary w-20 shrink-0">Size</span>
-									<div className="flex items-center gap-2">
-										<button
-											type="button"
-											onClick={() => setFontSize((s) => Math.max(8, s - 1))}
-											aria-label="Decrease font size"
-											className="stepper-btn"
-										>
-											-
-										</button>
-										<span className="text-xs text-content tabular-nums w-5 text-center">
-											{fontSize}
-										</span>
-										<button
-											type="button"
-											onClick={() => setFontSize((s) => Math.min(32, s + 1))}
-											aria-label="Increase font size"
-											className="stepper-btn"
-										>
-											+
-										</button>
-									</div>
-								</div>
-
-								{/* Behavior */}
-								<label className="flex items-center gap-3">
-									<span className="text-xs text-content-secondary w-20 shrink-0">
-										Dim unfocused
-									</span>
-									<input
-										type="range"
-										min={0}
-										max={0.7}
-										step={0.05}
-										value={unfocusedDim}
-										onChange={(e) => setUnfocusedDim(Number(e.target.value))}
-										className="w-32"
-									/>
-									<span className="text-[11px] text-content-muted w-7">
-										{Math.round(unfocusedDim * 100)}%
-									</span>
-								</label>
-
-								<label className="flex items-center gap-3">
-									<span className="text-xs text-content-secondary w-20 shrink-0">Opacity</span>
-									<input
-										type="range"
-										min={0.1}
-										max={1}
-										step={0.05}
-										value={paneOpacity}
-										onChange={(e) => setPaneOpacity(Number(e.target.value))}
-										className="w-32"
-									/>
-									<span className="text-[11px] text-content-muted w-7">
-										{Math.round(paneOpacity * 100)}%
-									</span>
-								</label>
-
-								<label className="flex items-center gap-3">
-									<span className="text-xs text-content-secondary w-20 shrink-0">Cursor</span>
-									<select
-										value={cursorStyle}
-										onChange={(e) => {
-											if (isCursorStyle(e.target.value)) setCursorStyle(e.target.value)
-										}}
-										className="settings-input w-32"
+							<div className="flex items-center gap-3">
+								<span className="text-xs text-content-secondary w-20 shrink-0">Size</span>
+								<div className="flex items-center gap-2">
+									<button
+										type="button"
+										onClick={() => setFontSize((s) => Math.max(8, s - 1))}
+										aria-label="Decrease font size"
+										className="stepper-btn"
 									>
-										{CURSOR_STYLES.map((s) => (
-											<option key={s} value={s}>
-												{s[0].toUpperCase() + s.slice(1)}
-											</option>
-										))}
-									</select>
-								</label>
-
-								<label className="flex items-center gap-3">
-									<span className="text-xs text-content-secondary w-20 shrink-0">Scrollback</span>
-									<input
-										type="number"
-										min={MIN_SCROLLBACK}
-										max={MAX_SCROLLBACK}
-										step={500}
-										value={scrollback}
-										onChange={(e) => {
-											const n = Number(e.target.value)
-											if (!Number.isFinite(n)) return
-											setScrollback(Math.max(MIN_SCROLLBACK, Math.min(MAX_SCROLLBACK, n)))
-										}}
-										className="settings-input w-24"
-									/>
-									<span className="text-[11px] text-content-muted">lines</span>
-								</label>
+										-
+									</button>
+									<span className="text-xs text-content tabular-nums w-5 text-center">
+										{fontSize}
+									</span>
+									<button
+										type="button"
+										onClick={() => setFontSize((s) => Math.min(32, s + 1))}
+										aria-label="Increase font size"
+										className="stepper-btn"
+									>
+										+
+									</button>
+								</div>
 							</div>
-						</SettingsSection>
-					)}
 
-					{activeTab === 'Agents' && (
-						<>
-							<AgentFlagsSection workspaceId={workspace.id} agentFlags={workspace.agentFlags} />
-							<SnippetsSection />
-						</>
-					)}
+							{/* Behavior */}
+							<label className="flex items-center gap-3">
+								<span className="text-xs text-content-secondary w-20 shrink-0">Dim unfocused</span>
+								<input
+									type="range"
+									min={0}
+									max={0.7}
+									step={0.05}
+									value={unfocusedDim}
+									onChange={(e) => setUnfocusedDim(Number(e.target.value))}
+									className="w-32"
+								/>
+								<span className="text-[11px] text-content-muted w-7">
+									{Math.round(unfocusedDim * 100)}%
+								</span>
+							</label>
+
+							<label className="flex items-center gap-3">
+								<span className="text-xs text-content-secondary w-20 shrink-0">Opacity</span>
+								<input
+									type="range"
+									min={0.1}
+									max={1}
+									step={0.05}
+									value={paneOpacity}
+									onChange={(e) => setPaneOpacity(Number(e.target.value))}
+									className="w-32"
+								/>
+								<span className="text-[11px] text-content-muted w-7">
+									{Math.round(paneOpacity * 100)}%
+								</span>
+							</label>
+
+							<label className="flex items-center gap-3">
+								<span className="text-xs text-content-secondary w-20 shrink-0">Cursor</span>
+								<select
+									value={cursorStyle}
+									onChange={(e) => {
+										if (isCursorStyle(e.target.value)) setCursorStyle(e.target.value)
+									}}
+									className="settings-input w-32"
+								>
+									{CURSOR_STYLES.map((s) => (
+										<option key={s} value={s}>
+											{s[0].toUpperCase() + s.slice(1)}
+										</option>
+									))}
+								</select>
+							</label>
+
+							<label className="flex items-center gap-3">
+								<span className="text-xs text-content-secondary w-20 shrink-0">Scrollback</span>
+								<input
+									type="number"
+									min={MIN_SCROLLBACK}
+									max={MAX_SCROLLBACK}
+									step={500}
+									value={scrollback}
+									onChange={(e) => {
+										const n = Number(e.target.value)
+										if (!Number.isFinite(n)) return
+										setScrollback(Math.max(MIN_SCROLLBACK, Math.min(MAX_SCROLLBACK, n)))
+									}}
+									className="settings-input w-24"
+								/>
+								<span className="text-[11px] text-content-muted">lines</span>
+							</label>
+						</div>
+					</SettingsSection>
+					{/* Layout */}
+					<LayoutPicker current={currentPreset} onSelect={handleLayoutChange} />
+					{/* Snippets */}
+					<SnippetsSection />
 				</div>
 
 				<div className="flex items-center gap-2 px-6 py-3 border-t border-edge/50">

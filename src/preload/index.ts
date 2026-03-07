@@ -1,12 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type {
-	AppState,
-	IpcChannel,
-	LaunchableAgent,
-	ProcessInfo,
-	Snippet,
-	Workspace,
-} from '../shared/types'
+import type { AppState, IpcChannel, Snippet, Workspace } from '../shared/types'
 import { IPC } from '../shared/types'
 
 type Unsubscribe = () => void
@@ -25,7 +18,6 @@ const api = {
 	getHomeDir: (): Promise<string> => ipcRenderer.invoke(IPC.APP_GET_HOME_DIR),
 
 	openExternal: (url: string): Promise<void> => ipcRenderer.invoke(IPC.APP_OPEN_EXTERNAL, url),
-	pickFolder: (): Promise<string | null> => ipcRenderer.invoke(IPC.APP_PICK_FOLDER),
 
 	// Config
 	getWorkspaces: (): Promise<Workspace[]> => ipcRenderer.invoke(IPC.CONFIG_GET_WORKSPACES),
@@ -56,26 +48,6 @@ const api = {
 		onIpcEvent<[string, number]>(IPC.PTY_EXIT, cb),
 	onPtyCwdChanged: (cb: (paneId: string, cwd: string) => void): Unsubscribe =>
 		onIpcEvent<[string, string]>(IPC.PTY_CWD_CHANGED, cb),
-
-	// Agent detection
-	getPtyProcessInfo: (id: string): Promise<ProcessInfo | null> =>
-		ipcRenderer.invoke(IPC.PTY_GET_PROCESS_INFO, id),
-	onPtyProcessChanged: (cb: (paneId: string, info: ProcessInfo | null) => void): Unsubscribe =>
-		onIpcEvent<[string, ProcessInfo | null]>(IPC.PTY_PROCESS_CHANGED, cb),
-
-	// Agent subprocess (bidirectional stream-json)
-	spawnAgent: (id: string, agentType: LaunchableAgent, cwd: string): Promise<void> =>
-		ipcRenderer.invoke(IPC.AGENT_SPAWN, id, agentType, cwd),
-	sendAgentMessage: (id: string, message: string): Promise<void> =>
-		ipcRenderer.invoke(IPC.AGENT_SEND, id, message),
-	killAgent: (id: string): Promise<void> => ipcRenderer.invoke(IPC.AGENT_KILL, id),
-	onAgentData: (cb: (paneId: string, data: string) => void): Unsubscribe =>
-		onIpcEvent<[string, string]>(IPC.AGENT_DATA, cb),
-	onAgentError: (cb: (paneId: string, error: string) => void): Unsubscribe =>
-		onIpcEvent<[string, string]>(IPC.AGENT_ERROR, cb),
-	onAgentExit: (
-		cb: (paneId: string, code: number | null, signal: string | null) => void,
-	): Unsubscribe => onIpcEvent<[string, number | null, string | null]>(IPC.AGENT_EXIT, cb),
 }
 
 contextBridge.exposeInMainWorld('api', api)

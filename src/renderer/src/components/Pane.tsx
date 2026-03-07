@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
-	AGENT_LABELS,
 	DEFAULT_PANE_OPACITY,
 	type DropPosition,
 	type PaneConfig,
@@ -42,10 +41,7 @@ import { useInlineEdit } from '../hooks/useInlineEdit'
 import { useStore } from '../store'
 import { modKey } from '../utils/platform'
 import { isValidCwd } from '../utils/validation'
-import { AgentStatusBar } from './AgentStatusBar'
 import { FontPicker } from './FontPicker'
-import { PaneLauncher } from './PaneLauncher'
-import { StreamRenderer } from './StreamRenderer'
 import { TerminalView } from './Terminal'
 
 interface ThemeInputFields {
@@ -193,8 +189,6 @@ export function Pane({
 	const dropZoneRef = useRef<DropZone | null>(null)
 	const outerRef = useRef<HTMLDivElement>(null)
 
-	const agentType = useStore((s) => s.paneAgentTypes.get(paneId) ?? null)
-	const isSubprocess = useStore((s) => s.activeAgentIds.has(paneId))
 	const movePaneToWorkspace = useStore((s) => s.movePaneToWorkspace)
 	const swapPanes = useStore((s) => s.swapPanes)
 	const movePaneToPosition = useStore((s) => s.movePaneToPosition)
@@ -209,50 +203,14 @@ export function Pane({
 	// Ensure PTY exists for this pane. Uses store's activePtyIds to avoid
 	// double-creation on Allotment remounts (e.g. when splitting panes).
 	// PTY kill is handled by store actions and layout-change helpers.
-	// Panes with launchMode: null show the launcher overlay — no auto-spawn.
-	// Panes with launchMode: undefined (legacy) are treated as 'terminal'.
 	const ensurePty = useStore((s) => s.ensurePty)
 	const killPtys = useStore((s) => s.killPtys)
-	const setLaunchMode = useStore((s) => s.setLaunchMode)
-	const showLauncher = config.launchMode === null
-	const isAgent = config.launchMode != null && config.launchMode !== 'terminal'
-	// Use process-detected agent type, falling back to launchMode for agent panes
-	const effectiveAgentType =
-		agentType ??
-		(isAgent && config.launchMode && config.launchMode !== 'terminal' ? config.launchMode : null)
+	// Capture initial values so config updates don't re-trigger PTY creation
 	const initialCwdRef = useRef(config.cwd)
 	const initialCmdRef = useRef(config.startupCommand)
-	const spawnedRef = useRef(false)
-	// Reset spawnedRef when agent exits (isSubprocess goes false) so re-spawn can occur
-	const prevSubprocessRef = useRef(isSubprocess)
 	useEffect(() => {
-		if (prevSubprocessRef.current && !isSubprocess) {
-			spawnedRef.current = false
-		}
-		prevSubprocessRef.current = isSubprocess
-	}, [isSubprocess])
-	// Subprocess panes are spawned by setLaunchMode — only ensure PTY for non-subprocess panes.
-	// On reload, agent panes have launchMode persisted but no active subprocess — re-spawn them.
-	useEffect(() => {
-		if (showLauncher) return
-		if (isAgent && !isSubprocess && !spawnedRef.current && config.launchMode) {
-			spawnedRef.current = true
-			setLaunchMode(workspaceId, paneId, config.launchMode)
-			return
-		}
-		if (!isAgent && !isSubprocess) {
-			ensurePty(paneId, initialCwdRef.current, initialCmdRef.current)
-		}
-	}, [
-		paneId,
-		ensurePty,
-		showLauncher,
-		isSubprocess,
-		isAgent,
-		setLaunchMode,
-		workspaceId,
-		config.launchMode,
-	])
+		ensurePty(paneId, initialCwdRef.current, initialCmdRef.current)
+	}, [paneId, ensurePty])
 
 	const { isEditing, inputProps, startEditing } = useInlineEdit(config.label, (label) =>
 		onUpdateConfig(paneId, { label }),
@@ -432,15 +390,6 @@ export function Pane({
 				) : (
 					<span onDoubleClick={startEditing} className="text-content font-medium cursor-default">
 						{config.label}
-					</span>
-				)}
-
-				{agentType && (
-					<span
-						className="text-[9px] font-semibold uppercase tracking-wider px-1 py-px rounded-sm bg-accent/15 text-accent shrink-0"
-						title={`Agent: ${AGENT_LABELS[agentType]}`}
-					>
-						{AGENT_LABELS[agentType]}
 					</span>
 				)}
 
@@ -739,24 +688,18 @@ export function Pane({
 							</div>
 						)}
 						<div className="ctx-separator" />
-						{!showLauncher && (
-							<button
-								type="button"
-								className="ctx-item"
-								onClick={() => {
-									killPtys([paneId])
-									if (config.launchMode && config.launchMode !== 'terminal') {
-										setLaunchMode(workspaceId, paneId, config.launchMode)
-									} else {
-										ensurePty(paneId, config.cwd, config.startupCommand)
-									}
-									closeContext()
-									onFocus(paneId)
-								}}
-							>
-								Restart Pane
-							</button>
-						)}
+						<button
+							type="button"
+							className="ctx-item"
+							onClick={() => {
+								killPtys([paneId])
+								ensurePty(paneId, config.cwd, config.startupCommand)
+								closeContext()
+								onFocus(paneId)
+							}}
+						>
+							Restart Pane
+						</button>
 						{canClose && (
 							<button
 								type="button"
@@ -773,44 +716,28 @@ export function Pane({
 				)}
 			</div>
 
-			{!showLauncher && effectiveAgentType && (
-				<AgentStatusBar paneId={paneId} agentType={effectiveAgentType} />
-			)}
-
-			{/* Dim overlay scoped to terminal area only (not the header/status bar).
+			{/* Dim overlay scoped to terminal area only (not the header).
 			    Always rendered to enable CSS transition; opacity toggled via class.
 			    Inline style required: Tailwind cannot express dynamic runtime opacity. */}
 			<div className="flex-1 overflow-hidden p-px relative">
-				{showLauncher ? (
-					<PaneLauncher workspaceId={workspaceId} paneId={paneId} />
-				) : isSubprocess ? (
-					<StreamRenderer
-						paneId={paneId}
-						theme={workspaceTheme}
-						themeOverride={config.themeOverride}
-					/>
-				) : (
-					<TerminalView
-						paneId={paneId}
-						theme={workspaceTheme}
-						themeOverride={config.themeOverride}
-						focusGeneration={focusGeneration}
-						isFocused={isFocused}
-						onFocus={handleFocus}
-					/>
-				)}
-				{!showLauncher && (
-					<div
-						className={`absolute inset-0 bg-black pointer-events-none transition-opacity duration-150 z-20 ${
-							!isFocused && workspaceTheme.unfocusedDim > 0 ? '' : 'opacity-0'
-						}`}
-						style={
-							!isFocused && workspaceTheme.unfocusedDim > 0
-								? { opacity: Math.max(0, Math.min(0.7, workspaceTheme.unfocusedDim)) }
-								: undefined
-						}
-					/>
-				)}
+				<TerminalView
+					paneId={paneId}
+					theme={workspaceTheme}
+					themeOverride={config.themeOverride}
+					focusGeneration={focusGeneration}
+					isFocused={isFocused}
+					onFocus={handleFocus}
+				/>
+				<div
+					className={`absolute inset-0 bg-black pointer-events-none transition-opacity duration-150 ${
+						!isFocused && workspaceTheme.unfocusedDim > 0 ? '' : 'opacity-0'
+					}`}
+					style={
+						!isFocused && workspaceTheme.unfocusedDim > 0
+							? { opacity: Math.max(0, Math.min(0.7, workspaceTheme.unfocusedDim)) }
+							: undefined
+					}
+				/>
 			</div>
 
 			{/* Drop zone overlay — shows where the dragged pane will land

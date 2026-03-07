@@ -1,9 +1,8 @@
 import os from 'node:os'
 import path from 'node:path'
-import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
-import type { AppState, LaunchableAgent, Snippet, Workspace } from '../shared/types'
-import { IPC, LAUNCHABLE_AGENTS } from '../shared/types'
-import { killAgent, sendAgentMessage, spawnAgent } from './agent-subprocess'
+import { ipcMain, shell } from 'electron'
+import type { AppState, Snippet, Workspace } from '../shared/types'
+import { IPC } from '../shared/types'
 import {
 	deleteWorkspace,
 	getAppState,
@@ -14,14 +13,7 @@ import {
 	saveWorkspace,
 } from './config-store'
 import { trackPane, untrackPane } from './cwd-tracker'
-import {
-	createPty,
-	getPtyProcessInfo,
-	killPty,
-	resizePty,
-	startProcessPolling,
-	writePty,
-} from './pty-manager'
+import { createPty, killPty, resizePty, writePty } from './pty-manager'
 
 const MAX_PANE_ID_LENGTH = 128
 
@@ -39,21 +31,6 @@ function assertPaneId(value: unknown): asserts value is string {
 	if ((value as string).length > MAX_PANE_ID_LENGTH) {
 		throw new Error(`Invalid pane id: exceeds ${MAX_PANE_ID_LENGTH} characters`)
 	}
-}
-
-function assertLaunchableAgent(value: unknown): asserts value is LaunchableAgent {
-	assertNonEmptyString(value, 'agentType')
-	if (!LAUNCHABLE_AGENTS.includes(value as LaunchableAgent)) {
-		throw new Error(
-			`Invalid agentType: '${value}' is not a supported agent. Must be one of: ${LAUNCHABLE_AGENTS.join(', ')}`,
-		)
-	}
-}
-
-function assertAbsolutePath(value: unknown, name: string): asserts value is string {
-	assertString(value, name)
-	if (!path.isAbsolute(value)) throw new Error(`Invalid ${name}: must be an absolute path`)
-	if (value.includes('\0')) throw new Error(`Invalid ${name}: contains null byte`)
 }
 
 function assertIntInRange(
@@ -94,32 +71,8 @@ function assertWorkspace(value: unknown): asserts value is Workspace {
 	}
 	if (!obj.panes || typeof obj.panes !== 'object')
 		throw new Error('Invalid workspace: missing or invalid panes')
-	// Validate optional cwd field
-	if (obj.cwd !== undefined && obj.cwd !== null) {
-		assertAbsolutePath(obj.cwd, 'workspace cwd')
-	}
-	// Validate optional agentFlags field — reject shell metacharacters
-	if (obj.agentFlags !== undefined) {
-		if (!obj.agentFlags || typeof obj.agentFlags !== 'object')
-			throw new Error('Invalid workspace: agentFlags must be an object')
-		const SAFE_FLAG_CHARS = /^[a-zA-Z0-9\-_=., /]+$/
-		const MAX_FLAG_LENGTH = 1024
-		for (const [key, val] of Object.entries(obj.agentFlags as Record<string, unknown>)) {
-			if (typeof val !== 'string')
-				throw new Error(`Invalid workspace: agentFlags.${key} must be a string`)
-			if (val.length > MAX_FLAG_LENGTH)
-				throw new Error(
-					`Invalid workspace: agentFlags.${key} exceeds ${MAX_FLAG_LENGTH} characters`,
-				)
-			if (val.length > 0 && !SAFE_FLAG_CHARS.test(val))
-				throw new Error(
-					`Invalid workspace: agentFlags.${key} contains disallowed characters (only alphanumeric, hyphens, underscores, equals, dots, commas, spaces, and slashes allowed)`,
-				)
-		}
-	}
 }
 
-const MAX_AGENT_MESSAGE_LENGTH = 1_000_000 // 1MB
 const MAX_SNIPPETS = 500
 const MAX_SNIPPET_NAME_LENGTH = 256
 const MAX_SNIPPET_COMMAND_LENGTH = 4096
@@ -173,23 +126,6 @@ export function registerIpcHandlers(): void {
 		return shell.openExternal(parsed.href)
 	})
 
-	ipcMain.handle(IPC.APP_PICK_FOLDER, async (e) => {
-		const win = BrowserWindow.fromWebContents(e.sender) ?? BrowserWindow.getFocusedWindow()
-		if (!win) {
-			console.warn('[ipc] APP_PICK_FOLDER: no window available')
-			return null
-		}
-		try {
-			const result = await dialog.showOpenDialog(win, {
-				properties: ['openDirectory'],
-			})
-			return result.canceled ? null : (result.filePaths[0] ?? null)
-		} catch (err) {
-			console.error('[ipc] APP_PICK_FOLDER failed:', err)
-			throw new Error('Failed to open folder picker. Please try again.')
-		}
-	})
-
 	ipcMain.handle(IPC.CONFIG_GET_WORKSPACES, () => getWorkspaces())
 
 	ipcMain.handle(IPC.CONFIG_SAVE_WORKSPACE, (_e, workspace: unknown) => {
@@ -211,7 +147,9 @@ export function registerIpcHandlers(): void {
 
 	ipcMain.handle(IPC.PTY_CREATE, async (_e, id: unknown, cwd: unknown, startupCommand: unknown) => {
 		assertPaneId(id)
-		assertAbsolutePath(cwd, 'cwd')
+		assertString(cwd, 'cwd')
+		if (!path.isAbsolute(cwd)) throw new Error('Invalid cwd: must be an absolute path')
+		if (cwd.includes('\0')) throw new Error('Invalid cwd: contains null byte')
 		if (startupCommand !== null && typeof startupCommand !== 'string') {
 			throw new Error('Invalid startup command')
 		}
@@ -251,41 +189,4 @@ export function registerIpcHandlers(): void {
 		assertSnippets(snippets)
 		saveSnippets(snippets)
 	})
-
-	ipcMain.handle(IPC.PTY_GET_PROCESS_INFO, (_e, id: unknown) => {
-		assertPaneId(id)
-		return getPtyProcessInfo(id)
-	})
-
-	// Agent subprocess (bidirectional stream-json)
-	ipcMain.handle(IPC.AGENT_SPAWN, (_e, id: unknown, agentType: unknown, cwd: unknown) => {
-		assertPaneId(id)
-		assertLaunchableAgent(agentType)
-		assertAbsolutePath(cwd, 'cwd')
-		try {
-			spawnAgent(id, agentType, path.resolve(cwd))
-		} catch (err) {
-			console.error(`[ipc] AGENT_SPAWN failed for pane ${id}:`, err)
-			throw new Error(
-				`Failed to spawn ${agentType} in ${cwd}. Check that '${agentType}' is installed and on your PATH.`,
-			)
-		}
-	})
-
-	ipcMain.handle(IPC.AGENT_SEND, (_e, id: unknown, message: unknown) => {
-		assertPaneId(id)
-		assertNonEmptyString(message, 'message')
-		if ((message as string).length > MAX_AGENT_MESSAGE_LENGTH) {
-			throw new Error(`Message too long: max ${MAX_AGENT_MESSAGE_LENGTH} characters`)
-		}
-		sendAgentMessage(id, message)
-	})
-
-	ipcMain.handle(IPC.AGENT_KILL, (_e, id: unknown) => {
-		assertPaneId(id)
-		killAgent(id)
-	})
-
-	// Start polling child processes for agent detection
-	startProcessPolling()
 }
