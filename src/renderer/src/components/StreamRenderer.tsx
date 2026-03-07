@@ -144,6 +144,7 @@ function MessageInput({ paneId, isStreaming }: { paneId: string; isStreaming: bo
 	const [input, setInput] = useState('')
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
 	const sendAgentMessage = useStore((s) => s.sendAgentMessage)
+	const isSubprocess = useStore((s) => s.activeAgentIds.has(paneId))
 
 	const handleSubmit = useCallback(() => {
 		const trimmed = input.trim()
@@ -153,8 +154,12 @@ function MessageInput({ paneId, isStreaming }: { paneId: string; isStreaming: bo
 	}, [paneId, input, sendAgentMessage])
 
 	const handleStop = useCallback(() => {
-		window.api.writePty(paneId, '\x03')
-	}, [paneId])
+		if (isSubprocess) {
+			window.api.killAgent(paneId)
+		} else {
+			window.api.writePty(paneId, '\x03')
+		}
+	}, [paneId, isSubprocess])
 
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
@@ -170,9 +175,7 @@ function MessageInput({ paneId, isStreaming }: { paneId: string; isStreaming: bo
 		[handleSubmit],
 	)
 
-	// Auto-focus textarea on mount — critical because the xterm terminal behind
-	// the StreamRenderer overlay steals focus during the initial render cycle
-	// (viewMode is briefly undefined before useStreamJsonParser sets it to 'rendered')
+	// Auto-focus textarea on mount
 	useEffect(() => {
 		textareaRef.current?.focus()
 	}, [])

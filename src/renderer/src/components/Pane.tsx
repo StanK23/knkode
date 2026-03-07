@@ -44,9 +44,9 @@ import { useStore } from '../store'
 import { modKey } from '../utils/platform'
 import { isValidCwd } from '../utils/validation'
 import { AgentStatusBar } from './AgentStatusBar'
-import { BufferRenderedView } from './BufferRenderedView'
 import { FontPicker } from './FontPicker'
 import { PaneLauncher } from './PaneLauncher'
+import { StreamRenderer } from './StreamRenderer'
 import { TerminalView } from './Terminal'
 
 interface ThemeInputFields {
@@ -195,7 +195,7 @@ export function Pane({
 	const outerRef = useRef<HTMLDivElement>(null)
 
 	const agentType = useStore((s) => s.paneAgentTypes.get(paneId) ?? null)
-	const rawViewMode = useStore((s) => s.paneViewMode.get(paneId))
+	const isSubprocess = useStore((s) => s.activeAgentIds.has(paneId))
 	const movePaneToWorkspace = useStore((s) => s.movePaneToWorkspace)
 	const swapPanes = useStore((s) => s.swapPanes)
 	const movePaneToPosition = useStore((s) => s.movePaneToPosition)
@@ -216,20 +216,17 @@ export function Pane({
 	const killPtys = useStore((s) => s.killPtys)
 	const setLaunchMode = useStore((s) => s.setLaunchMode)
 	const showLauncher = config.launchMode === null
-	// Capture initial values so config updates don't re-trigger PTY creation.
-	// Agent panes auto-launch via setLaunchMode startup command.
 	const isAgent = config.launchMode != null && config.launchMode !== 'terminal'
-	// Agent panes default to raw (terminal) view. User can toggle to rendered via status bar.
-	const viewMode = rawViewMode ?? (isAgent ? 'raw' : undefined)
 	// Use process-detected agent type, falling back to launchMode for agent panes
-	// (before Claude starts, process detection returns null — but we still need the status bar)
-	const effectiveAgentType = agentType ?? (isAgent && config.launchMode ? (config.launchMode as AgentType) : null)
+	const effectiveAgentType =
+		agentType ?? (isAgent && config.launchMode ? (config.launchMode as AgentType) : null)
 	const initialCwdRef = useRef(config.cwd)
 	const initialCmdRef = useRef(config.startupCommand)
+	// Subprocess panes are spawned by setLaunchMode — only ensure PTY for non-subprocess panes
 	useEffect(() => {
-		if (showLauncher) return
+		if (showLauncher || isSubprocess) return
 		ensurePty(paneId, initialCwdRef.current, initialCmdRef.current)
-	}, [paneId, ensurePty, showLauncher])
+	}, [paneId, ensurePty, showLauncher, isSubprocess])
 
 	const { isEditing, inputProps, startEditing } = useInlineEdit(config.label, (label) =>
 		onUpdateConfig(paneId, { label }),
@@ -760,28 +757,12 @@ export function Pane({
 			<div className="flex-1 overflow-hidden p-px relative">
 				{showLauncher ? (
 					<PaneLauncher workspaceId={workspaceId} paneId={paneId} />
-				) : isAgent ? (
-					<>
-						{/* Terminal always mounted for agent panes so cache accumulates PTY data.
-						    Visible in raw mode, hidden behind BufferRenderedView in rendered mode. */}
-						<TerminalView
-							paneId={paneId}
-							theme={workspaceTheme}
-							themeOverride={config.themeOverride}
-							focusGeneration={focusGeneration}
-							isFocused={isFocused && viewMode !== 'rendered'}
-							onFocus={handleFocus}
-						/>
-						{viewMode === 'rendered' && (
-							<div className="absolute inset-0 z-10">
-								<BufferRenderedView
-									paneId={paneId}
-									theme={workspaceTheme}
-									themeOverride={config.themeOverride}
-								/>
-							</div>
-						)}
-					</>
+				) : isSubprocess ? (
+					<StreamRenderer
+						paneId={paneId}
+						theme={workspaceTheme}
+						themeOverride={config.themeOverride}
+					/>
 				) : (
 					<TerminalView
 						paneId={paneId}
