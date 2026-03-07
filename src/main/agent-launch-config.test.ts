@@ -18,10 +18,11 @@ describe('AGENT_LAUNCH_CONFIG', () => {
 			expect(flags).toEqual([
 				'--print',
 				'--verbose',
-				'--input-format',
-				'stream-json',
 				'--output-format',
 				'stream-json',
+				'--input-format',
+				'stream-json',
+				'--include-partial-messages',
 			])
 		})
 

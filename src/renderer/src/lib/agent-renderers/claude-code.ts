@@ -1,14 +1,10 @@
+import { stripAnsi } from '../ansi'
 import type { ContentBlock, StreamMessage, StreamParser } from './types'
 
-/** Maximum line buffer size (1 MB). Protects against PTY data without newlines. */
-const MAX_BUFFER_SIZE = 1_048_576
+export { stripAnsi }
 
-/** Strip ANSI escape sequences from a string. PTYs may wrap JSON lines in terminal codes. */
-// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape matching requires control chars
-const ANSI_RE = /\x1b\[[0-9;]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b\[[\?]?[0-9;]*[hlm]/g
-export function stripAnsi(str: string): string {
-	return str.replace(ANSI_RE, '')
-}
+/** Maximum line buffer size (1 MB). Protects against subprocess output without newlines. */
+const MAX_BUFFER_SIZE = 1_048_576
 
 /** Maximum accumulated messages. Prevents unbounded memory growth in long sessions. */
 const MAX_MESSAGES = 500
@@ -40,7 +36,7 @@ export class ClaudeCodeStreamParser implements StreamParser {
 	feed(chunk: string): void {
 		this.lineBuffer += chunk
 
-		// Guard against unbounded buffer growth (e.g. PTY data without newlines)
+		// Guard against unbounded buffer growth (e.g. subprocess output without newlines)
 		if (this.lineBuffer.length > MAX_BUFFER_SIZE) {
 			console.warn('[stream-parser] lineBuffer exceeded max size, discarding')
 			this.lineBuffer = ''
@@ -66,6 +62,17 @@ export class ClaudeCodeStreamParser implements StreamParser {
 		return this.sessionId
 	}
 
+	addUserMessage(text: string): void {
+		this.messages.push({
+			id: `user-${Date.now()}`,
+			role: 'user',
+			blocks: [{ type: 'text', text }],
+			stopReason: null,
+			usage: null,
+			streaming: false,
+		})
+	}
+
 	reset(): void {
 		this.messages = []
 		this.lineBuffer = ''
@@ -75,7 +82,7 @@ export class ClaudeCodeStreamParser implements StreamParser {
 	}
 
 	private parseLine(line: string): void {
-		// Strip ANSI escape sequences — PTYs may wrap JSON in terminal codes
+		// Strip ANSI escape sequences — defensive, subprocess stdout may contain escape codes
 		const clean = line.includes('\x1b') ? stripAnsi(line).trim() : line
 
 		let parsed: unknown
@@ -108,10 +115,22 @@ export class ClaudeCodeStreamParser implements StreamParser {
 			case 'result':
 				this.handleResult(obj)
 				break
+			case 'user':
+				this.handleUserEvent(obj)
+				break
 			case 'system':
 			case 'assistant':
 			case 'rate_limit_event':
-				// Intentionally ignored — system init, message snapshots, and rate limits
+				// Intentionally ignored — system init, snapshots (redundant with stream_event deltas), rate limits
+				break
+			case 'message_start':
+			case 'content_block_start':
+			case 'content_block_delta':
+			case 'content_block_stop':
+			case 'message_delta':
+			case 'message_stop':
+				// Bare API events (no stream_event wrapper) — handle directly
+				this.handleStreamEvent(obj)
 				break
 			default:
 				// Unknown top-level types are silently dropped
@@ -167,6 +186,86 @@ export class ClaudeCodeStreamParser implements StreamParser {
 		}
 	}
 
+	private handleUserEvent(obj: Record<string, unknown>): void {
+		const message = obj.message as Record<string, unknown> | undefined
+		if (!message) return
+
+		const content = message.content as Array<Record<string, unknown>> | undefined
+		if (!Array.isArray(content) || content.length === 0) return
+
+		// Build tool_result blocks from the content array
+		const blocks: ContentBlock[] = []
+		// Also look at the top-level tool_use_result for richer data
+		const toolUseResult = obj.tool_use_result as Record<string, unknown> | string | undefined
+
+		for (const item of content) {
+			if (item.type === 'tool_result') {
+				const toolUseId = String(item.tool_use_id ?? '')
+				const isError = item.is_error === true
+
+				// Extract displayable content from the tool_result
+				let resultText = ''
+				const itemContent = item.content
+				if (typeof itemContent === 'string') {
+					resultText = itemContent
+				} else if (Array.isArray(itemContent)) {
+					// tool_reference lists (from ToolSearch) — summarize
+					const refs = itemContent
+						.filter((c: Record<string, unknown>) => c.type === 'tool_reference')
+						.map((c: Record<string, unknown>) => String(c.tool_name ?? ''))
+					if (refs.length > 0) {
+						resultText = refs.join(', ')
+					}
+				}
+
+				// Enrich from top-level tool_use_result if available
+				if (!resultText && toolUseResult) {
+					if (typeof toolUseResult === 'string') {
+						resultText = toolUseResult
+					} else if (typeof toolUseResult === 'object') {
+						// Bash results: {stdout, stderr}
+						const stdout = toolUseResult.stdout as string | undefined
+						const stderr = toolUseResult.stderr as string | undefined
+						if (stdout || stderr) {
+							resultText = [stdout, stderr].filter(Boolean).join('\n')
+						} else {
+							// MCP results: {content, structuredContent}
+							const mContent = toolUseResult.content as string | undefined
+							if (mContent) {
+								resultText = mContent.length > 2000 ? `${mContent.slice(0, 2000)}…` : mContent
+							}
+						}
+					}
+				}
+
+				blocks.push({
+					type: 'tool_result',
+					toolUseId,
+					content: resultText,
+					isError,
+				})
+			}
+		}
+
+		if (blocks.length === 0) return
+
+		// Find the last assistant message and attach tool results to it
+		// (tool results belong to the preceding assistant's tool_use blocks)
+		const lastAssistant = this.findLastAssistantMessage()
+		if (lastAssistant) {
+			for (const block of blocks) {
+				lastAssistant.blocks.push(block)
+			}
+		}
+	}
+
+	private findLastAssistantMessage(): StreamMessage | null {
+		for (let i = this.messages.length - 1; i >= 0; i--) {
+			if (this.messages[i].role === 'assistant') return this.messages[i]
+		}
+		return null
+	}
+
 	private handleMessageStart(event: Record<string, unknown>): void {
 		const message = event.message as Record<string, unknown> | undefined
 		if (!message) return
@@ -179,6 +278,17 @@ export class ClaudeCodeStreamParser implements StreamParser {
 			: 'assistant'
 
 		this.blockIndexMap.clear()
+
+		// Merge consecutive assistant messages into one — each tool-use round-trip
+		// in Claude CLI creates a new message_start, but it's all one turn.
+		const last = this.currentMessage()
+		if (role === 'assistant' && last?.role === 'assistant') {
+			// Reuse existing message — just mark as streaming again and
+			// remap block indices starting after existing blocks.
+			last.streaming = true
+			last.stopReason = null
+			return
+		}
 
 		// Trim old messages to prevent unbounded growth in long sessions
 		if (this.messages.length >= MAX_MESSAGES) {

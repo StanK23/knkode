@@ -102,7 +102,7 @@ function assertWorkspace(value: unknown): asserts value is Workspace {
 	if (obj.agentFlags !== undefined) {
 		if (!obj.agentFlags || typeof obj.agentFlags !== 'object')
 			throw new Error('Invalid workspace: agentFlags must be an object')
-		const SHELL_METACHAR = /[;|&`$(){}[\]\n\r]/
+		const SAFE_FLAG_CHARS = /^[a-zA-Z0-9\-_=., /]+$/
 		const MAX_FLAG_LENGTH = 1024
 		for (const [key, val] of Object.entries(obj.agentFlags as Record<string, unknown>)) {
 			if (typeof val !== 'string')
@@ -111,9 +111,9 @@ function assertWorkspace(value: unknown): asserts value is Workspace {
 				throw new Error(
 					`Invalid workspace: agentFlags.${key} exceeds ${MAX_FLAG_LENGTH} characters`,
 				)
-			if (SHELL_METACHAR.test(val))
+			if (val.length > 0 && !SAFE_FLAG_CHARS.test(val))
 				throw new Error(
-					`Invalid workspace: agentFlags.${key} contains disallowed shell metacharacters`,
+					`Invalid workspace: agentFlags.${key} contains disallowed characters (only alphanumeric, hyphens, underscores, equals, dots, commas, spaces, and slashes allowed)`,
 				)
 		}
 	}

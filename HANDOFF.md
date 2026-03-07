@@ -1,16 +1,18 @@
 # HANDOFF
 
 ## Current State
-- Branch: `dev/agent-workspace`
-- PR #71 merged: generic agent subprocess manager
+- Branch: `feature/claude-rendered-view`
+- PR #73 open (targets `dev/agent-workspace`): Wire StreamRenderer to agent subprocess + cleanup — review complete, fixes applied, ready for merge
+- PR #72 was incorrectly merged to `main`, reverted (commit b8aa3b2). Re-created as PR #73 targeting `dev/agent-workspace`.
 
 ## What Was Done
-- PR #71 merged: Generic agent subprocess manager — `agent-subprocess.ts`, IPC handlers, preload API, types, tests. Reviewed by 8 agents, all findings addressed.
-- PR #58-69 merged: agent workspace foundation (detection, parser, stream JSON, renderer, launcher, settings)
+- PR #73: Full rendered conversation view for Claude Code agent — StreamRenderer, AgentStatusBar, PaneLauncher, settings tabs, stream-json parsing, process detection. Reviewed by 10 agents, 25 findings fixed (9 must-fix, 10 suggestions, 6 nitpicks).
+- PR #71 merged: Generic agent subprocess manager
+- PR #58-69 merged: agent workspace foundation
 
 ## Active Plan — Stream-JSON Rendered View
-- ~~PR #1: `feature/claude-subprocess` — Generic agent subprocess manager~~ ← PR #71, merged
-- PR #2: `feature/claude-rendered-view` — Wire renderer to subprocess + cleanup ← next
+- ~~PR #1: `feature/claude-subprocess` — Generic agent subprocess manager~~ <- PR #71, merged
+- PR #2: `feature/claude-rendered-view` — Wire renderer to subprocess + cleanup <- PR #73 (replaces #72), review fixes applied
 
 ## Architecture Notes
 - Decision: replace `--print` one-shot mode with persistent bidirectional subprocess
@@ -19,9 +21,17 @@
   - Module-scoped `Map<string, AgentSession>` pattern (mirrors pty-manager)
   - IPC: `agent:spawn`, `agent:send`, `agent:kill` + events `agent:data`, `agent:error`, `agent:exit`
 - Buffer-based rendered view approach abandoned (PR #70 closed)
+- Security: agentFlags validated with allowlist regex (alphanumeric + hyphens, underscores, equals, dots, commas, spaces, slashes)
+- Agent stderr surfaced to user via feedStreamData
+- rAF batching enabled in Electron renderer (was dead code before fix)
 
 ## Next Steps
-- PR #2: Wire renderer to subprocess — connect `StreamRenderer` to new agent IPC, remove buffer-parsing approach
+- Merge PR #73
+- Plan follow-up features as knktx board:
+  - Status bar (model + tokens)
+  - Slash command autocomplete
+  - Context compaction handling
+  - Interactive modes (tool approval buttons)
 
 ## Previous Work
 - PR #56 merged: snippet reorder via DnD + keyboard

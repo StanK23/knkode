@@ -19,7 +19,7 @@ export interface ToolUseBlock {
 	inputJson: string
 }
 
-/** Forward declaration — used by the UI layer (PR #7b) to render tool results. */
+/** Tool execution result, paired with the corresponding ToolUseBlock for rendering. */
 export interface ToolResultBlock {
 	type: 'tool_result'
 	toolUseId: string
@@ -57,6 +57,8 @@ export interface StreamParser {
 	getMessages(): readonly StreamMessage[]
 	/** Get the session ID from the last completed turn (for --resume). */
 	getSessionId(): string | null
+	/** Inject a user message into the conversation (shown in UI alongside parsed messages). */
+	addUserMessage(text: string): void
 	/** Reset all state. */
 	reset(): void
 }

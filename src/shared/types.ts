@@ -155,14 +155,14 @@ export interface AgentSubprocessConfig {
 	/** Env vars to strip from the child process (prevents nesting errors). */
 	readonly stripEnv: readonly string[]
 	/** Formats a user message string into the JSON payload for stdin. */
-	formatMessage: AgentMessageFormatter
+	readonly formatMessage: AgentMessageFormatter
 }
 
 /** Per-agent launch configuration: CLI command, default flags, and optional subprocess config. */
 export interface AgentLaunchConfig {
 	command: string
 	defaultFlags: string[]
-	/** Subprocess config for rendered view mode. null = agent only supports PTY/TUI mode. */
+	/** Subprocess config for bidirectional stream-json mode. null = not yet implemented for this agent. */
 	subprocess: AgentSubprocessConfig | null
 }
 
@@ -174,10 +174,11 @@ export const AGENT_LAUNCH_CONFIG: Record<LaunchableAgent, AgentLaunchConfig> = {
 			flags: [
 				'--print',
 				'--verbose',
-				'--input-format',
-				'stream-json',
 				'--output-format',
 				'stream-json',
+				'--input-format',
+				'stream-json',
+				'--include-partial-messages',
 			],
 			stripEnv: ['CLAUDECODE', 'CLAUDE_CODE_ENTRYPOINT'],
 			formatMessage: (text: string) => ({

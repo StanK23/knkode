@@ -1,20 +1,6 @@
 import { memo, useEffect, useState } from 'react'
 import { AGENT_LABELS, type AgentType } from '../../../shared/types'
-import { type AgentBlock, type AgentBlockType, BLOCK_TYPE_COLORS } from '../lib/agent-parsers/types'
 import { useStore } from '../store'
-
-const ACTIVITY_LABELS: Record<AgentBlockType, string> = {
-	'tool-call': 'Running tool',
-	'tool-result': 'Tool result',
-	thinking: 'Thinking',
-	diff: 'Applying diff',
-	text: 'Writing',
-	// Both map to 'Working' intentionally — colors differ between status/unknown
-	status: 'Working',
-	permission: 'Needs approval',
-	error: 'Error',
-	unknown: 'Working',
-}
 
 function formatElapsed(ms: number): string {
 	const totalSeconds = Math.floor(Math.max(0, ms) / 1000)
@@ -27,24 +13,8 @@ function formatElapsed(ms: number): string {
 	return `${hours}h ${String(remainMinutes).padStart(2, '0')}m`
 }
 
-function getActivityLabel(
-	isStreaming: boolean,
-	lastBlock: AgentBlock | undefined,
-	lastBlockType: AgentBlockType,
-	blockCount: number,
-): string {
-	if (!isStreaming) {
-		return blockCount > 0 ? 'Idle' : 'Starting'
-	}
-	if (lastBlock?.type === 'tool-call' && lastBlock.metadata.tool) {
-		return `${ACTIVITY_LABELS['tool-call']}: ${lastBlock.metadata.tool}`
-	}
-	return ACTIVITY_LABELS[lastBlockType]
-}
-
 function ElapsedTimer({ startTime }: { startTime: number }) {
-	// Lazy initializer — Date.now is called once on mount, not on every render
-	const [now, setNow] = useState(Date.now)
+	const [now, setNow] = useState(() => Date.now())
 
 	useEffect(() => {
 		const interval = setInterval(() => setNow(Date.now()), 1000)
@@ -63,18 +33,18 @@ export const AgentStatusBar = memo(function AgentStatusBar({
 	paneId,
 	agentType,
 }: AgentStatusBarProps) {
-	const blocks = useStore((s) => s.paneAgentBlocks.get(paneId))
 	const startTime = useStore((s) => s.paneAgentStartTimes.get(paneId))
-	const viewMode = useStore((s) => s.paneViewMode.get(paneId))
-	const setViewMode = useStore((s) => s.setViewMode)
+	const messages = useStore((s) => s.paneStreamMessages.get(paneId))
+	const isSubprocess = useStore((s) => s.activeAgentIds.has(paneId))
 
-	const blockCount = blocks?.length ?? 0
-	const lastBlock = blocks?.at(-1)
-	const lastBlockType = lastBlock?.type ?? 'unknown'
-	const isStreaming = lastBlock?.endLine === null
+	const isStreaming = messages?.some((m) => m.streaming) ?? false
+	const msgCount = messages?.length ?? 0
 
-	const activityLabel = getActivityLabel(isStreaming, lastBlock, lastBlockType, blockCount)
-	const activityColor = isStreaming ? BLOCK_TYPE_COLORS[lastBlockType] : 'text-content-muted'
+	let activityLabel: string
+	if (isStreaming) activityLabel = 'Working'
+	else if (msgCount > 0) activityLabel = 'Idle'
+	else if (isSubprocess) activityLabel = 'Starting'
+	else activityLabel = 'Running'
 
 	return (
 		<div
@@ -85,28 +55,11 @@ export const AgentStatusBar = memo(function AgentStatusBar({
 		>
 			<span className="font-semibold text-accent">{AGENT_LABELS[agentType]}</span>
 
-			<span className={`min-w-0 truncate ${activityColor}`}>{activityLabel}</span>
+			<span className={`min-w-0 truncate ${isStreaming ? 'text-accent' : 'text-content-muted'}`}>
+				{activityLabel}
+			</span>
 
 			<span className="flex-1" />
-
-			{viewMode !== undefined && (
-				<button
-					type="button"
-					onClick={() => setViewMode(paneId, viewMode === 'rendered' ? 'raw' : 'rendered')}
-					aria-pressed={viewMode === 'rendered'}
-					aria-label="Toggle view mode"
-					className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-px rounded-sm cursor-pointer border-none bg-overlay hover:bg-overlay-active text-content-secondary focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
-					title={viewMode === 'rendered' ? 'Switch to raw terminal' : 'Switch to rendered view'}
-				>
-					{viewMode}
-				</button>
-			)}
-
-			{blockCount > 0 && (
-				<span className="text-content-muted">
-					{blockCount} block{blockCount !== 1 ? 's' : ''}
-				</span>
-			)}
 
 			{startTime !== undefined && (
 				<span className="text-content-muted">

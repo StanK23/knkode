@@ -297,7 +297,7 @@ describe('ClaudeCodeStreamParser', () => {
 			expect(parser.getMessages()).toHaveLength(1)
 		})
 
-		it('ignores JSON that is not a stream_event', () => {
+		it('ignores JSON that is not a stream_event or known API event', () => {
 			const parser = new ClaudeCodeStreamParser()
 			parser.feed(`${JSON.stringify({ type: 'other', data: 'test' })}\n`)
 			expect(parser.getMessages()).toHaveLength(0)
@@ -305,7 +305,7 @@ describe('ClaudeCodeStreamParser', () => {
 	})
 
 	describe('multi-message sequences', () => {
-		it('handles multiple messages (tool use → next response)', () => {
+		it('merges consecutive assistant messages into one (tool use → next response)', () => {
 			const parser = new ClaudeCodeStreamParser()
 
 			// First message: assistant with tool use
@@ -333,7 +333,7 @@ describe('ClaudeCodeStreamParser', () => {
 			parser.feed(line({ type: 'message_delta', delta: { stop_reason: 'tool_use' } }))
 			parser.feed(line({ type: 'message_stop' }))
 
-			// Second message: assistant response after tool
+			// Second message_start: same role — should merge into first
 			parser.feed(
 				line({
 					type: 'message_start',
@@ -358,15 +358,15 @@ describe('ClaudeCodeStreamParser', () => {
 			parser.feed(line({ type: 'message_stop' }))
 
 			const msgs = parser.getMessages()
-			expect(msgs).toHaveLength(2)
+			// Consecutive assistant messages are merged into one
+			expect(msgs).toHaveLength(1)
 
 			expect(msgs[0].id).toBe('msg_001')
-			expect(msgs[0].stopReason).toBe('tool_use')
 			expect(msgs[0].streaming).toBe(false)
+			// Both blocks accumulated in one message
+			expect(msgs[0].blocks).toHaveLength(2)
 			expect(msgs[0].blocks[0]).toMatchObject({ type: 'tool_use', name: 'bash' })
-
-			expect(msgs[1].id).toBe('msg_002')
-			expect(msgs[1].blocks[0]).toEqual({ type: 'text', text: 'Here are the files.' })
+			expect(msgs[0].blocks[1]).toEqual({ type: 'text', text: 'Here are the files.' })
 		})
 	})
 
@@ -430,6 +430,81 @@ describe('ClaudeCodeStreamParser', () => {
 		})
 	})
 
+	describe('bare API events (no stream_event wrapper)', () => {
+		it('handles message lifecycle with bare top-level events', () => {
+			const parser = new ClaudeCodeStreamParser()
+			parser.feed(
+				`${JSON.stringify({
+					type: 'message_start',
+					message: { id: 'msg_bare', role: 'assistant', model: 'claude-opus-4-6' },
+				})}\n`,
+			)
+			parser.feed(
+				`${JSON.stringify({
+					type: 'content_block_start',
+					index: 0,
+					content_block: { type: 'text' },
+				})}\n`,
+			)
+			parser.feed(
+				`${JSON.stringify({
+					type: 'content_block_delta',
+					index: 0,
+					delta: { type: 'text_delta', text: 'Hello from bare!' },
+				})}\n`,
+			)
+			parser.feed(`${JSON.stringify({ type: 'content_block_stop', index: 0 })}\n`)
+			parser.feed(
+				`${JSON.stringify({
+					type: 'message_delta',
+					delta: { stop_reason: 'end_turn' },
+					usage: { output_tokens: 5 },
+				})}\n`,
+			)
+			parser.feed(`${JSON.stringify({ type: 'message_stop' })}\n`)
+
+			const msgs = parser.getMessages()
+			expect(msgs).toHaveLength(1)
+			expect(msgs[0].id).toBe('msg_bare')
+			expect(msgs[0].streaming).toBe(false)
+			expect(msgs[0].stopReason).toBe('end_turn')
+			expect(msgs[0].blocks).toHaveLength(1)
+			expect(msgs[0].blocks[0]).toEqual({ type: 'text', text: 'Hello from bare!' })
+		})
+
+		it('can mix bare and wrapped events', () => {
+			const parser = new ClaudeCodeStreamParser()
+			// Bare message_start
+			parser.feed(
+				`${JSON.stringify({
+					type: 'message_start',
+					message: { id: 'msg_mix', role: 'assistant' },
+				})}\n`,
+			)
+			// Wrapped content_block_start
+			parser.feed(
+				line({
+					type: 'content_block_start',
+					index: 0,
+					content_block: { type: 'text' },
+				}),
+			)
+			// Bare delta
+			parser.feed(
+				`${JSON.stringify({
+					type: 'content_block_delta',
+					index: 0,
+					delta: { type: 'text_delta', text: 'mixed' },
+				})}\n`,
+			)
+			parser.feed(`${JSON.stringify({ type: 'message_stop' })}\n`)
+
+			const msgs = parser.getMessages()
+			expect(msgs).toHaveLength(1)
+			expect(msgs[0].blocks[0]).toEqual({ type: 'text', text: 'mixed' })
+		})
+	})
+
 	describe('reset', () => {
 		it('clears all state', () => {
 			const parser = new ClaudeCodeStreamParser()
@@ -469,7 +544,7 @@ describe('ClaudeCodeStreamParser', () => {
 			expect(parser.getMessages()).toHaveLength(0)
 		})
 
-		it('handles top-level assistant snapshots (ignored)', () => {
+		it('handles top-level assistant snapshots (ignored — redundant with stream_event deltas)', () => {
 			const parser = new ClaudeCodeStreamParser()
 			parser.feed(
 				`${JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'hi' }] } })}\n`,
@@ -560,9 +635,7 @@ describe('ClaudeCodeStreamParser', () => {
 
 		it('preserves session_id across reset (for multi-turn --resume)', () => {
 			const parser = new ClaudeCodeStreamParser()
-			parser.feed(
-				`${JSON.stringify({ type: 'result', session_id: 'sess_keep' })}\n`,
-			)
+			parser.feed(`${JSON.stringify({ type: 'result', session_id: 'sess_keep' })}\n`)
 			parser.reset()
 			expect(parser.getSessionId()).toBe('sess_keep')
 		})
@@ -752,5 +825,281 @@ describe('ClaudeCodeStreamParser', () => {
 			expect(parser.getMessages()).toHaveLength(1)
 			expect(parser.getMessages()[0].id).toBe('msg_002')
 		})
+	})
+
+	describe('user events (tool results)', () => {
+		it('attaches tool_result blocks to the last assistant message', () => {
+			const parser = new ClaudeCodeStreamParser()
+			parser.feed(
+				line({
+					type: 'message_start',
+					message: { id: 'msg_001', role: 'assistant' },
+				}),
+			)
+			parser.feed(
+				line({
+					type: 'content_block_start',
+					index: 0,
+					content_block: { type: 'tool_use', id: 'toolu_001', name: 'Bash' },
+				}),
+			)
+			parser.feed(
+				line({
+					type: 'content_block_delta',
+					index: 0,
+					delta: { type: 'input_json_delta', partial_json: '{"command":"ls"}' },
+				}),
+			)
+			parser.feed(line({ type: 'content_block_stop', index: 0 }))
+			parser.feed(line({ type: 'message_stop' }))
+
+			parser.feed(
+				`${JSON.stringify({
+					type: 'user',
+					message: {
+						role: 'user',
+						content: [
+							{
+								type: 'tool_result',
+								tool_use_id: 'toolu_001',
+								content: 'file1.txt\nfile2.txt',
+								is_error: false,
+							},
+						],
+					},
+					tool_use_result: {
+						stdout: 'file1.txt\nfile2.txt',
+						stderr: '',
+						interrupted: false,
+					},
+				})}\n`,
+			)
+
+			const msgs = parser.getMessages()
+			expect(msgs).toHaveLength(1)
+			expect(msgs[0].blocks).toHaveLength(2)
+			expect(msgs[0].blocks[1].type).toBe('tool_result')
+			if (msgs[0].blocks[1].type === 'tool_result') {
+				expect(msgs[0].blocks[1].toolUseId).toBe('toolu_001')
+				expect(msgs[0].blocks[1].content).toBe('file1.txt\nfile2.txt')
+				expect(msgs[0].blocks[1].isError).toBe(false)
+			}
+		})
+
+		it('handles error tool results', () => {
+			const parser = new ClaudeCodeStreamParser()
+			parser.feed(
+				line({
+					type: 'message_start',
+					message: { id: 'msg_001', role: 'assistant' },
+				}),
+			)
+			parser.feed(line({ type: 'message_stop' }))
+
+			parser.feed(
+				`${JSON.stringify({
+					type: 'user',
+					message: {
+						role: 'user',
+						content: [
+							{
+								type: 'tool_result',
+								tool_use_id: 'toolu_002',
+								content: 'File does not exist.',
+								is_error: true,
+							},
+						],
+					},
+					tool_use_result: 'Error: File does not exist.',
+				})}\n`,
+			)
+
+			const msgs = parser.getMessages()
+			expect(msgs[0].blocks).toHaveLength(1)
+			expect(msgs[0].blocks[0].type).toBe('tool_result')
+			if (msgs[0].blocks[0].type === 'tool_result') {
+				expect(msgs[0].blocks[0].isError).toBe(true)
+				expect(msgs[0].blocks[0].content).toBe('File does not exist.')
+			}
+		})
+
+		it('handles tool_reference lists (ToolSearch results)', () => {
+			const parser = new ClaudeCodeStreamParser()
+			parser.feed(
+				line({
+					type: 'message_start',
+					message: { id: 'msg_001', role: 'assistant' },
+				}),
+			)
+			parser.feed(line({ type: 'message_stop' }))
+
+			parser.feed(
+				`${JSON.stringify({
+					type: 'user',
+					message: {
+						role: 'user',
+						content: [
+							{
+								type: 'tool_result',
+								tool_use_id: 'toolu_003',
+								content: [
+									{ type: 'tool_reference', tool_name: 'Read' },
+									{ type: 'tool_reference', tool_name: 'Edit' },
+								],
+							},
+						],
+					},
+					tool_use_result: { matches: ['Read', 'Edit'], query: 'select:Read,Edit' },
+				})}\n`,
+			)
+
+			const msgs = parser.getMessages()
+			expect(msgs[0].blocks).toHaveLength(1)
+			if (msgs[0].blocks[0].type === 'tool_result') {
+				expect(msgs[0].blocks[0].content).toBe('Read, Edit')
+			}
+		})
+
+		it('skips user events with no tool_result content', () => {
+			const parser = new ClaudeCodeStreamParser()
+			parser.feed(
+				line({
+					type: 'message_start',
+					message: { id: 'msg_001', role: 'assistant' },
+				}),
+			)
+			parser.feed(line({ type: 'message_stop' }))
+
+			parser.feed(
+				`${JSON.stringify({
+					type: 'user',
+					message: { role: 'user', content: [] },
+				})}\n`,
+			)
+
+			const msgs = parser.getMessages()
+			expect(msgs).toHaveLength(1)
+			expect(msgs[0].blocks).toHaveLength(0)
+		})
+	})
+})
+
+describe('TRACE: multi-turn merge flow', () => {
+	it('preserves all blocks across merged turns', () => {
+		const parser = new ClaudeCodeStreamParser()
+
+		// Turn 1: thinking + text + tool_use
+		parser.feed(line({ type: 'message_start', message: { id: 'msg_001', role: 'assistant' } }))
+		parser.feed(
+			line({ type: 'content_block_start', index: 0, content_block: { type: 'thinking' } }),
+		)
+		parser.feed(
+			line({
+				type: 'content_block_delta',
+				index: 0,
+				delta: { type: 'thinking_delta', thinking: 'Let me think...' },
+			}),
+		)
+		parser.feed(line({ type: 'content_block_stop', index: 0 }))
+		parser.feed(line({ type: 'content_block_start', index: 1, content_block: { type: 'text' } }))
+		parser.feed(
+			line({
+				type: 'content_block_delta',
+				index: 1,
+				delta: { type: 'text_delta', text: 'Let me gather.' },
+			}),
+		)
+		parser.feed(line({ type: 'content_block_stop', index: 1 }))
+		parser.feed(
+			line({
+				type: 'content_block_start',
+				index: 2,
+				content_block: { type: 'tool_use', id: 'toolu_001', name: 'ToolSearch' },
+			}),
+		)
+		parser.feed(
+			line({
+				type: 'content_block_delta',
+				index: 2,
+				delta: { type: 'input_json_delta', partial_json: '{"query":"select:Read"}' },
+			}),
+		)
+		parser.feed(line({ type: 'content_block_stop', index: 2 }))
+		parser.feed(line({ type: 'message_delta', delta: { stop_reason: 'tool_use' } }))
+		parser.feed(line({ type: 'message_stop' }))
+
+		expect(parser.getMessages()[0].blocks.map((b) => b.type)).toEqual([
+			'thinking',
+			'text',
+			'tool_use',
+		])
+
+		// Tool result
+		parser.feed(
+			`${JSON.stringify({ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_001', content: 'Read' }] } })}\n`,
+		)
+
+		expect(parser.getMessages()[0].blocks.map((b) => b.type)).toEqual([
+			'thinking',
+			'text',
+			'tool_use',
+			'tool_result',
+		])
+
+		// Turn 2: merged — Bash tool
+		parser.feed(line({ type: 'message_start', message: { id: 'msg_002', role: 'assistant' } }))
+		parser.feed(
+			line({
+				type: 'content_block_start',
+				index: 0,
+				content_block: { type: 'tool_use', id: 'toolu_002', name: 'Bash' },
+			}),
+		)
+		parser.feed(
+			line({
+				type: 'content_block_delta',
+				index: 0,
+				delta: { type: 'input_json_delta', partial_json: '{"command":"ls"}' },
+			}),
+		)
+		parser.feed(line({ type: 'content_block_stop', index: 0 }))
+		parser.feed(line({ type: 'message_delta', delta: { stop_reason: 'tool_use' } }))
+		parser.feed(line({ type: 'message_stop' }))
+
+		const bashBlock = parser.getMessages()[0].blocks[4]
+		expect(bashBlock.type).toBe('tool_use')
+		if (bashBlock.type === 'tool_use') {
+			expect(bashBlock.name).toBe('Bash')
+			expect(bashBlock.inputJson).toBe('{"command":"ls"}')
+		}
+
+		// Turn 3: final text
+		parser.feed(line({ type: 'message_start', message: { id: 'msg_003', role: 'assistant' } }))
+		parser.feed(line({ type: 'content_block_start', index: 0, content_block: { type: 'text' } }))
+		parser.feed(
+			line({
+				type: 'content_block_delta',
+				index: 0,
+				delta: { type: 'text_delta', text: 'Here is the status.' },
+			}),
+		)
+		parser.feed(line({ type: 'content_block_stop', index: 0 }))
+		parser.feed(line({ type: 'message_stop' }))
+
+		expect(parser.getMessages()).toHaveLength(1)
+		expect(parser.getMessages()[0].blocks.map((b) => b.type)).toEqual([
+			'thinking',
+			'text',
+			'tool_use',
+			'tool_result',
+			'tool_use',
+			'text',
+		])
+
+		const finalText = parser.getMessages()[0].blocks[5]
+		expect(finalText.type).toBe('text')
+		if (finalText.type === 'text') {
+			expect(finalText.text).toBe('Here is the status.')
+		}
 	})
 })
