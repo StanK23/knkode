@@ -560,9 +560,7 @@ describe('ClaudeCodeStreamParser', () => {
 
 		it('preserves session_id across reset (for multi-turn --resume)', () => {
 			const parser = new ClaudeCodeStreamParser()
-			parser.feed(
-				`${JSON.stringify({ type: 'result', session_id: 'sess_keep' })}\n`,
-			)
+			parser.feed(`${JSON.stringify({ type: 'result', session_id: 'sess_keep' })}\n`)
 			parser.reset()
 			expect(parser.getSessionId()).toBe('sess_keep')
 		})

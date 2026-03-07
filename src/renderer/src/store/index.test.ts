@@ -40,6 +40,12 @@ const mockApi = {
 	onPtyProcessChanged: vi.fn(() => () => {}),
 	openExternal: vi.fn<(url: string) => Promise<void>>(),
 	pickFolder: vi.fn<() => Promise<string | null>>().mockResolvedValue(null),
+	spawnAgent: vi.fn<(id: string, agentType: string, cwd: string) => Promise<void>>(),
+	sendAgentMessage: vi.fn<(id: string, message: string) => Promise<void>>(),
+	killAgent: vi.fn<(id: string) => Promise<void>>(),
+	onAgentData: vi.fn(() => () => {}),
+	onAgentError: vi.fn(() => () => {}),
+	onAgentExit: vi.fn(() => () => {}),
 }
 
 Object.defineProperty(window, 'api', {
@@ -80,14 +86,12 @@ function resetStore() {
 		focusGeneration: 0,
 		visitedWorkspaceIds: [],
 		activePtyIds: new Set(),
+		activeAgentIds: new Set(),
 		paneAgentTypes: new Map(),
 		paneProcessNames: new Map(),
 		altScreenPaneIds: new Set(),
 		paneAgentStartTimes: new Map(),
-		paneAgentBlocks: new Map(),
-		collapsedBlockIds: new Map(),
 		paneStreamMessages: new Map(),
-		paneViewMode: new Map(),
 	})
 }
 
@@ -98,7 +102,10 @@ beforeEach(() => {
 	mockApi.saveAppState.mockResolvedValue(undefined)
 	mockApi.deleteWorkspace.mockResolvedValue(undefined)
 	mockApi.killPty.mockResolvedValue(undefined)
+	mockApi.killAgent.mockResolvedValue(undefined)
 	mockApi.createPty.mockResolvedValue(undefined)
+	mockApi.spawnAgent.mockResolvedValue(undefined)
+	mockApi.sendAgentMessage.mockResolvedValue(undefined)
 	mockApi.getSnippets.mockResolvedValue([])
 	_resetStreamParsers()
 	resetStore()
@@ -1274,130 +1281,6 @@ describe('store removePtyId alt screen cleanup', () => {
 	})
 })
 
-describe('store removePtyId block cleanup', () => {
-	it('clears agent blocks and collapsed state on natural PTY exit', () => {
-		const blocks = [
-			{
-				id: 'b1',
-				type: 'tool-call' as const,
-				agent: 'claude-code' as const,
-				startLine: 0,
-				endLine: 2,
-				content: '',
-				metadata: {},
-			},
-		]
-		useStore.setState({ activePtyIds: new Set(['p1']) })
-		useStore.getState().updateAgentBlocks('p1', blocks)
-		useStore.getState().toggleBlockCollapse('p1', 'b1')
-
-		useStore.getState().removePtyId('p1')
-
-		expect(useStore.getState().paneAgentBlocks.has('p1')).toBe(false)
-		expect(useStore.getState().collapsedBlockIds.has('p1')).toBe(false)
-	})
-})
-
-describe('store agent blocks', () => {
-	it('updateAgentBlocks stores blocks for a pane', () => {
-		const blocks = [
-			{
-				id: 'b1',
-				type: 'tool-call' as const,
-				agent: 'claude-code' as const,
-				startLine: 0,
-				endLine: 2,
-				content: '',
-				metadata: { tool: 'read' },
-			},
-		]
-		useStore.getState().updateAgentBlocks('p1', blocks)
-		expect(useStore.getState().paneAgentBlocks.get('p1')).toBe(blocks)
-	})
-
-	it('updateAgentBlocks removes entry when blocks empty', () => {
-		const blocks = [
-			{
-				id: 'b1',
-				type: 'tool-call' as const,
-				agent: 'claude-code' as const,
-				startLine: 0,
-				endLine: 2,
-				content: '',
-				metadata: { tool: 'read' },
-			},
-		]
-		useStore.getState().updateAgentBlocks('p1', blocks)
-		useStore.getState().updateAgentBlocks('p1', [])
-		expect(useStore.getState().paneAgentBlocks.has('p1')).toBe(false)
-	})
-
-	it('toggleBlockCollapse adds then removes block ID', () => {
-		useStore.getState().toggleBlockCollapse('p1', 'b1')
-		expect(useStore.getState().collapsedBlockIds.get('p1')?.has('b1')).toBe(true)
-
-		useStore.getState().toggleBlockCollapse('p1', 'b1')
-		expect(useStore.getState().collapsedBlockIds.get('p1')?.has('b1')).toBe(false)
-	})
-
-	it('collapseAllBlocks collapses all block IDs in a pane', () => {
-		const blocks = [
-			{
-				id: 'b1',
-				type: 'tool-call' as const,
-				agent: 'claude-code' as const,
-				startLine: 0,
-				endLine: 2,
-				content: '',
-				metadata: {},
-			},
-			{
-				id: 'b2',
-				type: 'error' as const,
-				agent: 'claude-code' as const,
-				startLine: 3,
-				endLine: 5,
-				content: '',
-				metadata: {},
-			},
-		]
-		useStore.getState().updateAgentBlocks('p1', blocks)
-		useStore.getState().collapseAllBlocks('p1')
-
-		const collapsed = useStore.getState().collapsedBlockIds.get('p1')
-		expect(collapsed?.has('b1')).toBe(true)
-		expect(collapsed?.has('b2')).toBe(true)
-	})
-
-	it('expandAllBlocks clears all collapsed IDs for a pane', () => {
-		useStore.getState().toggleBlockCollapse('p1', 'b1')
-		useStore.getState().toggleBlockCollapse('p1', 'b2')
-		useStore.getState().expandAllBlocks('p1')
-		expect(useStore.getState().collapsedBlockIds.has('p1')).toBe(false)
-	})
-
-	it('killPtys cleans up agent blocks and collapsed state', () => {
-		const blocks = [
-			{
-				id: 'b1',
-				type: 'tool-call' as const,
-				agent: 'claude-code' as const,
-				startLine: 0,
-				endLine: 2,
-				content: '',
-				metadata: {},
-			},
-		]
-		useStore.setState({ activePtyIds: new Set(['p1']) })
-		useStore.getState().updateAgentBlocks('p1', blocks)
-		useStore.getState().toggleBlockCollapse('p1', 'b1')
-
-		useStore.getState().killPtys(['p1'])
-
-		expect(useStore.getState().paneAgentBlocks.has('p1')).toBe(false)
-		expect(useStore.getState().collapsedBlockIds.has('p1')).toBe(false)
-	})
-})
 
 describe('store init agent listener', () => {
 	it('registers onPtyProcessChanged listener', async () => {
@@ -1478,7 +1361,7 @@ describe('setLaunchMode', () => {
 		expect(mockApi.createPty).toHaveBeenCalledWith('p1', '/home', null)
 	})
 
-	it('sets launchMode for agent and auto-starts with built command', () => {
+	it('sets launchMode for agent and spawns subprocess', () => {
 		const ws = makeWorkspace({
 			panes: {
 				p1: {
@@ -1497,12 +1380,10 @@ describe('setLaunchMode', () => {
 
 		const pane = useStore.getState().workspaces[0].panes.p1
 		expect(pane.launchMode).toBe('claude-code')
-		// Agent auto-starts with built command
-		expect(mockApi.createPty).toHaveBeenCalledWith(
-			'p1',
-			'/projects',
-			'claude --dangerously-skip-permissions',
-		)
+		// Subprocess agents use spawnAgent, not createPty
+		expect(mockApi.spawnAgent).toHaveBeenCalledWith('p1', 'claude-code', '/projects')
+		expect(mockApi.createPty).not.toHaveBeenCalled()
+		expect(useStore.getState().activeAgentIds.has('p1')).toBe(true)
 	})
 
 	it('uses workspace CWD when pane CWD is empty', () => {
@@ -1625,7 +1506,7 @@ describe('setLaunchMode guard clauses', () => {
 		expect(mockApi.createPty).not.toHaveBeenCalled()
 	})
 
-	it('spawns agent PTY with default flags when agentFlags is empty', () => {
+	it('spawns agent subprocess with default config when agentFlags is empty', () => {
 		const ws = makeWorkspace({
 			panes: {
 				p1: {
@@ -1641,11 +1522,8 @@ describe('setLaunchMode guard clauses', () => {
 
 		useStore.getState().setLaunchMode('ws-1', 'p1', 'claude-code')
 
-		expect(mockApi.createPty).toHaveBeenCalledWith(
-			'p1',
-			'/projects',
-			'claude',
-		)
+		expect(mockApi.spawnAgent).toHaveBeenCalledWith('p1', 'claude-code', '/projects')
+		expect(mockApi.createPty).not.toHaveBeenCalled()
 	})
 })
 
@@ -1742,41 +1620,18 @@ describe('feedStreamData', () => {
 	})
 })
 
-describe('setViewMode', () => {
-	it('sets view mode for a pane', () => {
-		useStore.getState().setViewMode('p1', 'rendered')
-		expect(useStore.getState().paneViewMode.get('p1')).toBe('rendered')
-	})
-
-	it('no-ops when mode already matches', () => {
-		useStore.getState().setViewMode('p1', 'raw')
-		const ref1 = useStore.getState().paneViewMode
-		useStore.getState().setViewMode('p1', 'raw')
-		const ref2 = useStore.getState().paneViewMode
-		expect(ref1).toBe(ref2)
-	})
-
-	it('updates mode when changed', () => {
-		useStore.getState().setViewMode('p1', 'raw')
-		useStore.getState().setViewMode('p1', 'rendered')
-		expect(useStore.getState().paneViewMode.get('p1')).toBe('rendered')
-	})
-})
-
 describe('clearStreamData', () => {
-	it('removes messages, view mode, and resets parser', () => {
-		const { feedStreamData, setViewMode, clearStreamData } = useStore.getState()
+	it('removes messages and resets parser', () => {
+		const { feedStreamData, clearStreamData } = useStore.getState()
 
 		feedStreamData(
 			'p1',
 			streamLine({ type: 'message_start', message: { id: 'msg_001', role: 'assistant' } }),
 		)
-		setViewMode('p1', 'rendered')
 
 		clearStreamData('p1')
 
 		expect(useStore.getState().paneStreamMessages.has('p1')).toBe(false)
-		expect(useStore.getState().paneViewMode.has('p1')).toBe(false)
 	})
 
 	it('allows fresh data after clear', () => {
