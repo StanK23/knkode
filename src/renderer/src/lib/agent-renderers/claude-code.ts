@@ -113,6 +113,15 @@ export class ClaudeCodeStreamParser implements StreamParser {
 			case 'rate_limit_event':
 				// Intentionally ignored — system init, message snapshots, and rate limits
 				break
+			case 'message_start':
+			case 'content_block_start':
+			case 'content_block_delta':
+			case 'content_block_stop':
+			case 'message_delta':
+			case 'message_stop':
+				// Bare API events (no stream_event wrapper) — handle directly
+				this.handleStreamEvent(obj)
+				break
 			default:
 				// Unknown top-level types are silently dropped
 				break

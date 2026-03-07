@@ -297,7 +297,7 @@ describe('ClaudeCodeStreamParser', () => {
 			expect(parser.getMessages()).toHaveLength(1)
 		})
 
-		it('ignores JSON that is not a stream_event', () => {
+		it('ignores JSON that is not a stream_event or known API event', () => {
 			const parser = new ClaudeCodeStreamParser()
 			parser.feed(`${JSON.stringify({ type: 'other', data: 'test' })}\n`)
 			expect(parser.getMessages()).toHaveLength(0)
@@ -427,6 +427,81 @@ describe('ClaudeCodeStreamParser', () => {
 			expect(blocks[0].type).toBe('thinking')
 			expect(blocks[1].type).toBe('text')
 			expect(blocks[2].type).toBe('tool_use')
+		})
+	})
+
+	describe('bare API events (no stream_event wrapper)', () => {
+		it('handles message lifecycle with bare top-level events', () => {
+			const parser = new ClaudeCodeStreamParser()
+			parser.feed(
+				`${JSON.stringify({
+					type: 'message_start',
+					message: { id: 'msg_bare', role: 'assistant', model: 'claude-opus-4-6' },
+				})}\n`,
+			)
+			parser.feed(
+				`${JSON.stringify({
+					type: 'content_block_start',
+					index: 0,
+					content_block: { type: 'text' },
+				})}\n`,
+			)
+			parser.feed(
+				`${JSON.stringify({
+					type: 'content_block_delta',
+					index: 0,
+					delta: { type: 'text_delta', text: 'Hello from bare!' },
+				})}\n`,
+			)
+			parser.feed(`${JSON.stringify({ type: 'content_block_stop', index: 0 })}\n`)
+			parser.feed(
+				`${JSON.stringify({
+					type: 'message_delta',
+					delta: { stop_reason: 'end_turn' },
+					usage: { output_tokens: 5 },
+				})}\n`,
+			)
+			parser.feed(`${JSON.stringify({ type: 'message_stop' })}\n`)
+
+			const msgs = parser.getMessages()
+			expect(msgs).toHaveLength(1)
+			expect(msgs[0].id).toBe('msg_bare')
+			expect(msgs[0].streaming).toBe(false)
+			expect(msgs[0].stopReason).toBe('end_turn')
+			expect(msgs[0].blocks).toHaveLength(1)
+			expect(msgs[0].blocks[0]).toEqual({ type: 'text', text: 'Hello from bare!' })
+		})
+
+		it('can mix bare and wrapped events', () => {
+			const parser = new ClaudeCodeStreamParser()
+			// Bare message_start
+			parser.feed(
+				`${JSON.stringify({
+					type: 'message_start',
+					message: { id: 'msg_mix', role: 'assistant' },
+				})}\n`,
+			)
+			// Wrapped content_block_start
+			parser.feed(
+				line({
+					type: 'content_block_start',
+					index: 0,
+					content_block: { type: 'text' },
+				}),
+			)
+			// Bare delta
+			parser.feed(
+				`${JSON.stringify({
+					type: 'content_block_delta',
+					index: 0,
+					delta: { type: 'text_delta', text: 'mixed' },
+				})}\n`,
+			)
+			parser.feed(`${JSON.stringify({ type: 'message_stop' })}\n`)
+
+			const msgs = parser.getMessages()
+			expect(msgs).toHaveLength(1)
+			expect(msgs[0].blocks[0]).toEqual({ type: 'text', text: 'mixed' })
 		})
 	})
 

@@ -174,10 +174,11 @@ export const AGENT_LAUNCH_CONFIG: Record<LaunchableAgent, AgentLaunchConfig> = {
 			flags: [
 				'--print',
 				'--verbose',
-				'--input-format',
-				'stream-json',
 				'--output-format',
 				'stream-json',
+				'--input-format',
+				'stream-json',
+				'--include-partial-messages',
 			],
 			stripEnv: ['CLAUDECODE', 'CLAUDE_CODE_ENTRYPOINT'],
 			formatMessage: (text: string) => ({
