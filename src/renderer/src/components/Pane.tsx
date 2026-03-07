@@ -4,6 +4,7 @@ import {
 	type AgentType,
 	DEFAULT_PANE_OPACITY,
 	type DropPosition,
+	type LaunchMode,
 	type PaneConfig,
 	type PaneTheme,
 } from '../../../shared/types'
@@ -222,11 +223,18 @@ export function Pane({
 		agentType ?? (isAgent && config.launchMode ? (config.launchMode as AgentType) : null)
 	const initialCwdRef = useRef(config.cwd)
 	const initialCmdRef = useRef(config.startupCommand)
-	// Subprocess panes are spawned by setLaunchMode — only ensure PTY for non-subprocess panes
+	// Subprocess panes are spawned by setLaunchMode — only ensure PTY for non-subprocess panes.
+	// On reload, agent panes have launchMode persisted but no active subprocess — re-spawn them.
 	useEffect(() => {
-		if (showLauncher || isSubprocess) return
-		ensurePty(paneId, initialCwdRef.current, initialCmdRef.current)
-	}, [paneId, ensurePty, showLauncher, isSubprocess])
+		if (showLauncher) return
+		if (isAgent && !isSubprocess) {
+			setLaunchMode(workspaceId, paneId, config.launchMode as LaunchMode)
+			return
+		}
+		if (!isSubprocess) {
+			ensurePty(paneId, initialCwdRef.current, initialCmdRef.current)
+		}
+	}, [paneId, ensurePty, showLauncher, isSubprocess, isAgent, setLaunchMode, workspaceId, config.launchMode])
 
 	const { isEditing, inputProps, startEditing } = useInlineEdit(config.label, (label) =>
 		onUpdateConfig(paneId, { label }),
