@@ -19,11 +19,11 @@ const BOX_CHARS_RE = /[╭╮╰╯│─┬┴┤├┼⎿]/g
  */
 const BULLET_PATTERN = /^[●◆▶⏺❯✻].+/
 
-/** Horizontal rule — marks the end of content and start of status bar. */
-const HRULE_PATTERN = /^[─━]{4,}$/
+/** Horizontal rule — visual separator, skip but don't stop parsing. */
+const HRULE_PATTERN = /^[─━╌╍┄┅]{4,}$/
 
-/** Status bar / TUI chrome lines to skip. */
-const STATUS_BAR_PATTERN = /^[▪▸▹⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏\s]*$/
+/** Lines to skip: status bar chrome, progress dots, lone prompt markers. */
+const SKIP_LINE_PATTERN = /^([▪▸▹■⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏●·.\s]{1,10}|[❯›>]\s*)$/
 
 /** Map agent types to their block classifiers. */
 const CLASSIFIERS: Partial<Record<AgentType, BlockClassifier>> = {
@@ -142,12 +142,9 @@ export class AgentBlockParser {
 		this.lastParsedLine = -1
 		this.nextBlockId = 0
 		this.lineBuffer = ''
-		this.pastStatusBar = false
 		this.seenFirstMarker = false
 	}
 
-	/** Whether we've hit the status bar boundary (horizontal rule). */
-	private pastStatusBar = false
 	/** Whether we've seen the first real block marker (skip preamble/banner). */
 	private seenFirstMarker = false
 
@@ -161,18 +158,14 @@ export class AgentBlockParser {
 		// Skip empty lines when no block is open
 		if (!trimmed) return
 
-		// Horizontal rule = status bar boundary — stop processing
+		// Horizontal rules — visual separators, close current block but keep parsing
 		if (HRULE_PATTERN.test(trimmed)) {
 			this.closeOpenBlock(lineIndex - 1)
-			this.pastStatusBar = true
 			return
 		}
 
-		// Once past the status bar, ignore everything (TUI chrome)
-		if (this.pastStatusBar) return
-
-		// Skip status bar spinner / progress lines
-		if (STATUS_BAR_PATTERN.test(trimmed)) return
+		// Skip TUI chrome: progress dots, lone prompt markers, spinners
+		if (SKIP_LINE_PATTERN.test(trimmed)) return
 
 		// Check if this is a block-starting marker
 		const isBoxStart = trimmed.includes(TOP_LEFT)
