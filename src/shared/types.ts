@@ -151,9 +151,9 @@ export type AgentMessageFormatter = (text: string) => Record<string, unknown>
  *  Agents that support subprocess mode have this defined; others are null. */
 export interface AgentSubprocessConfig {
 	/** CLI args for subprocess mode (e.g. ['--print', '--verbose', ...]). */
-	flags: string[]
+	readonly flags: readonly string[]
 	/** Env vars to strip from the child process (prevents nesting errors). */
-	stripEnv: string[]
+	readonly stripEnv: readonly string[]
 	/** Formats a user message string into the JSON payload for stdin. */
 	formatMessage: AgentMessageFormatter
 }
