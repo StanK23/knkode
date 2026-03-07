@@ -505,6 +505,88 @@ describe('ClaudeCodeStreamParser', () => {
 		})
 	})
 
+	describe('assistant snapshot events', () => {
+		it('creates message from assistant snapshot when no current message exists', () => {
+			const parser = new ClaudeCodeStreamParser()
+			parser.feed(
+				`${JSON.stringify({
+					type: 'assistant',
+					message: {
+						id: 'msg_snap',
+						role: 'assistant',
+						model: 'claude-opus-4-6',
+						content: [{ type: 'text', text: 'Hello from snapshot!' }],
+					},
+				})}\n`,
+			)
+
+			const msgs = parser.getMessages()
+			expect(msgs).toHaveLength(1)
+			expect(msgs[0].id).toBe('msg_snap')
+			expect(msgs[0].blocks).toHaveLength(1)
+			expect(msgs[0].blocks[0]).toEqual({ type: 'text', text: 'Hello from snapshot!' })
+		})
+
+		it('updates existing message blocks from snapshot', () => {
+			const parser = new ClaudeCodeStreamParser()
+			// First: message_start creates the message
+			parser.feed(
+				line({
+					type: 'message_start',
+					message: { id: 'msg_001', role: 'assistant', model: 'claude-opus-4-6' },
+				}),
+			)
+			expect(parser.getMessages()[0].blocks).toHaveLength(0)
+
+			// Snapshot fills in content
+			parser.feed(
+				`${JSON.stringify({
+					type: 'assistant',
+					message: {
+						id: 'msg_001',
+						role: 'assistant',
+						content: [
+							{ type: 'thinking', thinking: 'Let me think...' },
+							{ type: 'text', text: 'Hello!' },
+						],
+					},
+				})}\n`,
+			)
+
+			const msgs = parser.getMessages()
+			expect(msgs).toHaveLength(1)
+			expect(msgs[0].blocks).toHaveLength(2)
+			expect(msgs[0].blocks[0]).toEqual({ type: 'thinking', text: 'Let me think...' })
+			expect(msgs[0].blocks[1]).toEqual({ type: 'text', text: 'Hello!' })
+		})
+
+		it('handles tool_use blocks in snapshots', () => {
+			const parser = new ClaudeCodeStreamParser()
+			parser.feed(
+				`${JSON.stringify({
+					type: 'assistant',
+					message: {
+						id: 'msg_tools',
+						role: 'assistant',
+						content: [
+							{ type: 'text', text: 'Reading file' },
+							{ type: 'tool_use', id: 'toolu_1', name: 'read', input: { path: 'a.ts' } },
+						],
+					},
+				})}\n`,
+			)
+
+			const msgs = parser.getMessages()
+			expect(msgs[0].blocks).toHaveLength(2)
+			expect(msgs[0].blocks[1]).toEqual({
+				type: 'tool_use',
+				id: 'toolu_1',
+				name: 'read',
+				inputJson: '{"path":"a.ts"}',
+			})
+		})
+	})
+
 	describe('reset', () => {
 		it('clears all state', () => {
 			const parser = new ClaudeCodeStreamParser()
@@ -544,12 +626,13 @@ describe('ClaudeCodeStreamParser', () => {
 			expect(parser.getMessages()).toHaveLength(0)
 		})
 
-		it('handles top-level assistant snapshots (ignored)', () => {
+		it('handles top-level assistant snapshots (extracts content)', () => {
 			const parser = new ClaudeCodeStreamParser()
 			parser.feed(
 				`${JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'hi' }] } })}\n`,
 			)
-			expect(parser.getMessages()).toHaveLength(0)
+			expect(parser.getMessages()).toHaveLength(1)
+			expect(parser.getMessages()[0].blocks[0]).toEqual({ type: 'text', text: 'hi' })
 		})
 
 		it('handles top-level rate_limit_event (ignored)', () => {

@@ -101,19 +101,33 @@ function BlockView({ block, streaming }: { block: ContentBlock; streaming: boole
 
 // ── Message Group ───────────────────────────────────────────────────────────
 
-const MessageGroup = memo(function MessageGroup({ message }: { message: StreamMessage }) {
-	const isUser = message.role === 'user'
+const UserMessage = memo(function UserMessage({ message }: { message: StreamMessage }) {
+	const text = message.blocks
+		.filter((b): b is TextBlock => b.type === 'text')
+		.map((b) => b.text)
+		.join('\n')
+	if (!text) return null
 	return (
-		<div
-			className={`py-2 px-3 border-b border-edge/50 last:border-b-0 ${isUser ? 'bg-overlay/30' : ''}`}
-		>
+		<div className="py-2 px-3 flex justify-end">
+			<div className="max-w-[80%] rounded-lg border border-accent/30 bg-accent/10 px-3 py-1.5">
+				<pre className="whitespace-pre-wrap break-words m-0 text-content text-xs leading-relaxed">
+					{text}
+				</pre>
+			</div>
+		</div>
+	)
+})
+
+const AssistantMessage = memo(function AssistantMessage({
+	message,
+}: { message: StreamMessage }) {
+	return (
+		<div className="py-2 px-3 border-b border-edge/50 last:border-b-0">
 			<div className="flex items-center gap-2 mb-1.5 text-[11px]">
 				{message.streaming && (
 					<span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse motion-reduce:animate-none shrink-0" />
 				)}
-				<span className="font-semibold text-content-secondary">
-					{isUser ? 'you' : message.role}
-				</span>
+				<span className="font-semibold text-content-secondary">{message.role}</span>
 				{message.model && <span className="text-content-muted">{message.model}</span>}
 			</div>
 
@@ -141,6 +155,11 @@ const MessageGroup = memo(function MessageGroup({ message }: { message: StreamMe
 			)}
 		</div>
 	)
+})
+
+const MessageGroup = memo(function MessageGroup({ message }: { message: StreamMessage }) {
+	if (message.role === 'user') return <UserMessage message={message} />
+	return <AssistantMessage message={message} />
 })
 
 // ── Message Input ───────────────────────────────────────────────────────────
