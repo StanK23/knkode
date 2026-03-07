@@ -1,5 +1,4 @@
 import { type ChildProcess, spawn } from 'node:child_process'
-import { appendFileSync } from 'node:fs'
 import {
 	AGENT_LAUNCH_CONFIG,
 	type AgentMessageFormatter,
@@ -48,20 +47,12 @@ export function spawnAgent(paneId: string, agentType: LaunchableAgent, cwd: stri
 	}
 	sessions.set(paneId, session)
 
-	const debugFile = '/tmp/knkode-agent-raw.log'
-	appendFileSync(debugFile, `\n=== SPAWN ${paneId} ${agentType} at ${new Date().toISOString()} ===\n`)
-	appendFileSync(debugFile, `flags: ${JSON.stringify(config.subprocess.flags)}\n`)
-
 	proc.stdout?.on('data', (chunk) => {
-		const str = chunk.toString()
-		appendFileSync(debugFile, `[stdout] ${str}`)
-		safeSend(IPC.AGENT_DATA, paneId, str)
+		safeSend(IPC.AGENT_DATA, paneId, chunk.toString())
 	})
 
 	proc.stderr?.on('data', (chunk) => {
-		const str = chunk.toString()
-		appendFileSync(debugFile, `[stderr] ${str}`)
-		safeSend(IPC.AGENT_ERROR, paneId, str)
+		safeSend(IPC.AGENT_ERROR, paneId, chunk.toString())
 	})
 
 	proc.on('exit', (code, signal) => {
