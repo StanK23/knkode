@@ -355,6 +355,11 @@ function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneClean
 /** Module-level parser instances — not serializable, not in Zustand state. */
 const streamParsers = new Map<string, StreamParser>()
 
+/** Tracks pending rAF flush per pane for throttled stream updates. */
+const pendingStreamFlush = new Map<string, number>()
+/** Accumulated raw text between flushes. */
+const pendingRawText = new Map<string, string>()
+
 /** @internal — test-only: clear module-level parser cache. */
 export function _resetStreamParsers(): void {
 	streamParsers.clear()
@@ -510,20 +515,7 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 
 	feedStreamData: (paneId, chunk) => {
-		// Accumulate ANSI-stripped raw text for the rendered view
-		const MAX_STREAM_TEXT = 500_000
-		const textMap = get().paneStreamText
-		const prev = textMap.get(paneId) ?? ''
-		const cleaned = stripAnsi(chunk)
-		let newText = prev + cleaned
-		// Cap accumulated text to prevent unbounded memory growth
-		if (newText.length > MAX_STREAM_TEXT) {
-			newText = newText.slice(newText.length - MAX_STREAM_TEXT)
-		}
-		const nextText = new Map(textMap)
-		nextText.set(paneId, newText)
-
-		// Also try NDJSON parsing (works when --output-format stream-json is active)
+		// 1. Feed parser immediately — no data loss
 		let parser = streamParsers.get(paneId)
 		if (!parser) {
 			parser = new ClaudeCodeStreamParser()
@@ -536,23 +528,68 @@ export const useStore = create<StoreState>((set, get) => ({
 			parser.reset()
 			streamParsers.delete(paneId)
 		}
-		const msgs = parser.getMessages()
-		const nextMsgs = new Map(get().paneStreamMessages)
-		nextMsgs.set(paneId, [...msgs])
 
-		// Extract session ID from result events (for --resume multi-turn)
-		const sessionId = parser.getSessionId()
-		const updates: Partial<StoreState> = { paneStreamMessages: nextMsgs, paneStreamText: nextText }
-		if (sessionId && get().paneSessionIds.get(paneId) !== sessionId) {
-			const nextSessions = new Map(get().paneSessionIds)
-			nextSessions.set(paneId, sessionId)
-			updates.paneSessionIds = nextSessions
+		// Accumulate raw text in-place (module-level, not in store yet)
+		const MAX_STREAM_TEXT = 500_000
+		const prev = pendingRawText.get(paneId) ?? get().paneStreamText.get(paneId) ?? ''
+		const cleaned = stripAnsi(chunk)
+		let newText = prev + cleaned
+		if (newText.length > MAX_STREAM_TEXT) {
+			newText = newText.slice(newText.length - MAX_STREAM_TEXT)
+		}
+		pendingRawText.set(paneId, newText)
+
+		// 2. Batch React state update — rAF in browser, sync in tests
+		const flushToStore = () => {
+			pendingStreamFlush.delete(paneId)
+			const currentParser = streamParsers.get(paneId)
+			if (!currentParser) return
+
+			const msgs = currentParser.getMessages()
+			const nextMsgs = new Map(get().paneStreamMessages)
+			nextMsgs.set(
+				paneId,
+				msgs.map((m) => ({ ...m, blocks: [...m.blocks] })),
+			)
+
+			const rawText = pendingRawText.get(paneId)
+			const nextText = new Map(get().paneStreamText)
+			if (rawText !== undefined) {
+				nextText.set(paneId, rawText)
+				pendingRawText.delete(paneId)
+			}
+
+			const sessionId = currentParser.getSessionId()
+			const updates: Partial<StoreState> = {
+				paneStreamMessages: nextMsgs,
+				paneStreamText: nextText,
+			}
+			if (sessionId && get().paneSessionIds.get(paneId) !== sessionId) {
+				const nextSessions = new Map(get().paneSessionIds)
+				nextSessions.set(paneId, sessionId)
+				updates.paneSessionIds = nextSessions
+			}
+
+			set(updates)
 		}
 
-		set(updates)
+		if (pendingStreamFlush.has(paneId)) return
+		if (typeof requestAnimationFrame === 'function' && typeof process === 'undefined') {
+			// Browser — batch updates per animation frame
+			const rafId = requestAnimationFrame(flushToStore)
+			pendingStreamFlush.set(paneId, rafId)
+		} else {
+			// Node/test — flush synchronously
+			flushToStore()
+		}
 	},
 
 	clearStreamData: (paneId) => {
+		// Cancel any pending rAF flush
+		const rafId = pendingStreamFlush.get(paneId)
+		if (rafId) cancelAnimationFrame(rafId)
+		pendingStreamFlush.delete(paneId)
+		pendingRawText.delete(paneId)
 		streamParsers.delete(paneId)
 		const msgs = new Map(get().paneStreamMessages)
 		const text = new Map(get().paneStreamText)
@@ -572,6 +609,10 @@ export const useStore = create<StoreState>((set, get) => ({
 
 	init: async () => {
 		if (get().initialized) return
+		// Set immediately to prevent double-registration from concurrent calls.
+		// The async work below takes time, and React StrictMode / HMR can trigger
+		// init() again before the first call completes.
+		set({ initialized: true })
 		try {
 			// Register IPC event listeners FIRST — before any async work.
 			// Agent subprocesses can spawn immediately on pane mount and start
@@ -635,15 +676,13 @@ export const useStore = create<StoreState>((set, get) => ({
 				appState,
 				homeDir,
 				snippets,
-				initialized: true,
 				visitedWorkspaceIds: initialVisited,
 				focusedPaneId: initialFocusedPaneId,
 				focusGeneration: initialFocusedPaneId ? 1 : 0,
 			})
-
 		} catch (err) {
 			console.error('[store] Failed to initialize:', err)
-			set({ initError: String(err), initialized: true })
+			set({ initError: String(err) })
 		}
 	},
 
