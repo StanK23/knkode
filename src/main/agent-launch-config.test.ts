@@ -15,11 +15,14 @@ describe('AGENT_LAUNCH_CONFIG', () => {
 
 		it('includes required flags for stream-json mode', () => {
 			const flags = config.subprocess!.flags
-			expect(flags).toContain('--print')
-			expect(flags).toContain('--verbose')
-			expect(flags).toContain('--input-format')
-			expect(flags).toContain('stream-json')
-			expect(flags).toContain('--output-format')
+			expect(flags).toEqual([
+				'--print',
+				'--verbose',
+				'--input-format',
+				'stream-json',
+				'--output-format',
+				'stream-json',
+			])
 		})
 
 		it('strips CLAUDECODE env vars', () => {
