@@ -7,11 +7,9 @@
 ## Active Reviews
 
 ### PR #71 — feat: generic agent subprocess manager
-- State: `docs/reviews/PR-71/_state.json`
-- Agents: 8/8 completed
-- Phase: done (compiled, fixes pending)
-- Must fix: 4 items (agentType validation, error handler missing AGENT_EXIT, stdin.write errors, spurious exit event)
-- Suggestions: 5 items | Nitpicks: 5 items
+- Review: 8/8 agents, all fixes applied (10 commits)
+- Skipped: SIGKILL escalation (edge case, not needed for current agents)
+- Status: ready for merge
 
 ## What Was Done
 - PR #71 (open): Generic agent subprocess manager — `agent-subprocess.ts`, IPC handlers, preload API, types, tests
