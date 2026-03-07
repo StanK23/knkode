@@ -2,7 +2,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import type { AppState, LaunchableAgent, Snippet, Workspace } from '../shared/types'
-import { IPC } from '../shared/types'
+import { IPC, LAUNCHABLE_AGENTS } from '../shared/types'
 import { killAgent, sendAgentMessage, spawnAgent } from './agent-subprocess'
 import {
 	deleteWorkspace,
@@ -38,6 +38,15 @@ function assertPaneId(value: unknown): asserts value is string {
 	assertNonEmptyString(value, 'pane id')
 	if ((value as string).length > MAX_PANE_ID_LENGTH) {
 		throw new Error(`Invalid pane id: exceeds ${MAX_PANE_ID_LENGTH} characters`)
+	}
+}
+
+function assertLaunchableAgent(value: unknown): asserts value is LaunchableAgent {
+	assertNonEmptyString(value, 'agentType')
+	if (!LAUNCHABLE_AGENTS.includes(value as LaunchableAgent)) {
+		throw new Error(
+			`Invalid agentType: '${value}' is not a supported agent. Must be one of: ${LAUNCHABLE_AGENTS.join(', ')}`,
+		)
 	}
 }
 
@@ -249,12 +258,12 @@ export function registerIpcHandlers(): void {
 	// Agent subprocess (bidirectional stream-json)
 	ipcMain.handle(IPC.AGENT_SPAWN, (_e, id: unknown, agentType: unknown, cwd: unknown) => {
 		assertPaneId(id)
-		assertNonEmptyString(agentType, 'agentType')
+		assertLaunchableAgent(agentType)
 		assertString(cwd, 'cwd')
 		if (!path.isAbsolute(cwd)) throw new Error('Invalid cwd: must be an absolute path')
 		if (cwd.includes('\0')) throw new Error('Invalid cwd: contains null byte')
 		try {
-			spawnAgent(id, agentType as LaunchableAgent, path.resolve(cwd))
+			spawnAgent(id, agentType, path.resolve(cwd))
 		} catch (err) {
 			console.error(`[ipc] AGENT_SPAWN failed for pane ${id}:`, err)
 			throw new Error(
