@@ -143,10 +143,13 @@ export class AgentBlockParser {
 		this.nextBlockId = 0
 		this.lineBuffer = ''
 		this.pastStatusBar = false
+		this.seenFirstMarker = false
 	}
 
 	/** Whether we've hit the status bar boundary (horizontal rule). */
 	private pastStatusBar = false
+	/** Whether we've seen the first real block marker (skip preamble/banner). */
+	private seenFirstMarker = false
 
 	private processLine(stripped: string, lineIndex: number): void {
 		const classifier = this.classifier
@@ -171,21 +174,35 @@ export class AgentBlockParser {
 		// Skip status bar spinner / progress lines
 		if (STATUS_BAR_PATTERN.test(trimmed)) return
 
+		// Check if this is a block-starting marker
+		const isBoxStart = trimmed.includes(TOP_LEFT)
+		const isBoxEnd = trimmed.includes(BOTTOM_LEFT)
+		const isBullet = BULLET_PATTERN.test(trimmed)
+
+		// Skip preamble (shell prompt, banner) until first real marker
+		if (!this.seenFirstMarker) {
+			if (isBoxStart || isBullet) {
+				this.seenFirstMarker = true
+			} else {
+				return
+			}
+		}
+
 		// Block start: line contains ╭ (box-drawing top-left corner)
-		if (trimmed.includes(TOP_LEFT)) {
+		if (isBoxStart) {
 			this.openNewBlock(classifier, trimmed, lineIndex)
 			return
 		}
 
 		// Block end: line contains ╰ (box-drawing bottom-left corner)
 		// Note: ⎿ is Claude Code's response indicator, NOT a block closer
-		if (trimmed.includes(BOTTOM_LEFT)) {
+		if (isBoxEnd) {
 			this.closeOpenBlock(lineIndex)
 			return
 		}
 
 		// Bullet block start: line starts with ●, ◆, ▶, ⏺, ❯, or ✻
-		if (BULLET_PATTERN.test(trimmed)) {
+		if (isBullet) {
 			this.openNewBlock(classifier, trimmed, lineIndex)
 			return
 		}

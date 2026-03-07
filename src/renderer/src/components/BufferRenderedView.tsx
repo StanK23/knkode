@@ -1,90 +1,103 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { DEFAULT_PANE_OPACITY, type PaneTheme } from '../../../shared/types'
-import { BLOCK_TYPE_COLORS, type AgentBlock, type AgentBlockType } from '../lib/agent-parsers/types'
+import { BLOCK_TYPE_COLORS, type AgentBlock } from '../lib/agent-parsers/types'
 import { useStore } from '../store'
 import { resolveBackground } from '../utils/colors'
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// ── Block Components ────────────────────────────────────────────────────────
 
-const BLOCK_LABELS: Record<AgentBlockType, string> = {
-	'tool-call': 'Tool',
-	'tool-result': 'Result',
-	thinking: 'Thinking',
-	diff: 'Diff',
-	text: '',
-	status: 'Status',
-	permission: 'Permission',
-	error: 'Error',
-	unknown: 'Output',
-}
+const ToolBlock = memo(function ToolBlock({ block }: { block: AgentBlock }) {
+	const [expanded, setExpanded] = useState(false)
+	const isStreaming = block.endLine === null
+	const toolName = block.metadata.tool ?? 'unknown'
+	const hasContent = !!block.content?.trim()
 
-/** Block types that should be collapsible (tool calls, diffs, etc.) */
-const COLLAPSIBLE_TYPES = new Set<AgentBlockType>(['tool-call', 'tool-result', 'diff', 'error', 'permission', 'unknown'])
-
-/** Block types to hide from the conversation view */
-const HIDDEN_TYPES = new Set<AgentBlockType>(['status'])
-
-// ── Text Block ──────────────────────────────────────────────────────────────
-
-const TextBlock = memo(function TextBlock({ block }: { block: AgentBlock }) {
 	return (
-		<div className="px-3 py-2">
-			<pre className="whitespace-pre-wrap break-words m-0 text-content text-xs leading-relaxed">
-				{block.content || '\u00A0'}
-			</pre>
+		<div className="my-0.5">
+			<button
+				type="button"
+				onClick={() => hasContent && setExpanded((e) => !e)}
+				className={`inline-flex items-center gap-1 px-0 py-0 bg-transparent border-none text-left font-mono text-[11px] leading-relaxed ${hasContent ? 'cursor-pointer hover:underline' : 'cursor-default'} ${BLOCK_TYPE_COLORS[block.type]}`}
+			>
+				{isStreaming && (
+					<span className="w-1 h-1 rounded-full bg-accent animate-pulse motion-reduce:animate-none shrink-0 inline-block" />
+				)}
+				<span className="opacity-50">{expanded ? '▾' : '▸'}</span>
+				<span>{toolName}</span>
+				{isStreaming && <span className="opacity-40 italic ml-1">running...</span>}
+			</button>
+			{expanded && hasContent && (
+				<pre className="whitespace-pre-wrap break-words m-0 pl-4 text-content-muted text-[11px] leading-relaxed max-h-60 overflow-y-auto opacity-70">
+					{block.content}
+				</pre>
+			)}
 		</div>
 	)
 })
 
-// ── Thinking Block ──────────────────────────────────────────────────────────
+const TextBlock = memo(function TextBlock({ block }: { block: AgentBlock }) {
+	const content = block.content?.trim()
+	if (!content) return null
+
+	return (
+		<div className="my-1">
+			<pre className="whitespace-pre-wrap break-words m-0 text-content text-xs leading-relaxed font-mono">
+				{content}
+			</pre>
+		</div>
+	)
+})
 
 const ThinkingBlock = memo(function ThinkingBlock({ block }: { block: AgentBlock }) {
 	const isStreaming = block.endLine === null
 	const duration = block.metadata.duration
 
 	return (
-		<div className="px-3 py-1.5 flex items-center gap-2">
+		<div className="my-0.5 text-content-muted text-[11px] font-mono italic flex items-center gap-1.5">
 			{isStreaming && (
-				<span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse motion-reduce:animate-none shrink-0" />
+				<span className="w-1 h-1 rounded-full bg-content-muted animate-pulse motion-reduce:animate-none shrink-0 inline-block" />
 			)}
-			<span className="text-content-muted text-[11px] italic">
-				{isStreaming ? 'Thinking...' : `Thought${duration ? ` ${duration}` : ''}`}
-			</span>
+			<span>{isStreaming ? 'thinking...' : `thought${duration ? ` ${duration}` : ''}`}</span>
 		</div>
 	)
 })
 
-// ── Collapsible Block ───────────────────────────────────────────────────────
+const ErrorBlock = memo(function ErrorBlock({ block }: { block: AgentBlock }) {
+	return (
+		<div className="my-1">
+			<pre className="whitespace-pre-wrap break-words m-0 text-danger text-xs leading-relaxed font-mono">
+				{block.content || 'Error'}
+			</pre>
+		</div>
+	)
+})
 
-const CollapsibleBlock = memo(function CollapsibleBlock({ block }: { block: AgentBlock }) {
-	const isStreaming = block.endLine === null
-	const label = BLOCK_LABELS[block.type]
-	const toolName = block.metadata.tool
-	const colorClass = BLOCK_TYPE_COLORS[block.type]
+const PermissionBlock = memo(function PermissionBlock({ block }: { block: AgentBlock }) {
+	return (
+		<div className="my-1 px-2 py-1 border-l-2 border-yellow-400/50">
+			<pre className="whitespace-pre-wrap break-words m-0 text-yellow-400 text-xs leading-relaxed font-mono">
+				{block.content || 'Permission required'}
+			</pre>
+		</div>
+	)
+})
 
+const DiffBlock = memo(function DiffBlock({ block }: { block: AgentBlock }) {
 	const [expanded, setExpanded] = useState(false)
+	const hasContent = !!block.content?.trim()
 
 	return (
-		<div className="border-b border-edge/30 last:border-b-0">
+		<div className="my-0.5">
 			<button
 				type="button"
-				onClick={() => setExpanded((e) => !e)}
-				aria-expanded={expanded}
-				aria-label={`${label}${toolName ? `: ${toolName}` : ''}`}
-				className="w-full flex items-center gap-1.5 px-3 py-1.5 bg-transparent border-none cursor-pointer text-left hover:bg-overlay/30 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+				onClick={() => hasContent && setExpanded((e) => !e)}
+				className={`inline-flex items-center gap-1 px-0 py-0 bg-transparent border-none text-left font-mono text-[11px] leading-relaxed ${hasContent ? 'cursor-pointer hover:underline' : 'cursor-default'} text-green-400`}
 			>
-				{isStreaming && (
-					<span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse motion-reduce:animate-none shrink-0" />
-				)}
-				<span className="text-[9px] text-content-muted">{expanded ? '\u25BE' : '\u25B8'}</span>
-				<span className={`text-[11px] font-semibold ${colorClass}`}>
-					{label}
-					{toolName ? `: ${toolName}` : ''}
-				</span>
-				{isStreaming && <span className="text-content-muted text-[10px] italic ml-1">streaming...</span>}
+				<span className="opacity-50">{expanded ? '▾' : '▸'}</span>
+				<span>diff</span>
 			</button>
-			{expanded && block.content && (
-				<pre className="whitespace-pre-wrap break-words m-0 px-3 pb-2 text-content-secondary text-[11px] leading-relaxed max-h-80 overflow-y-auto">
+			{expanded && hasContent && (
+				<pre className="whitespace-pre-wrap break-words m-0 pl-4 text-content-muted text-[11px] leading-relaxed max-h-60 overflow-y-auto">
 					{block.content}
 				</pre>
 			)}
@@ -95,11 +108,31 @@ const CollapsibleBlock = memo(function CollapsibleBlock({ block }: { block: Agen
 // ── Block Router ────────────────────────────────────────────────────────────
 
 const BlockItem = memo(function BlockItem({ block }: { block: AgentBlock }) {
-	if (HIDDEN_TYPES.has(block.type)) return null
-	if (block.type === 'text') return <TextBlock block={block} />
-	if (block.type === 'thinking') return <ThinkingBlock block={block} />
-	if (COLLAPSIBLE_TYPES.has(block.type)) return <CollapsibleBlock block={block} />
-	return <TextBlock block={block} />
+	switch (block.type) {
+		case 'tool-call':
+		case 'tool-result':
+			return <ToolBlock block={block} />
+		case 'text':
+			return <TextBlock block={block} />
+		case 'thinking':
+			return <ThinkingBlock block={block} />
+		case 'error':
+			return <ErrorBlock block={block} />
+		case 'permission':
+			return <PermissionBlock block={block} />
+		case 'diff':
+			return <DiffBlock block={block} />
+		case 'status':
+			return null
+		case 'unknown': {
+			// Show unknown blocks as text if they have content, otherwise hide
+			const content = block.content?.trim()
+			if (!content) return null
+			return <TextBlock block={block} />
+		}
+		default:
+			return null
+	}
 })
 
 // ── Message Input ───────────────────────────────────────────────────────────
@@ -154,44 +187,29 @@ function MessageInput({ paneId }: { paneId: string }) {
 	}, [input])
 
 	return (
-		<div className="border-t border-edge px-3 py-2 shrink-0">
+		<div className="border-t border-edge/30 px-3 py-2 shrink-0">
 			{isStreaming ? (
-				<div className="flex items-center gap-2 py-1">
+				<button
+					type="button"
+					onClick={handleStop}
+					className="w-full text-left px-2 py-1.5 rounded-sm cursor-pointer border border-edge/30 bg-transparent hover:bg-overlay/30 text-content-muted text-[11px] font-mono focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none flex items-center gap-2"
+				>
 					<span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse motion-reduce:animate-none shrink-0" />
-					<span className="text-content-muted text-[11px]">Agent is responding...</span>
-					<button
-						type="button"
-						onClick={handleStop}
-						className="ml-auto text-[10px] px-2 py-1 rounded-sm cursor-pointer border border-edge bg-overlay hover:bg-overlay-active text-content-secondary focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
-					>
-						Esc to interrupt
-					</button>
-				</div>
+					<span className="opacity-60">esc to interrupt</span>
+				</button>
 			) : (
-				<>
-					<div className="flex gap-2 items-end">
-						<textarea
-							ref={textareaRef}
-							value={input}
-							onChange={(e) => setInput(e.target.value)}
-							onKeyDown={handleKeyDown}
-							placeholder="Send a message..."
-							rows={1}
-							className="flex-1 resize-none bg-sunken border border-edge rounded-sm px-2 py-1.5 text-content text-xs leading-relaxed placeholder:text-content-muted/50 focus:outline-none focus:ring-1 focus:ring-accent"
-						/>
-						<button
-							type="button"
-							onClick={handleSubmit}
-							disabled={!input.trim()}
-							className="px-2 py-1.5 text-[11px] font-semibold rounded-sm cursor-pointer border-none bg-accent text-canvas hover:brightness-110 disabled:opacity-40 disabled:cursor-default focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
-						>
-							Send
-						</button>
-					</div>
-					<div className="mt-1 text-[10px] text-content-muted/40">
-						Enter to send · Shift+Enter for newline
-					</div>
-				</>
+				<div className="flex gap-2 items-end">
+					<span className="text-accent font-mono text-xs shrink-0 py-1.5">{'>'}</span>
+					<textarea
+						ref={textareaRef}
+						value={input}
+						onChange={(e) => setInput(e.target.value)}
+						onKeyDown={handleKeyDown}
+						placeholder="message..."
+						rows={1}
+						className="flex-1 resize-none bg-transparent border-none px-0 py-1.5 text-content text-xs leading-relaxed font-mono placeholder:text-content-muted/30 focus:outline-none"
+					/>
+				</div>
 			)}
 		</div>
 	)
@@ -232,14 +250,14 @@ export function BufferRenderedView({ paneId, theme, themeOverride }: BufferRende
 	return (
 		<div className="w-full h-full flex flex-col" style={{ backgroundColor: bg }}>
 			{hasBlocks && blocks ? (
-				<div ref={scrollRef} role="log" aria-label="Agent conversation" className="flex-1 overflow-y-auto" onScroll={handleScroll}>
+				<div ref={scrollRef} role="log" aria-label="Agent conversation" className="flex-1 overflow-y-auto px-3 py-2" onScroll={handleScroll}>
 					{blocks.map((block) => (
 						<BlockItem key={block.id} block={block} />
 					))}
 				</div>
 			) : (
-				<div className="flex-1 flex items-center justify-center text-content-muted text-xs">
-					Waiting for agent output...
+				<div className="flex-1 flex items-center justify-center text-content-muted text-xs font-mono">
+					waiting for agent output...
 				</div>
 			)}
 			<MessageInput paneId={paneId} />
