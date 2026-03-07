@@ -102,13 +102,18 @@ function BlockView({ block, streaming }: { block: ContentBlock; streaming: boole
 // ── Message Group ───────────────────────────────────────────────────────────
 
 const MessageGroup = memo(function MessageGroup({ message }: { message: StreamMessage }) {
+	const isUser = message.role === 'user'
 	return (
-		<div className="py-2 px-3 border-b border-edge/50 last:border-b-0">
+		<div
+			className={`py-2 px-3 border-b border-edge/50 last:border-b-0 ${isUser ? 'bg-overlay/30' : ''}`}
+		>
 			<div className="flex items-center gap-2 mb-1.5 text-[11px]">
 				{message.streaming && (
 					<span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse motion-reduce:animate-none shrink-0" />
 				)}
-				<span className="font-semibold text-content-secondary">{message.role}</span>
+				<span className="font-semibold text-content-secondary">
+					{isUser ? 'you' : message.role}
+				</span>
 				{message.model && <span className="text-content-muted">{message.model}</span>}
 			</div>
 

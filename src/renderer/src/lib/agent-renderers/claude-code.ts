@@ -66,6 +66,17 @@ export class ClaudeCodeStreamParser implements StreamParser {
 		return this.sessionId
 	}
 
+	addUserMessage(text: string): void {
+		this.messages.push({
+			id: `user-${Date.now()}`,
+			role: 'user',
+			blocks: [{ type: 'text', text }],
+			stopReason: null,
+			usage: null,
+			streaming: false,
+		})
+	}
+
 	reset(): void {
 		this.messages = []
 		this.lineBuffer = ''

@@ -1129,6 +1129,17 @@ export const useStore = create<StoreState>((set, get) => ({
 
 	sendAgentMessage: (paneId, message) => {
 		if (get().activeAgentIds.has(paneId)) {
+			// Inject user message into parser so it's visible in the conversation
+			let parser = streamParsers.get(paneId)
+			if (!parser) {
+				parser = new ClaudeCodeStreamParser()
+				streamParsers.set(paneId, parser)
+			}
+			parser.addUserMessage(message)
+			const nextMsgs = new Map(get().paneStreamMessages)
+			nextMsgs.set(paneId, [...parser.getMessages()])
+			set({ paneStreamMessages: nextMsgs })
+
 			// Subprocess mode — send structured message via IPC
 			window.api.sendAgentMessage(paneId, message).catch((err) => {
 				console.error('[store] sendAgentMessage: IPC send failed', { paneId, err })
