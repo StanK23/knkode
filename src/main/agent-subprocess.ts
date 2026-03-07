@@ -47,11 +47,11 @@ export function spawnAgent(paneId: string, agentType: LaunchableAgent, cwd: stri
 	}
 	sessions.set(paneId, session)
 
-	proc.stdout?.on('data', (chunk: Buffer) => {
+	proc.stdout?.on('data', (chunk) => {
 		safeSend(IPC.AGENT_DATA, paneId, chunk.toString())
 	})
 
-	proc.stderr?.on('data', (chunk: Buffer) => {
+	proc.stderr?.on('data', (chunk) => {
 		safeSend(IPC.AGENT_ERROR, paneId, chunk.toString())
 	})
 
