@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { DEFAULT_PANE_OPACITY, type PaneTheme } from '../../../shared/types'
 import type {
 	ContentBlock,
@@ -297,8 +297,23 @@ export function StreamRenderer({ paneId, theme, themeOverride }: StreamRendererP
 	const opacity = themeOverride?.paneOpacity ?? theme.paneOpacity ?? DEFAULT_PANE_OPACITY
 	const bg = resolveBackground(themeOverride?.background ?? theme.background, opacity)
 
-	const hasStructured = (messages?.length ?? 0) > 0
-	const isStreaming = messages?.some((m) => m.streaming) ?? false
+	// Filter out intermediate tool-use-only messages (empty or tool_use blocks only)
+	const visibleMessages = useMemo(() => {
+		if (!messages) return []
+		return messages.filter((m) => {
+			if (m.role === 'user') return true
+			// Show if message has text or thinking blocks (user-visible content)
+			const hasVisibleContent = m.blocks.some(
+				(b) => b.type === 'text' || b.type === 'thinking',
+			)
+			// Always show the last message (even if empty — it's the active one)
+			if (m === messages.at(-1)) return true
+			return hasVisibleContent
+		})
+	}, [messages])
+
+	const hasStructured = visibleMessages.length > 0
+	const isStreaming = visibleMessages.some((m) => m.streaming)
 	// Show raw PTY output when data was received but parser produced no JSON messages.
 	// This makes CLI errors ("command not found", auth errors, flag errors) visible.
 	const hasRawOnly = !hasStructured && !!rawText && rawText.length > 0
@@ -318,8 +333,8 @@ export function StreamRenderer({ paneId, theme, themeOverride }: StreamRendererP
 
 	return (
 		<div className="w-full h-full flex flex-col" style={{ backgroundColor: bg }}>
-			{hasStructured && messages ? (
-				<StructuredView messages={messages} scrollRef={scrollRef} onScroll={handleScroll} />
+			{hasStructured ? (
+				<StructuredView messages={visibleMessages} scrollRef={scrollRef} onScroll={handleScroll} />
 			) : hasRawOnly ? (
 				<div ref={scrollRef} className="flex-1 overflow-y-auto p-3" onScroll={handleScroll}>
 					<div className="text-[11px] text-content-muted mb-2">

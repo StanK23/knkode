@@ -120,11 +120,9 @@ export class ClaudeCodeStreamParser implements StreamParser {
 				this.handleResult(obj)
 				break
 			case 'system':
-			case 'rate_limit_event':
-				// Intentionally ignored — system init and rate limits
-				break
 			case 'assistant':
-				this.handleAssistantSnapshot(obj)
+			case 'rate_limit_event':
+				// Intentionally ignored — system init, snapshots (redundant with stream_event deltas), rate limits
 				break
 			case 'message_start':
 			case 'content_block_start':
@@ -163,69 +161,6 @@ export class ClaudeCodeStreamParser implements StreamParser {
 			case 'message_stop':
 				this.handleMessageStop()
 				break
-		}
-	}
-
-	private handleAssistantSnapshot(obj: Record<string, unknown>): void {
-		const message = obj.message as Record<string, unknown> | undefined
-		if (!message) return
-
-		const content = message.content as Array<Record<string, unknown>> | undefined
-		if (!Array.isArray(content) || content.length === 0) return
-
-		const id = String(message.id ?? '')
-		const model = message.model as string | undefined
-
-		// Find existing message by id, or create one
-		let msg = id ? this.messages.find((m) => m.id === id && m.role === 'assistant') : null
-		if (!msg) {
-			// Only create if we don't already have a streaming assistant message
-			msg = this.currentMessage()
-			if (!msg || msg.role !== 'assistant') {
-				if (this.messages.length >= MAX_MESSAGES) {
-					this.messages.splice(0, this.messages.length - MAX_MESSAGES + 1)
-				}
-				this.messages.push({
-					id: id || `msg-${this.messages.length}`,
-					role: 'assistant',
-					model,
-					blocks: [],
-					stopReason: null,
-					usage: null,
-					streaming: true,
-				})
-				msg = this.messages.at(-1)!
-			}
-		}
-
-		// Replace blocks from snapshot content
-		const blocks: ContentBlock[] = []
-		for (const item of content) {
-			const blockType = String(item.type ?? '')
-			switch (blockType) {
-				case 'text':
-					blocks.push({ type: 'text', text: String(item.text ?? '') })
-					break
-				case 'tool_use':
-					blocks.push({
-						type: 'tool_use',
-						id: String(item.id ?? ''),
-						name: String(item.name ?? ''),
-						inputJson: typeof item.input === 'string'
-							? item.input
-							: JSON.stringify(item.input ?? ''),
-					})
-					break
-				case 'thinking':
-					blocks.push({ type: 'thinking', text: String(item.thinking ?? '') })
-					break
-			}
-		}
-		if (blocks.length > 0) {
-			msg.blocks = blocks
-		}
-		if (model && !msg.model) {
-			msg.model = model
 		}
 	}
 
