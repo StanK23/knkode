@@ -45,12 +45,12 @@ export function spawnAgent(paneId: string, agentType: LaunchableAgent, cwd: stri
 	})
 
 	proc.on('exit', (code, signal) => {
-		// Only clean up if this process is still the active session
+		// Only clean up and notify if this process is still the active session
 		const current = sessions.get(paneId)
 		if (current?.process === proc) {
 			sessions.delete(paneId)
+			safeSend(IPC.AGENT_EXIT, paneId, code, signal)
 		}
-		safeSend(IPC.AGENT_EXIT, paneId, code, signal)
 	})
 
 	proc.on('error', (err) => {
@@ -58,6 +58,7 @@ export function spawnAgent(paneId: string, agentType: LaunchableAgent, cwd: stri
 		const current = sessions.get(paneId)
 		if (current?.process === proc) {
 			sessions.delete(paneId)
+			safeSend(IPC.AGENT_EXIT, paneId, null, null)
 		}
 	})
 }
@@ -77,7 +78,9 @@ export function sendAgentMessage(paneId: string, message: string): void {
 	}
 
 	const payload = JSON.stringify(config.subprocess.formatMessage(message))
-	session.process.stdin.write(`${payload}\n`)
+	session.process.stdin.write(`${payload}\n`, (err) => {
+		if (err) safeSend(IPC.AGENT_ERROR, paneId, `stdin write failed: ${err.message}`)
+	})
 }
 
 /** Kill the agent subprocess for a pane. */
