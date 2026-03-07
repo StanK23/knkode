@@ -1,10 +1,16 @@
 import { type ChildProcess, spawn } from 'node:child_process'
-import { AGENT_LAUNCH_CONFIG, IPC, type LaunchableAgent } from '../shared/types'
+import {
+	AGENT_LAUNCH_CONFIG,
+	type AgentMessageFormatter,
+	IPC,
+	type LaunchableAgent,
+} from '../shared/types'
 import { safeSend } from './main-window'
 
 interface AgentSession {
 	process: ChildProcess
 	agentType: LaunchableAgent
+	formatMessage: AgentMessageFormatter
 	cwd: string
 }
 
@@ -33,7 +39,12 @@ export function spawnAgent(paneId: string, agentType: LaunchableAgent, cwd: stri
 		stdio: ['pipe', 'pipe', 'pipe'],
 	})
 
-	const session: AgentSession = { process: proc, agentType, cwd }
+	const session: AgentSession = {
+		process: proc,
+		agentType,
+		formatMessage: config.subprocess.formatMessage,
+		cwd,
+	}
 	sessions.set(paneId, session)
 
 	proc.stdout?.on('data', (chunk: Buffer) => {
@@ -72,12 +83,7 @@ export function sendAgentMessage(paneId: string, message: string): void {
 		throw new Error(`Agent stdin not writable for pane ${paneId}`)
 	}
 
-	const config = AGENT_LAUNCH_CONFIG[session.agentType]
-	if (!config.subprocess) {
-		throw new Error(`Agent '${session.agentType}' lost subprocess config`)
-	}
-
-	const payload = JSON.stringify(config.subprocess.formatMessage(message))
+	const payload = JSON.stringify(session.formatMessage(message))
 	session.process.stdin.write(`${payload}\n`, (err) => {
 		if (err) safeSend(IPC.AGENT_ERROR, paneId, `stdin write failed: ${err.message}`)
 	})
