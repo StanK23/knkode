@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { BrowserWindow, app, nativeImage, shell } from 'electron'
+import { killAllAgents } from './agent-subprocess'
 import { getAppState, saveAppState } from './config-store'
 import { startCwdTracking, stopCwdTracking } from './cwd-tracker'
 import { registerIpcHandlers } from './ipc'
@@ -117,6 +118,7 @@ function cleanup(): void {
 	stopCwdTracking()
 	stopProcessPolling()
 	killAllPtys()
+	killAllAgents()
 }
 
 app

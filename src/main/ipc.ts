@@ -1,8 +1,9 @@
 import os from 'node:os'
 import path from 'node:path'
 import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
-import type { AppState, Snippet, Workspace } from '../shared/types'
+import type { AppState, LaunchableAgent, Snippet, Workspace } from '../shared/types'
 import { IPC } from '../shared/types'
+import { killAgent, sendAgentMessage, spawnAgent } from './agent-subprocess'
 import {
 	deleteWorkspace,
 	getAppState,
@@ -243,6 +244,34 @@ export function registerIpcHandlers(): void {
 	ipcMain.handle(IPC.PTY_GET_PROCESS_INFO, (_e, id: unknown) => {
 		assertPaneId(id)
 		return getPtyProcessInfo(id)
+	})
+
+	// Agent subprocess (bidirectional stream-json)
+	ipcMain.handle(IPC.AGENT_SPAWN, (_e, id: unknown, agentType: unknown, cwd: unknown) => {
+		assertPaneId(id)
+		assertNonEmptyString(agentType, 'agentType')
+		assertString(cwd, 'cwd')
+		if (!path.isAbsolute(cwd)) throw new Error('Invalid cwd: must be an absolute path')
+		if (cwd.includes('\0')) throw new Error('Invalid cwd: contains null byte')
+		try {
+			spawnAgent(id, agentType as LaunchableAgent, path.resolve(cwd))
+		} catch (err) {
+			console.error(`[ipc] AGENT_SPAWN failed for pane ${id}:`, err)
+			throw new Error(
+				`Failed to spawn ${agentType} in ${cwd}. Check that '${agentType}' is installed and on your PATH.`,
+			)
+		}
+	})
+
+	ipcMain.handle(IPC.AGENT_SEND, (_e, id: unknown, message: unknown) => {
+		assertPaneId(id)
+		assertNonEmptyString(message, 'message')
+		sendAgentMessage(id, message)
+	})
+
+	ipcMain.handle(IPC.AGENT_KILL, (_e, id: unknown) => {
+		assertPaneId(id)
+		killAgent(id)
 	})
 
 	// Start polling child processes for agent detection

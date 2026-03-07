@@ -143,16 +143,54 @@ export const AGENT_LABELS: Record<AgentType, string> = {
 export const LAUNCHABLE_AGENTS = ['claude-code', 'gemini-cli'] as const
 export type LaunchableAgent = (typeof LAUNCHABLE_AGENTS)[number]
 
-/** Per-agent launch configuration: CLI command and default flags appended automatically. */
-export const AGENT_LAUNCH_CONFIG: Record<
-	LaunchableAgent,
-	{ command: string; defaultFlags: string[] }
-> = {
+/** Message formatter for agent subprocess stdin.
+ *  Takes the user's text and returns the JSON object to write as NDJSON. */
+export type AgentMessageFormatter = (text: string) => unknown
+
+/** Per-agent subprocess configuration for bidirectional stream-json mode.
+ *  Agents that support subprocess mode have this defined; others are null. */
+export interface AgentSubprocessConfig {
+	/** CLI args for subprocess mode (e.g. ['--print', '--verbose', ...]). */
+	flags: string[]
+	/** Env vars to strip from the child process (prevents nesting errors). */
+	stripEnv: string[]
+	/** Formats a user message string into the JSON payload for stdin. */
+	formatMessage: AgentMessageFormatter
+}
+
+/** Per-agent launch configuration: CLI command, default flags, and optional subprocess config. */
+export interface AgentLaunchConfig {
+	command: string
+	defaultFlags: string[]
+	/** Subprocess config for rendered view mode. null = agent only supports PTY/TUI mode. */
+	subprocess: AgentSubprocessConfig | null
+}
+
+export const AGENT_LAUNCH_CONFIG: Record<LaunchableAgent, AgentLaunchConfig> = {
 	'claude-code': {
 		command: 'claude',
 		defaultFlags: [],
+		subprocess: {
+			flags: [
+				'--print',
+				'--verbose',
+				'--input-format',
+				'stream-json',
+				'--output-format',
+				'stream-json',
+			],
+			stripEnv: ['CLAUDECODE', 'CLAUDE_CODE_ENTRYPOINT'],
+			formatMessage: (text: string) => ({
+				type: 'user',
+				message: { role: 'user', content: [{ type: 'text', text }] },
+			}),
+		},
 	},
-	'gemini-cli': { command: 'gemini', defaultFlags: [] },
+	'gemini-cli': {
+		command: 'gemini',
+		defaultFlags: [],
+		subprocess: null, // TBD — will add when Gemini CLI supports structured I/O
+	},
 }
 
 // IPC channel names
@@ -181,6 +219,14 @@ export const IPC = {
 	PTY_CWD_CHANGED: 'pty:cwd-changed',
 	PTY_PROCESS_CHANGED: 'pty:process-changed',
 	PTY_GET_PROCESS_INFO: 'pty:get-process-info',
+
+	// Agent subprocess (bidirectional stream-json)
+	AGENT_SPAWN: 'agent:spawn',
+	AGENT_SEND: 'agent:send',
+	AGENT_KILL: 'agent:kill',
+	AGENT_DATA: 'agent:data',
+	AGENT_ERROR: 'agent:error',
+	AGENT_EXIT: 'agent:exit',
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
