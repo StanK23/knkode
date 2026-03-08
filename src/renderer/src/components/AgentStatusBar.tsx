@@ -83,17 +83,14 @@ export const AgentStatusBar = memo(function AgentStatusBar({
 	else activityLabel = 'Running'
 
 	return (
-		<div
-			role="status"
+		<output
 			aria-live="polite"
 			aria-label={`${AGENT_LABELS[agentType]} agent status`}
 			className="h-7 flex items-center gap-2 px-2 text-xs bg-sunken border-b border-edge shrink-0 select-none"
 		>
 			<span className="font-semibold text-accent">{AGENT_LABELS[agentType]}</span>
 
-			{model && (
-				<span className="text-content-muted/60 text-[10px]">{shortModelName(model)}</span>
-			)}
+			{model && <span className="text-content-muted/60 text-[10px]">{shortModelName(model)}</span>}
 
 			<span className={`min-w-0 truncate ${isStreaming ? 'text-accent' : 'text-content-muted'}`}>
 				{activityLabel}
@@ -115,6 +112,6 @@ export const AgentStatusBar = memo(function AgentStatusBar({
 					<ElapsedTimer startTime={startTime} />
 				</span>
 			)}
-		</div>
+		</output>
 	)
 })

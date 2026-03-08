@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { DEFAULT_PANE_OPACITY, type PaneTheme } from '../../../shared/types'
 import type {
+	BlockUsage,
 	ContentBlock,
 	StreamMessage,
 	TextBlock,
@@ -83,6 +84,22 @@ function segmentBlocks(blocks: readonly ContentBlock[]): BlockSegment[] {
 	return segments
 }
 
+// ── Token Badge ─────────────────────────────────────────────────────────────
+
+function TokenBadge({ usage }: { usage?: BlockUsage }) {
+	if (!usage || usage.outputTokens === 0) return null
+	const n = usage.outputTokens
+	const label = n < 1000 ? String(n) : `${(n / 1000).toFixed(1)}k`
+	return (
+		<span
+			className="text-[9px] text-content-muted/40 tabular-nums ml-auto shrink-0"
+			title={`${n.toLocaleString()} output tokens`}
+		>
+			{label}t
+		</span>
+	)
+}
+
 // ── Block Views (TUI-style) ────────────────────────────────────────────────
 
 function TextBubble({ block }: { block: TextBlock }) {
@@ -93,6 +110,7 @@ function TextBubble({ block }: { block: TextBlock }) {
 				<pre className="whitespace-pre-wrap break-words m-0 text-content text-xs leading-relaxed">
 					{block.text}
 				</pre>
+				<TokenBadge usage={block.usage} />
 			</div>
 		</div>
 	)
@@ -120,6 +138,7 @@ function ThinkingBlockView({ block, streaming }: { block: ThinkingBlock; streami
 						: `thought for ${Math.max(1, Math.round((block.text?.length ?? 0) / 200))}s`}
 				</span>
 				{!streaming && <span className="text-[9px]">{expanded ? '\u25BE' : '\u25B8'}</span>}
+				<TokenBadge usage={block.usage} />
 			</button>
 			{expanded && (
 				<div className="ml-4 mt-1 pl-2.5 border-l border-content-muted/20">
@@ -184,6 +203,7 @@ function ToolBlock({
 					{summary && (
 						<span className="text-content-secondary text-[11px] truncate">{summary}</span>
 					)}
+					<TokenBadge usage={call.usage} />
 				</button>
 
 				{/* Expanded tool input JSON */}
