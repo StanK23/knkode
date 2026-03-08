@@ -1109,25 +1109,56 @@ describe('TRACE: multi-turn merge flow', () => {
 			parser.feed(
 				line({
 					type: 'message_start',
-					message: { id: 'msg_usage', role: 'assistant', model: 'claude-opus-4-6', usage: { input_tokens: 100, output_tokens: 0 } },
+					message: {
+						id: 'msg_usage',
+						role: 'assistant',
+						model: 'claude-opus-4-6',
+						usage: { input_tokens: 100, output_tokens: 0 },
+					},
 				}),
 			)
 
 			// Block 0: text — tokens go from 0 to 50
 			parser.feed(line({ type: 'content_block_start', index: 0, content_block: { type: 'text' } }))
-			parser.feed(line({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Hello' } }))
+			parser.feed(
+				line({
+					type: 'content_block_delta',
+					index: 0,
+					delta: { type: 'text_delta', text: 'Hello' },
+				}),
+			)
 			parser.feed(line({ type: 'message_delta', delta: {}, usage: { output_tokens: 50 } }))
 			parser.feed(line({ type: 'content_block_stop', index: 0 }))
 
 			// Block 1: tool_use — tokens go from 50 to 120
-			parser.feed(line({ type: 'content_block_start', index: 1, content_block: { type: 'tool_use', id: 'tool1', name: 'Read' } }))
-			parser.feed(line({ type: 'content_block_delta', index: 1, delta: { type: 'input_json_delta', partial_json: '{}' } }))
+			parser.feed(
+				line({
+					type: 'content_block_start',
+					index: 1,
+					content_block: { type: 'tool_use', id: 'tool1', name: 'Read' },
+				}),
+			)
+			parser.feed(
+				line({
+					type: 'content_block_delta',
+					index: 1,
+					delta: { type: 'input_json_delta', partial_json: '{}' },
+				}),
+			)
 			parser.feed(line({ type: 'message_delta', delta: {}, usage: { output_tokens: 120 } }))
 			parser.feed(line({ type: 'content_block_stop', index: 1 }))
 
 			// Block 2: thinking — tokens go from 120 to 200
-			parser.feed(line({ type: 'content_block_start', index: 2, content_block: { type: 'thinking' } }))
-			parser.feed(line({ type: 'content_block_delta', index: 2, delta: { type: 'thinking_delta', thinking: 'hmm' } }))
+			parser.feed(
+				line({ type: 'content_block_start', index: 2, content_block: { type: 'thinking' } }),
+			)
+			parser.feed(
+				line({
+					type: 'content_block_delta',
+					index: 2,
+					delta: { type: 'thinking_delta', thinking: 'hmm' },
+				}),
+			)
 			parser.feed(line({ type: 'message_delta', delta: {}, usage: { output_tokens: 200 } }))
 			parser.feed(line({ type: 'content_block_stop', index: 2 }))
 
@@ -1200,9 +1231,7 @@ describe('TRACE: multi-turn merge flow', () => {
 					delta: { type: 'text_delta', text: 'Turn 1' },
 				}),
 			)
-			parser.feed(
-				line({ type: 'message_delta', delta: {}, usage: { output_tokens: 50 } }),
-			)
+			parser.feed(line({ type: 'message_delta', delta: {}, usage: { output_tokens: 50 } }))
 			parser.feed(line({ type: 'content_block_stop', index: 0 }))
 			parser.feed(line({ type: 'message_stop' }))
 
@@ -1231,9 +1260,7 @@ describe('TRACE: multi-turn merge flow', () => {
 					delta: { type: 'text_delta', text: 'Turn 2' },
 				}),
 			)
-			parser.feed(
-				line({ type: 'message_delta', delta: {}, usage: { output_tokens: 30 } }),
-			)
+			parser.feed(line({ type: 'message_delta', delta: {}, usage: { output_tokens: 30 } }))
 			parser.feed(line({ type: 'content_block_stop', index: 0 }))
 			parser.feed(line({ type: 'message_stop' }))
 
