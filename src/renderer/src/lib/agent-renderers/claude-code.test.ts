@@ -1395,3 +1395,60 @@ describe('per-block usage tracking', () => {
 		expect(msg.usage?.outputTokens).toBe(100)
 	})
 })
+
+describe('isResponding', () => {
+	it('becomes true on message_start and false on result', () => {
+		const parser = new ClaudeCodeStreamParser()
+		expect(parser.isResponding()).toBe(false)
+
+		parser.feed(
+			line({
+				type: 'message_start',
+				message: { id: 'msg_001', role: 'assistant' },
+			}),
+		)
+		expect(parser.isResponding()).toBe(true)
+
+		parser.feed(line({ type: 'message_stop' }))
+		// Still responding after message_stop — turn is not done until result
+		expect(parser.isResponding()).toBe(true)
+
+		parser.feed(`${JSON.stringify({ type: 'result', session_id: 'sess_1' })}\n`)
+		expect(parser.isResponding()).toBe(false)
+	})
+
+	it('stays true across tool-use round trips (merged messages)', () => {
+		const parser = new ClaudeCodeStreamParser()
+
+		// Turn 1: tool use
+		parser.feed(line({ type: 'message_start', message: { id: 'msg_001', role: 'assistant' } }))
+		parser.feed(
+			line({
+				type: 'content_block_start',
+				index: 0,
+				content_block: { type: 'tool_use', id: 'toolu_1', name: 'Bash' },
+			}),
+		)
+		parser.feed(line({ type: 'content_block_stop', index: 0 }))
+		parser.feed(line({ type: 'message_delta', delta: { stop_reason: 'tool_use' } }))
+		parser.feed(line({ type: 'message_stop' }))
+
+		// Between message_stop and next message_start — still responding
+		expect(parser.isResponding()).toBe(true)
+
+		// Tool result
+		parser.feed(
+			`${JSON.stringify({ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_1', content: 'ok' }] } })}\n`,
+		)
+		// Still responding — waiting for next assistant message
+		expect(parser.isResponding()).toBe(true)
+
+		// Turn 2: text response (merged)
+		parser.feed(line({ type: 'message_start', message: { id: 'msg_002', role: 'assistant' } }))
+		expect(parser.isResponding()).toBe(true)
+
+		parser.feed(line({ type: 'message_stop' }))
+		parser.feed(`${JSON.stringify({ type: 'result', session_id: 'sess_1' })}\n`)
+		expect(parser.isResponding()).toBe(false)
+	})
+})

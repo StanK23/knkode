@@ -43,6 +43,8 @@ export class ClaudeCodeStreamParser implements StreamParser {
 	private consecutiveParseFailures = 0
 	/** Session ID from the last result event — used for --resume on next turn. */
 	private sessionId: string | null = null
+	/** Whether the agent is mid-turn (between message_start and result event). */
+	private _responding = false
 	/** Last seen cumulative output_tokens — used to compute per-block token deltas. */
 	private lastOutputTokens = 0
 	/** Per content block index: output_tokens at block start. */
@@ -75,6 +77,11 @@ export class ClaudeCodeStreamParser implements StreamParser {
 
 	getSessionId(): string | null {
 		return this.sessionId
+	}
+
+	/** Whether the agent is mid-turn (between first message_start and result event). */
+	isResponding(): boolean {
+		return this._responding
 	}
 
 	addUserMessage(text: string): void {
@@ -181,6 +188,7 @@ export class ClaudeCodeStreamParser implements StreamParser {
 	}
 
 	private handleResult(obj: Record<string, unknown>): void {
+		this._responding = false
 		// Extract session_id for --resume support
 		if (typeof obj.session_id === 'string') {
 			this.sessionId = obj.session_id
@@ -297,6 +305,8 @@ export class ClaudeCodeStreamParser implements StreamParser {
 		const role: StreamMessage['role'] = VALID_ROLES.has(rawRole as StreamMessage['role'])
 			? (rawRole as StreamMessage['role'])
 			: 'assistant'
+
+		if (role === 'assistant') this._responding = true
 
 		this.blockIndexMap.clear()
 		this.blockStartTokens.clear()

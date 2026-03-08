@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { DEFAULT_PANE_OPACITY, type AgentType, type PaneTheme } from '../../../shared/types'
+import { type AgentType, DEFAULT_PANE_OPACITY, type PaneTheme } from '../../../shared/types'
 import type {
 	BlockUsage,
 	ContentBlock,
@@ -426,6 +426,7 @@ export function StreamRenderer({ paneId, agentType, theme, themeOverride }: Stre
 	const rawText = useStore((s) => s.paneStreamText.get(paneId))
 	const killAgents = useStore((s) => s.killAgents)
 	const isSubprocess = useStore((s) => s.activeAgentIds.has(paneId))
+	const isAgentResponding = useStore((s) => s.paneAgentResponding.get(paneId) ?? false)
 	const scrollRef = useRef<HTMLDivElement>(null)
 	const wasAtBottomRef = useRef(true)
 	const rafRef = useRef(0)
@@ -487,7 +488,7 @@ export function StreamRenderer({ paneId, agentType, theme, themeOverride }: Stre
 					Type a message below to start
 				</div>
 			)}
-			{isStreaming && <StreamingBar paneId={paneId} onStop={handleStop} />}
+			{isAgentResponding && <StreamingBar paneId={paneId} onStop={handleStop} />}
 			<AgentStatusBar paneId={paneId} agentType={agentType} />
 			<MessageInput paneId={paneId} isStreaming={isStreaming} />
 		</div>
