@@ -234,7 +234,7 @@ describe('identity theme properties', () => {
 		}
 	})
 
-	it('all identity themes have animatedGlow', () => {
+	it('all identity themes have animatedGlow and gradient', () => {
 		for (const name of ['Matrix', 'Cyberpunk', 'Solana']) {
 			const preset = findPreset(name)
 			if (!preset) throw new Error(`${name} preset missing`)
@@ -250,8 +250,8 @@ describe('identity theme properties', () => {
 
 		const cyberpunk = findPreset('Cyberpunk')
 		const solana = findPreset('Solana')
-		expect(cyberpunk?.scanline).toBeUndefined()
-		expect(solana?.scanline).toBeUndefined()
+		expect(cyberpunk?.scanline).toBeFalsy()
+		expect(solana?.scanline).toBeFalsy()
 	})
 
 	it('identity theme gradients are valid CSS gradient strings', () => {
@@ -263,10 +263,19 @@ describe('identity theme properties', () => {
 	})
 
 	it('community themes do not have effects', () => {
-		const community = ['Default Dark', 'Dracula', 'Tokyo Night', 'Nord', 'Catppuccin', 'Gruvbox', 'Monokai', 'Solarized Light']
+		const community = [
+			'Default Dark',
+			'Dracula',
+			'Tokyo Night',
+			'Nord',
+			'Catppuccin',
+			'Gruvbox',
+			'Monokai',
+			'Solarized Light',
+		]
 		for (const name of community) {
 			const preset = findPreset(name)
-			if (!preset) continue
+			if (!preset) throw new Error(`${name} preset missing`)
 			expect(preset.gradient, `${name} should not have gradient`).toBeUndefined()
 			expect(preset.animatedGlow, `${name} should not have animatedGlow`).toBeUndefined()
 			expect(preset.scanline, `${name} should not have scanline`).toBeUndefined()

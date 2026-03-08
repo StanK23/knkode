@@ -29,7 +29,7 @@ Each preset in `THEME_PRESETS` has:
 | `glow` | `string` | No | Glow effect color — `box-shadow` on themed elements |
 | `gradient` | `string` | No | CSS gradient overlay on terminal panes (identity themes only) |
 | `animatedGlow` | `boolean` | No | Makes glow pulse (4s ease-in-out cycle) instead of static |
-| `scanline` | `boolean` | No | CRT-style scanline overlay with slow drift (Matrix only) |
+| `scanline` | `boolean` | No | CRT-style scanline overlay with slow drift |
 
 *All current presets define `ansiColors`. When omitted, xterm.js uses built-in defaults.
 
@@ -165,7 +165,7 @@ Add to `THEME_PRESETS` in `src/renderer/src/data/theme-presets.ts`:
 - Gradients should be barely perceptible (3-5% opacity) — atmosphere, not obstruction.
 - The glow animation runs at 4 seconds per cycle with `ease-in-out` — fast enough to feel alive, slow enough to not distract.
 - Scanlines use 3% opacity black lines at 4px pitch — visible on close inspection but invisible during focused work.
-- All effects are disabled when `prefers-reduced-motion: reduce` is set. The glow falls back to static 70% opacity; scanlines and gradient remain visible but static.
+- Glow and scanline animations are disabled when `prefers-reduced-motion: reduce` is set. The glow falls back to static 70% opacity; the scanline pattern remains visible but static. Gradient overlays are inherently static and unaffected.
 
 ### 6. Validation
 

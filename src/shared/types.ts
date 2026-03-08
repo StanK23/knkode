@@ -53,7 +53,7 @@ export interface PaneTheme {
 	ansiColors?: AnsiColors
 	/** UI accent color (buttons, focus rings, active tab indicators). Auto-derived if omitted. */
 	accent?: string
-	/** Glow color for theme effects (box-shadow, text-shadow). No glow when omitted. */
+	/** Glow color for theme effects (box-shadow). No glow when omitted. */
 	glow?: string
 	/** CSS gradient overlay on terminal panes. Applied as a subtle atmospheric layer. */
 	gradient?: string

@@ -222,8 +222,8 @@
 
 	/* ── Identity theme effects ───────────────────────────────────── */
 
-	/* Pulsing glow — animates opacity of a box-shadow overlay div.
-	   The box-shadow color is set via inline style in Terminal.tsx. */
+	/* Pulsing glow — pulses the overlay div between 50% and 100% opacity.
+	   The box-shadow itself is set via inline style in Terminal.tsx. */
 	@keyframes glow-pulse {
 		0%,
 		100% {
@@ -238,7 +238,7 @@
 	}
 
 	/* CRT scanline overlay — subtle horizontal lines that slowly drift.
-	   Only used by Matrix theme. */
+	   Used by themes with scanline: true. */
 	@keyframes scanline-drift {
 		0% {
 			background-position: 0 0;

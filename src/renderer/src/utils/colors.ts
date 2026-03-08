@@ -160,7 +160,7 @@ export function generateThemeVariables(opts: ThemeVarOptions): ThemeVariables {
 	}
 	const danger = '#e74c3c'
 
-	// Glow: box-shadow/text-shadow effect. Consumed by themed components in PR #3 (theme-presets).
+	// Glow: box-shadow effect for themed components.
 	const glowValue = glow && isValidHex(glow) ? `0 0 12px ${hexToRgba(glow, 0.4)}` : 'none'
 
 	// Typography: 1px smaller than terminal font size, clamped to 11-15px range
