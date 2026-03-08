@@ -16,9 +16,10 @@ function formatElapsed(ms: number): string {
 
 /** Extract a short model label from a model ID string.
  *  e.g. "claude-sonnet-4-6-20260301" → "sonnet 4.6" */
-function shortModelName(model: string): string {
-	// Match patterns like "claude-opus-4-6", "claude-sonnet-4-5-20250101"
-	const match = model.match(/claude-(\w+)-(\d+)-(\d+)/)
+export function shortModelName(model: string): string {
+	// Match "claude-{family}-{major}-{minor}" where minor is 1-2 digits
+	// Avoids mismatching date suffixes like "claude-sonnet-4-20250514"
+	const match = model.match(/^claude-([a-z]+)-(\d+)-(\d{1,2})(?:-|$)/)
 	if (match) return `${match[1]} ${match[2]}.${match[3]}`
 	// Fallback: strip "claude-" prefix if present
 	return model.replace(/^claude-/, '')
@@ -53,22 +54,20 @@ export const AgentStatusBar = memo(function AgentStatusBar({
 
 	// Derive model name and cumulative tokens from messages
 	const { model, inputTokens, outputTokens } = useMemo(() => {
-		let model: string | undefined
+		let latestModel: string | undefined
 		let input = 0
 		let output = 0
 		if (messages) {
 			for (const msg of messages) {
-				if (msg.model) model = msg.model
+				if (msg.model) latestModel = msg.model
 				if (msg.usage) {
 					input += msg.usage.inputTokens
 					output += msg.usage.outputTokens
 				}
 			}
 		}
-		return { model, inputTokens: input, outputTokens: output }
+		return { model: latestModel, inputTokens: input, outputTokens: output }
 	}, [messages])
-
-	const totalTokens = inputTokens + outputTokens
 
 	let activityLabel: string
 	if (isStreaming) activityLabel = 'Working'
@@ -78,7 +77,6 @@ export const AgentStatusBar = memo(function AgentStatusBar({
 
 	return (
 		<output
-			aria-live="polite"
 			aria-label={`${AGENT_LABELS[agentType]} agent status`}
 			className="h-7 flex items-center gap-2 px-2 text-xs bg-sunken border-b border-edge shrink-0 select-none"
 		>
@@ -92,7 +90,7 @@ export const AgentStatusBar = memo(function AgentStatusBar({
 
 			<span className="flex-1" />
 
-			{totalTokens > 0 && (
+			{inputTokens + outputTokens > 0 && (
 				<span
 					className="text-content-muted/60 tabular-nums text-[10px]"
 					title={`${inputTokens.toLocaleString()} input + ${outputTokens.toLocaleString()} output tokens`}

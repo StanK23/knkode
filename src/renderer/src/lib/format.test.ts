@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { shortModelName } from '../components/AgentStatusBar'
 import { formatTokens } from './format'
 
 describe('formatTokens', () => {
@@ -17,5 +18,26 @@ describe('formatTokens', () => {
 		expect(formatTokens(10_000)).toBe('10k')
 		expect(formatTokens(12_345)).toBe('12k')
 		expect(formatTokens(99_999)).toBe('100k')
+	})
+})
+
+describe('shortModelName', () => {
+	it('extracts family and version from standard model IDs', () => {
+		expect(shortModelName('claude-sonnet-4-6-20260301')).toBe('sonnet 4.6')
+		expect(shortModelName('claude-opus-4-6')).toBe('opus 4.6')
+		expect(shortModelName('claude-haiku-4-5-20251001')).toBe('haiku 4.5')
+	})
+
+	it('falls through to fallback for models without minor version', () => {
+		// "claude-sonnet-4-20250514" — date suffix should NOT be captured as minor
+		expect(shortModelName('claude-sonnet-4-20250514')).toBe('sonnet-4-20250514')
+	})
+
+	it('strips claude- prefix for unknown formats', () => {
+		expect(shortModelName('claude-custom-model')).toBe('custom-model')
+	})
+
+	it('returns as-is for non-claude models', () => {
+		expect(shortModelName('gpt-4o')).toBe('gpt-4o')
 	})
 })
