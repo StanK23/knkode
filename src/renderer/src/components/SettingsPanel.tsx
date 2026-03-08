@@ -12,7 +12,7 @@ import {
 	type Workspace,
 	isCursorStyle,
 } from '../../../shared/types'
-import { THEME_PRESETS, findPreset } from '../data/theme-presets'
+import { THEME_PRESETS, type ThemePreset, findPreset } from '../data/theme-presets'
 import { applyPresetWithRemap, useStore } from '../store'
 import { hexToRgba } from '../utils/colors'
 import { isMac } from '../utils/platform'
@@ -624,7 +624,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 										document.getElementById(`theme-preset-${next}`)?.focus()
 									}}
 								>
-									{THEME_PRESETS.map((preset, index) => {
+									{(THEME_PRESETS as readonly ThemePreset[]).map((preset, index) => {
 										const isActive = selectedPreset === preset.name
 										return (
 											<button
