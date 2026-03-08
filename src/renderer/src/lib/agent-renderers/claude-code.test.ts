@@ -1103,3 +1103,177 @@ describe('TRACE: multi-turn merge flow', () => {
 		}
 	})
 })
+
+describe('per-block usage tracking', () => {
+	it('computes output token deltas per content block', () => {
+		const parser = new ClaudeCodeStreamParser()
+		parser.feed(
+			line({
+				type: 'message_start',
+				message: {
+					id: 'msg_usage',
+					role: 'assistant',
+					model: 'claude-opus-4-6',
+					usage: { input_tokens: 100, output_tokens: 0 },
+				},
+			}),
+		)
+
+		// Block 0: text — tokens go from 0 to 50
+		parser.feed(line({ type: 'content_block_start', index: 0, content_block: { type: 'text' } }))
+		parser.feed(
+			line({
+				type: 'content_block_delta',
+				index: 0,
+				delta: { type: 'text_delta', text: 'Hello' },
+			}),
+		)
+		parser.feed(line({ type: 'message_delta', delta: {}, usage: { output_tokens: 50 } }))
+		parser.feed(line({ type: 'content_block_stop', index: 0 }))
+
+		// Block 1: tool_use — tokens go from 50 to 120
+		parser.feed(
+			line({
+				type: 'content_block_start',
+				index: 1,
+				content_block: { type: 'tool_use', id: 'tool1', name: 'Read' },
+			}),
+		)
+		parser.feed(
+			line({
+				type: 'content_block_delta',
+				index: 1,
+				delta: { type: 'input_json_delta', partial_json: '{}' },
+			}),
+		)
+		parser.feed(line({ type: 'message_delta', delta: {}, usage: { output_tokens: 120 } }))
+		parser.feed(line({ type: 'content_block_stop', index: 1 }))
+
+		// Block 2: thinking — tokens go from 120 to 200
+		parser.feed(
+			line({ type: 'content_block_start', index: 2, content_block: { type: 'thinking' } }),
+		)
+		parser.feed(
+			line({
+				type: 'content_block_delta',
+				index: 2,
+				delta: { type: 'thinking_delta', thinking: 'hmm' },
+			}),
+		)
+		parser.feed(line({ type: 'message_delta', delta: {}, usage: { output_tokens: 200 } }))
+		parser.feed(line({ type: 'content_block_stop', index: 2 }))
+
+		parser.feed(line({ type: 'message_stop' }))
+
+		const blocks = parser.getMessages()[0].blocks
+		expect(blocks).toHaveLength(3)
+		expect(blocks[0].type).toBe('text')
+		if (blocks[0].type === 'text') expect(blocks[0].usage).toEqual({ outputTokens: 50 })
+		expect(blocks[1].type).toBe('tool_use')
+		if (blocks[1].type === 'tool_use') expect(blocks[1].usage).toEqual({ outputTokens: 70 })
+		expect(blocks[2].type).toBe('thinking')
+		if (blocks[2].type === 'thinking') expect(blocks[2].usage).toEqual({ outputTokens: 80 })
+	})
+
+	it('does not set usage when no token deltas received', () => {
+		const parser = new ClaudeCodeStreamParser()
+		parser.feed(
+			line({
+				type: 'message_start',
+				message: { id: 'msg_no_usage', role: 'assistant' },
+			}),
+		)
+		parser.feed(
+			line({
+				type: 'content_block_start',
+				index: 0,
+				content_block: { type: 'text' },
+			}),
+		)
+		parser.feed(
+			line({
+				type: 'content_block_delta',
+				index: 0,
+				delta: { type: 'text_delta', text: 'Hi' },
+			}),
+		)
+		parser.feed(line({ type: 'content_block_stop', index: 0 }))
+		parser.feed(line({ type: 'message_stop' }))
+
+		const blocks = parser.getMessages()[0].blocks
+		if (blocks[0].type === 'text') expect(blocks[0].usage).toBeUndefined()
+	})
+
+	it('tracks per-block usage across merged multi-turn messages', () => {
+		const parser = new ClaudeCodeStreamParser()
+
+		// Turn 1: assistant message with one text block (50 tokens)
+		parser.feed(
+			line({
+				type: 'message_start',
+				message: {
+					id: 'msg_t1',
+					role: 'assistant',
+					usage: { input_tokens: 100, output_tokens: 0 },
+				},
+			}),
+		)
+		parser.feed(
+			line({
+				type: 'content_block_start',
+				index: 0,
+				content_block: { type: 'text' },
+			}),
+		)
+		parser.feed(
+			line({
+				type: 'content_block_delta',
+				index: 0,
+				delta: { type: 'text_delta', text: 'Turn 1' },
+			}),
+		)
+		parser.feed(line({ type: 'message_delta', delta: {}, usage: { output_tokens: 50 } }))
+		parser.feed(line({ type: 'content_block_stop', index: 0 }))
+		parser.feed(line({ type: 'message_stop' }))
+
+		// Turn 2: merged assistant message (API resets output_tokens to 0)
+		parser.feed(
+			line({
+				type: 'message_start',
+				message: {
+					id: 'msg_t2',
+					role: 'assistant',
+					usage: { input_tokens: 200, output_tokens: 0 },
+				},
+			}),
+		)
+		parser.feed(
+			line({
+				type: 'content_block_start',
+				index: 0,
+				content_block: { type: 'text' },
+			}),
+		)
+		parser.feed(
+			line({
+				type: 'content_block_delta',
+				index: 0,
+				delta: { type: 'text_delta', text: 'Turn 2' },
+			}),
+		)
+		parser.feed(line({ type: 'message_delta', delta: {}, usage: { output_tokens: 30 } }))
+		parser.feed(line({ type: 'content_block_stop', index: 0 }))
+		parser.feed(line({ type: 'message_stop' }))
+
+		// Merged into one message with two text blocks
+		const msgs = parser.getMessages()
+		expect(msgs).toHaveLength(1)
+		const blocks = msgs[0].blocks
+		expect(blocks).toHaveLength(2)
+
+		// Turn 1 block: 50 tokens
+		if (blocks[0].type === 'text') expect(blocks[0].usage).toEqual({ outputTokens: 50 })
+		// Turn 2 block: 30 tokens (NOT negative due to reset)
+		if (blocks[1].type === 'text') expect(blocks[1].usage).toEqual({ outputTokens: 30 })
+	})
+})

@@ -32,6 +32,10 @@ export class ClaudeCodeStreamParser implements StreamParser {
 	private consecutiveParseFailures = 0
 	/** Session ID from the last result event — used for --resume on next turn. */
 	private sessionId: string | null = null
+	/** Last seen cumulative output_tokens — used to compute per-block token deltas. */
+	private lastOutputTokens = 0
+	/** Per content block index: output_tokens at block start. */
+	private blockStartTokens = new Map<number, number>()
 
 	feed(chunk: string): void {
 		this.lineBuffer += chunk
@@ -78,6 +82,8 @@ export class ClaudeCodeStreamParser implements StreamParser {
 		this.lineBuffer = ''
 		this.blockIndexMap.clear()
 		this.consecutiveParseFailures = 0
+		this.lastOutputTokens = 0
+		this.blockStartTokens.clear()
 		// Preserve sessionId across resets — needed for multi-turn --resume
 	}
 
@@ -152,7 +158,7 @@ export class ClaudeCodeStreamParser implements StreamParser {
 				this.handleContentBlockDelta(event)
 				break
 			case 'content_block_stop':
-				// No action needed — block is already accumulated
+				this.handleContentBlockStop(event)
 				break
 			case 'message_delta':
 				this.handleMessageDelta(event)
@@ -278,13 +284,15 @@ export class ClaudeCodeStreamParser implements StreamParser {
 			: 'assistant'
 
 		this.blockIndexMap.clear()
+		this.blockStartTokens.clear()
+		// API resets output_tokens to 0 for each new message response
+		this.lastOutputTokens = 0
 
 		// Merge consecutive assistant messages into one — each tool-use round-trip
 		// in Claude CLI creates a new message_start, but it's all one turn.
+		// blockIndexMap cleared above so new content_block_start events append correctly.
 		const last = this.currentMessage()
 		if (role === 'assistant' && last?.role === 'assistant') {
-			// Reuse existing message — just mark as streaming again and
-			// remap block indices starting after existing blocks.
 			last.streaming = true
 			last.stopReason = null
 			return
@@ -340,6 +348,7 @@ export class ClaudeCodeStreamParser implements StreamParser {
 		}
 
 		this.blockIndexMap.set(index, msg.blocks.length)
+		this.blockStartTokens.set(index, this.lastOutputTokens)
 		msg.blocks.push(block)
 	}
 
@@ -381,6 +390,27 @@ export class ClaudeCodeStreamParser implements StreamParser {
 		}
 	}
 
+	/** Compute tokens spent on this block from the output_tokens delta since block start. */
+	private handleContentBlockStop(event: Record<string, unknown>): void {
+		const msg = this.currentMessage()
+		if (!msg) return
+
+		const index = Number(event.index ?? 0)
+		const blockIdx = this.blockIndexMap.get(index)
+		if (blockIdx === undefined) return
+
+		const block = msg.blocks[blockIdx]
+		// tool_result has no usage field (not model-generated) — also narrows type for TS
+		if (!block || block.type === 'tool_result') return
+
+		const startTokens = this.blockStartTokens.get(index) ?? 0
+		const delta = this.lastOutputTokens - startTokens
+		if (delta > 0) {
+			block.usage = { outputTokens: delta }
+		}
+		this.blockStartTokens.delete(index)
+	}
+
 	private handleMessageDelta(event: Record<string, unknown>): void {
 		const msg = this.currentMessage()
 		if (!msg) return
@@ -396,7 +426,9 @@ export class ClaudeCodeStreamParser implements StreamParser {
 				msg.usage = { inputTokens: 0, outputTokens: 0 }
 			}
 			if (usage.output_tokens !== undefined) {
-				msg.usage.outputTokens = Number(usage.output_tokens)
+				const tokens = Number(usage.output_tokens)
+				msg.usage.outputTokens = tokens
+				this.lastOutputTokens = tokens
 			}
 		}
 	}

@@ -6,9 +6,16 @@
 
 // ── Content Blocks ──────────────────────────────────────────────────────────
 
+/** Token usage for a content block — computed as the output_tokens delta between block start and stop. */
+export interface BlockUsage {
+	outputTokens: number
+}
+
 export interface TextBlock {
 	type: 'text'
 	text: string
+	/** Tokens spent generating this block (output tokens only). */
+	usage?: BlockUsage
 }
 
 export interface ToolUseBlock {
@@ -17,9 +24,12 @@ export interface ToolUseBlock {
 	name: string
 	/** Accumulated partial JSON string. Parse when block is complete. */
 	inputJson: string
+	/** Tokens spent generating this tool call (output tokens only). */
+	usage?: BlockUsage
 }
 
-/** Tool execution result, paired with the corresponding ToolUseBlock for rendering. */
+/** Tool execution result, paired with the corresponding ToolUseBlock for rendering.
+ *  No usage field — tool results are not model-generated. */
 export interface ToolResultBlock {
 	type: 'tool_result'
 	toolUseId: string
@@ -30,11 +40,19 @@ export interface ToolResultBlock {
 export interface ThinkingBlock {
 	type: 'thinking'
 	text: string
+	/** Tokens spent on this thinking block (output tokens only). */
+	usage?: BlockUsage
 }
 
 export type ContentBlock = TextBlock | ToolUseBlock | ToolResultBlock | ThinkingBlock
 
 // ── Messages ────────────────────────────────────────────────────────────────
+
+/** Cumulative token usage for a full message (input + output). */
+export interface MessageUsage {
+	inputTokens: number
+	outputTokens: number
+}
 
 export interface StreamMessage {
 	id: string
@@ -42,7 +60,7 @@ export interface StreamMessage {
 	model?: string
 	blocks: ContentBlock[]
 	stopReason: string | null
-	usage: { inputTokens: number; outputTokens: number } | null
+	usage: MessageUsage | null
 	/** true while message is still receiving events */
 	streaming: boolean
 }
