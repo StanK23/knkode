@@ -4,7 +4,14 @@ import { isValidHex, resolveBackground } from '../utils/colors'
 
 export type ThemePreset = Pick<
 	PaneTheme,
-	'background' | 'foreground' | 'ansiColors' | 'accent' | 'glow'
+	| 'background'
+	| 'foreground'
+	| 'ansiColors'
+	| 'accent'
+	| 'glow'
+	| 'gradient'
+	| 'animatedGlow'
+	| 'scanline'
 > & { name: string }
 
 /** Tango-based ANSI palette used by the Default Dark preset. */
@@ -210,6 +217,9 @@ export const THEME_PRESETS = [
 		foreground: '#00ff41',
 		accent: '#00ff41',
 		glow: '#00ff41',
+		gradient: 'linear-gradient(180deg, rgba(0, 255, 65, 0.03) 0%, transparent 40%)',
+		animatedGlow: true,
+		scanline: true,
 		ansiColors: {
 			black: '#0a0a0a',
 			red: '#00cc33',
@@ -235,6 +245,8 @@ export const THEME_PRESETS = [
 		foreground: '#f0e6ff',
 		accent: '#ff2a6d',
 		glow: '#ff2a6d',
+		gradient: 'linear-gradient(135deg, rgba(255, 42, 109, 0.04) 0%, rgba(5, 217, 232, 0.03) 100%)',
+		animatedGlow: true,
 		ansiColors: {
 			black: '#0d0221',
 			red: '#ff2a6d',
@@ -260,6 +272,8 @@ export const THEME_PRESETS = [
 		foreground: '#e0e0f0',
 		accent: '#9945ff',
 		glow: '#14f195',
+		gradient: 'linear-gradient(160deg, rgba(153, 69, 255, 0.03) 0%, rgba(20, 241, 149, 0.03) 100%)',
+		animatedGlow: true,
 		ansiColors: {
 			black: '#0c0c1d',
 			red: '#ff6b6b',
