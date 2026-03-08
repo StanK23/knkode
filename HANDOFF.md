@@ -6,7 +6,7 @@
 - Active plan: Theming Rework (knktx board: 6acd4876)
 
 ## What Was Done
-- PR #78 (feature/theme-presets → dev/theming): Trimmed 16 presets to 11 most distinct. Added 3 identity themes (Matrix, Cyberpunk, Solana) with full ANSI palettes, accent, glow. 8-agent review, all findings fixed.
+- PR #78 merged (feature/theme-presets → dev/theming): Trimmed 16 presets to 11 most distinct. Added 3 identity themes (Matrix, Cyberpunk, Solana) with full ANSI palettes, accent, glow. 8-agent review, all findings fixed.
 - PR #77 merged (feature/theme-engine → dev/theming): Deep theming engine — ANSI 16-color palettes, per-theme accent/glow CSS vars, preset-based selection. 10-agent review, all findings fixed.
 - PR #76 merged (feature/settings-tabs → dev/theming): Settings panel split into Workspace/Terminal tabs with full ARIA compliance
 - CI workflow disabled (.github/workflows/ci.yml.disabled)
@@ -27,7 +27,7 @@ The rendered agent view (stream-json parsing, custom chat UI) works but carries 
 ## Theming Rework Plan
 1. ~~PR #76: Settings tabs~~ (merged)
 2. ~~PR #77: Theme engine — ANSI palettes, accent, glow~~ (merged)
-3. PR #78: Theme presets — 11 distinct identities (in review)
+3. ~~PR #78: Theme presets — 11 distinct identities~~ (merged)
 4. PR #4: Theming guide document
 
 ## Remaining Work
