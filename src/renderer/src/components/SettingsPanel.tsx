@@ -345,6 +345,9 @@ interface SettingsPanelProps {
 	onClose: () => void
 }
 
+const SETTINGS_TABS = ['Workspace', 'Terminal'] as const
+type SettingsTab = (typeof SETTINGS_TABS)[number]
+
 export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const updateWorkspace = useStore((s) => s.updateWorkspace)
 	const removeWorkspace = useStore((s) => s.removeWorkspace)
@@ -352,6 +355,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const killPtys = useStore((s) => s.killPtys)
 	const homeDir = useStore((s) => s.homeDir)
 
+	const [activeTab, setActiveTab] = useState<SettingsTab>('Workspace')
 	const [name, setName] = useState(workspace.name)
 	const [color, setColor] = useState(workspace.color)
 	const [bg, setBg] = useState(workspace.theme.background)
@@ -474,7 +478,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 				role="dialog"
 				aria-modal="true"
 				aria-label="Workspace Settings"
-				className="bg-canvas/80 backdrop-blur-2xl border border-edge/50 rounded-md w-[600px] max-w-[calc(100vw-2rem)] max-h-[85vh] flex flex-col shadow-panel animate-panel-in"
+				className="bg-canvas/80 backdrop-blur-2xl border border-edge/50 rounded-md w-[600px] max-w-[calc(100vw-2rem)] h-[85vh] flex flex-col shadow-panel animate-panel-in"
 				onClick={(e) => e.stopPropagation()}
 			>
 				<div className="flex items-center justify-between px-6 py-4 border-b border-edge/50">
@@ -489,217 +493,247 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					</button>
 				</div>
 
+				{/* Tab bar */}
+				<div className="flex gap-0 px-6 border-b border-edge/50" role="tablist">
+					{SETTINGS_TABS.map((tab) => (
+						<button
+							key={tab}
+							type="button"
+							role="tab"
+							aria-selected={activeTab === tab}
+							onClick={() => setActiveTab(tab)}
+							className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer bg-transparent ${
+								activeTab === tab
+									? 'border-accent text-content'
+									: 'border-transparent text-content-muted hover:text-content-secondary'
+							}`}
+						>
+							{tab}
+						</button>
+					))}
+				</div>
+
 				<div className="px-6 py-6 overflow-y-auto overflow-x-hidden flex flex-col gap-8">
-					{/* General */}
-					<SettingsSection label="General">
-						<label className="flex items-center gap-3">
-							<span className="text-xs text-content-secondary w-16 shrink-0">Name</span>
-							<input
-								value={name}
-								onChange={(e) => setName(e.target.value)}
-								maxLength={128}
-								className="settings-input flex-1 min-w-0"
-							/>
-						</label>
-						<label className="flex items-center gap-3">
-							<span className="text-xs text-content-secondary w-16 shrink-0">Color</span>
-							<input
-								type="color"
-								value={color}
-								onChange={(e) => setColor(e.target.value)}
-								className="color-swatch"
-							/>
-						</label>
-					</SettingsSection>
-					{/* Panes */}
-					<SettingsSection label="Panes" gap={8}>
-						{Object.entries(workspace.panes).map(([paneId, pane]) => (
-							<div key={paneId} className="flex gap-1.5">
-								<input
-									value={pane.label}
-									onChange={(e) => handlePaneUpdate(paneId, { label: e.target.value })}
-									className="settings-input w-24 shrink-0"
-									placeholder="Label"
-									aria-label={`Pane ${pane.label} label`}
-								/>
-								<CwdInput
-									value={pane.cwd}
-									homeDir={homeDir}
-									onChange={(cwd) => handlePaneUpdate(paneId, { cwd })}
-									aria-label={`Pane ${pane.label} working directory`}
-								/>
-								<input
-									value={pane.startupCommand || ''}
-									onChange={(e) =>
-										handlePaneUpdate(paneId, {
-											startupCommand: e.target.value || null,
-										})
-									}
-									className="settings-input flex-[2] min-w-0"
-									placeholder="Startup command"
-									aria-label={`Pane ${pane.label} startup command`}
-								/>
-							</div>
-						))}
-					</SettingsSection>
-					{/* Terminal */}
-					<SettingsSection label="Terminal" gap={16}>
-						{/* Theme preset grid — each name is rendered in its own theme colors as a live preview */}
-						<div className="grid grid-cols-4 gap-1.5">
-							{THEME_PRESETS.map((preset) => {
-								const isActive = bg === preset.background && fg === preset.foreground
-								return (
-									<button
-										type="button"
-										key={preset.name}
-										onClick={() => handlePresetClick(preset.background, preset.foreground)}
-										aria-pressed={isActive}
-										className={`py-1.5 px-1 rounded-md cursor-pointer border text-center focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
-											isActive
-												? 'border-accent ring-1 ring-accent'
-												: 'border-transparent hover:border-content-muted'
-										}`}
-										title={preset.name}
-										aria-label={preset.name}
-										style={{ background: preset.background, color: preset.foreground }}
-									>
-										<span className="text-[11px] font-medium leading-tight block truncate">
-											{preset.name}
+					{activeTab === 'Workspace' && (
+						<>
+							{/* General */}
+							<SettingsSection label="General">
+								<label className="flex items-center gap-3">
+									<span className="text-xs text-content-secondary w-16 shrink-0">Name</span>
+									<input
+										value={name}
+										onChange={(e) => setName(e.target.value)}
+										maxLength={128}
+										className="settings-input flex-1 min-w-0"
+									/>
+								</label>
+								<label className="flex items-center gap-3">
+									<span className="text-xs text-content-secondary w-16 shrink-0">Color</span>
+									<input
+										type="color"
+										value={color}
+										onChange={(e) => setColor(e.target.value)}
+										className="color-swatch"
+									/>
+								</label>
+							</SettingsSection>
+							{/* Panes */}
+							<SettingsSection label="Panes" gap={8}>
+								{Object.entries(workspace.panes).map(([paneId, pane]) => (
+									<div key={paneId} className="flex gap-1.5">
+										<input
+											value={pane.label}
+											onChange={(e) => handlePaneUpdate(paneId, { label: e.target.value })}
+											className="settings-input w-24 shrink-0"
+											placeholder="Label"
+											aria-label={`Pane ${pane.label} label`}
+										/>
+										<CwdInput
+											value={pane.cwd}
+											homeDir={homeDir}
+											onChange={(cwd) => handlePaneUpdate(paneId, { cwd })}
+											aria-label={`Pane ${pane.label} working directory`}
+										/>
+										<input
+											value={pane.startupCommand || ''}
+											onChange={(e) =>
+												handlePaneUpdate(paneId, {
+													startupCommand: e.target.value || null,
+												})
+											}
+											className="settings-input flex-[2] min-w-0"
+											placeholder="Startup command"
+											aria-label={`Pane ${pane.label} startup command`}
+										/>
+									</div>
+								))}
+							</SettingsSection>
+							{/* Layout */}
+							<LayoutPicker current={currentPreset} onSelect={handleLayoutChange} />
+							{/* Snippets */}
+							<SnippetsSection />
+						</>
+					)}
+
+					{activeTab === 'Terminal' && (
+						<>
+							{/* Theme presets */}
+							<SettingsSection label="Theme" gap={16}>
+								<div className="grid grid-cols-4 gap-1.5">
+									{THEME_PRESETS.map((preset) => {
+										const isActive = bg === preset.background && fg === preset.foreground
+										return (
+											<button
+												type="button"
+												key={preset.name}
+												onClick={() => handlePresetClick(preset.background, preset.foreground)}
+												aria-pressed={isActive}
+												className={`py-1.5 px-1 rounded-md cursor-pointer border text-center focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
+													isActive
+														? 'border-accent ring-1 ring-accent'
+														: 'border-transparent hover:border-content-muted'
+												}`}
+												title={preset.name}
+												aria-label={preset.name}
+												style={{ background: preset.background, color: preset.foreground }}
+											>
+												<span className="text-[11px] font-medium leading-tight block truncate">
+													{preset.name}
+												</span>
+											</button>
+										)
+									})}
+								</div>
+
+								{/* Custom colors */}
+								<div className="flex items-center gap-4">
+									<label className="flex items-center gap-2">
+										<span className="text-xs text-content-secondary shrink-0">Background</span>
+										<input
+											type="color"
+											value={bg}
+											onChange={(e) => setBg(e.target.value)}
+											className="color-swatch"
+										/>
+									</label>
+									<label className="flex items-center gap-2">
+										<span className="text-xs text-content-secondary shrink-0">Foreground</span>
+										<input
+											type="color"
+											value={fg}
+											onChange={(e) => setFg(e.target.value)}
+											className="color-swatch"
+										/>
+									</label>
+								</div>
+							</SettingsSection>
+
+							{/* Font & Display */}
+							<SettingsSection label="Font & Display" gap={12}>
+								<div className="flex items-center gap-3">
+									<span className="text-xs text-content-secondary w-20 shrink-0">Font</span>
+									<div className="flex-1 min-w-0">
+										<FontPicker value={fontFamily} onChange={setFontFamily} />
+									</div>
+								</div>
+
+								<div className="flex items-center gap-3">
+									<span className="text-xs text-content-secondary w-20 shrink-0">Size</span>
+									<div className="flex items-center gap-2">
+										<button
+											type="button"
+											onClick={() => setFontSize((s) => Math.max(8, s - 1))}
+											aria-label="Decrease font size"
+											className="stepper-btn"
+										>
+											-
+										</button>
+										<span className="text-xs text-content tabular-nums w-5 text-center">
+											{fontSize}
 										</span>
-									</button>
-								)
-							})}
-						</div>
-
-						<div className="flex flex-col gap-3">
-							{/* Custom colors */}
-							<div className="flex items-center gap-4">
-								<label className="flex items-center gap-2">
-									<span className="text-xs text-content-secondary shrink-0">Background</span>
-									<input
-										type="color"
-										value={bg}
-										onChange={(e) => setBg(e.target.value)}
-										className="color-swatch"
-									/>
-								</label>
-								<label className="flex items-center gap-2">
-									<span className="text-xs text-content-secondary shrink-0">Foreground</span>
-									<input
-										type="color"
-										value={fg}
-										onChange={(e) => setFg(e.target.value)}
-										className="color-swatch"
-									/>
-								</label>
-							</div>
-
-							{/* Font settings */}
-							<div className="flex items-center gap-3">
-								<span className="text-xs text-content-secondary w-20 shrink-0">Font</span>
-								<div className="flex-1 min-w-0">
-									<FontPicker value={fontFamily} onChange={setFontFamily} />
+										<button
+											type="button"
+											onClick={() => setFontSize((s) => Math.min(32, s + 1))}
+											aria-label="Increase font size"
+											className="stepper-btn"
+										>
+											+
+										</button>
+									</div>
 								</div>
-							</div>
 
-							<div className="flex items-center gap-3">
-								<span className="text-xs text-content-secondary w-20 shrink-0">Size</span>
-								<div className="flex items-center gap-2">
-									<button
-										type="button"
-										onClick={() => setFontSize((s) => Math.max(8, s - 1))}
-										aria-label="Decrease font size"
-										className="stepper-btn"
+								<label className="flex items-center gap-3">
+									<span className="text-xs text-content-secondary w-20 shrink-0">Cursor</span>
+									<select
+										value={cursorStyle}
+										onChange={(e) => {
+											if (isCursorStyle(e.target.value)) setCursorStyle(e.target.value)
+										}}
+										className="settings-input w-32"
 									>
-										-
-									</button>
-									<span className="text-xs text-content tabular-nums w-5 text-center">
-										{fontSize}
-									</span>
-									<button
-										type="button"
-										onClick={() => setFontSize((s) => Math.min(32, s + 1))}
-										aria-label="Increase font size"
-										className="stepper-btn"
-									>
-										+
-									</button>
-								</div>
-							</div>
+										{CURSOR_STYLES.map((s) => (
+											<option key={s} value={s}>
+												{s[0].toUpperCase() + s.slice(1)}
+											</option>
+										))}
+									</select>
+								</label>
+
+								<label className="flex items-center gap-3">
+									<span className="text-xs text-content-secondary w-20 shrink-0">Scrollback</span>
+									<input
+										type="number"
+										min={MIN_SCROLLBACK}
+										max={MAX_SCROLLBACK}
+										step={500}
+										value={scrollback}
+										onChange={(e) => {
+											const n = Number(e.target.value)
+											if (!Number.isFinite(n)) return
+											setScrollback(Math.max(MIN_SCROLLBACK, Math.min(MAX_SCROLLBACK, n)))
+										}}
+										className="settings-input w-24"
+									/>
+									<span className="text-[11px] text-content-muted">lines</span>
+								</label>
+							</SettingsSection>
 
 							{/* Behavior */}
-							<label className="flex items-center gap-3">
-								<span className="text-xs text-content-secondary w-20 shrink-0">Dim unfocused</span>
-								<input
-									type="range"
-									min={0}
-									max={0.7}
-									step={0.05}
-									value={unfocusedDim}
-									onChange={(e) => setUnfocusedDim(Number(e.target.value))}
-									className="w-32"
-								/>
-								<span className="text-[11px] text-content-muted w-7">
-									{Math.round(unfocusedDim * 100)}%
-								</span>
-							</label>
+							<SettingsSection label="Behavior" gap={12}>
+								<label className="flex items-center gap-3">
+									<span className="text-xs text-content-secondary w-20 shrink-0">Dim unfocused</span>
+									<input
+										type="range"
+										min={0}
+										max={0.7}
+										step={0.05}
+										value={unfocusedDim}
+										onChange={(e) => setUnfocusedDim(Number(e.target.value))}
+										className="w-32"
+									/>
+									<span className="text-[11px] text-content-muted w-7">
+										{Math.round(unfocusedDim * 100)}%
+									</span>
+								</label>
 
-							<label className="flex items-center gap-3">
-								<span className="text-xs text-content-secondary w-20 shrink-0">Opacity</span>
-								<input
-									type="range"
-									min={0.1}
-									max={1}
-									step={0.05}
-									value={paneOpacity}
-									onChange={(e) => setPaneOpacity(Number(e.target.value))}
-									className="w-32"
-								/>
-								<span className="text-[11px] text-content-muted w-7">
-									{Math.round(paneOpacity * 100)}%
-								</span>
-							</label>
-
-							<label className="flex items-center gap-3">
-								<span className="text-xs text-content-secondary w-20 shrink-0">Cursor</span>
-								<select
-									value={cursorStyle}
-									onChange={(e) => {
-										if (isCursorStyle(e.target.value)) setCursorStyle(e.target.value)
-									}}
-									className="settings-input w-32"
-								>
-									{CURSOR_STYLES.map((s) => (
-										<option key={s} value={s}>
-											{s[0].toUpperCase() + s.slice(1)}
-										</option>
-									))}
-								</select>
-							</label>
-
-							<label className="flex items-center gap-3">
-								<span className="text-xs text-content-secondary w-20 shrink-0">Scrollback</span>
-								<input
-									type="number"
-									min={MIN_SCROLLBACK}
-									max={MAX_SCROLLBACK}
-									step={500}
-									value={scrollback}
-									onChange={(e) => {
-										const n = Number(e.target.value)
-										if (!Number.isFinite(n)) return
-										setScrollback(Math.max(MIN_SCROLLBACK, Math.min(MAX_SCROLLBACK, n)))
-									}}
-									className="settings-input w-24"
-								/>
-								<span className="text-[11px] text-content-muted">lines</span>
-							</label>
-						</div>
-					</SettingsSection>
-					{/* Layout */}
-					<LayoutPicker current={currentPreset} onSelect={handleLayoutChange} />
-					{/* Snippets */}
-					<SnippetsSection />
+								<label className="flex items-center gap-3">
+									<span className="text-xs text-content-secondary w-20 shrink-0">Opacity</span>
+									<input
+										type="range"
+										min={0.1}
+										max={1}
+										step={0.05}
+										value={paneOpacity}
+										onChange={(e) => setPaneOpacity(Number(e.target.value))}
+										className="w-32"
+									/>
+									<span className="text-[11px] text-content-muted w-7">
+										{Math.round(paneOpacity * 100)}%
+									</span>
+								</label>
+							</SettingsSection>
+						</>
+					)}
 				</div>
 
 				<div className="flex items-center gap-2 px-6 py-3 border-t border-edge/50">
