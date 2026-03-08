@@ -45,10 +45,10 @@ Programs request colors by name (e.g., "red" for errors) but get whatever hex va
 ## Preset Categories
 
 ### Community themes (general-purpose)
-Standard color schemes developers expect: Dracula, Tokyo Night, Nord, Catppuccin, Gruvbox, Monokai, Solarized Light. Each has a distinct color temperature and personality but uses conventional ANSI mappings (red is red, blue is blue).
+Standard color schemes developers expect: Default Dark, Dracula, Tokyo Night, Nord, Catppuccin, Gruvbox, Monokai, Solarized Light. Each has a distinct color temperature and personality but uses conventional ANSI mappings (red is red, blue is blue). Some community themes also define `accent` and `glow` (Dracula, Tokyo Night, Catppuccin).
 
-### Identity themes (brand/aesthetic, always have accent + glow)
-Themes built around a single brand or aesthetic identity: Matrix, Cyberpunk, Solana. These remap ANSI colors to match the theme's personality — a Matrix terminal is entirely green, a Cyberpunk terminal is neon pink and cyan. All identity themes require both `accent` and `glow`.
+### Identity themes (remapped ANSI for a specific aesthetic)
+Themes built around a single brand or aesthetic identity: Matrix, Cyberpunk, Solana. The key distinction is **ANSI color remapping** — a Matrix terminal maps all 16 color slots to green shades, so `red` text appears green. A Cyberpunk terminal remaps to neon pink and cyan. All identity themes also require both `accent` and `glow`.
 
 ## CSS Custom Properties
 
@@ -64,27 +64,27 @@ Themes built around a single brand or aesthetic identity: Matrix, Cyberpunk, Sol
 | `--color-overlay-hover` | Overlay hover state |
 | `--color-overlay-active` | Overlay active state |
 
-Surface levels are derived by mixing the background with white (dark mode) or black (light mode). The engine auto-detects dark vs light from background luminance.
+Elevated and overlay surfaces are derived by mixing the background toward white (dark mode) or black (light mode). Sunken surfaces mix toward black (dark mode) or light gray (light mode), creating visual depth. The engine auto-detects dark vs light from background luminance.
 
 ### Content (auto-derived from foreground)
 | Variable | Description |
 |----------|-------------|
 | `--color-content` | Primary text |
-| `--color-content-secondary` | 80% fg blended with bg |
-| `--color-content-muted` | 55% fg blended with bg |
+| `--color-content-secondary` | mix(fg, bg, 0.8) — 80% foreground |
+| `--color-content-muted` | mix(fg, bg, 0.55) — 55% foreground |
 
 ### Accents & Effects
 | Variable | Description |
 |----------|-------------|
 | `--color-accent` | Per-theme accent or auto-derived (`#6c63ff` dark / `#4d46e5` light) |
 | `--color-danger` | Error/destructive actions (`#e74c3c`, constant) |
-| `--color-edge` | Borders — 85% bg + 15% fg tint |
+| `--color-edge` | Borders — mix(bg, fg, 0.85) |
 | `--theme-glow` | Box-shadow value or `none` — e.g., `0 0 12px rgba(189, 147, 249, 0.4)` |
 
 ### Typography
 | Variable | Description |
 |----------|-------------|
-| `--font-family-ui` | UI font (from preset or fallback chain) |
+| `--font-family-ui` | UI font — validated against `TERMINAL_FONTS` allowlist to prevent CSS injection |
 | `--font-size-ui` | Terminal font size minus 1px, clamped to 11–15px |
 
 ## Creating a New Theme
@@ -98,6 +98,7 @@ Decide if this is a community theme (conventional ANSI mapping) or an identity t
 Add to `THEME_PRESETS` in `src/renderer/src/data/theme-presets.ts`:
 
 ```typescript
+// Example values — replace with your theme's colors
 {
     name: 'Your Theme',
     background: '#1a1b26',
@@ -136,7 +137,7 @@ Add to `THEME_PRESETS` in `src/renderer/src/data/theme-presets.ts`:
 
 - Remap ANSI slots to your palette. The green channel should dominate for Matrix-style monochrome.
 - Always provide both `accent` and `glow`.
-- Add the theme name to the identity themes test in `theme-presets.test.ts`.
+- Add the theme name to the `'all identity themes have both accent and glow'` test array in `theme-presets.test.ts`.
 
 ### 5. Validation
 
@@ -161,5 +162,5 @@ bun run test
 | `src/renderer/src/utils/colors.ts` | `generateThemeVariables`, color utilities |
 | `src/renderer/src/styles/global.css` | CSS variable defaults and consumption |
 | `src/renderer/src/App.tsx` | Applies theme variables to root element |
-| `src/renderer/src/components/SettingsPanel.tsx` | Theme picker UI (radiogroup) |
+| `src/renderer/src/components/SettingsPanel.tsx` | Workspace settings dialog (includes theme picker) |
 | `src/renderer/src/components/Terminal.tsx` | Passes xterm theme to terminal |
