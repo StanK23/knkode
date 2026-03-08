@@ -227,6 +227,16 @@ describe('generateThemeVariables', () => {
 		expect(theme['--color-accent']).toBe('#ff5555')
 	})
 
+	it('falls back to default accent on invalid accent value', () => {
+		const theme = tv({ bg: '#1a1a2e', fg: '#e0e0e0', accent: 'not-a-color' })
+		expect(theme['--color-accent']).toBe('#6c63ff')
+	})
+
+	it('uses per-theme accent on light background', () => {
+		const theme = tv({ bg: '#ffffff', fg: '#24292f', accent: '#ff5555' })
+		expect(theme['--color-accent']).toBe('#ff5555')
+	})
+
 	it('generates glow CSS value when glow color provided', () => {
 		const theme = tv({ bg: '#1a1a2e', fg: '#e0e0e0', glow: '#bd93f9' })
 		expect(theme['--theme-glow']).toContain('0 0 12px')
@@ -235,6 +245,11 @@ describe('generateThemeVariables', () => {
 
 	it('sets glow to none when not provided', () => {
 		const theme = tv({ bg: '#1a1a2e', fg: '#e0e0e0' })
+		expect(theme['--theme-glow']).toBe('none')
+	})
+
+	it('sets glow to none on invalid glow value', () => {
+		const theme = tv({ bg: '#1a1a2e', fg: '#e0e0e0', glow: 'invalid' })
 		expect(theme['--theme-glow']).toBe('none')
 	})
 })
