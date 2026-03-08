@@ -1,5 +1,6 @@
+import type { ITheme } from '@xterm/xterm'
 import type { AnsiColors, PaneTheme } from '../../../shared/types'
-import { resolveBackground } from '../utils/colors'
+import { isValidHex, resolveBackground } from '../utils/colors'
 
 export type ThemePreset = Pick<PaneTheme, 'background' | 'foreground'> & {
 	name: string
@@ -427,17 +428,20 @@ const FONT_FALLBACKS = 'Menlo, Monaco, Consolas, monospace'
 export const DEFAULT_FONT_FAMILY = `${TERMINAL_FONTS[0]}, ${FONT_FALLBACKS}`
 
 export function buildFontFamily(family?: string): string {
-	return family ? `${family}, ${FONT_FALLBACKS}` : DEFAULT_FONT_FAMILY
+	if (family && (TERMINAL_FONTS as readonly string[]).includes(family)) {
+		return `${family}, ${FONT_FALLBACKS}`
+	}
+	return DEFAULT_FONT_FAMILY
 }
 
 /** Build xterm.js theme options from a PaneTheme's color fields.
  *  When opacity < 1, the background is converted to an rgba value for translucency.
- *  Includes ANSI 16-color palette when provided. */
+ *  ANSI colors are validated before passing to xterm — invalid values are skipped. */
 export function buildXtermTheme(
 	t: Pick<PaneTheme, 'background' | 'foreground' | 'ansiColors'>,
 	opacity = 1,
-): Record<string, string> {
-	const theme: Record<string, string> = {
+): ITheme {
+	const theme: ITheme = {
 		background: resolveBackground(t.background, opacity),
 		foreground: t.foreground,
 		cursor: t.foreground,
@@ -445,22 +449,11 @@ export function buildXtermTheme(
 	}
 
 	if (t.ansiColors) {
-		theme.black = t.ansiColors.black
-		theme.red = t.ansiColors.red
-		theme.green = t.ansiColors.green
-		theme.yellow = t.ansiColors.yellow
-		theme.blue = t.ansiColors.blue
-		theme.magenta = t.ansiColors.magenta
-		theme.cyan = t.ansiColors.cyan
-		theme.white = t.ansiColors.white
-		theme.brightBlack = t.ansiColors.brightBlack
-		theme.brightRed = t.ansiColors.brightRed
-		theme.brightGreen = t.ansiColors.brightGreen
-		theme.brightYellow = t.ansiColors.brightYellow
-		theme.brightBlue = t.ansiColors.brightBlue
-		theme.brightMagenta = t.ansiColors.brightMagenta
-		theme.brightCyan = t.ansiColors.brightCyan
-		theme.brightWhite = t.ansiColors.brightWhite
+		for (const [key, value] of Object.entries(t.ansiColors)) {
+			if (isValidHex(value)) {
+				;(theme as Record<string, string>)[key] = value
+			}
+		}
 	}
 
 	return theme
