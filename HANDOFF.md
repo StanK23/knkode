@@ -7,13 +7,10 @@
 
 ## Active Reviews
 
-### PR #77 — feat: deep theming engine — ANSI palettes, accent, glow
-- State: `docs/reviews/PR-77/_state.json`
-- Agents: 10/10 completed
-- Phase: compiling — fixes in progress
+None — PR #77 review complete, all fixes applied.
 
 ## What Was Done
-- PR #77 created (feature/theme-engine → dev/theming): Deep theming engine — ANSI 16-color palettes, per-theme accent/glow CSS vars, preset-based selection
+- PR #77 reviewed + fixed (feature/theme-engine → dev/theming): Deep theming engine — ANSI 16-color palettes, per-theme accent/glow CSS vars, preset-based selection. Review: 10 agents, 8 must-fix + 10 suggestions + 6 nitpicks all addressed.
 - PR #76 merged (feature/settings-tabs → dev/theming): Settings panel split into Workspace/Terminal tabs with full ARIA compliance
 - CI workflow disabled (.github/workflows/ci.yml.disabled)
 - PR #75 merged to dev/agent-workspace: Status bar layout (static + dynamic streaming bar), context gauge, token formatting, prompt caching support, isResponding turn-level tracking
@@ -32,7 +29,7 @@ The rendered agent view (stream-json parsing, custom chat UI) works but carries 
 
 ## Theming Rework Plan
 1. ~~PR #76: Settings tabs~~ (merged)
-2. PR #77: Theme engine — ANSI palettes, accent, glow (review in progress)
+2. PR #77: Theme engine — ANSI palettes, accent, glow (review fixes applied, awaiting merge)
 3. PR #3: Theme presets — 8-12 distinct theme identities
 4. PR #4: Theming guide document
 
