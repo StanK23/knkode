@@ -1,11 +1,11 @@
 # HANDOFF
 
 ## Current State
-- Branch: `feature/agent-status-bar-tokens` (from `dev/agent-workspace`)
-- PR #74 open: Status bar model/tokens + inline block token badges — review fixes applied, ready for merge
+- Branch: `dev/agent-workspace`
+- Next: PR #2 — Slash command autocomplete (`feature/slash-command-autocomplete`)
 
 ## What Was Done
-- PR #74: Status bar model name + cumulative token counter, inline per-block token badges, review fixes (17/17 addressed)
+- PR #74 merged: Status bar model/tokens + inline block token badges (17 review findings fixed)
 - PR #73 merged: Full rendered conversation view for Claude Code agent
 - PR #71 merged: Generic agent subprocess manager
 - PR #58-69 merged: agent workspace foundation
@@ -13,7 +13,7 @@
 ## Active Plan — Agent UX Enhancements (knktx board: 69a96d8d)
 All branches from `dev/agent-workspace`. PRs target `dev/agent-workspace`, **not `main`**.
 
-- PR #1: `feature/agent-status-bar-tokens` — Status bar model/tokens + inline block badges (PR #74, review complete)
+- ~~PR #1: `feature/agent-status-bar-tokens` — Status bar model/tokens + inline block badges (PR #74 merged)~~
 - PR #2: `feature/slash-command-autocomplete` — Slash command autocomplete
 - PR #3: `feature/context-compaction-ui` — Context compaction UI
 - PR #4: `feature/tool-approval-buttons` — Interactive tool approval
