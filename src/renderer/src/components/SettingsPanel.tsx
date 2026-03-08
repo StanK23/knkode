@@ -14,6 +14,7 @@ import {
 } from '../../../shared/types'
 import { THEME_PRESETS, findPreset } from '../data/theme-presets'
 import { applyPresetWithRemap, useStore } from '../store'
+import { hexToRgba } from '../utils/colors'
 import { isMac } from '../utils/platform'
 import { isValidCwd } from '../utils/validation'
 import { FontPicker } from './FontPicker'
@@ -463,10 +464,6 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		[workspace.id, updatePaneConfig],
 	)
 
-	const handlePresetClick = useCallback((presetName: string) => {
-		setSelectedPreset(presetName)
-	}, [])
-
 	return (
 		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape key handled via document listener above
 		<div
@@ -609,15 +606,35 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					<>
 						{/* Theme */}
 							<SettingsSection label="Theme" gap={16}>
-								<div className="grid grid-cols-4 gap-1.5">
-									{THEME_PRESETS.map((preset) => {
+								<div
+									className="grid grid-cols-4 gap-1.5"
+									role="radiogroup"
+									aria-label="Theme presets"
+									onKeyDown={(e) => {
+										if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft' && e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+										e.preventDefault()
+										const idx = THEME_PRESETS.findIndex((p) => p.name === selectedPreset)
+										const cols = 4
+										let next = idx
+										if (e.key === 'ArrowRight') next = (idx + 1) % THEME_PRESETS.length
+										else if (e.key === 'ArrowLeft') next = (idx - 1 + THEME_PRESETS.length) % THEME_PRESETS.length
+										else if (e.key === 'ArrowDown') next = Math.min(idx + cols, THEME_PRESETS.length - 1)
+										else if (e.key === 'ArrowUp') next = Math.max(idx - cols, 0)
+										setSelectedPreset(THEME_PRESETS[next].name)
+										document.getElementById(`theme-preset-${next}`)?.focus()
+									}}
+								>
+									{THEME_PRESETS.map((preset, index) => {
 										const isActive = selectedPreset === preset.name
 										return (
 											<button
 												type="button"
+												id={`theme-preset-${index}`}
 												key={preset.name}
-												onClick={() => handlePresetClick(preset.name)}
-												aria-pressed={isActive}
+												onClick={() => setSelectedPreset(preset.name)}
+												role="radio"
+												aria-checked={isActive}
+												tabIndex={isActive ? 0 : -1}
 												className={`py-1.5 px-1 rounded-md cursor-pointer border text-center focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
 													isActive
 														? 'border-accent ring-1 ring-accent'
@@ -628,7 +645,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 												style={{
 													background: preset.background,
 													color: preset.foreground,
-													boxShadow: isActive && preset.glow ? `0 0 8px ${preset.glow}40` : undefined,
+													boxShadow: isActive && preset.glow ? `0 0 8px ${hexToRgba(preset.glow, 0.25)}` : undefined,
 												}}
 											>
 												<span className="text-[11px] font-medium leading-tight block truncate">
