@@ -5,12 +5,8 @@
 - `dev/agent-workspace` branch preserved with all rendered view work (PRs #58-75)
 - Active plan: Theming Rework (knktx board: 6acd4876)
 
-## Active Reviews
-
-None — PR #77 review complete, all fixes applied.
-
 ## What Was Done
-- PR #77 reviewed + fixed (feature/theme-engine → dev/theming): Deep theming engine — ANSI 16-color palettes, per-theme accent/glow CSS vars, preset-based selection. Review: 10 agents, 8 must-fix + 10 suggestions + 6 nitpicks all addressed.
+- PR #77 merged (feature/theme-engine → dev/theming): Deep theming engine — ANSI 16-color palettes, per-theme accent/glow CSS vars, preset-based selection. 10-agent review, all findings fixed.
 - PR #76 merged (feature/settings-tabs → dev/theming): Settings panel split into Workspace/Terminal tabs with full ARIA compliance
 - CI workflow disabled (.github/workflows/ci.yml.disabled)
 - PR #75 merged to dev/agent-workspace: Status bar layout (static + dynamic streaming bar), context gauge, token formatting, prompt caching support, isResponding turn-level tracking
@@ -29,7 +25,7 @@ The rendered agent view (stream-json parsing, custom chat UI) works but carries 
 
 ## Theming Rework Plan
 1. ~~PR #76: Settings tabs~~ (merged)
-2. PR #77: Theme engine — ANSI palettes, accent, glow (review fixes applied, awaiting merge)
+2. ~~PR #77: Theme engine — ANSI palettes, accent, glow~~ (merged)
 3. PR #3: Theme presets — 8-12 distinct theme identities
 4. PR #4: Theming guide document
 
