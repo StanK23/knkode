@@ -1328,6 +1328,31 @@ describe('per-block usage tracking', () => {
 		expect(parser.getMessages()[0].usage).toEqual({ inputTokens: 5000, outputTokens: 0 })
 	})
 
+	it('sums cache_read + cache_creation + input_tokens for total context', () => {
+		const parser = new ClaudeCodeStreamParser()
+
+		parser.feed(
+			line({
+				type: 'message_start',
+				message: {
+					id: 'msg_cached',
+					role: 'assistant',
+					model: 'claude-opus-4-6',
+					usage: {
+						input_tokens: 7,
+						cache_creation_input_tokens: 0,
+						cache_read_input_tokens: 15000,
+						output_tokens: 0,
+					},
+				},
+			}),
+		)
+
+		const msg = parser.getMessages()[0]
+		// Total context = 7 + 0 + 15000 = 15007
+		expect(msg.usage).toEqual({ inputTokens: 15007, outputTokens: 0 })
+	})
+
 	it('result event updates usage even when message_start had preliminary values', () => {
 		const parser = new ClaudeCodeStreamParser()
 
@@ -1359,13 +1384,13 @@ describe('per-block usage tracking', () => {
 		parser.feed(line({ type: 'content_block_stop', index: 0 }))
 		parser.feed(line({ type: 'message_stop' }))
 
-		// Result event with accurate usage (top-level, not wrapped in stream_event)
+		// Result event with accurate usage including cache tokens (top-level, not wrapped in stream_event)
 		parser.feed(
-			`${JSON.stringify({ type: 'result', session_id: 'sess_1', usage: { input_tokens: 45000, output_tokens: 100 } })}\n`,
+			`${JSON.stringify({ type: 'result', session_id: 'sess_1', usage: { input_tokens: 50, cache_read_input_tokens: 44950, output_tokens: 100 } })}\n`,
 		)
 
 		const msg = parser.getMessages()[0]
-		// input_tokens updated from result event (was 1, now 45000)
+		// input_tokens updated from result event: 50 + 44950 = 45000 (was 1)
 		expect(msg.usage?.inputTokens).toBe(45000)
 		expect(msg.usage?.outputTokens).toBe(100)
 	})

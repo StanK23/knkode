@@ -11,6 +11,17 @@ const MAX_MESSAGES = 500
 
 const VALID_ROLES = new Set<StreamMessage['role']>(['assistant', 'user', 'system'])
 
+/** Sum all input token fields from an API usage object.
+ *  With prompt caching, `input_tokens` only counts non-cached tokens.
+ *  Total context = input_tokens + cache_creation_input_tokens + cache_read_input_tokens. */
+function totalInputTokens(usage: Record<string, unknown>): number {
+	return (
+		Number(usage.input_tokens ?? 0) +
+		Number(usage.cache_creation_input_tokens ?? 0) +
+		Number(usage.cache_read_input_tokens ?? 0)
+	)
+}
+
 /**
  * Parses Claude Code `--print --verbose --output-format stream-json` NDJSON output.
  *
@@ -185,7 +196,7 @@ export class ClaudeCodeStreamParser implements StreamParser {
 		// Result event has final accurate usage — always update (message_start may have preliminary values)
 		if (msg && typeof obj.usage === 'object' && obj.usage !== null) {
 			const usage = obj.usage as Record<string, unknown>
-			const input = Number(usage.input_tokens ?? 0)
+			const input = totalInputTokens(usage)
 			const output = Number(usage.output_tokens ?? 0)
 			if (msg.usage) {
 				if (input > 0) msg.usage.inputTokens = input
@@ -301,7 +312,7 @@ export class ClaudeCodeStreamParser implements StreamParser {
 			last.stopReason = null
 			// Update inputTokens to latest value — approximates current context consumption (prompt tokens)
 			if (usage) {
-				const input = Number(usage.input_tokens ?? 0)
+				const input = totalInputTokens(usage)
 				if (last.usage) {
 					if (input > 0) last.usage.inputTokens = input
 				} else {
@@ -324,7 +335,7 @@ export class ClaudeCodeStreamParser implements StreamParser {
 			stopReason: null,
 			usage: usage
 				? {
-						inputTokens: Number(usage.input_tokens ?? 0),
+						inputTokens: totalInputTokens(usage),
 						outputTokens: Number(usage.output_tokens ?? 0),
 					}
 				: null,

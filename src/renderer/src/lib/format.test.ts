@@ -3,21 +3,24 @@ import { shortModelName } from '../components/AgentStatusBar'
 import { formatTokens } from './format'
 
 describe('formatTokens', () => {
-	it('returns raw number below 1000', () => {
+	it('returns full number with commas below 10k', () => {
 		expect(formatTokens(0)).toBe('0')
 		expect(formatTokens(999)).toBe('999')
+		expect(formatTokens(1234)).toBe('1,234')
+		expect(formatTokens(9999)).toBe('9,999')
 	})
 
-	it('formats 1k-10k with one decimal', () => {
-		expect(formatTokens(1000)).toBe('1.0k')
-		expect(formatTokens(1234)).toBe('1.2k')
-		expect(formatTokens(9999)).toBe('10.0k')
+	it('formats 10k-100k with one decimal', () => {
+		expect(formatTokens(10_000)).toBe('10.0k')
+		expect(formatTokens(12_345)).toBe('12.3k')
+		expect(formatTokens(45_678)).toBe('45.7k')
+		expect(formatTokens(99_999)).toBe('100.0k')
 	})
 
-	it('formats 10k+ as rounded integer k', () => {
-		expect(formatTokens(10_000)).toBe('10k')
-		expect(formatTokens(12_345)).toBe('12k')
-		expect(formatTokens(99_999)).toBe('100k')
+	it('formats 100k+ as rounded integer k', () => {
+		expect(formatTokens(100_000)).toBe('100k')
+		expect(formatTokens(123_456)).toBe('123k')
+		expect(formatTokens(200_000)).toBe('200k')
 	})
 })
 

@@ -1,12 +1,8 @@
 import { memo, useEffect, useMemo, useState } from 'react'
 import { AGENT_LABELS, type AgentType } from '../../../shared/types'
-import { formatTokens } from '../lib/format'
 import type { StreamMessage } from '../lib/agent-renderers/types'
+import { formatTokens } from '../lib/format'
 import { useStore } from '../store'
-
-/** Maximum context window size assumed for Claude models (tokens).
- *  Hardcoded for current Claude models — may need a model-to-context map in the future. */
-const CONTEXT_WINDOW = 200_000
 
 function formatElapsed(ms: number): string {
 	const totalSeconds = Math.floor(Math.max(0, ms) / 1000)
@@ -58,10 +54,7 @@ function useMessageStats(messages: readonly StreamMessage[] | undefined) {
 			}
 		}
 
-		const contextPct =
-			contextTokens > 0 ? Math.min(100, Math.round((contextTokens / CONTEXT_WINDOW) * 100)) : 0
-
-		return { model: latestModel, contextTokens, contextPct, responseInput, responseOutput }
+		return { model: latestModel, contextTokens, responseInput, responseOutput }
 	}, [messages])
 }
 
@@ -78,7 +71,7 @@ export const AgentStatusBar = memo(function AgentStatusBar({
 	agentType,
 }: AgentStatusBarProps) {
 	const messages = useStore((s) => s.paneStreamMessages.get(paneId))
-	const { model, contextTokens, contextPct } = useMessageStats(messages)
+	const { model, contextTokens } = useMessageStats(messages)
 
 	return (
 		<output
@@ -94,9 +87,9 @@ export const AgentStatusBar = memo(function AgentStatusBar({
 			{contextTokens > 0 && (
 				<span
 					className="text-content-muted/50 tabular-nums"
-					title={`${contextTokens.toLocaleString()} / ${CONTEXT_WINDOW.toLocaleString()} context tokens (${contextPct}%)`}
+					title={`${contextTokens.toLocaleString()} context tokens`}
 				>
-					{formatTokens(contextTokens)}/{formatTokens(CONTEXT_WINDOW)} ctx
+					{formatTokens(contextTokens)} ctx
 				</span>
 			)}
 		</output>
