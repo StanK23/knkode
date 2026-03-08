@@ -478,7 +478,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 				role="dialog"
 				aria-modal="true"
 				aria-label="Workspace Settings"
-				className="bg-canvas/80 backdrop-blur-2xl border border-edge/50 rounded-md w-[600px] max-w-[calc(100vw-2rem)] h-[85vh] flex flex-col shadow-panel animate-panel-in"
+				className="bg-canvas/80 backdrop-blur-2xl border border-edge/50 rounded-md w-[600px] max-w-[calc(100vw-2rem)] min-h-[50vh] max-h-[85vh] flex flex-col shadow-panel animate-panel-in"
 				onClick={(e) => e.stopPropagation()}
 			>
 				<div className="flex items-center justify-between px-6 py-4 border-b border-edge/50">
@@ -493,15 +493,30 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					</button>
 				</div>
 
-				{/* Tab bar */}
-				<div className="flex gap-0 px-6 border-b border-edge/50" role="tablist">
+				{/* Tab bar — WAI-ARIA tabs pattern with arrow-key navigation */}
+				<div className="flex px-6 border-b border-edge/50" role="tablist" aria-label="Settings">
 					{SETTINGS_TABS.map((tab) => (
 						<button
 							key={tab}
+							id={`settings-tab-${tab}`}
 							type="button"
 							role="tab"
 							aria-selected={activeTab === tab}
+							aria-controls={`settings-tabpanel-${tab}`}
+							tabIndex={activeTab === tab ? 0 : -1}
 							onClick={() => setActiveTab(tab)}
+							onKeyDown={(e) => {
+								const idx = SETTINGS_TABS.indexOf(tab)
+								if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+									e.preventDefault()
+									const next =
+										e.key === 'ArrowRight'
+											? SETTINGS_TABS[(idx + 1) % SETTINGS_TABS.length]
+											: SETTINGS_TABS[(idx - 1 + SETTINGS_TABS.length) % SETTINGS_TABS.length]
+									setActiveTab(next)
+									document.getElementById(`settings-tab-${next}`)?.focus()
+								}
+							}}
 							className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer bg-transparent ${
 								activeTab === tab
 									? 'border-accent text-content'
@@ -513,9 +528,15 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					))}
 				</div>
 
-				<div className="px-6 py-6 overflow-y-auto overflow-x-hidden flex flex-col gap-8">
-					{activeTab === 'Workspace' && (
-						<>
+				{/* Workspace tab panel */}
+				<div
+					id="settings-tabpanel-Workspace"
+					role="tabpanel"
+					aria-labelledby="settings-tab-Workspace"
+					hidden={activeTab !== 'Workspace'}
+					className="px-6 py-6 overflow-y-auto overflow-x-hidden flex flex-col gap-8"
+				>
+					<>
 							{/* General */}
 							<SettingsSection label="General">
 								<label className="flex items-center gap-3">
@@ -573,11 +594,18 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 							{/* Snippets */}
 							<SnippetsSection />
 						</>
-					)}
+				</div>
 
-					{activeTab === 'Terminal' && (
-						<>
-							{/* Theme presets */}
+				{/* Terminal tab panel */}
+				<div
+					id="settings-tabpanel-Terminal"
+					role="tabpanel"
+					aria-labelledby="settings-tab-Terminal"
+					hidden={activeTab !== 'Terminal'}
+					className="px-6 py-6 overflow-y-auto overflow-x-hidden flex flex-col gap-8"
+				>
+					<>
+						{/* Theme */}
 							<SettingsSection label="Theme" gap={16}>
 								<div className="grid grid-cols-4 gap-1.5">
 									{THEME_PRESETS.map((preset) => {
@@ -733,7 +761,6 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								</label>
 							</SettingsSection>
 						</>
-					)}
 				</div>
 
 				<div className="flex items-center gap-2 px-6 py-3 border-t border-edge/50">
