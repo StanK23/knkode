@@ -388,6 +388,9 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 			ansiColors: preset?.ansiColors,
 			accent: preset?.accent,
 			glow: preset?.glow,
+			gradient: preset?.gradient,
+			animatedGlow: preset?.animatedGlow,
+			scanline: preset?.scanline,
 			preset: selectedPreset,
 		}
 	}, [selectedPreset, fontSize, unfocusedDim, fontFamily, scrollback, cursorStyle, paneOpacity])

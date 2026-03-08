@@ -55,6 +55,12 @@ export interface PaneTheme {
 	accent?: string
 	/** Glow color for theme effects (box-shadow, text-shadow). No glow when omitted. */
 	glow?: string
+	/** CSS gradient overlay on terminal panes. Applied as a subtle atmospheric layer. */
+	gradient?: string
+	/** When true, the glow effect pulses instead of remaining static. */
+	animatedGlow?: boolean
+	/** When true, a CRT-style scanline overlay is rendered on terminal panes. */
+	scanline?: boolean
 	/** Theme preset name — links to THEME_PRESETS for full identity. */
 	preset?: string
 }

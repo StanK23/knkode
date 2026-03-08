@@ -13,7 +13,7 @@ import {
 } from '../../../shared/types'
 import { buildFontFamily, buildXtermTheme } from '../data/theme-presets'
 import { useStore } from '../store'
-import { resolveBackground } from '../utils/colors'
+import { hexToRgba, resolveBackground } from '../utils/colors'
 
 const SEARCH_BTN =
 	'bg-transparent border-none text-content-muted cursor-pointer text-xs min-w-[28px] min-h-[28px] flex items-center justify-center hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none rounded-sm'
@@ -578,6 +578,23 @@ export function TerminalView({
 			className="relative w-full h-full p-1.5"
 			style={{ backgroundColor: wrapperBg }}
 		>
+			{mergedTheme.gradient && (
+				<div
+					className="absolute inset-0 pointer-events-none z-[1]"
+					style={{ background: mergedTheme.gradient }}
+				/>
+			)}
+			{mergedTheme.animatedGlow && mergedTheme.glow && (
+				<div
+					className="pane-glow absolute inset-0 pointer-events-none z-[1] rounded-sm"
+					style={{
+						boxShadow: `inset 0 0 18px ${hexToRgba(mergedTheme.glow, 0.12)}, 0 0 12px ${hexToRgba(mergedTheme.glow, 0.2)}`,
+					}}
+				/>
+			)}
+			{mergedTheme.scanline && (
+				<div className="pane-scanline absolute inset-0 pointer-events-none z-[2]" />
+			)}
 			{showSearch && (
 				<search className="absolute top-1 right-2 z-10 flex items-center gap-1 bg-elevated border border-edge rounded-sm px-2 py-1 shadow-panel">
 					<input

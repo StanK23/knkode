@@ -220,12 +220,57 @@
 		animation: panel-in 0.3s var(--ease-mechanical) forwards;
 	}
 
+	/* ── Identity theme effects ───────────────────────────────────── */
+
+	/* Pulsing glow — animates opacity of a box-shadow overlay div.
+	   The box-shadow color is set via inline style in Terminal.tsx. */
+	@keyframes glow-pulse {
+		0%,
+		100% {
+			opacity: 0.5;
+		}
+		50% {
+			opacity: 1;
+		}
+	}
+	.pane-glow {
+		animation: glow-pulse 4s ease-in-out infinite;
+	}
+
+	/* CRT scanline overlay — subtle horizontal lines that slowly drift.
+	   Only used by Matrix theme. */
+	@keyframes scanline-drift {
+		0% {
+			background-position: 0 0;
+		}
+		100% {
+			background-position: 0 200px;
+		}
+	}
+	.pane-scanline {
+		background: repeating-linear-gradient(
+			0deg,
+			transparent,
+			transparent 2px,
+			rgba(0, 0, 0, 0.03) 2px,
+			rgba(0, 0, 0, 0.03) 4px
+		);
+		animation: scanline-drift 20s linear infinite;
+	}
+
 	@media (prefers-reduced-motion: reduce) {
 		.animate-panel-in {
 			animation: none;
 		}
 		.settings-input {
 			transition: none;
+		}
+		.pane-glow {
+			animation: none;
+			opacity: 0.7;
+		}
+		.pane-scanline {
+			animation: none;
 		}
 	}
 }
