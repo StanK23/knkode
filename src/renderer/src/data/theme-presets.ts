@@ -2,9 +2,10 @@ import type { ITheme } from '@xterm/xterm'
 import type { AnsiColors, PaneTheme } from '../../../shared/types'
 import { isValidHex, resolveBackground } from '../utils/colors'
 
-export type ThemePreset = Pick<PaneTheme, 'background' | 'foreground' | 'ansiColors' | 'accent' | 'glow'> & {
-	name: string
-}
+export type ThemePreset = Pick<
+	PaneTheme,
+	'background' | 'foreground' | 'ansiColors' | 'accent' | 'glow'
+> & { name: string }
 
 /** Tango-based ANSI palette used by the Default Dark preset. */
 const DEFAULT_ANSI: AnsiColors = {
@@ -202,7 +203,7 @@ export const THEME_PRESETS = [
 			brightWhite: '#f9f8f5',
 		},
 	},
-	// ── Identity themes ──────────────────────────────────────────
+	// ── Identity themes (brand/aesthetic identity, always have accent + glow) ──
 	{
 		name: 'Matrix',
 		background: '#0a0a0a',
