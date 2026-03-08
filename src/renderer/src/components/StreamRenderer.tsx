@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { DEFAULT_PANE_OPACITY, type PaneTheme } from '../../../shared/types'
+import { DEFAULT_PANE_OPACITY, type AgentType, type PaneTheme } from '../../../shared/types'
 import type {
 	BlockUsage,
 	ContentBlock,
@@ -11,6 +11,7 @@ import type {
 } from '../lib/agent-renderers/types'
 import { formatTokens } from '../lib/format'
 import { useStore } from '../store'
+import { AgentStatusBar } from './AgentStatusBar'
 import { resolveBackground } from '../utils/colors'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -440,11 +441,12 @@ function StructuredView({
 
 interface StreamRendererProps {
 	paneId: string
+	agentType: AgentType
 	theme: PaneTheme
 	themeOverride: Partial<PaneTheme> | null
 }
 
-export function StreamRenderer({ paneId, theme, themeOverride }: StreamRendererProps) {
+export function StreamRenderer({ paneId, agentType, theme, themeOverride }: StreamRendererProps) {
 	const messages = useStore((s) => s.paneStreamMessages.get(paneId))
 	const rawText = useStore((s) => s.paneStreamText.get(paneId))
 	const scrollRef = useRef<HTMLDivElement>(null)
@@ -498,6 +500,7 @@ export function StreamRenderer({ paneId, theme, themeOverride }: StreamRendererP
 					Type a message below to start
 				</div>
 			)}
+			<AgentStatusBar paneId={paneId} agentType={agentType} />
 			<MessageInput paneId={paneId} isStreaming={isStreaming} />
 		</div>
 	)

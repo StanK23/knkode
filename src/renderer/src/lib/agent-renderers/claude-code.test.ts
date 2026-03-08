@@ -1275,5 +1275,8 @@ describe('per-block usage tracking', () => {
 		if (blocks[0].type === 'text') expect(blocks[0].usage).toEqual({ outputTokens: 50 })
 		// Turn 2 block: 30 tokens (NOT negative due to reset)
 		if (blocks[1].type === 'text') expect(blocks[1].usage).toEqual({ outputTokens: 30 })
+
+		// inputTokens updated to latest value from merged message_start (context gauge)
+		expect(msgs[0].usage?.inputTokens).toBe(200)
 	})
 })

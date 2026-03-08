@@ -295,6 +295,10 @@ export class ClaudeCodeStreamParser implements StreamParser {
 		if (role === 'assistant' && last?.role === 'assistant') {
 			last.streaming = true
 			last.stopReason = null
+			// Update inputTokens to latest value — represents current context window usage
+			if (usage && last.usage) {
+				last.usage.inputTokens = Number(usage.input_tokens ?? last.usage.inputTokens)
+			}
 			return
 		}
 
