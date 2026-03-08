@@ -16,6 +16,26 @@ export function isCursorStyle(v: string): v is CursorStyle {
 	return (CURSOR_STYLES as readonly string[]).includes(v)
 }
 
+/** ANSI 16-color palette for terminal themes. All values are hex strings (#RRGGBB). */
+export interface AnsiColors {
+	black: string
+	red: string
+	green: string
+	yellow: string
+	blue: string
+	magenta: string
+	cyan: string
+	white: string
+	brightBlack: string
+	brightRed: string
+	brightGreen: string
+	brightYellow: string
+	brightBlue: string
+	brightMagenta: string
+	brightCyan: string
+	brightWhite: string
+}
+
 export interface PaneTheme {
 	background: string
 	foreground: string
@@ -29,6 +49,14 @@ export interface PaneTheme {
 	cursorStyle?: CursorStyle
 	/** Terminal background opacity. 0.1 = near-transparent, 1 = fully opaque. Clamped to [0.1, 1] by the UI. Defaults to DEFAULT_PANE_OPACITY. */
 	paneOpacity?: number
+	/** ANSI 16-color palette. When omitted, xterm.js uses its built-in defaults. */
+	ansiColors?: AnsiColors
+	/** UI accent color (buttons, focus rings, active tab indicators). Auto-derived if omitted. */
+	accent?: string
+	/** Glow color for theme effects (box-shadow, text-shadow). No glow when omitted. */
+	glow?: string
+	/** Theme preset name — links to THEME_PRESETS for full identity. */
+	preset?: string
 }
 
 export interface PaneConfig {
