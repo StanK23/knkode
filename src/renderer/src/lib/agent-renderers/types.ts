@@ -6,7 +6,7 @@
 
 // ── Content Blocks ──────────────────────────────────────────────────────────
 
-/** Token usage snapshot for a content block — derived from output_tokens deltas. */
+/** Token usage for a content block — computed as the output_tokens delta between block start and stop. */
 export interface BlockUsage {
 	outputTokens: number
 }
@@ -28,7 +28,8 @@ export interface ToolUseBlock {
 	usage?: BlockUsage
 }
 
-/** Tool execution result, paired with the corresponding ToolUseBlock for rendering. */
+/** Tool execution result, paired with the corresponding ToolUseBlock for rendering.
+ *  No usage field — tool results are not model-generated. */
 export interface ToolResultBlock {
 	type: 'tool_result'
 	toolUseId: string
@@ -47,13 +48,19 @@ export type ContentBlock = TextBlock | ToolUseBlock | ToolResultBlock | Thinking
 
 // ── Messages ────────────────────────────────────────────────────────────────
 
+/** Cumulative token usage for a full message (input + output). */
+export interface MessageUsage {
+	inputTokens: number
+	outputTokens: number
+}
+
 export interface StreamMessage {
 	id: string
 	role: 'assistant' | 'user' | 'system'
 	model?: string
 	blocks: ContentBlock[]
 	stopReason: string | null
-	usage: { inputTokens: number; outputTokens: number } | null
+	usage: MessageUsage | null
 	/** true while message is still receiving events */
 	streaming: boolean
 }

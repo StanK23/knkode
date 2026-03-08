@@ -390,6 +390,7 @@ export class ClaudeCodeStreamParser implements StreamParser {
 		}
 	}
 
+	/** Compute tokens spent on this block from the output_tokens delta since block start. */
 	private handleContentBlockStop(event: Record<string, unknown>): void {
 		const msg = this.currentMessage()
 		if (!msg) return
@@ -399,9 +400,9 @@ export class ClaudeCodeStreamParser implements StreamParser {
 		if (blockIdx === undefined) return
 
 		const block = msg.blocks[blockIdx]
+		// tool_result has no usage field (not model-generated) — also narrows type for TS
 		if (!block || block.type === 'tool_result') return
 
-		// Compute tokens spent on this block from the delta since block start
 		const startTokens = this.blockStartTokens.get(index) ?? 0
 		const delta = this.lastOutputTokens - startTokens
 		if (delta > 0) {
