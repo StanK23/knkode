@@ -1275,5 +1275,182 @@ describe('per-block usage tracking', () => {
 		if (blocks[0].type === 'text') expect(blocks[0].usage).toEqual({ outputTokens: 50 })
 		// Turn 2 block: 30 tokens (NOT negative due to reset)
 		if (blocks[1].type === 'text') expect(blocks[1].usage).toEqual({ outputTokens: 30 })
+
+		// inputTokens updated to 200 (Turn 2's message_start) — tracks latest turn
+		expect(msgs[0].usage?.inputTokens).toBe(200)
+	})
+
+	it('initializes usage on merged message when first message_start had no usage', () => {
+		const parser = new ClaudeCodeStreamParser()
+
+		// Turn 1: no usage field
+		parser.feed(
+			line({
+				type: 'message_start',
+				message: { id: 'msg_no', role: 'assistant' },
+			}),
+		)
+		parser.feed(line({ type: 'content_block_start', index: 0, content_block: { type: 'text' } }))
+		parser.feed(
+			line({
+				type: 'content_block_delta',
+				index: 0,
+				delta: { type: 'text_delta', text: 'Hi' },
+			}),
+		)
+		parser.feed(line({ type: 'content_block_stop', index: 0 }))
+		parser.feed(line({ type: 'message_stop' }))
+
+		expect(parser.getMessages()[0].usage).toBeNull()
+
+		// Turn 2: merged, now has usage
+		parser.feed(
+			line({
+				type: 'message_start',
+				message: {
+					id: 'msg_yes',
+					role: 'assistant',
+					usage: { input_tokens: 5000, output_tokens: 0 },
+				},
+			}),
+		)
+		parser.feed(line({ type: 'content_block_start', index: 0, content_block: { type: 'text' } }))
+		parser.feed(
+			line({
+				type: 'content_block_delta',
+				index: 0,
+				delta: { type: 'text_delta', text: 'Now' },
+			}),
+		)
+		parser.feed(line({ type: 'message_stop' }))
+
+		// Usage should be initialized from the merged message_start
+		expect(parser.getMessages()[0].usage).toEqual({ inputTokens: 5000, outputTokens: 0 })
+	})
+
+	it('sums cache_read + cache_creation + input_tokens for total context', () => {
+		const parser = new ClaudeCodeStreamParser()
+
+		parser.feed(
+			line({
+				type: 'message_start',
+				message: {
+					id: 'msg_cached',
+					role: 'assistant',
+					model: 'claude-opus-4-6',
+					usage: {
+						input_tokens: 7,
+						cache_creation_input_tokens: 0,
+						cache_read_input_tokens: 15000,
+						output_tokens: 0,
+					},
+				},
+			}),
+		)
+
+		const msg = parser.getMessages()[0]
+		// Total context = 7 + 0 + 15000 = 15007
+		expect(msg.usage).toEqual({ inputTokens: 15007, outputTokens: 0 })
+	})
+
+	it('result event updates outputTokens but NOT inputTokens (result aggregates across API calls)', () => {
+		const parser = new ClaudeCodeStreamParser()
+
+		// message_start has per-call context (the real context window usage)
+		parser.feed(
+			line({
+				type: 'message_start',
+				message: {
+					id: 'msg_prelim',
+					role: 'assistant',
+					usage: { input_tokens: 7, cache_read_input_tokens: 32000, output_tokens: 0 },
+				},
+			}),
+		)
+		parser.feed(line({ type: 'content_block_start', index: 0, content_block: { type: 'text' } }))
+		parser.feed(
+			line({
+				type: 'content_block_delta',
+				index: 0,
+				delta: { type: 'text_delta', text: 'Hello' },
+			}),
+		)
+		parser.feed(
+			line({
+				type: 'message_delta',
+				delta: { stop_reason: 'end_turn' },
+				usage: { output_tokens: 100 },
+			}),
+		)
+		parser.feed(line({ type: 'content_block_stop', index: 0 }))
+		parser.feed(line({ type: 'message_stop' }))
+
+		// Result event has aggregated usage across all API calls in the turn — inflated inputTokens
+		parser.feed(
+			`${JSON.stringify({ type: 'result', session_id: 'sess_1', usage: { input_tokens: 500, cache_read_input_tokens: 147000, output_tokens: 850 } })}\n`,
+		)
+
+		const msg = parser.getMessages()[0]
+		// inputTokens stays from message_start (32007), NOT overridden by result's aggregated 147500
+		expect(msg.usage?.inputTokens).toBe(32007)
+		// outputTokens updated from result (turn total)
+		expect(msg.usage?.outputTokens).toBe(850)
+	})
+})
+
+describe('isResponding', () => {
+	it('becomes true on message_start and false on result', () => {
+		const parser = new ClaudeCodeStreamParser()
+		expect(parser.isResponding()).toBe(false)
+
+		parser.feed(
+			line({
+				type: 'message_start',
+				message: { id: 'msg_001', role: 'assistant' },
+			}),
+		)
+		expect(parser.isResponding()).toBe(true)
+
+		parser.feed(line({ type: 'message_stop' }))
+		// Still responding after message_stop — turn is not done until result
+		expect(parser.isResponding()).toBe(true)
+
+		parser.feed(`${JSON.stringify({ type: 'result', session_id: 'sess_1' })}\n`)
+		expect(parser.isResponding()).toBe(false)
+	})
+
+	it('stays true across tool-use round trips (merged messages)', () => {
+		const parser = new ClaudeCodeStreamParser()
+
+		// Turn 1: tool use
+		parser.feed(line({ type: 'message_start', message: { id: 'msg_001', role: 'assistant' } }))
+		parser.feed(
+			line({
+				type: 'content_block_start',
+				index: 0,
+				content_block: { type: 'tool_use', id: 'toolu_1', name: 'Bash' },
+			}),
+		)
+		parser.feed(line({ type: 'content_block_stop', index: 0 }))
+		parser.feed(line({ type: 'message_delta', delta: { stop_reason: 'tool_use' } }))
+		parser.feed(line({ type: 'message_stop' }))
+
+		// Between message_stop and next message_start — still responding
+		expect(parser.isResponding()).toBe(true)
+
+		// Tool result
+		parser.feed(
+			`${JSON.stringify({ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_1', content: 'ok' }] } })}\n`,
+		)
+		// Still responding — waiting for next assistant message
+		expect(parser.isResponding()).toBe(true)
+
+		// Turn 2: text response (merged)
+		parser.feed(line({ type: 'message_start', message: { id: 'msg_002', role: 'assistant' } }))
+		expect(parser.isResponding()).toBe(true)
+
+		parser.feed(line({ type: 'message_stop' }))
+		parser.feed(`${JSON.stringify({ type: 'result', session_id: 'sess_1' })}\n`)
+		expect(parser.isResponding()).toBe(false)
 	})
 })

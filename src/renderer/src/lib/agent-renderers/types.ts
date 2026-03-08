@@ -75,6 +75,8 @@ export interface StreamParser {
 	getMessages(): readonly StreamMessage[]
 	/** Get the session ID from the last completed turn (for --resume). */
 	getSessionId(): string | null
+	/** Whether the agent is mid-turn (between message_start and result event). */
+	isResponding(): boolean
 	/** Inject a user message into the conversation (shown in UI alongside parsed messages). */
 	addUserMessage(text: string): void
 	/** Reset all state. */

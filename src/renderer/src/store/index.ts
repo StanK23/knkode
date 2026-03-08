@@ -228,6 +228,8 @@ interface StoreState {
 	altScreenPaneIds: Set<string>
 	/** Timestamp (Date.now()) when each agent was first detected in a pane. */
 	paneAgentStartTimes: Map<string, number>
+	/** Whether an agent is mid-turn (between user send and result event). */
+	paneAgentResponding: Map<string, boolean>
 	/** Parsed stream messages per pane (for JSON stream renderers). */
 	paneStreamMessages: Map<string, readonly StreamMessage[]>
 	/** ANSI-stripped raw text per pane — used by rendered view when NDJSON is unavailable. */
@@ -312,6 +314,7 @@ type PaneCleanupState = Pick<
 	| 'paneProcessNames'
 	| 'altScreenPaneIds'
 	| 'paneAgentStartTimes'
+	| 'paneAgentResponding'
 	| 'paneStreamMessages'
 	| 'paneStreamText'
 	| 'paneSessionIds'
@@ -323,6 +326,7 @@ function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneClean
 	const procs = new Map(state.paneProcessNames)
 	const altIds = new Set(state.altScreenPaneIds)
 	const startTimes = new Map(state.paneAgentStartTimes)
+	const responding = new Map(state.paneAgentResponding)
 	const streamMsgs = new Map(state.paneStreamMessages)
 	const streamText = new Map(state.paneStreamText)
 	const sessionIds = new Map(state.paneSessionIds)
@@ -331,6 +335,7 @@ function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneClean
 		procs.delete(id)
 		altIds.delete(id)
 		startTimes.delete(id)
+		responding.delete(id)
 		streamMsgs.delete(id)
 		streamText.delete(id)
 		sessionIds.delete(id)
@@ -341,6 +346,7 @@ function cleanupPaneState(paneIds: string[], state: PaneCleanupState): PaneClean
 		paneProcessNames: procs,
 		altScreenPaneIds: altIds,
 		paneAgentStartTimes: startTimes,
+		paneAgentResponding: responding,
 		paneStreamMessages: streamMsgs,
 		paneStreamText: streamText,
 		paneSessionIds: sessionIds,
@@ -383,6 +389,7 @@ export const useStore = create<StoreState>((set, get) => ({
 	paneProcessNames: new Map(),
 	altScreenPaneIds: new Set(),
 	paneAgentStartTimes: new Map(),
+	paneAgentResponding: new Map(),
 	paneStreamMessages: new Map(),
 	paneStreamText: new Map(),
 	paneSessionIds: new Map(),
@@ -564,6 +571,14 @@ export const useStore = create<StoreState>((set, get) => ({
 				const nextSessions = new Map(get().paneSessionIds)
 				nextSessions.set(paneId, sessionId)
 				updates.paneSessionIds = nextSessions
+			}
+
+			// Sync parser's responding state to React state
+			const responding = currentParser.isResponding()
+			if (get().paneAgentResponding.get(paneId) !== responding) {
+				const nextResponding = new Map(get().paneAgentResponding)
+				nextResponding.set(paneId, responding)
+				updates.paneAgentResponding = nextResponding
 			}
 
 			set(updates)
@@ -1163,7 +1178,9 @@ export const useStore = create<StoreState>((set, get) => ({
 			parser.addUserMessage(message)
 			const nextMsgs = new Map(get().paneStreamMessages)
 			nextMsgs.set(paneId, [...parser.getMessages()])
-			set({ paneStreamMessages: nextMsgs })
+			const nextResponding = new Map(get().paneAgentResponding)
+			nextResponding.set(paneId, true)
+			set({ paneStreamMessages: nextMsgs, paneAgentResponding: nextResponding })
 
 			// Subprocess mode — send structured message via IPC
 			window.api.sendAgentMessage(paneId, message).catch((err) => {

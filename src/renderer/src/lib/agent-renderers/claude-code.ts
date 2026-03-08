@@ -11,6 +11,17 @@ const MAX_MESSAGES = 500
 
 const VALID_ROLES = new Set<StreamMessage['role']>(['assistant', 'user', 'system'])
 
+/** Sum all input token fields from an API usage object.
+ *  With prompt caching, `input_tokens` only counts non-cached tokens.
+ *  Total context = input_tokens + cache_creation_input_tokens + cache_read_input_tokens. */
+function totalInputTokens(usage: Record<string, unknown>): number {
+	return (
+		Number(usage.input_tokens ?? 0) +
+		Number(usage.cache_creation_input_tokens ?? 0) +
+		Number(usage.cache_read_input_tokens ?? 0)
+	)
+}
+
 /**
  * Parses Claude Code `--print --verbose --output-format stream-json` NDJSON output.
  *
@@ -32,6 +43,8 @@ export class ClaudeCodeStreamParser implements StreamParser {
 	private consecutiveParseFailures = 0
 	/** Session ID from the last result event — used for --resume on next turn. */
 	private sessionId: string | null = null
+	/** Whether the agent is mid-turn (between message_start and result event). */
+	private _responding = false
 	/** Last seen cumulative output_tokens — used to compute per-block token deltas. */
 	private lastOutputTokens = 0
 	/** Per content block index: output_tokens at block start. */
@@ -64,6 +77,11 @@ export class ClaudeCodeStreamParser implements StreamParser {
 
 	getSessionId(): string | null {
 		return this.sessionId
+	}
+
+	/** Whether the agent is mid-turn (between first message_start and result event). */
+	isResponding(): boolean {
+		return this._responding
 	}
 
 	addUserMessage(text: string): void {
@@ -170,6 +188,7 @@ export class ClaudeCodeStreamParser implements StreamParser {
 	}
 
 	private handleResult(obj: Record<string, unknown>): void {
+		this._responding = false
 		// Extract session_id for --resume support
 		if (typeof obj.session_id === 'string') {
 			this.sessionId = obj.session_id
@@ -182,12 +201,17 @@ export class ClaudeCodeStreamParser implements StreamParser {
 				msg.stopReason = obj.stop_reason
 			}
 		}
-		// Extract usage from result if message has none
-		if (msg && !msg.usage && typeof obj.usage === 'object' && obj.usage !== null) {
+		// Result event usage is aggregated across ALL API calls in the turn (each tool-use
+		// round trip is a separate API call). inputTokens would be inflated (e.g. 147k vs actual
+		// 32k context). Use message_start values for inputTokens (per-call, reflects real context).
+		// Only update outputTokens from result — those are useful for the turn total.
+		if (msg && typeof obj.usage === 'object' && obj.usage !== null) {
 			const usage = obj.usage as Record<string, unknown>
-			msg.usage = {
-				inputTokens: Number(usage.input_tokens ?? 0),
-				outputTokens: Number(usage.output_tokens ?? 0),
+			const output = Number(usage.output_tokens ?? 0)
+			if (msg.usage) {
+				if (output > 0) msg.usage.outputTokens = output
+			} else {
+				msg.usage = { inputTokens: 0, outputTokens: output }
 			}
 		}
 	}
@@ -283,6 +307,8 @@ export class ClaudeCodeStreamParser implements StreamParser {
 			? (rawRole as StreamMessage['role'])
 			: 'assistant'
 
+		if (role === 'assistant') this._responding = true
+
 		this.blockIndexMap.clear()
 		this.blockStartTokens.clear()
 		// API resets output_tokens to 0 for each new message response
@@ -295,6 +321,15 @@ export class ClaudeCodeStreamParser implements StreamParser {
 		if (role === 'assistant' && last?.role === 'assistant') {
 			last.streaming = true
 			last.stopReason = null
+			// Update inputTokens to latest value — approximates current context consumption (prompt tokens)
+			if (usage) {
+				const input = totalInputTokens(usage)
+				if (last.usage) {
+					if (input > 0) last.usage.inputTokens = input
+				} else {
+					last.usage = { inputTokens: input, outputTokens: 0 }
+				}
+			}
 			return
 		}
 
@@ -311,7 +346,7 @@ export class ClaudeCodeStreamParser implements StreamParser {
 			stopReason: null,
 			usage: usage
 				? {
-						inputTokens: Number(usage.input_tokens ?? 0),
+						inputTokens: totalInputTokens(usage),
 						outputTokens: Number(usage.output_tokens ?? 0),
 					}
 				: null,

@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { DEFAULT_PANE_OPACITY, type PaneTheme } from '../../../shared/types'
+import { type AgentType, DEFAULT_PANE_OPACITY, type PaneTheme } from '../../../shared/types'
 import type {
 	BlockUsage,
 	ContentBlock,
@@ -12,6 +12,7 @@ import type {
 import { formatTokens } from '../lib/format'
 import { useStore } from '../store'
 import { resolveBackground } from '../utils/colors'
+import { AgentStatusBar, StreamingBar } from './AgentStatusBar'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -322,8 +323,6 @@ function MessageInput({ paneId, isStreaming }: { paneId: string; isStreaming: bo
 	const [input, setInput] = useState('')
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
 	const sendAgentMessage = useStore((s) => s.sendAgentMessage)
-	const killAgents = useStore((s) => s.killAgents)
-	const isSubprocess = useStore((s) => s.activeAgentIds.has(paneId))
 
 	const handleSubmit = useCallback(() => {
 		const trimmed = input.trim()
@@ -331,16 +330,6 @@ function MessageInput({ paneId, isStreaming }: { paneId: string; isStreaming: bo
 		sendAgentMessage(paneId, trimmed)
 		setInput('')
 	}, [paneId, input, sendAgentMessage])
-
-	const handleStop = useCallback(() => {
-		if (isSubprocess) {
-			killAgents([paneId])
-		} else {
-			window.api.writePty(paneId, '\x03').catch((err) => {
-				console.warn('[StreamRenderer] writePty stop failed:', err)
-			})
-		}
-	}, [paneId, isSubprocess, killAgents])
 
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
@@ -369,20 +358,7 @@ function MessageInput({ paneId, isStreaming }: { paneId: string; isStreaming: bo
 	}, [input])
 
 	return (
-		<div className="border-t border-edge px-3 py-2 shrink-0">
-			{isStreaming && (
-				<div className="flex items-center gap-2 mb-2">
-					<span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse motion-reduce:animate-none shrink-0" />
-					<span className="text-content-muted text-[11px]">Agent is responding...</span>
-					<button
-						type="button"
-						onClick={handleStop}
-						className="ml-auto text-[10px] px-1.5 py-0.5 rounded-sm cursor-pointer border border-edge bg-overlay hover:bg-overlay-active text-content-secondary focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
-					>
-						Stop
-					</button>
-				</div>
-			)}
+		<div className="px-3 py-2 shrink-0">
 			<div className="flex gap-2 items-end">
 				<textarea
 					ref={textareaRef}
@@ -440,13 +416,17 @@ function StructuredView({
 
 interface StreamRendererProps {
 	paneId: string
+	agentType: AgentType
 	theme: PaneTheme
 	themeOverride: Partial<PaneTheme> | null
 }
 
-export function StreamRenderer({ paneId, theme, themeOverride }: StreamRendererProps) {
+export function StreamRenderer({ paneId, agentType, theme, themeOverride }: StreamRendererProps) {
 	const messages = useStore((s) => s.paneStreamMessages.get(paneId))
 	const rawText = useStore((s) => s.paneStreamText.get(paneId))
+	const killAgents = useStore((s) => s.killAgents)
+	const isSubprocess = useStore((s) => s.activeAgentIds.has(paneId))
+	const isAgentResponding = useStore((s) => s.paneAgentResponding.get(paneId) ?? false)
 	const scrollRef = useRef<HTMLDivElement>(null)
 	const wasAtBottomRef = useRef(true)
 	const rafRef = useRef(0)
@@ -477,6 +457,16 @@ export function StreamRenderer({ paneId, theme, themeOverride }: StreamRendererP
 		wasAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 8
 	}, [])
 
+	const handleStop = useCallback(() => {
+		if (isSubprocess) {
+			killAgents([paneId])
+		} else {
+			window.api.writePty(paneId, '\x03').catch((err) => {
+				console.warn('[StreamRenderer] writePty stop failed:', err)
+			})
+		}
+	}, [paneId, isSubprocess, killAgents])
+
 	return (
 		<div className="w-full h-full flex flex-col" style={{ backgroundColor: bg }}>
 			{hasStructured ? (
@@ -498,6 +488,8 @@ export function StreamRenderer({ paneId, theme, themeOverride }: StreamRendererP
 					Type a message below to start
 				</div>
 			)}
+			{isAgentResponding && <StreamingBar paneId={paneId} onStop={handleStop} />}
+			<AgentStatusBar paneId={paneId} agentType={agentType} />
 			<MessageInput paneId={paneId} isStreaming={isStreaming} />
 		</div>
 	)

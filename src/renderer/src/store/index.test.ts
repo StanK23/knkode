@@ -91,6 +91,7 @@ function resetStore() {
 		paneProcessNames: new Map(),
 		altScreenPaneIds: new Set(),
 		paneAgentStartTimes: new Map(),
+		paneAgentResponding: new Map(),
 		paneStreamMessages: new Map(),
 		paneStreamText: new Map(),
 		paneSessionIds: new Map(),
