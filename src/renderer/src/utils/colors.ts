@@ -6,6 +6,17 @@ export function isValidHex(hex: string): boolean {
 	return /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.test(hex)
 }
 
+/** Test whether a string is a safe CSS gradient (no injection vectors). */
+export function isValidGradient(value: string): boolean {
+	return (
+		/^(linear|radial|conic)-gradient\(/.test(value) &&
+		!value.includes(';') &&
+		!value.includes('{') &&
+		!value.includes('url(') &&
+		!value.includes('expression(')
+	)
+}
+
 /** Parse a hex color string (#RGB or #RRGGBB) into an RGB tuple. Returns [0,0,0] on malformed input. */
 export function hexToRgb(hex: string): [number, number, number] {
 	const match = hex.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i)
