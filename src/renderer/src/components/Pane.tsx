@@ -772,7 +772,7 @@ export function Pane({
 				)}
 			</div>
 
-			{/* Dim overlay scoped to terminal area only (not the header/status bar).
+			{/* Dim overlay scoped to terminal area only (not the header).
 			    Always rendered to enable CSS transition; opacity toggled via class.
 			    Inline style required: Tailwind cannot express dynamic runtime opacity. */}
 			<div className="flex-1 overflow-hidden p-px relative">

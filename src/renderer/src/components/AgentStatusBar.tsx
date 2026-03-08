@@ -1,9 +1,11 @@
 import { memo, useEffect, useMemo, useState } from 'react'
 import { AGENT_LABELS, type AgentType } from '../../../shared/types'
 import { formatTokens } from '../lib/format'
+import type { StreamMessage } from '../lib/agent-renderers/types'
 import { useStore } from '../store'
 
-/** Default context window size for Claude models. */
+/** Maximum context window size assumed for Claude models (tokens).
+ *  Hardcoded for current Claude models — may need a model-to-context map in the future. */
 const CONTEXT_WINDOW = 200_000
 
 function formatElapsed(ms: number): string {
@@ -20,11 +22,8 @@ function formatElapsed(ms: number): string {
 /** Extract a short model label from a model ID string.
  *  e.g. "claude-sonnet-4-6-20260301" → "sonnet 4.6" */
 export function shortModelName(model: string): string {
-	// Match "claude-{family}-{major}-{minor}" where minor is 1-2 digits
-	// Avoids mismatching date suffixes like "claude-sonnet-4-20250514"
 	const match = model.match(/^claude-([a-z]+)-(\d+)-(\d{1,2})(?:-|$)/)
 	if (match) return `${match[1]} ${match[2]}.${match[3]}`
-	// Fallback: strip "claude-" prefix if present
 	return model.replace(/^claude-/, '')
 }
 
@@ -39,55 +38,47 @@ function ElapsedTimer({ startTime }: { startTime: number }) {
 	return <span className="tabular-nums">{formatElapsed(now - startTime)}</span>
 }
 
+/** Derive model, context tokens, and per-response tokens from messages. */
+function useMessageStats(messages: readonly StreamMessage[] | undefined) {
+	return useMemo(() => {
+		let latestModel: string | undefined
+		let contextTokens = 0
+		let responseInput = 0
+		let responseOutput = 0
+
+		if (messages) {
+			for (const msg of messages) {
+				if (msg.model) latestModel = msg.model
+				// Track latest assistant message usage as context gauge
+				if (msg.role === 'assistant' && msg.usage) {
+					contextTokens = msg.usage.inputTokens
+					responseInput = msg.usage.inputTokens
+					responseOutput = msg.usage.outputTokens
+				}
+			}
+		}
+
+		const contextPct =
+			contextTokens > 0 ? Math.min(100, Math.round((contextTokens / CONTEXT_WINDOW) * 100)) : 0
+
+		return { model: latestModel, contextTokens, contextPct, responseInput, responseOutput }
+	}, [messages])
+}
+
+// ── Static Status Bar (always visible) ──────────────────────────────────────
+
 interface AgentStatusBarProps {
 	paneId: string
 	agentType: AgentType
 }
 
+/** Persistent bar above input — shows model name and context window gauge. */
 export const AgentStatusBar = memo(function AgentStatusBar({
 	paneId,
 	agentType,
 }: AgentStatusBarProps) {
-	const startTime = useStore((s) => s.paneAgentStartTimes.get(paneId))
 	const messages = useStore((s) => s.paneStreamMessages.get(paneId))
-	const isSubprocess = useStore((s) => s.activeAgentIds.has(paneId))
-
-	const isStreaming = messages?.some((m) => m.streaming) ?? false
-	const msgCount = messages?.length ?? 0
-
-	// Derive model name, cumulative tokens, and latest context usage from messages
-	const { model, inputTokens, outputTokens, contextTokens } = useMemo(() => {
-		let latestModel: string | undefined
-		let input = 0
-		let output = 0
-		let context = 0
-		if (messages) {
-			for (const msg of messages) {
-				if (msg.model) latestModel = msg.model
-				if (msg.usage) {
-					input += msg.usage.inputTokens
-					output += msg.usage.outputTokens
-				}
-			}
-			// Latest assistant message's inputTokens = current context window usage
-			for (let i = messages.length - 1; i >= 0; i--) {
-				if (messages[i].role === 'assistant' && messages[i].usage) {
-					context = messages[i].usage!.inputTokens
-					break
-				}
-			}
-		}
-		return { model: latestModel, inputTokens: input, outputTokens: output, contextTokens: context }
-	}, [messages])
-
-	let activityLabel: string
-	if (isStreaming) activityLabel = 'Working'
-	else if (msgCount > 0) activityLabel = 'Idle'
-	else if (isSubprocess) activityLabel = 'Starting'
-	else activityLabel = 'Running'
-
-	const contextPct =
-		contextTokens > 0 ? Math.min(100, Math.round((contextTokens / CONTEXT_WINDOW) * 100)) : 0
+	const { model, contextTokens, contextPct } = useMessageStats(messages)
 
 	return (
 		<output
@@ -97,10 +88,6 @@ export const AgentStatusBar = memo(function AgentStatusBar({
 			<span className="font-semibold text-accent">{AGENT_LABELS[agentType]}</span>
 
 			{model && <span className="text-content-muted/60">{shortModelName(model)}</span>}
-
-			<span className={`min-w-0 truncate ${isStreaming ? 'text-accent' : 'text-content-muted'}`}>
-				{activityLabel}
-			</span>
 
 			<span className="flex-1" />
 
@@ -112,21 +99,51 @@ export const AgentStatusBar = memo(function AgentStatusBar({
 					{formatTokens(contextTokens)}/{formatTokens(CONTEXT_WINDOW)} ctx
 				</span>
 			)}
+		</output>
+	)
+})
 
-			{inputTokens + outputTokens > 0 && (
+// ── Dynamic Streaming Bar (visible while agent is responding) ───────────────
+
+interface StreamingBarProps {
+	paneId: string
+	onStop: () => void
+}
+
+/** Bar visible while the agent is responding — shows per-response tokens, timer, stop button. */
+export const StreamingBar = memo(function StreamingBar({ paneId, onStop }: StreamingBarProps) {
+	const startTime = useStore((s) => s.paneAgentStartTimes.get(paneId))
+	const messages = useStore((s) => s.paneStreamMessages.get(paneId))
+	const { responseInput, responseOutput } = useMessageStats(messages)
+
+	return (
+		<div className="h-6 flex items-center gap-2 px-3 text-[10px] border-t border-edge shrink-0 select-none">
+			<span className="inline-block w-1.5 h-1.5 rounded-full bg-accent animate-pulse motion-reduce:animate-none shrink-0" />
+
+			<span className="flex-1" />
+
+			{responseInput + responseOutput > 0 && (
 				<span
 					className="text-content-muted/60 tabular-nums"
-					title={`${inputTokens.toLocaleString()} input + ${outputTokens.toLocaleString()} output tokens`}
+					title={`${responseInput.toLocaleString()} input + ${responseOutput.toLocaleString()} output tokens`}
 				>
-					{formatTokens(inputTokens)}↑ {formatTokens(outputTokens)}↓
+					{formatTokens(responseInput)}↑ {formatTokens(responseOutput)}↓
 				</span>
 			)}
 
 			{startTime !== undefined && (
-				<span className="text-content-muted">
+				<span className="text-content-muted tabular-nums">
 					<ElapsedTimer startTime={startTime} />
 				</span>
 			)}
-		</output>
+
+			<button
+				type="button"
+				onClick={onStop}
+				className="text-[10px] px-1.5 py-0.5 rounded-sm cursor-pointer border border-edge bg-overlay hover:bg-overlay-active text-content-secondary focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+			>
+				Stop
+			</button>
+		</div>
 	)
 })
