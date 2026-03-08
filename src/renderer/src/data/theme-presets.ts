@@ -9,7 +9,7 @@ export type ThemePreset = Pick<PaneTheme, 'background' | 'foreground'> & {
 	glow?: string
 }
 
-/** Default ANSI palette — used when a preset doesn't specify its own. */
+/** Tango-based ANSI palette used by the Default Dark preset. */
 const DEFAULT_ANSI: AnsiColors = {
 	black: '#000000',
 	red: '#cc0000',
@@ -29,7 +29,27 @@ const DEFAULT_ANSI: AnsiColors = {
 	brightWhite: '#eeeeec',
 }
 
-export const THEME_PRESETS: readonly ThemePreset[] = [
+/** Solarized ANSI palette shared by Solarized Dark and Light presets. */
+const SOLARIZED_ANSI: AnsiColors = {
+	black: '#073642',
+	red: '#dc322f',
+	green: '#859900',
+	yellow: '#b58900',
+	blue: '#268bd2',
+	magenta: '#d33682',
+	cyan: '#2aa198',
+	white: '#eee8d5',
+	brightBlack: '#586e75',
+	brightRed: '#cb4b16',
+	brightGreen: '#859900',
+	brightYellow: '#b58900',
+	brightBlue: '#268bd2',
+	brightMagenta: '#6c71c4',
+	brightCyan: '#2aa198',
+	brightWhite: '#fdf6e3',
+}
+
+export const THEME_PRESETS = [
 	// Dark themes
 	{
 		name: 'Default Dark',
@@ -92,24 +112,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
 		background: '#002b36',
 		foreground: '#839496',
 		accent: '#268bd2',
-		ansiColors: {
-			black: '#073642',
-			red: '#dc322f',
-			green: '#859900',
-			yellow: '#b58900',
-			blue: '#268bd2',
-			magenta: '#d33682',
-			cyan: '#2aa198',
-			white: '#eee8d5',
-			brightBlack: '#586e75',
-			brightRed: '#cb4b16',
-			brightGreen: '#859900',
-			brightYellow: '#b58900',
-			brightBlue: '#268bd2',
-			brightMagenta: '#6c71c4',
-			brightCyan: '#2aa198',
-			brightWhite: '#fdf6e3',
-		},
+		ansiColors: SOLARIZED_ANSI,
 	},
 	{
 		name: 'Tokyo Night',
@@ -312,24 +315,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
 		background: '#fdf6e3',
 		foreground: '#586e75',
 		accent: '#268bd2',
-		ansiColors: {
-			black: '#073642',
-			red: '#dc322f',
-			green: '#859900',
-			yellow: '#b58900',
-			blue: '#268bd2',
-			magenta: '#d33682',
-			cyan: '#2aa198',
-			white: '#eee8d5',
-			brightBlack: '#586e75',
-			brightRed: '#cb4b16',
-			brightGreen: '#859900',
-			brightYellow: '#b58900',
-			brightBlue: '#268bd2',
-			brightMagenta: '#6c71c4',
-			brightCyan: '#2aa198',
-			brightWhite: '#fdf6e3',
-		},
+		ansiColors: SOLARIZED_ANSI,
 	},
 	{
 		name: 'GitHub Light',
@@ -403,7 +389,7 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
 			brightWhite: '#575279',
 		},
 	},
-]
+] as const satisfies readonly ThemePreset[]
 
 export const TERMINAL_FONTS = [
 	'JetBrains Mono',
