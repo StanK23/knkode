@@ -1,28 +1,408 @@
-import type { PaneTheme } from '../../../shared/types'
+import type { AnsiColors, PaneTheme } from '../../../shared/types'
 import { resolveBackground } from '../utils/colors'
 
-type ThemePreset = Pick<PaneTheme, 'background' | 'foreground'> & { name: string }
+export type ThemePreset = Pick<PaneTheme, 'background' | 'foreground'> & {
+	name: string
+	ansiColors?: AnsiColors
+	accent?: string
+	glow?: string
+}
 
-export const THEME_PRESETS = [
+/** Default ANSI palette — used when a preset doesn't specify its own. */
+const DEFAULT_ANSI: AnsiColors = {
+	black: '#000000',
+	red: '#cc0000',
+	green: '#4e9a06',
+	yellow: '#c4a000',
+	blue: '#3465a4',
+	magenta: '#75507b',
+	cyan: '#06989a',
+	white: '#d3d7cf',
+	brightBlack: '#555753',
+	brightRed: '#ef2929',
+	brightGreen: '#8ae234',
+	brightYellow: '#fce94f',
+	brightBlue: '#729fcf',
+	brightMagenta: '#ad7fa8',
+	brightCyan: '#34e2e2',
+	brightWhite: '#eeeeec',
+}
+
+export const THEME_PRESETS: readonly ThemePreset[] = [
 	// Dark themes
-	{ name: 'Default Dark', background: '#1a1a2e', foreground: '#e0e0e0' },
-	{ name: 'Dracula', background: '#282a36', foreground: '#f8f8f2' },
-	{ name: 'One Dark', background: '#282c34', foreground: '#abb2bf' },
-	{ name: 'Solarized Dark', background: '#002b36', foreground: '#839496' },
-	{ name: 'Tokyo Night', background: '#1a1b26', foreground: '#a9b1d6' },
-	{ name: 'GitHub Dark', background: '#0d1117', foreground: '#c9d1d9' },
-	{ name: 'Monokai', background: '#272822', foreground: '#f8f8f2' },
-	{ name: 'Nord', background: '#2e3440', foreground: '#d8dee9' },
-	{ name: 'Catppuccin', background: '#1e1e2e', foreground: '#cdd6f4' },
-	{ name: 'Gruvbox', background: '#282828', foreground: '#ebdbb2' },
-	{ name: 'Rosé Pine', background: '#191724', foreground: '#e0def4' },
-	{ name: 'Kanagawa', background: '#1f1f28', foreground: '#dcd7ba' },
+	{
+		name: 'Default Dark',
+		background: '#1a1a2e',
+		foreground: '#e0e0e0',
+		accent: '#6c63ff',
+		ansiColors: DEFAULT_ANSI,
+	},
+	{
+		name: 'Dracula',
+		background: '#282a36',
+		foreground: '#f8f8f2',
+		accent: '#bd93f9',
+		glow: '#bd93f9',
+		ansiColors: {
+			black: '#21222c',
+			red: '#ff5555',
+			green: '#50fa7b',
+			yellow: '#f1fa8c',
+			blue: '#bd93f9',
+			magenta: '#ff79c6',
+			cyan: '#8be9fd',
+			white: '#f8f8f2',
+			brightBlack: '#6272a4',
+			brightRed: '#ff6e6e',
+			brightGreen: '#69ff94',
+			brightYellow: '#ffffa5',
+			brightBlue: '#d6acff',
+			brightMagenta: '#ff92df',
+			brightCyan: '#a4ffff',
+			brightWhite: '#ffffff',
+		},
+	},
+	{
+		name: 'One Dark',
+		background: '#282c34',
+		foreground: '#abb2bf',
+		accent: '#61afef',
+		ansiColors: {
+			black: '#282c34',
+			red: '#e06c75',
+			green: '#98c379',
+			yellow: '#e5c07b',
+			blue: '#61afef',
+			magenta: '#c678dd',
+			cyan: '#56b6c2',
+			white: '#abb2bf',
+			brightBlack: '#5c6370',
+			brightRed: '#e06c75',
+			brightGreen: '#98c379',
+			brightYellow: '#e5c07b',
+			brightBlue: '#61afef',
+			brightMagenta: '#c678dd',
+			brightCyan: '#56b6c2',
+			brightWhite: '#ffffff',
+		},
+	},
+	{
+		name: 'Solarized Dark',
+		background: '#002b36',
+		foreground: '#839496',
+		accent: '#268bd2',
+		ansiColors: {
+			black: '#073642',
+			red: '#dc322f',
+			green: '#859900',
+			yellow: '#b58900',
+			blue: '#268bd2',
+			magenta: '#d33682',
+			cyan: '#2aa198',
+			white: '#eee8d5',
+			brightBlack: '#586e75',
+			brightRed: '#cb4b16',
+			brightGreen: '#859900',
+			brightYellow: '#b58900',
+			brightBlue: '#268bd2',
+			brightMagenta: '#6c71c4',
+			brightCyan: '#2aa198',
+			brightWhite: '#fdf6e3',
+		},
+	},
+	{
+		name: 'Tokyo Night',
+		background: '#1a1b26',
+		foreground: '#a9b1d6',
+		accent: '#7aa2f7',
+		glow: '#7aa2f7',
+		ansiColors: {
+			black: '#15161e',
+			red: '#f7768e',
+			green: '#9ece6a',
+			yellow: '#e0af68',
+			blue: '#7aa2f7',
+			magenta: '#bb9af7',
+			cyan: '#7dcfff',
+			white: '#a9b1d6',
+			brightBlack: '#414868',
+			brightRed: '#f7768e',
+			brightGreen: '#9ece6a',
+			brightYellow: '#e0af68',
+			brightBlue: '#7aa2f7',
+			brightMagenta: '#bb9af7',
+			brightCyan: '#7dcfff',
+			brightWhite: '#c0caf5',
+		},
+	},
+	{
+		name: 'GitHub Dark',
+		background: '#0d1117',
+		foreground: '#c9d1d9',
+		accent: '#58a6ff',
+		ansiColors: {
+			black: '#0d1117',
+			red: '#ff7b72',
+			green: '#3fb950',
+			yellow: '#d29922',
+			blue: '#58a6ff',
+			magenta: '#bc8cff',
+			cyan: '#39c5cf',
+			white: '#c9d1d9',
+			brightBlack: '#484f58',
+			brightRed: '#ffa198',
+			brightGreen: '#56d364',
+			brightYellow: '#e3b341',
+			brightBlue: '#79c0ff',
+			brightMagenta: '#d2a8ff',
+			brightCyan: '#56d4dd',
+			brightWhite: '#f0f6fc',
+		},
+	},
+	{
+		name: 'Monokai',
+		background: '#272822',
+		foreground: '#f8f8f2',
+		accent: '#a6e22e',
+		ansiColors: {
+			black: '#272822',
+			red: '#f92672',
+			green: '#a6e22e',
+			yellow: '#f4bf75',
+			blue: '#66d9ef',
+			magenta: '#ae81ff',
+			cyan: '#a1efe4',
+			white: '#f8f8f2',
+			brightBlack: '#75715e',
+			brightRed: '#f92672',
+			brightGreen: '#a6e22e',
+			brightYellow: '#f4bf75',
+			brightBlue: '#66d9ef',
+			brightMagenta: '#ae81ff',
+			brightCyan: '#a1efe4',
+			brightWhite: '#f9f8f5',
+		},
+	},
+	{
+		name: 'Nord',
+		background: '#2e3440',
+		foreground: '#d8dee9',
+		accent: '#88c0d0',
+		ansiColors: {
+			black: '#3b4252',
+			red: '#bf616a',
+			green: '#a3be8c',
+			yellow: '#ebcb8b',
+			blue: '#81a1c1',
+			magenta: '#b48ead',
+			cyan: '#88c0d0',
+			white: '#e5e9f0',
+			brightBlack: '#4c566a',
+			brightRed: '#bf616a',
+			brightGreen: '#a3be8c',
+			brightYellow: '#ebcb8b',
+			brightBlue: '#81a1c1',
+			brightMagenta: '#b48ead',
+			brightCyan: '#8fbcbb',
+			brightWhite: '#eceff4',
+		},
+	},
+	{
+		name: 'Catppuccin',
+		background: '#1e1e2e',
+		foreground: '#cdd6f4',
+		accent: '#cba6f7',
+		glow: '#cba6f7',
+		ansiColors: {
+			black: '#45475a',
+			red: '#f38ba8',
+			green: '#a6e3a1',
+			yellow: '#f9e2af',
+			blue: '#89b4fa',
+			magenta: '#cba6f7',
+			cyan: '#94e2d5',
+			white: '#bac2de',
+			brightBlack: '#585b70',
+			brightRed: '#f38ba8',
+			brightGreen: '#a6e3a1',
+			brightYellow: '#f9e2af',
+			brightBlue: '#89b4fa',
+			brightMagenta: '#cba6f7',
+			brightCyan: '#94e2d5',
+			brightWhite: '#a6adc8',
+		},
+	},
+	{
+		name: 'Gruvbox',
+		background: '#282828',
+		foreground: '#ebdbb2',
+		accent: '#fe8019',
+		ansiColors: {
+			black: '#282828',
+			red: '#cc241d',
+			green: '#98971a',
+			yellow: '#d79921',
+			blue: '#458588',
+			magenta: '#b16286',
+			cyan: '#689d6a',
+			white: '#a89984',
+			brightBlack: '#928374',
+			brightRed: '#fb4934',
+			brightGreen: '#b8bb26',
+			brightYellow: '#fabd2f',
+			brightBlue: '#83a598',
+			brightMagenta: '#d3869b',
+			brightCyan: '#8ec07c',
+			brightWhite: '#ebdbb2',
+		},
+	},
+	{
+		name: 'Rosé Pine',
+		background: '#191724',
+		foreground: '#e0def4',
+		accent: '#c4a7e7',
+		glow: '#c4a7e7',
+		ansiColors: {
+			black: '#26233a',
+			red: '#eb6f92',
+			green: '#31748f',
+			yellow: '#f6c177',
+			blue: '#9ccfd8',
+			magenta: '#c4a7e7',
+			cyan: '#9ccfd8',
+			white: '#e0def4',
+			brightBlack: '#6e6a86',
+			brightRed: '#eb6f92',
+			brightGreen: '#31748f',
+			brightYellow: '#f6c177',
+			brightBlue: '#9ccfd8',
+			brightMagenta: '#c4a7e7',
+			brightCyan: '#9ccfd8',
+			brightWhite: '#e0def4',
+		},
+	},
+	{
+		name: 'Kanagawa',
+		background: '#1f1f28',
+		foreground: '#dcd7ba',
+		accent: '#7e9cd8',
+		ansiColors: {
+			black: '#16161d',
+			red: '#c34043',
+			green: '#76946a',
+			yellow: '#c0a36e',
+			blue: '#7e9cd8',
+			magenta: '#957fb8',
+			cyan: '#6a9589',
+			white: '#c8c093',
+			brightBlack: '#727169',
+			brightRed: '#e82424',
+			brightGreen: '#98bb6c',
+			brightYellow: '#e6c384',
+			brightBlue: '#7fb4ca',
+			brightMagenta: '#938aa9',
+			brightCyan: '#7aa89f',
+			brightWhite: '#dcd7ba',
+		},
+	},
 	// Light themes
-	{ name: 'Solarized Light', background: '#fdf6e3', foreground: '#586e75' },
-	{ name: 'GitHub Light', background: '#ffffff', foreground: '#24292f' },
-	{ name: 'One Light', background: '#fafafa', foreground: '#383a42' },
-	{ name: 'Rosé Pine Dawn', background: '#faf4ed', foreground: '#575279' },
-] as const satisfies readonly ThemePreset[]
+	{
+		name: 'Solarized Light',
+		background: '#fdf6e3',
+		foreground: '#586e75',
+		accent: '#268bd2',
+		ansiColors: {
+			black: '#073642',
+			red: '#dc322f',
+			green: '#859900',
+			yellow: '#b58900',
+			blue: '#268bd2',
+			magenta: '#d33682',
+			cyan: '#2aa198',
+			white: '#eee8d5',
+			brightBlack: '#586e75',
+			brightRed: '#cb4b16',
+			brightGreen: '#859900',
+			brightYellow: '#b58900',
+			brightBlue: '#268bd2',
+			brightMagenta: '#6c71c4',
+			brightCyan: '#2aa198',
+			brightWhite: '#fdf6e3',
+		},
+	},
+	{
+		name: 'GitHub Light',
+		background: '#ffffff',
+		foreground: '#24292f',
+		accent: '#0969da',
+		ansiColors: {
+			black: '#24292e',
+			red: '#cf222e',
+			green: '#116329',
+			yellow: '#4d2d00',
+			blue: '#0550ae',
+			magenta: '#8250df',
+			cyan: '#1b7c83',
+			white: '#6e7781',
+			brightBlack: '#57606a',
+			brightRed: '#a40e26',
+			brightGreen: '#1a7f37',
+			brightYellow: '#633c01',
+			brightBlue: '#218bff',
+			brightMagenta: '#a475f9',
+			brightCyan: '#3192aa',
+			brightWhite: '#8c959f',
+		},
+	},
+	{
+		name: 'One Light',
+		background: '#fafafa',
+		foreground: '#383a42',
+		accent: '#4078f2',
+		ansiColors: {
+			black: '#383a42',
+			red: '#e45649',
+			green: '#50a14f',
+			yellow: '#c18401',
+			blue: '#4078f2',
+			magenta: '#a626a4',
+			cyan: '#0184bc',
+			white: '#a0a1a7',
+			brightBlack: '#696c77',
+			brightRed: '#e45649',
+			brightGreen: '#50a14f',
+			brightYellow: '#c18401',
+			brightBlue: '#4078f2',
+			brightMagenta: '#a626a4',
+			brightCyan: '#0184bc',
+			brightWhite: '#fafafa',
+		},
+	},
+	{
+		name: 'Rosé Pine Dawn',
+		background: '#faf4ed',
+		foreground: '#575279',
+		accent: '#907aa9',
+		ansiColors: {
+			black: '#575279',
+			red: '#b4637a',
+			green: '#286983',
+			yellow: '#ea9d34',
+			blue: '#56949f',
+			magenta: '#907aa9',
+			cyan: '#56949f',
+			white: '#575279',
+			brightBlack: '#9893a5',
+			brightRed: '#b4637a',
+			brightGreen: '#286983',
+			brightYellow: '#ea9d34',
+			brightBlue: '#56949f',
+			brightMagenta: '#907aa9',
+			brightCyan: '#56949f',
+			brightWhite: '#575279',
+		},
+	},
+]
 
 export const TERMINAL_FONTS = [
 	'JetBrains Mono',
@@ -51,15 +431,42 @@ export function buildFontFamily(family?: string): string {
 }
 
 /** Build xterm.js theme options from a PaneTheme's color fields.
- *  When opacity < 1, the background is converted to an rgba value for translucency. */
+ *  When opacity < 1, the background is converted to an rgba value for translucency.
+ *  Includes ANSI 16-color palette when provided. */
 export function buildXtermTheme(
-	t: Pick<PaneTheme, 'background' | 'foreground'>,
+	t: Pick<PaneTheme, 'background' | 'foreground' | 'ansiColors'>,
 	opacity = 1,
-): { background: string; foreground: string; cursor: string; selectionBackground: string } {
-	return {
+): Record<string, string> {
+	const theme: Record<string, string> = {
 		background: resolveBackground(t.background, opacity),
 		foreground: t.foreground,
 		cursor: t.foreground,
 		selectionBackground: `${t.foreground}33`,
 	}
+
+	if (t.ansiColors) {
+		theme.black = t.ansiColors.black
+		theme.red = t.ansiColors.red
+		theme.green = t.ansiColors.green
+		theme.yellow = t.ansiColors.yellow
+		theme.blue = t.ansiColors.blue
+		theme.magenta = t.ansiColors.magenta
+		theme.cyan = t.ansiColors.cyan
+		theme.white = t.ansiColors.white
+		theme.brightBlack = t.ansiColors.brightBlack
+		theme.brightRed = t.ansiColors.brightRed
+		theme.brightGreen = t.ansiColors.brightGreen
+		theme.brightYellow = t.ansiColors.brightYellow
+		theme.brightBlue = t.ansiColors.brightBlue
+		theme.brightMagenta = t.ansiColors.brightMagenta
+		theme.brightCyan = t.ansiColors.brightCyan
+		theme.brightWhite = t.ansiColors.brightWhite
+	}
+
+	return theme
+}
+
+/** Look up a theme preset by name. Returns undefined if not found. */
+export function findPreset(name: string): ThemePreset | undefined {
+	return THEME_PRESETS.find((p) => p.name === name)
 }
