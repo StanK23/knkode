@@ -1353,16 +1353,17 @@ describe('per-block usage tracking', () => {
 		expect(msg.usage).toEqual({ inputTokens: 15007, outputTokens: 0 })
 	})
 
-	it('result event updates usage even when message_start had preliminary values', () => {
+	it('result event updates outputTokens but NOT inputTokens (result aggregates across API calls)', () => {
 		const parser = new ClaudeCodeStreamParser()
 
+		// message_start has per-call context (the real context window usage)
 		parser.feed(
 			line({
 				type: 'message_start',
 				message: {
 					id: 'msg_prelim',
 					role: 'assistant',
-					usage: { input_tokens: 1, output_tokens: 0 },
+					usage: { input_tokens: 7, cache_read_input_tokens: 32000, output_tokens: 0 },
 				},
 			}),
 		)
@@ -1384,15 +1385,16 @@ describe('per-block usage tracking', () => {
 		parser.feed(line({ type: 'content_block_stop', index: 0 }))
 		parser.feed(line({ type: 'message_stop' }))
 
-		// Result event with accurate usage including cache tokens (top-level, not wrapped in stream_event)
+		// Result event has aggregated usage across all API calls in the turn — inflated inputTokens
 		parser.feed(
-			`${JSON.stringify({ type: 'result', session_id: 'sess_1', usage: { input_tokens: 50, cache_read_input_tokens: 44950, output_tokens: 100 } })}\n`,
+			`${JSON.stringify({ type: 'result', session_id: 'sess_1', usage: { input_tokens: 500, cache_read_input_tokens: 147000, output_tokens: 850 } })}\n`,
 		)
 
 		const msg = parser.getMessages()[0]
-		// input_tokens updated from result event: 50 + 44950 = 45000 (was 1)
-		expect(msg.usage?.inputTokens).toBe(45000)
-		expect(msg.usage?.outputTokens).toBe(100)
+		// inputTokens stays from message_start (32007), NOT overridden by result's aggregated 147500
+		expect(msg.usage?.inputTokens).toBe(32007)
+		// outputTokens updated from result (turn total)
+		expect(msg.usage?.outputTokens).toBe(850)
 	})
 })
 

@@ -201,16 +201,17 @@ export class ClaudeCodeStreamParser implements StreamParser {
 				msg.stopReason = obj.stop_reason
 			}
 		}
-		// Result event has final accurate usage — always update (message_start may have preliminary values)
+		// Result event usage is aggregated across ALL API calls in the turn (each tool-use
+		// round trip is a separate API call). inputTokens would be inflated (e.g. 147k vs actual
+		// 32k context). Use message_start values for inputTokens (per-call, reflects real context).
+		// Only update outputTokens from result — those are useful for the turn total.
 		if (msg && typeof obj.usage === 'object' && obj.usage !== null) {
 			const usage = obj.usage as Record<string, unknown>
-			const input = totalInputTokens(usage)
 			const output = Number(usage.output_tokens ?? 0)
 			if (msg.usage) {
-				if (input > 0) msg.usage.inputTokens = input
 				if (output > 0) msg.usage.outputTokens = output
 			} else {
-				msg.usage = { inputTokens: input, outputTokens: output }
+				msg.usage = { inputTokens: 0, outputTokens: output }
 			}
 		}
 	}
