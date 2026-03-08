@@ -9,6 +9,7 @@ import type {
 	ToolResultBlock,
 	ToolUseBlock,
 } from '../lib/agent-renderers/types'
+import { formatTokens } from '../lib/format'
 import { useStore } from '../store'
 import { resolveBackground } from '../utils/colors'
 
@@ -89,13 +90,12 @@ function segmentBlocks(blocks: readonly ContentBlock[]): BlockSegment[] {
 function TokenBadge({ usage }: { usage?: BlockUsage }) {
 	if (!usage || usage.outputTokens === 0) return null
 	const n = usage.outputTokens
-	const label = n < 1000 ? String(n) : `${(n / 1000).toFixed(1)}k`
 	return (
 		<span
 			className="text-[9px] text-content-muted/40 tabular-nums ml-auto shrink-0"
 			title={`${n.toLocaleString()} output tokens`}
 		>
-			{label}t
+			{formatTokens(n)} tok
 		</span>
 	)
 }

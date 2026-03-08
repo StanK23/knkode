@@ -1,5 +1,6 @@
 import { memo, useEffect, useMemo, useState } from 'react'
 import { AGENT_LABELS, type AgentType } from '../../../shared/types'
+import { formatTokens } from '../lib/format'
 import { useStore } from '../store'
 
 function formatElapsed(ms: number): string {
@@ -11,13 +12,6 @@ function formatElapsed(ms: number): string {
 	const hours = Math.floor(minutes / 60)
 	const remainMinutes = minutes % 60
 	return `${hours}h ${String(remainMinutes).padStart(2, '0')}m`
-}
-
-/** Format token count: 1234 → "1.2k", 12345 → "12.3k", 999 → "999" */
-function formatTokens(n: number): string {
-	if (n < 1000) return String(n)
-	if (n < 10_000) return `${(n / 1000).toFixed(1)}k`
-	return `${Math.round(n / 1000)}k`
 }
 
 /** Extract a short model label from a model ID string.
