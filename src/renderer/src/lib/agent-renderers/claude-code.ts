@@ -182,12 +182,16 @@ export class ClaudeCodeStreamParser implements StreamParser {
 				msg.stopReason = obj.stop_reason
 			}
 		}
-		// Extract usage from result if message has none
-		if (msg && !msg.usage && typeof obj.usage === 'object' && obj.usage !== null) {
+		// Result event has final accurate usage — always update (message_start may have preliminary values)
+		if (msg && typeof obj.usage === 'object' && obj.usage !== null) {
 			const usage = obj.usage as Record<string, unknown>
-			msg.usage = {
-				inputTokens: Number(usage.input_tokens ?? 0),
-				outputTokens: Number(usage.output_tokens ?? 0),
+			const input = Number(usage.input_tokens ?? 0)
+			const output = Number(usage.output_tokens ?? 0)
+			if (msg.usage) {
+				if (input > 0) msg.usage.inputTokens = input
+				if (output > 0) msg.usage.outputTokens = output
+			} else {
+				msg.usage = { inputTokens: input, outputTokens: output }
 			}
 		}
 	}
@@ -295,9 +299,14 @@ export class ClaudeCodeStreamParser implements StreamParser {
 		if (role === 'assistant' && last?.role === 'assistant') {
 			last.streaming = true
 			last.stopReason = null
-			// Update inputTokens to latest value — represents current context window usage
-			if (usage && last.usage) {
-				last.usage.inputTokens = Number(usage.input_tokens ?? last.usage.inputTokens)
+			// Update inputTokens to latest value — approximates current context consumption (prompt tokens)
+			if (usage) {
+				const input = Number(usage.input_tokens ?? 0)
+				if (last.usage) {
+					if (input > 0) last.usage.inputTokens = input
+				} else {
+					last.usage = { inputTokens: input, outputTokens: 0 }
+				}
 			}
 			return
 		}

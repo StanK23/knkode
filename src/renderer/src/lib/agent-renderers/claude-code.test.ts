@@ -1276,7 +1276,97 @@ describe('per-block usage tracking', () => {
 		// Turn 2 block: 30 tokens (NOT negative due to reset)
 		if (blocks[1].type === 'text') expect(blocks[1].usage).toEqual({ outputTokens: 30 })
 
-		// inputTokens updated to latest value from merged message_start (context gauge)
+		// inputTokens updated to 200 (Turn 2's message_start) — tracks latest turn
 		expect(msgs[0].usage?.inputTokens).toBe(200)
+	})
+
+	it('initializes usage on merged message when first message_start had no usage', () => {
+		const parser = new ClaudeCodeStreamParser()
+
+		// Turn 1: no usage field
+		parser.feed(
+			line({
+				type: 'message_start',
+				message: { id: 'msg_no', role: 'assistant' },
+			}),
+		)
+		parser.feed(line({ type: 'content_block_start', index: 0, content_block: { type: 'text' } }))
+		parser.feed(
+			line({
+				type: 'content_block_delta',
+				index: 0,
+				delta: { type: 'text_delta', text: 'Hi' },
+			}),
+		)
+		parser.feed(line({ type: 'content_block_stop', index: 0 }))
+		parser.feed(line({ type: 'message_stop' }))
+
+		expect(parser.getMessages()[0].usage).toBeNull()
+
+		// Turn 2: merged, now has usage
+		parser.feed(
+			line({
+				type: 'message_start',
+				message: {
+					id: 'msg_yes',
+					role: 'assistant',
+					usage: { input_tokens: 5000, output_tokens: 0 },
+				},
+			}),
+		)
+		parser.feed(line({ type: 'content_block_start', index: 0, content_block: { type: 'text' } }))
+		parser.feed(
+			line({
+				type: 'content_block_delta',
+				index: 0,
+				delta: { type: 'text_delta', text: 'Now' },
+			}),
+		)
+		parser.feed(line({ type: 'message_stop' }))
+
+		// Usage should be initialized from the merged message_start
+		expect(parser.getMessages()[0].usage).toEqual({ inputTokens: 5000, outputTokens: 0 })
+	})
+
+	it('result event updates usage even when message_start had preliminary values', () => {
+		const parser = new ClaudeCodeStreamParser()
+
+		parser.feed(
+			line({
+				type: 'message_start',
+				message: {
+					id: 'msg_prelim',
+					role: 'assistant',
+					usage: { input_tokens: 1, output_tokens: 0 },
+				},
+			}),
+		)
+		parser.feed(line({ type: 'content_block_start', index: 0, content_block: { type: 'text' } }))
+		parser.feed(
+			line({
+				type: 'content_block_delta',
+				index: 0,
+				delta: { type: 'text_delta', text: 'Hello' },
+			}),
+		)
+		parser.feed(
+			line({
+				type: 'message_delta',
+				delta: { stop_reason: 'end_turn' },
+				usage: { output_tokens: 100 },
+			}),
+		)
+		parser.feed(line({ type: 'content_block_stop', index: 0 }))
+		parser.feed(line({ type: 'message_stop' }))
+
+		// Result event with accurate usage (top-level, not wrapped in stream_event)
+		parser.feed(
+			`${JSON.stringify({ type: 'result', session_id: 'sess_1', usage: { input_tokens: 45000, output_tokens: 100 } })}\n`,
+		)
+
+		const msg = parser.getMessages()[0]
+		// input_tokens updated from result event (was 1, now 45000)
+		expect(msg.usage?.inputTokens).toBe(45000)
+		expect(msg.usage?.outputTokens).toBe(100)
 	})
 })
