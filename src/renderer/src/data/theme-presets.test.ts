@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { isValidHex } from '../utils/colors'
-import { THEME_PRESETS, buildFontFamily, buildXtermTheme, findPreset } from './theme-presets'
+import { hexToRgb, isDark, isValidHex } from '../utils/colors'
+import {
+	THEME_PRESETS,
+	type ThemePreset,
+	buildFontFamily,
+	buildXtermTheme,
+	findPreset,
+} from './theme-presets'
 
 describe('buildXtermTheme', () => {
 	it('returns base theme fields without ansiColors', () => {
@@ -98,6 +104,23 @@ describe('findPreset', () => {
 		expect(findPreset('NonExistent Theme')).toBeUndefined()
 	})
 
+	// Presets removed in PR #78 (trimmed to most distinct identities)
+	it('returns undefined for removed presets', () => {
+		const removed = [
+			'One Dark',
+			'Solarized Dark',
+			'GitHub Dark',
+			'GitHub Light',
+			'One Light',
+			'Rosé Pine',
+			'Rosé Pine Dawn',
+			'Kanagawa',
+		]
+		for (const name of removed) {
+			expect(findPreset(name), `${name} should be removed`).toBeUndefined()
+		}
+	})
+
 	it('matching is exact (case-sensitive)', () => {
 		expect(findPreset('dracula')).toBeUndefined()
 		expect(findPreset('DRACULA')).toBeUndefined()
@@ -155,5 +178,59 @@ describe('THEME_PRESETS data integrity', () => {
 	it('preset names are unique', () => {
 		const names = THEME_PRESETS.map((p) => p.name)
 		expect(new Set(names).size).toBe(names.length)
+	})
+
+	it('every preset with accent has valid hex accent', () => {
+		for (const preset of THEME_PRESETS) {
+			if (preset.accent) {
+				expect(isValidHex(preset.accent), `${preset.name}.accent = "${preset.accent}"`).toBe(true)
+			}
+		}
+	})
+
+	it('every preset with glow has valid hex glow', () => {
+		for (const preset of THEME_PRESETS) {
+			if (preset.glow) {
+				expect(isValidHex(preset.glow), `${preset.name}.glow = "${preset.glow}"`).toBe(true)
+			}
+		}
+	})
+})
+
+describe('identity theme properties', () => {
+	it('Matrix is green-dominant — green channel >= red and blue for all ANSI colors', () => {
+		const matrix: ThemePreset | undefined = findPreset('Matrix')
+		if (!matrix?.ansiColors) throw new Error('Matrix preset missing')
+		expect(matrix.glow).toBe('#00ff41')
+		for (const [key, value] of Object.entries(matrix.ansiColors)) {
+			if (key === 'black') continue
+			const [r, g, b] = hexToRgb(value)
+			expect(g, `${key} green >= red`).toBeGreaterThanOrEqual(r)
+			expect(g, `${key} green >= blue`).toBeGreaterThanOrEqual(b)
+		}
+	})
+
+	it('Cyberpunk has neon glow and very dark background', () => {
+		const cyberpunk = findPreset('Cyberpunk')
+		if (!cyberpunk) throw new Error('Cyberpunk preset missing')
+		expect(cyberpunk.accent).toBe('#ff2a6d')
+		expect(cyberpunk.glow).toBe('#ff2a6d')
+		expect(isDark(cyberpunk.background)).toBe(true)
+	})
+
+	it('Solana has brand purple accent and green glow', () => {
+		const solana = findPreset('Solana')
+		if (!solana) throw new Error('Solana preset missing')
+		expect(solana.accent).toBe('#9945ff')
+		expect(solana.glow).toBe('#14f195')
+	})
+
+	it('all identity themes have both accent and glow', () => {
+		for (const name of ['Matrix', 'Cyberpunk', 'Solana']) {
+			const preset = findPreset(name)
+			if (!preset) throw new Error(`${name} preset missing`)
+			expect(preset.accent, `${name} should have accent`).toBeDefined()
+			expect(preset.glow, `${name} should have glow`).toBeDefined()
+		}
 	})
 })
