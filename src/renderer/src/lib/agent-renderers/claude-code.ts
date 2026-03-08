@@ -284,13 +284,15 @@ export class ClaudeCodeStreamParser implements StreamParser {
 			: 'assistant'
 
 		this.blockIndexMap.clear()
+		this.blockStartTokens.clear()
+		// API resets output_tokens to 0 for each new message response
+		this.lastOutputTokens = 0
 
 		// Merge consecutive assistant messages into one — each tool-use round-trip
 		// in Claude CLI creates a new message_start, but it's all one turn.
+		// blockIndexMap cleared above so new content_block_start events append correctly.
 		const last = this.currentMessage()
 		if (role === 'assistant' && last?.role === 'assistant') {
-			// Reuse existing message — just mark as streaming again and
-			// remap block indices starting after existing blocks.
 			last.streaming = true
 			last.stopReason = null
 			return
