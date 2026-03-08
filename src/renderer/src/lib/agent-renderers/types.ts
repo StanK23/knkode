@@ -6,9 +6,16 @@
 
 // ── Content Blocks ──────────────────────────────────────────────────────────
 
+/** Token usage snapshot for a content block — derived from output_tokens deltas. */
+export interface BlockUsage {
+	outputTokens: number
+}
+
 export interface TextBlock {
 	type: 'text'
 	text: string
+	/** Tokens spent generating this block (output tokens only). */
+	usage?: BlockUsage
 }
 
 export interface ToolUseBlock {
@@ -17,6 +24,8 @@ export interface ToolUseBlock {
 	name: string
 	/** Accumulated partial JSON string. Parse when block is complete. */
 	inputJson: string
+	/** Tokens spent generating this tool call (output tokens only). */
+	usage?: BlockUsage
 }
 
 /** Tool execution result, paired with the corresponding ToolUseBlock for rendering. */
@@ -30,6 +39,8 @@ export interface ToolResultBlock {
 export interface ThinkingBlock {
 	type: 'thinking'
 	text: string
+	/** Tokens spent on this thinking block (output tokens only). */
+	usage?: BlockUsage
 }
 
 export type ContentBlock = TextBlock | ToolUseBlock | ToolResultBlock | ThinkingBlock
