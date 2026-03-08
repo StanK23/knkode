@@ -4,8 +4,8 @@ import { PaneArea } from './components/PaneArea'
 import { SettingsPanel } from './components/SettingsPanel'
 import { TabBar } from './components/TabBar'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
-import { useStore } from './store'
 import { findPreset } from './data/theme-presets'
+import { useStore } from './store'
 import { generateThemeVariables } from './utils/colors'
 import { isMac } from './utils/platform'
 
@@ -21,7 +21,7 @@ export function App() {
 	const [showSettings, setShowSettings] = useState(false)
 	const closeSettings = useCallback(() => {
 		setShowSettings(false)
-		// Restore terminal focus after the settings panel unmounts
+		// Re-focus the terminal pane when the settings panel closes
 		const { focusedPaneId, setFocusedPane } = useStore.getState()
 		if (focusedPaneId) setFocusedPane(focusedPaneId)
 	}, [])
@@ -56,6 +56,7 @@ export function App() {
 		try {
 			const t = activeWorkspace.theme
 			const preset = t.preset ? findPreset(t.preset) : undefined
+			if (t.preset && !preset) console.warn('[App] unknown theme preset:', t.preset)
 			return generateThemeVariables({
 				bg: t.background,
 				fg: t.foreground,

@@ -126,7 +126,7 @@ export function generateThemeVariables(opts: ThemeVarOptions): ThemeVariables {
 	const depthColor = dark ? '#ffffff' : '#000000'
 	const recessColor = dark ? '#000000' : '#e8e8e8'
 
-	// Surface levels: canvas < sunken < elevated < overlay
+	// Surface levels by elevation: sunken < canvas < elevated < overlay
 	const elevated = mixColors(safeBg, depthColor, 0.95)
 	const sunken = mixColors(safeBg, recessColor, 0.92)
 	const overlay = mixColors(safeBg, depthColor, 0.9)
@@ -141,15 +141,15 @@ export function generateThemeVariables(opts: ThemeVarOptions): ThemeVariables {
 	const edge = mixColors(safeBg, safeFg, 0.85)
 
 	// Per-theme accent or sensible default
-	const accent =
-		accentOverride && isValidHex(accentOverride)
-			? accentOverride
-			: dark
-				? '#6c63ff'
-				: '#4d46e5'
+	let accent: string
+	if (accentOverride && isValidHex(accentOverride)) {
+		accent = accentOverride
+	} else {
+		accent = dark ? '#6c63ff' : '#4d46e5'
+	}
 	const danger = '#e74c3c'
 
-	// Glow: used for box-shadow/text-shadow effects. "none" disables.
+	// Glow: box-shadow/text-shadow effect. Consumed by themed components in PR #3 (theme-presets).
 	const glowValue = glow && isValidHex(glow) ? `0 0 12px ${hexToRgba(glow, 0.4)}` : 'none'
 
 	// Typography: 1px smaller than terminal font size, clamped to 11-15px range

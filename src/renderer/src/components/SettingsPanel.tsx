@@ -12,7 +12,7 @@ import {
 	type Workspace,
 	isCursorStyle,
 } from '../../../shared/types'
-import { THEME_PRESETS, type ThemePreset, findPreset } from '../data/theme-presets'
+import { DEFAULT_PRESET_NAME, THEME_PRESETS, type ThemePreset, findPreset } from '../data/theme-presets'
 import { applyPresetWithRemap, useStore } from '../store'
 import { hexToRgba } from '../utils/colors'
 import { isMac } from '../utils/platform'
@@ -359,7 +359,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const [activeTab, setActiveTab] = useState<SettingsTab>('Workspace')
 	const [name, setName] = useState(workspace.name)
 	const [color, setColor] = useState(workspace.color)
-	const [selectedPreset, setSelectedPreset] = useState(workspace.theme.preset ?? 'Default Dark')
+	const [selectedPreset, setSelectedPreset] = useState(workspace.theme.preset ?? DEFAULT_PRESET_NAME)
 	const [fontSize, setFontSize] = useState(workspace.theme.fontSize)
 	const [unfocusedDim, setUnfocusedDim] = useState(workspace.theme.unfocusedDim)
 	const [fontFamily, setFontFamily] = useState(workspace.theme.fontFamily ?? '')
@@ -375,6 +375,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 
 	const buildThemeFromInputs = useCallback((): PaneTheme => {
 		const preset = findPreset(selectedPreset)
+		if (!preset) console.warn('[settings] unknown theme preset:', selectedPreset)
 		return {
 			background: preset?.background ?? '#1a1a2e',
 			foreground: preset?.foreground ?? '#e0e0e0',
@@ -392,7 +393,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	}, [selectedPreset, fontSize, unfocusedDim, fontFamily, scrollback, cursorStyle, paneOpacity])
 
 	// Auto-persist: save full workspace with updated color/theme whenever those fields change.
-	// Reads latest workspace from store (not a ref) to avoid overwriting concurrent updates.
+	// Reads latest workspace from store (not the prop) to avoid overwriting concurrent updates.
 	const themeMountedRef = useRef(false)
 	useEffect(() => {
 		if (!themeMountedRef.current) {

@@ -2,11 +2,8 @@ import type { ITheme } from '@xterm/xterm'
 import type { AnsiColors, PaneTheme } from '../../../shared/types'
 import { isValidHex, resolveBackground } from '../utils/colors'
 
-export type ThemePreset = Pick<PaneTheme, 'background' | 'foreground'> & {
+export type ThemePreset = Pick<PaneTheme, 'background' | 'foreground' | 'ansiColors' | 'accent' | 'glow'> & {
 	name: string
-	ansiColors?: AnsiColors
-	accent?: string
-	glow?: string
 }
 
 /** Tango-based ANSI palette used by the Default Dark preset. */
@@ -408,7 +405,7 @@ export const TERMINAL_FONTS = [
 	'Victor Mono',
 ] as const
 
-// Fallbacks intentionally overlap with TERMINAL_FONTS; browsers deduplicate font names
+// Fallbacks intentionally overlap with TERMINAL_FONTS; unavailable fonts are skipped
 const FONT_FALLBACKS = 'Menlo, Monaco, Consolas, monospace'
 
 export const DEFAULT_FONT_FAMILY = `${TERMINAL_FONTS[0]}, ${FONT_FALLBACKS}`
@@ -444,6 +441,8 @@ export function buildXtermTheme(
 
 	return theme
 }
+
+export const DEFAULT_PRESET_NAME = THEME_PRESETS[0].name
 
 /** Look up a theme preset by name. Returns undefined if not found. */
 export function findPreset(name: string): ThemePreset | undefined {
