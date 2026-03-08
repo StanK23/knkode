@@ -12,8 +12,9 @@ import {
 	type Workspace,
 	isCursorStyle,
 } from '../../../shared/types'
-import { THEME_PRESETS } from '../data/theme-presets'
+import { DEFAULT_PRESET_NAME, THEME_PRESETS, type ThemePreset, findPreset } from '../data/theme-presets'
 import { applyPresetWithRemap, useStore } from '../store'
+import { hexToRgba } from '../utils/colors'
 import { isMac } from '../utils/platform'
 import { isValidCwd } from '../utils/validation'
 import { FontPicker } from './FontPicker'
@@ -358,8 +359,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const [activeTab, setActiveTab] = useState<SettingsTab>('Workspace')
 	const [name, setName] = useState(workspace.name)
 	const [color, setColor] = useState(workspace.color)
-	const [bg, setBg] = useState(workspace.theme.background)
-	const [fg, setFg] = useState(workspace.theme.foreground)
+	const [selectedPreset, setSelectedPreset] = useState(workspace.theme.preset ?? DEFAULT_PRESET_NAME)
 	const [fontSize, setFontSize] = useState(workspace.theme.fontSize)
 	const [unfocusedDim, setUnfocusedDim] = useState(workspace.theme.unfocusedDim)
 	const [fontFamily, setFontFamily] = useState(workspace.theme.fontFamily ?? '')
@@ -373,22 +373,27 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 
 	const currentPreset = workspace.layout.type === 'preset' ? workspace.layout.preset : null
 
-	const buildThemeFromInputs = useCallback(
-		(): PaneTheme => ({
-			background: bg,
-			foreground: fg,
+	const buildThemeFromInputs = useCallback((): PaneTheme => {
+		const preset = findPreset(selectedPreset)
+		if (!preset) console.warn('[settings] unknown theme preset:', selectedPreset)
+		return {
+			background: preset?.background ?? '#1a1a2e',
+			foreground: preset?.foreground ?? '#e0e0e0',
 			fontSize,
 			unfocusedDim,
 			fontFamily: fontFamily || undefined,
 			scrollback,
 			cursorStyle,
 			paneOpacity,
-		}),
-		[bg, fg, fontSize, unfocusedDim, fontFamily, scrollback, cursorStyle, paneOpacity],
-	)
+			ansiColors: preset?.ansiColors,
+			accent: preset?.accent,
+			glow: preset?.glow,
+			preset: selectedPreset,
+		}
+	}, [selectedPreset, fontSize, unfocusedDim, fontFamily, scrollback, cursorStyle, paneOpacity])
 
 	// Auto-persist: save full workspace with updated color/theme whenever those fields change.
-	// Reads latest workspace from store (not a ref) to avoid overwriting concurrent updates.
+	// Reads latest workspace from store (not the prop) to avoid overwriting concurrent updates.
 	const themeMountedRef = useRef(false)
 	useEffect(() => {
 		if (!themeMountedRef.current) {
@@ -459,11 +464,6 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		},
 		[workspace.id, updatePaneConfig],
 	)
-
-	const handlePresetClick = useCallback((presetBg: string, presetFg: string) => {
-		setBg(presetBg)
-		setFg(presetFg)
-	}, [])
 
 	return (
 		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape key handled via document listener above
@@ -607,15 +607,35 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					<>
 						{/* Theme */}
 							<SettingsSection label="Theme" gap={16}>
-								<div className="grid grid-cols-4 gap-1.5">
-									{THEME_PRESETS.map((preset) => {
-										const isActive = bg === preset.background && fg === preset.foreground
+								<div
+									className="grid grid-cols-4 gap-1.5"
+									role="radiogroup"
+									aria-label="Theme presets"
+									onKeyDown={(e) => {
+										if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft' && e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+										e.preventDefault()
+										const idx = THEME_PRESETS.findIndex((p) => p.name === selectedPreset)
+										const cols = 4
+										let next = idx
+										if (e.key === 'ArrowRight') next = (idx + 1) % THEME_PRESETS.length
+										else if (e.key === 'ArrowLeft') next = (idx - 1 + THEME_PRESETS.length) % THEME_PRESETS.length
+										else if (e.key === 'ArrowDown') next = Math.min(idx + cols, THEME_PRESETS.length - 1)
+										else if (e.key === 'ArrowUp') next = Math.max(idx - cols, 0)
+										setSelectedPreset(THEME_PRESETS[next].name)
+										document.getElementById(`theme-preset-${next}`)?.focus()
+									}}
+								>
+									{(THEME_PRESETS as readonly ThemePreset[]).map((preset, index) => {
+										const isActive = selectedPreset === preset.name
 										return (
 											<button
 												type="button"
+												id={`theme-preset-${index}`}
 												key={preset.name}
-												onClick={() => handlePresetClick(preset.background, preset.foreground)}
-												aria-pressed={isActive}
+												onClick={() => setSelectedPreset(preset.name)}
+												role="radio"
+												aria-checked={isActive}
+												tabIndex={isActive ? 0 : -1}
 												className={`py-1.5 px-1 rounded-md cursor-pointer border text-center focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
 													isActive
 														? 'border-accent ring-1 ring-accent'
@@ -623,7 +643,11 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 												}`}
 												title={preset.name}
 												aria-label={preset.name}
-												style={{ background: preset.background, color: preset.foreground }}
+												style={{
+													background: preset.background,
+													color: preset.foreground,
+													boxShadow: isActive && preset.glow ? `0 0 8px ${hexToRgba(preset.glow, 0.25)}` : undefined,
+												}}
 											>
 												<span className="text-[11px] font-medium leading-tight block truncate">
 													{preset.name}
@@ -631,28 +655,6 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 											</button>
 										)
 									})}
-								</div>
-
-								{/* Custom colors */}
-								<div className="flex items-center gap-4">
-									<label className="flex items-center gap-2">
-										<span className="text-xs text-content-secondary shrink-0">Background</span>
-										<input
-											type="color"
-											value={bg}
-											onChange={(e) => setBg(e.target.value)}
-											className="color-swatch"
-										/>
-									</label>
-									<label className="flex items-center gap-2">
-										<span className="text-xs text-content-secondary shrink-0">Foreground</span>
-										<input
-											type="color"
-											value={fg}
-											onChange={(e) => setFg(e.target.value)}
-											className="color-swatch"
-										/>
-									</label>
 								</div>
 							</SettingsSection>
 

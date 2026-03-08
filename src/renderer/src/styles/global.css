@@ -108,6 +108,9 @@
 	--color-accent: #6c63ff;
 	--color-danger: #e74c3c;
 
+	/* Theme effects — overridden at runtime by generateThemeVariables() */
+	--theme-glow: none;
+
 	/* Shadows */
 	--shadow-menu: 0 4px 16px rgba(0, 0, 0, 0.4);
 	--shadow-panel: 0 8px 32px rgba(0, 0, 0, 0.5);
