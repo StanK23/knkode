@@ -27,6 +27,9 @@ Each preset in `THEME_PRESETS` has:
 | `ansiColors` | `AnsiColors` | Yes* | 16 ANSI color slots (see below) |
 | `accent` | `string` | No | UI accent color — buttons, focus rings, active indicators |
 | `glow` | `string` | No | Glow effect color — `box-shadow` on themed elements |
+| `gradient` | `string` | No | CSS gradient overlay on terminal panes (identity themes only) |
+| `animatedGlow` | `boolean` | No | Makes glow pulse (4s ease-in-out cycle) instead of static |
+| `scanline` | `boolean` | No | CRT-style scanline overlay with slow drift (Matrix only) |
 
 *All current presets define `ansiColors`. When omitted, xterm.js uses built-in defaults.
 
@@ -49,6 +52,16 @@ Standard color schemes developers expect: Default Dark, Dracula, Tokyo Night, No
 
 ### Identity themes (remapped ANSI for a specific aesthetic)
 Themes built around a single brand or aesthetic identity: Matrix, Cyberpunk, Solana. The key distinction is **ANSI color remapping** — a Matrix terminal maps all 16 color slots to green shades, so `red` text appears green. A Cyberpunk terminal remaps to neon pink and cyan. All identity themes also require both `accent` and `glow`.
+
+Identity themes also include **visual effects** that make each workspace feel like a different app:
+
+| Theme | Gradient | Animated Glow | Scanline |
+|-------|----------|---------------|----------|
+| Matrix | Green top-down vignette (3% opacity) | Pulsing green border glow | CRT scanlines with drift |
+| Cyberpunk | Diagonal pink → cyan tint (3-4% opacity) | Pulsing neon pink border glow | — |
+| Solana | Diagonal purple → green tint (3% opacity) | Pulsing brand-colored border glow | — |
+
+Effects are rendered as `pointer-events: none` overlay divs in `Terminal.tsx` and respect `prefers-reduced-motion`.
 
 ## CSS Custom Properties
 
@@ -105,6 +118,10 @@ Add to `THEME_PRESETS` in `src/renderer/src/data/theme-presets.ts`:
     foreground: '#a9b1d6',
     accent: '#7aa2f7',     // optional — auto-derived if omitted
     glow: '#7aa2f7',       // optional — no glow if omitted
+    // Identity themes add visual effects (optional for community themes):
+    gradient: 'linear-gradient(180deg, rgba(122, 162, 247, 0.03) 0%, transparent 40%)',
+    animatedGlow: true,
+    scanline: false,       // true only for retro/CRT aesthetics
     ansiColors: {
         black: '#15161e',
         red: '#f7768e',
@@ -137,9 +154,20 @@ Add to `THEME_PRESETS` in `src/renderer/src/data/theme-presets.ts`:
 
 - Remap ANSI slots to your palette. The green channel should dominate for Matrix-style monochrome.
 - Always provide both `accent` and `glow`.
-- Add the theme name to the `'all identity themes have both accent and glow'` test array in `theme-presets.test.ts`.
+- Add visual effects — at minimum `animatedGlow: true` and a `gradient` overlay:
+  - **`gradient`**: A CSS `linear-gradient()` string at very low opacity (3-5%) to tint the pane background. Use the theme's signature colors.
+  - **`animatedGlow`**: Set to `true` to make the glow border pulse. Uses the `glow` color for `box-shadow`.
+  - **`scanline`**: Set to `true` for CRT/retro aesthetics. Adds a `repeating-linear-gradient` overlay with slow drift animation. Use sparingly — only where it fits the theme identity.
+- Add the theme name to the identity theme test arrays in `theme-presets.test.ts`.
 
-### 5. Validation
+### 5. Effect guidelines
+
+- Gradients should be barely perceptible (3-5% opacity) — atmosphere, not obstruction.
+- The glow animation runs at 4 seconds per cycle with `ease-in-out` — fast enough to feel alive, slow enough to not distract.
+- Scanlines use 3% opacity black lines at 4px pitch — visible on close inspection but invisible during focused work.
+- All effects are disabled when `prefers-reduced-motion: reduce` is set. The glow falls back to static 70% opacity; scanlines and gradient remain visible but static.
+
+### 6. Validation
 
 All color values are validated:
 - `isValidHex()` accepts `#RGB`, `#RRGGBB`, or bare `RGB`/`RRGGBB`
@@ -163,4 +191,4 @@ bun run test
 | `src/renderer/src/styles/global.css` | CSS variable defaults and consumption |
 | `src/renderer/src/App.tsx` | Applies theme variables to root element |
 | `src/renderer/src/components/SettingsPanel.tsx` | Workspace settings dialog (includes theme picker) |
-| `src/renderer/src/components/Terminal.tsx` | Passes xterm theme to terminal |
+| `src/renderer/src/components/Terminal.tsx` | Passes xterm theme to terminal, renders effect overlays |
