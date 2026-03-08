@@ -12,7 +12,7 @@ import {
 	type Workspace,
 	isCursorStyle,
 } from '../../../shared/types'
-import { THEME_PRESETS } from '../data/theme-presets'
+import { THEME_PRESETS, findPreset } from '../data/theme-presets'
 import { applyPresetWithRemap, useStore } from '../store'
 import { isMac } from '../utils/platform'
 import { isValidCwd } from '../utils/validation'
@@ -358,8 +358,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const [activeTab, setActiveTab] = useState<SettingsTab>('Workspace')
 	const [name, setName] = useState(workspace.name)
 	const [color, setColor] = useState(workspace.color)
-	const [bg, setBg] = useState(workspace.theme.background)
-	const [fg, setFg] = useState(workspace.theme.foreground)
+	const [selectedPreset, setSelectedPreset] = useState(workspace.theme.preset ?? 'Default Dark')
 	const [fontSize, setFontSize] = useState(workspace.theme.fontSize)
 	const [unfocusedDim, setUnfocusedDim] = useState(workspace.theme.unfocusedDim)
 	const [fontFamily, setFontFamily] = useState(workspace.theme.fontFamily ?? '')
@@ -373,19 +372,23 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 
 	const currentPreset = workspace.layout.type === 'preset' ? workspace.layout.preset : null
 
-	const buildThemeFromInputs = useCallback(
-		(): PaneTheme => ({
-			background: bg,
-			foreground: fg,
+	const buildThemeFromInputs = useCallback((): PaneTheme => {
+		const preset = findPreset(selectedPreset)
+		return {
+			background: preset?.background ?? '#1a1a2e',
+			foreground: preset?.foreground ?? '#e0e0e0',
 			fontSize,
 			unfocusedDim,
 			fontFamily: fontFamily || undefined,
 			scrollback,
 			cursorStyle,
 			paneOpacity,
-		}),
-		[bg, fg, fontSize, unfocusedDim, fontFamily, scrollback, cursorStyle, paneOpacity],
-	)
+			ansiColors: preset?.ansiColors,
+			accent: preset?.accent,
+			glow: preset?.glow,
+			preset: selectedPreset,
+		}
+	}, [selectedPreset, fontSize, unfocusedDim, fontFamily, scrollback, cursorStyle, paneOpacity])
 
 	// Auto-persist: save full workspace with updated color/theme whenever those fields change.
 	// Reads latest workspace from store (not a ref) to avoid overwriting concurrent updates.
@@ -460,9 +463,8 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		[workspace.id, updatePaneConfig],
 	)
 
-	const handlePresetClick = useCallback((presetBg: string, presetFg: string) => {
-		setBg(presetBg)
-		setFg(presetFg)
+	const handlePresetClick = useCallback((presetName: string) => {
+		setSelectedPreset(presetName)
 	}, [])
 
 	return (
@@ -609,12 +611,12 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 							<SettingsSection label="Theme" gap={16}>
 								<div className="grid grid-cols-4 gap-1.5">
 									{THEME_PRESETS.map((preset) => {
-										const isActive = bg === preset.background && fg === preset.foreground
+										const isActive = selectedPreset === preset.name
 										return (
 											<button
 												type="button"
 												key={preset.name}
-												onClick={() => handlePresetClick(preset.background, preset.foreground)}
+												onClick={() => handlePresetClick(preset.name)}
 												aria-pressed={isActive}
 												className={`py-1.5 px-1 rounded-md cursor-pointer border text-center focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
 													isActive
@@ -623,7 +625,11 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 												}`}
 												title={preset.name}
 												aria-label={preset.name}
-												style={{ background: preset.background, color: preset.foreground }}
+												style={{
+													background: preset.background,
+													color: preset.foreground,
+													boxShadow: isActive && preset.glow ? `0 0 8px ${preset.glow}40` : undefined,
+												}}
 											>
 												<span className="text-[11px] font-medium leading-tight block truncate">
 													{preset.name}
@@ -631,28 +637,6 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 											</button>
 										)
 									})}
-								</div>
-
-								{/* Custom colors */}
-								<div className="flex items-center gap-4">
-									<label className="flex items-center gap-2">
-										<span className="text-xs text-content-secondary shrink-0">Background</span>
-										<input
-											type="color"
-											value={bg}
-											onChange={(e) => setBg(e.target.value)}
-											className="color-swatch"
-										/>
-									</label>
-									<label className="flex items-center gap-2">
-										<span className="text-xs text-content-secondary shrink-0">Foreground</span>
-										<input
-											type="color"
-											value={fg}
-											onChange={(e) => setFg(e.target.value)}
-											className="color-swatch"
-										/>
-									</label>
 								</div>
 							</SettingsSection>
 
