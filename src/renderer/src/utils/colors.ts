@@ -89,6 +89,7 @@ export type ThemeVariables = {
 	'--color-edge': string
 	'--color-accent': string
 	'--color-danger': string
+	'--theme-glow': string
 	'--font-family-ui': string
 	'--font-size-ui': string
 } & React.CSSProperties
@@ -97,18 +98,24 @@ const MIN_UI_FONT_SIZE = 11
 const MAX_UI_FONT_SIZE = 15
 const DEFAULT_UI_FONT_SIZE = 13
 
+export interface ThemeVarOptions {
+	bg?: string
+	fg?: string
+	fontFamily?: string
+	fontSize?: number
+	accent?: string
+	glow?: string
+}
+
 /**
- * Derive a full set of CSS custom properties from a background/foreground color pair
- * and typography settings.
+ * Derive a full set of CSS custom properties from theme colors and typography.
  * Auto-detects dark vs light mode from the background luminance.
+ * Accepts per-theme accent and glow colors — falls back to defaults when omitted.
  * Returns an object suitable for React inline `style` — keys are CSS variable names.
  */
-export function generateThemeVariables(
-	bg?: string,
-	fg?: string,
-	fontFamily?: string,
-	fontSize?: number,
-): ThemeVariables {
+export function generateThemeVariables(opts: ThemeVarOptions): ThemeVariables {
+	const { bg, fg, fontFamily, fontSize, accent: accentOverride, glow } = opts
+
 	// Safe fallbacks for missing or malformed colors to prevent app crashes
 	const safeBg = bg && isValidHex(bg) ? bg : '#1a1a2e'
 	const safeFg = fg && isValidHex(fg) ? fg : '#e0e0e0'
@@ -133,9 +140,17 @@ export function generateThemeVariables(
 	// Border: 85% background + 15% foreground tint
 	const edge = mixColors(safeBg, safeFg, 0.85)
 
-	// Accent and danger are fixed — not derived from bg/fg
-	const accent = dark ? '#6c63ff' : '#4d46e5'
+	// Per-theme accent or sensible default
+	const accent =
+		accentOverride && isValidHex(accentOverride)
+			? accentOverride
+			: dark
+				? '#6c63ff'
+				: '#4d46e5'
 	const danger = '#e74c3c'
+
+	// Glow: used for box-shadow/text-shadow effects. "none" disables.
+	const glowValue = glow && isValidHex(glow) ? `0 0 12px ${hexToRgba(glow, 0.4)}` : 'none'
 
 	// Typography: 1px smaller than terminal font size, clamped to 11-15px range
 	const uiFontSize =
@@ -156,6 +171,7 @@ export function generateThemeVariables(
 		'--color-edge': edge,
 		'--color-accent': accent,
 		'--color-danger': danger,
+		'--theme-glow': glowValue,
 		// Sanitize fontFamily — only allow known fonts to prevent CSS injection from tampered config.
 		// CSS variable fallback — intentionally different from buildFontFamily() in theme-presets.ts
 		// which uses literal font names for xterm.js (no CSS variable support in canvas).
