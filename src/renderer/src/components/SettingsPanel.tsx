@@ -4,6 +4,8 @@ import {
 	DEFAULT_CURSOR_STYLE,
 	DEFAULT_PANE_OPACITY,
 	DEFAULT_SCROLLBACK,
+	EFFECT_LEVELS,
+	type EffectLevel,
 	type LayoutPreset,
 	MAX_SCROLLBACK,
 	MIN_SCROLLBACK,
@@ -341,6 +343,49 @@ function SnippetsSection() {
 	)
 }
 
+interface SegmentedButtonProps<T extends string> {
+	options: readonly T[]
+	value: T
+	onChange: (value: T) => void
+	label: string
+}
+
+function SegmentedButton<T extends string>({
+	options,
+	value,
+	onChange,
+	label,
+}: SegmentedButtonProps<T>) {
+	return (
+		<div className="flex items-center gap-3">
+			<span className="text-xs text-content-secondary w-20 shrink-0">{label}</span>
+			<div
+				className="flex rounded-sm overflow-hidden border border-edge"
+				role="radiogroup"
+				aria-label={label}
+			>
+				{options.map((option) => (
+					<button
+						key={option}
+						type="button"
+						role="radio"
+						aria-checked={value === option}
+						tabIndex={value === option ? 0 : -1}
+						onClick={() => onChange(option)}
+						className={`text-[11px] px-2.5 py-1 cursor-pointer border-none transition-colors ${
+							value === option
+								? 'bg-accent/20 text-accent font-medium'
+								: 'bg-transparent text-content-muted hover:text-content-secondary'
+						}`}
+					>
+						{option[0].toUpperCase() + option.slice(1)}
+					</button>
+				))}
+			</div>
+		</div>
+	)
+}
+
 interface SettingsPanelProps {
 	workspace: Workspace
 	onClose: () => void
@@ -370,6 +415,13 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const [paneOpacity, setPaneOpacity] = useState(
 		workspace.theme.paneOpacity ?? DEFAULT_PANE_OPACITY,
 	)
+	const [gradientLevel, setGradientLevel] = useState<EffectLevel>(
+		workspace.theme.gradientLevel ?? 'off',
+	)
+	const [glowLevel, setGlowLevel] = useState<EffectLevel>(workspace.theme.glowLevel ?? 'off')
+	const [scanlineLevel, setScanlineLevel] = useState<EffectLevel>(
+		workspace.theme.scanlineLevel ?? 'off',
+	)
 
 	const currentPreset = workspace.layout.type === 'preset' ? workspace.layout.preset : null
 
@@ -389,11 +441,12 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 			accent: preset?.accent,
 			glow: preset?.glow,
 			gradient: preset?.gradient,
-			animatedGlow: preset?.animatedGlow,
-			scanline: preset?.scanline,
+			gradientLevel,
+			glowLevel,
+			scanlineLevel,
 			preset: selectedPreset,
 		}
-	}, [selectedPreset, fontSize, unfocusedDim, fontFamily, scrollback, cursorStyle, paneOpacity])
+	}, [selectedPreset, fontSize, unfocusedDim, fontFamily, scrollback, cursorStyle, paneOpacity, gradientLevel, glowLevel, scanlineLevel])
 
 	// Auto-persist: save full workspace with updated color/theme whenever those fields change.
 	// Reads latest workspace from store (not the prop) to avoid overwriting concurrent updates.
@@ -409,6 +462,21 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 			console.error('[settings] auto-persist theme failed:', err)
 		})
 	}, [workspace.id, color, buildThemeFromInputs, updateWorkspace])
+
+	// Reset effect levels to preset defaults when the user switches presets.
+	// Skipped on initial mount so stored user overrides are preserved.
+	const presetMountedRef = useRef(false)
+	// biome-ignore lint/correctness/useExhaustiveDependencies: only runs on preset changes after mount
+	useEffect(() => {
+		if (!presetMountedRef.current) {
+			presetMountedRef.current = true
+			return
+		}
+		const preset = findPreset(selectedPreset)
+		setGradientLevel(preset?.gradientLevel ?? 'off')
+		setGlowLevel(preset?.glowLevel ?? 'off')
+		setScanlineLevel(preset?.scanlineLevel ?? 'off')
+	}, [selectedPreset])
 
 	// Auto-persist name with debounce to avoid excessive disk writes on every keystroke.
 	const nameMountedRef = useRef(false)
@@ -764,6 +832,28 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 										{Math.round(paneOpacity * 100)}%
 									</span>
 								</label>
+							</SettingsSection>
+
+							{/* Visual Effects */}
+							<SettingsSection label="Visual Effects" gap={8}>
+								<SegmentedButton
+									options={EFFECT_LEVELS}
+									value={gradientLevel}
+									onChange={setGradientLevel}
+									label="Gradient"
+								/>
+								<SegmentedButton
+									options={EFFECT_LEVELS}
+									value={glowLevel}
+									onChange={setGlowLevel}
+									label="Glow"
+								/>
+								<SegmentedButton
+									options={EFFECT_LEVELS}
+									value={scanlineLevel}
+									onChange={setScanlineLevel}
+									label="Scanlines"
+								/>
 							</SettingsSection>
 						</>
 				</div>
