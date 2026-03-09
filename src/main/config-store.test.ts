@@ -8,7 +8,7 @@ vi.mock('electron', () => ({
 }))
 
 // Import after mock is set up
-const { migrateTheme } = await import('./config-store')
+const { migrateTheme, migrateEffectLevels } = await import('./config-store')
 
 function makeWorkspace(theme: Record<string, unknown>): Workspace {
 	return {
@@ -109,5 +109,134 @@ describe('migrateTheme', () => {
 		})
 		const result = migrateTheme(ws)
 		expect(result.theme.unfocusedDim).toBe(DEFAULT_UNFOCUSED_DIM)
+	})
+})
+
+describe('migrateEffectLevels', () => {
+	it('passes through workspace with no legacy fields', () => {
+		const ws = makeWorkspace({
+			background: '#000',
+			foreground: '#fff',
+			fontSize: 14,
+			unfocusedDim: 0.3,
+			glowLevel: 'medium',
+		})
+		const result = migrateEffectLevels(ws)
+		expect(result).toBe(ws)
+	})
+
+	it('converts animatedGlow: true to glowLevel: medium', () => {
+		const ws = makeWorkspace({
+			background: '#000',
+			foreground: '#fff',
+			fontSize: 14,
+			unfocusedDim: 0.3,
+			animatedGlow: true,
+		})
+		const result = migrateEffectLevels(ws)
+		expect(result.theme.glowLevel).toBe('medium')
+	})
+
+	it('does not set glowLevel when animatedGlow is false', () => {
+		const ws = makeWorkspace({
+			background: '#000',
+			foreground: '#fff',
+			fontSize: 14,
+			unfocusedDim: 0.3,
+			animatedGlow: false,
+		})
+		const result = migrateEffectLevels(ws)
+		expect(result.theme.glowLevel).toBeUndefined()
+	})
+
+	it('converts scanline: true to scanlineLevel: medium', () => {
+		const ws = makeWorkspace({
+			background: '#000',
+			foreground: '#fff',
+			fontSize: 14,
+			unfocusedDim: 0.3,
+			scanline: true,
+		})
+		const result = migrateEffectLevels(ws)
+		expect(result.theme.scanlineLevel).toBe('medium')
+	})
+
+	it('does not set scanlineLevel when scanline is false', () => {
+		const ws = makeWorkspace({
+			background: '#000',
+			foreground: '#fff',
+			fontSize: 14,
+			unfocusedDim: 0.3,
+			scanline: false,
+		})
+		const result = migrateEffectLevels(ws)
+		expect(result.theme.scanlineLevel).toBeUndefined()
+	})
+
+	it('adds gradientLevel: medium when gradient present without level', () => {
+		const ws = makeWorkspace({
+			background: '#000',
+			foreground: '#fff',
+			fontSize: 14,
+			unfocusedDim: 0.3,
+			gradient: 'linear-gradient(180deg, rgba(0,255,65,0.03) 0%, transparent 40%)',
+		})
+		const result = migrateEffectLevels(ws)
+		expect(result.theme.gradientLevel).toBe('medium')
+	})
+
+	it('preserves existing gradientLevel when gradient present', () => {
+		const ws = makeWorkspace({
+			background: '#000',
+			foreground: '#fff',
+			fontSize: 14,
+			unfocusedDim: 0.3,
+			gradient: 'linear-gradient(180deg, rgba(0,255,65,0.03) 0%, transparent 40%)',
+			gradientLevel: 'subtle',
+		})
+		const result = migrateEffectLevels(ws)
+		expect(result).toBe(ws)
+	})
+
+	it('preserves existing glowLevel when animatedGlow is true', () => {
+		const ws = makeWorkspace({
+			background: '#000',
+			foreground: '#fff',
+			fontSize: 14,
+			unfocusedDim: 0.3,
+			animatedGlow: true,
+			glowLevel: 'subtle',
+		})
+		const result = migrateEffectLevels(ws)
+		expect(result.theme.glowLevel).toBe('subtle')
+	})
+
+	it('removes legacy animatedGlow and scanline fields', () => {
+		const ws = makeWorkspace({
+			background: '#000',
+			foreground: '#fff',
+			fontSize: 14,
+			unfocusedDim: 0.3,
+			animatedGlow: true,
+			scanline: true,
+		})
+		const result = migrateEffectLevels(ws)
+		const raw = result.theme as unknown as Record<string, unknown>
+		expect('animatedGlow' in raw).toBe(false)
+		expect('scanline' in raw).toBe(false)
+	})
+
+	it('does not mutate the input workspace', () => {
+		const ws = makeWorkspace({
+			background: '#000',
+			foreground: '#fff',
+			fontSize: 14,
+			unfocusedDim: 0.3,
+			animatedGlow: true,
+		})
+		const originalTheme = { ...ws.theme }
+		migrateEffectLevels(ws)
+		const raw = ws.theme as unknown as Record<string, unknown>
+		expect(raw.animatedGlow).toBe((originalTheme as unknown as Record<string, unknown>).animatedGlow)
 	})
 })

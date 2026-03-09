@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { isEffectLevel } from '../../../shared/types'
 import { hexToRgb, isDark, isValidHex } from '../utils/colors'
 import {
 	THEME_PRESETS,
@@ -192,6 +193,20 @@ describe('THEME_PRESETS data integrity', () => {
 		for (const preset of THEME_PRESETS) {
 			if (preset.glow) {
 				expect(isValidHex(preset.glow), `${preset.name}.glow = "${preset.glow}"`).toBe(true)
+			}
+		}
+	})
+
+	it('every preset effect level is a valid EffectLevel', () => {
+		for (const preset of THEME_PRESETS as readonly ThemePreset[]) {
+			for (const key of ['gradientLevel', 'glowLevel', 'scanlineLevel'] as const) {
+				const val = preset[key]
+				if (val !== undefined) {
+					expect(
+						isEffectLevel(val),
+						`${preset.name}.${key} = "${val}" is not a valid EffectLevel`,
+					).toBe(true)
+				}
 			}
 		}
 	})
