@@ -225,18 +225,7 @@
 	/* Pulsing glow — pulses the overlay div between 50% and 100% opacity.
 	   The box-shadow itself is set via inline style in Terminal.tsx.
 	   will-change promotes to GPU layer so opacity changes don't trigger re-paint. */
-	@keyframes glow-pulse {
-		0%,
-		100% {
-			opacity: 0.5;
-		}
-		50% {
-			opacity: 1;
-		}
-	}
 	.pane-glow {
-		animation: glow-pulse 4s ease-in-out infinite;
-		will-change: opacity;
 		contain: strict;
 	}
 
@@ -260,10 +249,6 @@
 		}
 		.settings-input {
 			transition: none;
-		}
-		.pane-glow {
-			animation: none;
-			opacity: 0.7;
 		}
 	}
 }
