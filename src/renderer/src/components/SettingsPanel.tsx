@@ -611,7 +611,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 				role="dialog"
 				aria-modal="true"
 				aria-label="Workspace Settings"
-				className="bg-canvas/80 backdrop-blur-2xl border border-edge/50 rounded-md w-[600px] max-w-[calc(100vw-2rem)] min-h-[50vh] max-h-[85vh] flex flex-col shadow-panel animate-panel-in"
+				className="bg-canvas/80 backdrop-blur-2xl border border-edge/50 rounded-md w-[600px] max-w-[calc(100vw-2rem)] h-[85vh] flex flex-col shadow-panel animate-panel-in"
 				onClick={(e) => e.stopPropagation()}
 			>
 				<div className="flex items-center justify-between px-6 py-4 border-b border-edge/50">
@@ -667,7 +667,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					role="tabpanel"
 					aria-labelledby="settings-tab-Workspace"
 					hidden={activeTab !== 'Workspace'}
-					className="px-6 py-6 overflow-y-auto overflow-x-hidden flex flex-col gap-8"
+					className="flex-1 min-h-0 px-6 py-6 overflow-y-auto overflow-x-hidden flex flex-col gap-8"
 				>
 					<>
 						{/* General */}
@@ -735,7 +735,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					role="tabpanel"
 					aria-labelledby="settings-tab-Terminal"
 					hidden={activeTab !== 'Terminal'}
-					className="px-6 py-6 overflow-y-auto overflow-x-hidden flex flex-col gap-8"
+					className="flex-1 min-h-0 px-6 py-6 overflow-y-auto overflow-x-hidden flex flex-col gap-8"
 				>
 					<>
 						{/* Theme */}
