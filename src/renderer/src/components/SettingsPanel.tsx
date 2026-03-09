@@ -29,6 +29,29 @@ import { FontPicker } from './FontPicker'
 import { LayoutPicker } from './LayoutPicker'
 import { SettingsSection } from './SettingsSection'
 
+/** Numeric values for the EffectLevel-based dim and opacity controls. */
+const DIM_VALUES: Record<EffectLevel, number> = { off: 0, subtle: 0.15, medium: 0.3, intense: 0.5 }
+const OPACITY_VALUES: Record<EffectLevel, number> = {
+	off: 1.0,
+	subtle: 0.85,
+	medium: 0.7,
+	intense: 0.5,
+}
+
+/** Find the closest EffectLevel key for a numeric value. */
+function closestLevel(value: number, map: Record<EffectLevel, number>): EffectLevel {
+	let best: EffectLevel = 'off'
+	let bestDist = Number.POSITIVE_INFINITY
+	for (const [level, num] of Object.entries(map)) {
+		const dist = Math.abs(value - num)
+		if (dist < bestDist) {
+			bestDist = dist
+			best = level as EffectLevel
+		}
+	}
+	return best
+}
+
 /** Read the latest workspace from the store to avoid stale-snapshot races
  *  when multiple auto-persist effects fire in close succession. */
 function getLatestWorkspace(wsId: string): Workspace | undefined {
@@ -427,14 +450,16 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		workspace.theme.preset ?? DEFAULT_PRESET_NAME,
 	)
 	const [fontSize, setFontSize] = useState(workspace.theme.fontSize)
-	const [unfocusedDim, setUnfocusedDim] = useState(workspace.theme.unfocusedDim)
 	const [fontFamily, setFontFamily] = useState(workspace.theme.fontFamily ?? '')
 	const [scrollback, setScrollback] = useState(workspace.theme.scrollback ?? DEFAULT_SCROLLBACK)
 	const [cursorStyle, setCursorStyle] = useState(
 		workspace.theme.cursorStyle ?? DEFAULT_CURSOR_STYLE,
 	)
-	const [paneOpacity, setPaneOpacity] = useState(
-		workspace.theme.paneOpacity ?? DEFAULT_PANE_OPACITY,
+	const [dimLevel, setDimLevel] = useState<EffectLevel>(
+		closestLevel(workspace.theme.unfocusedDim, DIM_VALUES),
+	)
+	const [opacityLevel, setOpacityLevel] = useState<EffectLevel>(
+		closestLevel(workspace.theme.paneOpacity ?? DEFAULT_PANE_OPACITY, OPACITY_VALUES),
 	)
 	const [gradientLevel, setGradientLevel] = useState<EffectLevel>(
 		isEffectLevel(workspace.theme.gradientLevel) ? workspace.theme.gradientLevel : 'off',
@@ -455,11 +480,11 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 			background: preset?.background ?? '#1a1a2e',
 			foreground: preset?.foreground ?? '#e0e0e0',
 			fontSize,
-			unfocusedDim,
+			unfocusedDim: DIM_VALUES[dimLevel],
 			fontFamily: fontFamily || undefined,
 			scrollback,
 			cursorStyle,
-			paneOpacity,
+			paneOpacity: OPACITY_VALUES[opacityLevel],
 			ansiColors: preset?.ansiColors,
 			accent: preset?.accent,
 			glow: preset?.glow,
@@ -472,11 +497,11 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	}, [
 		selectedPreset,
 		fontSize,
-		unfocusedDim,
+		dimLevel,
 		fontFamily,
 		scrollback,
 		cursorStyle,
-		paneOpacity,
+		opacityLevel,
 		gradientLevel,
 		glowLevel,
 		scanlineLevel,
@@ -484,12 +509,17 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 
 	// Auto-persist: save full workspace with updated color/theme whenever those fields change.
 	// Reads latest workspace from store (not the prop) to avoid overwriting concurrent updates.
-	const themeMountedRef = useRef(false)
+	// Uses value-comparison ref instead of useRef(false) mount guard — the boolean flag
+	// breaks under React 18 StrictMode which double-fires effects on mount.
+	const prevAutoSaveRef = useRef({ color, buildThemeFromInputs })
 	useEffect(() => {
-		if (!themeMountedRef.current) {
-			themeMountedRef.current = true
+		if (
+			prevAutoSaveRef.current.color === color &&
+			prevAutoSaveRef.current.buildThemeFromInputs === buildThemeFromInputs
+		) {
 			return
 		}
+		prevAutoSaveRef.current = { color, buildThemeFromInputs }
 		const latest = getLatestWorkspace(workspace.id)
 		if (!latest) return
 		updateWorkspace({ ...latest, color, theme: buildThemeFromInputs() }).catch((err) => {
@@ -498,13 +528,12 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	}, [workspace.id, color, buildThemeFromInputs, updateWorkspace])
 
 	// Reset effect levels to preset defaults when the user switches presets.
-	// Skipped on initial mount so stored user overrides are preserved.
-	const presetMountedRef = useRef(false)
+	// Uses value-comparison ref instead of useRef(false) mount guard — the boolean
+	// flag breaks under React 18 StrictMode which double-fires effects on mount.
+	const prevPresetRef = useRef(selectedPreset)
 	useEffect(() => {
-		if (!presetMountedRef.current) {
-			presetMountedRef.current = true
-			return
-		}
+		if (prevPresetRef.current === selectedPreset) return
+		prevPresetRef.current = selectedPreset
 		const preset = findPreset(selectedPreset)
 		setGradientLevel(preset?.gradientLevel ?? 'off')
 		setGlowLevel(preset?.glowLevel ?? 'off')
@@ -844,38 +873,19 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 						</SettingsSection>
 
 						{/* Behavior */}
-						<SettingsSection label="Behavior" gap={12}>
-							<label className="flex items-center gap-3">
-								<span className="text-xs text-content-secondary w-20 shrink-0">Dim unfocused</span>
-								<input
-									type="range"
-									min={0}
-									max={0.7}
-									step={0.05}
-									value={unfocusedDim}
-									onChange={(e) => setUnfocusedDim(Number(e.target.value))}
-									className="w-32"
-								/>
-								<span className="text-[11px] text-content-muted w-7">
-									{Math.round(unfocusedDim * 100)}%
-								</span>
-							</label>
-
-							<label className="flex items-center gap-3">
-								<span className="text-xs text-content-secondary w-20 shrink-0">Opacity</span>
-								<input
-									type="range"
-									min={0.1}
-									max={1}
-									step={0.05}
-									value={paneOpacity}
-									onChange={(e) => setPaneOpacity(Number(e.target.value))}
-									className="w-32"
-								/>
-								<span className="text-[11px] text-content-muted w-7">
-									{Math.round(paneOpacity * 100)}%
-								</span>
-							</label>
+						<SettingsSection label="Behavior" gap={8}>
+							<SegmentedButton
+								options={EFFECT_LEVELS}
+								value={dimLevel}
+								onChange={setDimLevel}
+								label="Dim unfocused"
+							/>
+							<SegmentedButton
+								options={EFFECT_LEVELS}
+								value={opacityLevel}
+								onChange={setOpacityLevel}
+								label="Opacity"
+							/>
 						</SettingsSection>
 
 						{/* Visual Effects */}

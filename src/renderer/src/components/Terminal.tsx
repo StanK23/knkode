@@ -569,9 +569,12 @@ export function TerminalView({
 		[handleSearchNav, closeSearch],
 	)
 
-	const wrapperBg = useMemo(() => {
+	const { wrapperBg, blurPx } = useMemo(() => {
 		const opacity = mergedTheme.paneOpacity ?? DEFAULT_PANE_OPACITY
-		return resolveBackground(mergedTheme.background, opacity)
+		return {
+			wrapperBg: resolveBackground(mergedTheme.background, opacity),
+			blurPx: opacity < 1 ? Math.round((1 - opacity) * 24) : 0,
+		}
 	}, [mergedTheme])
 
 	// Pre-compute effect multipliers with runtime validation for deserialized config values
@@ -599,7 +602,11 @@ export function TerminalView({
 		<div
 			ref={wrapperRef}
 			className="relative w-full h-full p-1.5"
-			style={{ backgroundColor: wrapperBg }}
+			style={{
+				backgroundColor: wrapperBg,
+				backdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
+				WebkitBackdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
+			}}
 		>
 			{gradientMul > 0 && effectGradient && isValidGradient(effectGradient) && (
 				<div
