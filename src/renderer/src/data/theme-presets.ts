@@ -13,7 +13,6 @@ export type ThemePreset = Pick<
 	| 'gradientLevel'
 	| 'glowLevel'
 	| 'scanlineLevel'
-	| 'vignetteLevel'
 	| 'noiseLevel'
 	| 'borderGlowLevel'
 	| 'cornerRadius'
@@ -229,7 +228,7 @@ export const THEME_PRESETS = [
 		gradientLevel: 'medium',
 		glowLevel: 'medium',
 		scanlineLevel: 'subtle',
-		vignetteLevel: 'subtle',
+
 		noiseLevel: 'subtle',
 		borderGlowLevel: 'medium',
 		scrollbarAccent: 'medium',
@@ -263,7 +262,7 @@ export const THEME_PRESETS = [
 		gradient: 'linear-gradient(135deg, rgba(255, 42, 109, 0.3) 0%, rgba(5, 217, 232, 0.2) 100%)',
 		gradientLevel: 'medium',
 		glowLevel: 'medium',
-		vignetteLevel: 'medium',
+
 		borderGlowLevel: 'medium',
 		cornerRadius: 'subtle',
 		scrollbarAccent: 'medium',
@@ -297,7 +296,7 @@ export const THEME_PRESETS = [
 		gradient: 'linear-gradient(160deg, rgba(153, 69, 255, 0.3) 0%, rgba(20, 241, 149, 0.2) 100%)',
 		gradientLevel: 'medium',
 		glowLevel: 'medium',
-		vignetteLevel: 'subtle',
+
 		borderGlowLevel: 'medium',
 		cornerRadius: 'subtle',
 		scrollbarAccent: 'medium',

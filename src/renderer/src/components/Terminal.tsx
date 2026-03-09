@@ -589,12 +589,11 @@ export function TerminalView({
 	const gradientMul = mul(mergedTheme.gradientLevel)
 	const glowMul = mul(mergedTheme.glowLevel)
 	const scanlineMul = mul(mergedTheme.scanlineLevel)
-	const vignetteMul = mul(mergedTheme.vignetteLevel)
 	const noiseMul = mul(mergedTheme.noiseLevel)
 	const borderGlowMul = mul(mergedTheme.borderGlowLevel)
 	const scrollbarMul = mul(mergedTheme.scrollbarAccent)
 
-	const CORNER_RADIUS: Record<EffectLevel, number> = { off: 0, subtle: 4, medium: 8, intense: 16 }
+	const CORNER_RADIUS: Record<EffectLevel, number> = { off: 0, subtle: 6, medium: 12, intense: 20 }
 	const cornerPx =
 		CORNER_RADIUS[isEffectLevel(mergedTheme.cornerRadius) ? mergedTheme.cornerRadius : 'off']
 
@@ -614,7 +613,7 @@ export function TerminalView({
 	// Border glow — only on focused pane
 	const borderGlowShadow =
 		borderGlowMul > 0 && isFocused && effectGlow
-			? `0 0 ${Math.round(6 * borderGlowMul)}px ${hexToRgba(effectGlow, 0.4 * borderGlowMul)}, inset 0 0 ${Math.round(4 * borderGlowMul)}px ${hexToRgba(effectGlow, 0.15 * borderGlowMul)}`
+			? `0 0 ${Math.round(16 * borderGlowMul)}px ${hexToRgba(effectGlow, 0.6 * borderGlowMul)}, inset 0 0 ${Math.round(8 * borderGlowMul)}px ${hexToRgba(effectGlow, 0.3 * borderGlowMul)}`
 			: undefined
 
 	// Scrollbar accent — set CSS custom property on wrapper
@@ -658,20 +657,10 @@ export function TerminalView({
 					style={{ opacity: scanlineMul }}
 				/>
 			)}
-			{vignetteMul > 0 && (
-				<div
-					className="absolute inset-0 pointer-events-none z-[4]"
-					style={{
-						background: 'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.7) 100%)',
-						opacity: vignetteMul,
-						contain: 'strict',
-					}}
-				/>
-			)}
 			{noiseMul > 0 && (
 				<div
 					className="pane-noise absolute inset-0 pointer-events-none z-[5]"
-					style={{ opacity: noiseMul * 0.15 }}
+					style={{ opacity: noiseMul * 0.5 }}
 				/>
 			)}
 			{showSearch && (

@@ -85,8 +85,6 @@ export interface PaneTheme {
 	glowLevel?: EffectLevel
 	/** CRT scanline overlay intensity. Controls scanline opacity via EFFECT_MULTIPLIERS. */
 	scanlineLevel?: EffectLevel
-	/** Vignette overlay intensity. Radial gradient darkening pane edges. */
-	vignetteLevel?: EffectLevel
 	/** Noise/grain overlay intensity. Static texture for film/CRT aesthetic. */
 	noiseLevel?: EffectLevel
 	/** Border glow intensity on focused pane. Box-shadow using glow/accent color. */
