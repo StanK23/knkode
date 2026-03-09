@@ -7,6 +7,22 @@ export const DEFAULT_PANE_OPACITY = 1 as const
 export const CURSOR_STYLES = ['block', 'underline', 'bar'] as const
 export type CursorStyle = (typeof CURSOR_STYLES)[number]
 
+export const EFFECT_LEVELS = ['off', 'subtle', 'medium', 'intense'] as const
+export type EffectLevel = (typeof EFFECT_LEVELS)[number]
+
+/** Opacity/intensity multiplier for each effect level. Applied to gradient div opacity,
+ *  glow box-shadow alpha values, and scanline overlay opacity. */
+export const EFFECT_MULTIPLIERS: Record<EffectLevel, number> = {
+	off: 0,
+	subtle: 0.4,
+	medium: 1.0,
+	intense: 1.5,
+}
+
+export function isEffectLevel(v: string): v is EffectLevel {
+	return (EFFECT_LEVELS as readonly string[]).includes(v)
+}
+
 export const DEFAULT_CURSOR_STYLE: CursorStyle = 'bar'
 export const DEFAULT_SCROLLBACK = 5000
 export const MIN_SCROLLBACK = 500
@@ -55,12 +71,14 @@ export interface PaneTheme {
 	accent?: string
 	/** Glow color for theme effects (box-shadow). No glow when omitted. */
 	glow?: string
-	/** CSS gradient overlay on terminal panes. Applied as a subtle atmospheric layer. */
+	/** CSS gradient overlay on terminal panes. Applied as a low-opacity overlay. */
 	gradient?: string
-	/** When true, the glow effect pulses instead of remaining static. */
-	animatedGlow?: boolean
-	/** When true, a CRT-style scanline overlay is rendered on terminal panes. */
-	scanline?: boolean
+	/** Gradient overlay intensity. Controls the div opacity via EFFECT_MULTIPLIERS. */
+	gradientLevel?: EffectLevel
+	/** Glow effect intensity. Controls box-shadow alpha scaling via EFFECT_MULTIPLIERS. */
+	glowLevel?: EffectLevel
+	/** CRT scanline overlay intensity. Controls scanline opacity via EFFECT_MULTIPLIERS. */
+	scanlineLevel?: EffectLevel
 	/** Theme preset name — links to THEME_PRESETS for full identity. */
 	preset?: string
 }
