@@ -802,15 +802,13 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 							</div>
 						</SettingsSection>
 
-						{/* Font & Display */}
-						<SettingsSection label="Font & Display" gap={12}>
-							<div className="flex items-center gap-3">
-								<span className="text-xs text-content-secondary w-20 shrink-0">Font</span>
-								<div className="flex-1 min-w-0">
-									<FontPicker value={fontFamily} onChange={setFontFamily} />
-								</div>
-							</div>
+						{/* Font */}
+						<SettingsSection label="Font" gap={12}>
+							<FontPicker value={fontFamily} onChange={setFontFamily} />
+						</SettingsSection>
 
+						{/* Display */}
+						<SettingsSection label="Display" gap={12}>
 							<div className="flex items-center gap-3">
 								<span className="text-xs text-content-secondary w-20 shrink-0">Size</span>
 								<div className="flex items-center gap-2">
