@@ -575,9 +575,12 @@ export function TerminalView({
 	}, [mergedTheme])
 
 	// Pre-compute effect multipliers with runtime validation for deserialized config values
-	const gradientMul = EFFECT_MULTIPLIERS[isEffectLevel(mergedTheme.gradientLevel) ? mergedTheme.gradientLevel : 'off']
-	const glowMul = EFFECT_MULTIPLIERS[isEffectLevel(mergedTheme.glowLevel) ? mergedTheme.glowLevel : 'off']
-	const scanlineMul = EFFECT_MULTIPLIERS[isEffectLevel(mergedTheme.scanlineLevel) ? mergedTheme.scanlineLevel : 'off']
+	const gradientMul =
+		EFFECT_MULTIPLIERS[isEffectLevel(mergedTheme.gradientLevel) ? mergedTheme.gradientLevel : 'off']
+	const glowMul =
+		EFFECT_MULTIPLIERS[isEffectLevel(mergedTheme.glowLevel) ? mergedTheme.glowLevel : 'off']
+	const scanlineMul =
+		EFFECT_MULTIPLIERS[isEffectLevel(mergedTheme.scanlineLevel) ? mergedTheme.scanlineLevel : 'off']
 
 	// Glow box-shadow alpha values — scaled by the multiplier
 	const glowInnerAlpha = 0.17 * glowMul

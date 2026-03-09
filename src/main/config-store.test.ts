@@ -237,6 +237,8 @@ describe('migrateEffectLevels', () => {
 		const originalTheme = { ...ws.theme }
 		migrateEffectLevels(ws)
 		const raw = ws.theme as unknown as Record<string, unknown>
-		expect(raw.animatedGlow).toBe((originalTheme as unknown as Record<string, unknown>).animatedGlow)
+		expect(raw.animatedGlow).toBe(
+			(originalTheme as unknown as Record<string, unknown>).animatedGlow,
+		)
 	})
 })

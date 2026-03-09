@@ -919,7 +919,12 @@ export const useStore = create<StoreState>((set, get) => ({
 
 	reorderSnippets: (fromIndex, toIndex) => {
 		const snippets = [...get().snippets]
-		if (fromIndex < 0 || fromIndex >= snippets.length || toIndex < 0 || toIndex >= snippets.length) {
+		if (
+			fromIndex < 0 ||
+			fromIndex >= snippets.length ||
+			toIndex < 0 ||
+			toIndex >= snippets.length
+		) {
 			console.warn('[store] reorderSnippets: index out of range', {
 				fromIndex,
 				toIndex,

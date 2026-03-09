@@ -142,13 +142,18 @@ describe('generateThemeVariables', () => {
 		'--font-size-ui',
 	] as const
 
-it('returns all expected keys', () => {
+	it('returns all expected keys', () => {
 		const theme = generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0' })
 		expect(Object.keys(theme).sort()).toEqual([...ALL_KEYS].sort())
 	})
 
 	it('generates correct dark-mode theme', () => {
-		const theme = generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontFamily: 'Hack', fontSize: 14 })
+		const theme = generateThemeVariables({
+			bg: '#1a1a2e',
+			fg: '#e0e0e0',
+			fontFamily: 'Hack',
+			fontSize: 14,
+		})
 		expect(theme['--color-canvas']).toBe('#1a1a2e')
 		expect(theme['--color-content']).toBe('#e0e0e0')
 		expect(theme['--color-accent']).toBe('#6c63ff')
@@ -188,35 +193,70 @@ it('returns all expected keys', () => {
 		expect(theme['--font-family-ui']).toBe('var(--font-mono-fallback)')
 		expect(theme['--font-size-ui']).toBe('13px')
 
-		const malformed = generateThemeVariables({ bg: 'not-a-color', fg: 'bad', fontFamily: 'Font', fontSize: -5 })
+		const malformed = generateThemeVariables({
+			bg: 'not-a-color',
+			fg: 'bad',
+			fontFamily: 'Font',
+			fontSize: -5,
+		})
 		expect(malformed['--color-canvas']).toBe('#1a1a2e')
 		expect(malformed['--font-size-ui']).toBe('13px')
 	})
 
 	it('derives UI font size as 1px smaller than terminal size', () => {
-		expect(generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontSize: 16 })['--font-size-ui']).toBe('15px')
-		expect(generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontSize: 14 })['--font-size-ui']).toBe('13px')
+		expect(
+			generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontSize: 16 })['--font-size-ui'],
+		).toBe('15px')
+		expect(
+			generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontSize: 14 })['--font-size-ui'],
+		).toBe('13px')
 	})
 
 	it('clamps UI font size to 11-15px range', () => {
-		expect(generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontSize: 12 })['--font-size-ui']).toBe('11px')
-		expect(generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontSize: 11 })['--font-size-ui']).toBe('11px')
-		expect(generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontSize: 17 })['--font-size-ui']).toBe('15px')
-		expect(generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontSize: 32 })['--font-size-ui']).toBe('15px')
-		expect(generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontSize: 0 })['--font-size-ui']).toBe('13px')
-		expect(generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontSize: Number.NaN })['--font-size-ui']).toBe('13px')
-		expect(generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontSize: Number.POSITIVE_INFINITY })['--font-size-ui']).toBe('13px')
+		expect(
+			generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontSize: 12 })['--font-size-ui'],
+		).toBe('11px')
+		expect(
+			generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontSize: 11 })['--font-size-ui'],
+		).toBe('11px')
+		expect(
+			generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontSize: 17 })['--font-size-ui'],
+		).toBe('15px')
+		expect(
+			generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontSize: 32 })['--font-size-ui'],
+		).toBe('15px')
+		expect(
+			generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontSize: 0 })['--font-size-ui'],
+		).toBe('13px')
+		expect(
+			generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontSize: Number.NaN })[
+				'--font-size-ui'
+			],
+		).toBe('13px')
+		expect(
+			generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontSize: Number.POSITIVE_INFINITY })[
+				'--font-size-ui'
+			],
+		).toBe('13px')
 	})
 
 	it('sanitizes fontFamily against allowlist', () => {
-		expect(generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontFamily: 'JetBrains Mono' })['--font-family-ui']).toBe(
-			'"JetBrains Mono", var(--font-mono-fallback)',
-		)
-		expect(generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontFamily: 'Comic Sans' })['--font-family-ui']).toBe(
-			'var(--font-mono-fallback)',
-		)
 		expect(
-			generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontFamily: '"; } body { display: none; } .x { font-family: "' })['--font-family-ui'],
+			generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontFamily: 'JetBrains Mono' })[
+				'--font-family-ui'
+			],
+		).toBe('"JetBrains Mono", var(--font-mono-fallback)')
+		expect(
+			generateThemeVariables({ bg: '#1a1a2e', fg: '#e0e0e0', fontFamily: 'Comic Sans' })[
+				'--font-family-ui'
+			],
+		).toBe('var(--font-mono-fallback)')
+		expect(
+			generateThemeVariables({
+				bg: '#1a1a2e',
+				fg: '#e0e0e0',
+				fontFamily: '"; } body { display: none; } .x { font-family: "',
+			})['--font-family-ui'],
 		).toBe('var(--font-mono-fallback)')
 	})
 

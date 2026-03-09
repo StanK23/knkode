@@ -139,11 +139,7 @@ export function migrateEffectLevels(ws: Workspace): Workspace {
 		}
 	}
 
-	if (
-		'gradient' in raw &&
-		typeof raw.gradient === 'string' &&
-		!isEffectLevel(raw.gradientLevel)
-	) {
+	if ('gradient' in raw && typeof raw.gradient === 'string' && !isEffectLevel(raw.gradientLevel)) {
 		updates.gradientLevel = 'medium'
 	}
 
