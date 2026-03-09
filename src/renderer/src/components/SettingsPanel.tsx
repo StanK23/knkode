@@ -13,6 +13,7 @@ import {
 	type PaneTheme,
 	type Workspace,
 	isCursorStyle,
+	isEffectLevel,
 } from '../../../shared/types'
 import {
 	DEFAULT_PRESET_NAME,
@@ -368,6 +369,18 @@ function SegmentedButton<T extends string>({
 				className="flex rounded-sm overflow-hidden border border-edge"
 				role="radiogroup"
 				aria-label={label}
+				onKeyDown={(e) => {
+					if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
+					e.preventDefault()
+					const idx = options.indexOf(value)
+					const next =
+						e.key === 'ArrowRight'
+							? options[(idx + 1) % options.length]
+							: options[(idx - 1 + options.length) % options.length]
+					onChange(next)
+					const el = e.currentTarget.querySelector(`[data-value="${next}"]`)
+					if (el instanceof HTMLElement) el.focus()
+				}}
 			>
 				{options.map((option) => (
 					<button
@@ -376,6 +389,7 @@ function SegmentedButton<T extends string>({
 						role="radio"
 						aria-checked={value === option}
 						tabIndex={value === option ? 0 : -1}
+						data-value={option}
 						onClick={() => onChange(option)}
 						className={`text-[11px] px-2.5 py-1 cursor-pointer border-none transition-colors ${
 							value === option
@@ -383,7 +397,7 @@ function SegmentedButton<T extends string>({
 								: 'bg-transparent text-content-muted hover:text-content-secondary'
 						}`}
 					>
-						{option[0].toUpperCase() + option.slice(1)}
+						{option.charAt(0).toUpperCase() + option.slice(1)}
 					</button>
 				))}
 			</div>
@@ -423,11 +437,13 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		workspace.theme.paneOpacity ?? DEFAULT_PANE_OPACITY,
 	)
 	const [gradientLevel, setGradientLevel] = useState<EffectLevel>(
-		workspace.theme.gradientLevel ?? 'off',
+		isEffectLevel(workspace.theme.gradientLevel) ? workspace.theme.gradientLevel : 'off',
 	)
-	const [glowLevel, setGlowLevel] = useState<EffectLevel>(workspace.theme.glowLevel ?? 'off')
+	const [glowLevel, setGlowLevel] = useState<EffectLevel>(
+		isEffectLevel(workspace.theme.glowLevel) ? workspace.theme.glowLevel : 'off',
+	)
 	const [scanlineLevel, setScanlineLevel] = useState<EffectLevel>(
-		workspace.theme.scanlineLevel ?? 'off',
+		isEffectLevel(workspace.theme.scanlineLevel) ? workspace.theme.scanlineLevel : 'off',
 	)
 
 	const currentPreset = workspace.layout.type === 'preset' ? workspace.layout.preset : null
