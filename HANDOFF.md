@@ -40,6 +40,8 @@ Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 1. ~~PR #81: `feature/effect-levels` — EffectLevel type, segmented button UI, opacity scaling~~ (merged)
 2. PR: `feature/identity-themes-v2` — 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic)
 3. PR: `docs/theming-guide-v2` — Update THEMING.md for levels + new themes
+4. PR: `feature/tab-bar-redesign` — Colored workspace tabs, wider default, dynamic sizing, count badges
+5. PR: `feature/pane-status-bar` — Pane header with cwd path, git branch badge
 
 ## Remaining Work
 - Fix TUI scroll-jumping-to-top bug
