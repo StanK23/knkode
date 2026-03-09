@@ -11,6 +11,7 @@ import {
 	DEFAULT_SCROLLBACK,
 	EFFECT_MULTIPLIERS,
 	type PaneTheme,
+	isEffectLevel,
 } from '../../../shared/types'
 import { buildFontFamily, buildXtermTheme } from '../data/theme-presets'
 import { useStore } from '../store'
@@ -573,41 +574,41 @@ export function TerminalView({
 		return resolveBackground(mergedTheme.background, opacity)
 	}, [mergedTheme])
 
+	// Pre-compute effect multipliers with runtime validation for deserialized config values
+	const gradientMul = EFFECT_MULTIPLIERS[isEffectLevel(mergedTheme.gradientLevel) ? mergedTheme.gradientLevel : 'off']
+	const glowMul = EFFECT_MULTIPLIERS[isEffectLevel(mergedTheme.glowLevel) ? mergedTheme.glowLevel : 'off']
+	const scanlineMul = EFFECT_MULTIPLIERS[isEffectLevel(mergedTheme.scanlineLevel) ? mergedTheme.scanlineLevel : 'off']
+
+	// Glow box-shadow alpha values — scaled by the multiplier
+	const glowInnerAlpha = 0.17 * glowMul
+	const glowOuterAlpha = 0.28 * glowMul
+
 	return (
 		<div
 			ref={wrapperRef}
 			className="relative w-full h-full p-1.5"
 			style={{ backgroundColor: wrapperBg }}
 		>
-			{(() => {
-				const gm = EFFECT_MULTIPLIERS[mergedTheme.gradientLevel ?? 'off']
-				return gm > 0 && mergedTheme.gradient && isValidGradient(mergedTheme.gradient) ? (
-					<div
-						className="absolute inset-0 pointer-events-none z-[1]"
-						style={{ background: mergedTheme.gradient, opacity: Math.min(1, gm) }}
-					/>
-				) : null
-			})()}
-			{(() => {
-				const glm = EFFECT_MULTIPLIERS[mergedTheme.glowLevel ?? 'off']
-				return glm > 0 && mergedTheme.glow ? (
-					<div
-						className="pane-glow absolute inset-0 pointer-events-none z-[2] rounded-sm"
-						style={{
-							boxShadow: `inset 0 0 18px ${hexToRgba(mergedTheme.glow, Math.min(1, 0.12 * glm))}, 0 0 12px ${hexToRgba(mergedTheme.glow, Math.min(1, 0.2 * glm))}`,
-						}}
-					/>
-				) : null
-			})()}
-			{(() => {
-				const sm = EFFECT_MULTIPLIERS[mergedTheme.scanlineLevel ?? 'off']
-				return sm > 0 ? (
-					<div
-						className="pane-scanline absolute inset-0 pointer-events-none z-[3]"
-						style={{ opacity: Math.min(1, sm) }}
-					/>
-				) : null
-			})()}
+			{gradientMul > 0 && mergedTheme.gradient && isValidGradient(mergedTheme.gradient) && (
+				<div
+					className="absolute inset-0 pointer-events-none z-[1]"
+					style={{ background: mergedTheme.gradient, opacity: gradientMul }}
+				/>
+			)}
+			{glowMul > 0 && mergedTheme.glow && (
+				<div
+					className="pane-glow absolute inset-0 pointer-events-none z-[2] rounded-sm"
+					style={{
+						boxShadow: `inset 0 0 18px ${hexToRgba(mergedTheme.glow, glowInnerAlpha)}, 0 0 12px ${hexToRgba(mergedTheme.glow, glowOuterAlpha)}`,
+					}}
+				/>
+			)}
+			{scanlineMul > 0 && (
+				<div
+					className="pane-scanline absolute inset-0 pointer-events-none z-[3]"
+					style={{ opacity: scanlineMul }}
+				/>
+			)}
 			{showSearch && (
 				<search className="absolute top-1 right-2 z-10 flex items-center gap-1 bg-elevated border border-edge rounded-sm px-2 py-1 shadow-panel">
 					<input
