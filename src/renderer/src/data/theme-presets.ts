@@ -14,8 +14,6 @@ export type ThemePreset = Pick<
 	| 'glowLevel'
 	| 'scanlineLevel'
 	| 'noiseLevel'
-	| 'borderGlowLevel'
-	| 'cornerRadius'
 	| 'scrollbarAccent'
 	| 'cursorColor'
 	| 'selectionColor'
@@ -230,7 +228,7 @@ export const THEME_PRESETS = [
 		scanlineLevel: 'subtle',
 
 		noiseLevel: 'subtle',
-		borderGlowLevel: 'medium',
+
 		scrollbarAccent: 'medium',
 		cursorColor: '#00ff41',
 		selectionColor: '#00ff41',
@@ -263,8 +261,8 @@ export const THEME_PRESETS = [
 		gradientLevel: 'medium',
 		glowLevel: 'medium',
 
-		borderGlowLevel: 'medium',
-		cornerRadius: 'subtle',
+
+
 		scrollbarAccent: 'medium',
 		cursorColor: '#ff2a6d',
 		selectionColor: '#05d9e8',
@@ -297,8 +295,8 @@ export const THEME_PRESETS = [
 		gradientLevel: 'medium',
 		glowLevel: 'medium',
 
-		borderGlowLevel: 'medium',
-		cornerRadius: 'subtle',
+
+
 		scrollbarAccent: 'medium',
 		cursorColor: '#14f195',
 		selectionColor: '#9945ff',

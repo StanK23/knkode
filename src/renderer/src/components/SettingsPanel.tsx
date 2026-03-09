@@ -476,15 +476,6 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const [noiseLevel, setNoiseLevel] = useState<EffectLevel>(
 		isEffectLevel(workspace.theme.noiseLevel) ? workspace.theme.noiseLevel : 'off',
 	)
-	const [borderGlowLevel, setBorderGlowLevel] = useState<EffectLevel>(
-		isEffectLevel(workspace.theme.borderGlowLevel) ? workspace.theme.borderGlowLevel : 'off',
-	)
-	const [cornerRadius, setCornerRadius] = useState<EffectLevel>(
-		isEffectLevel(workspace.theme.cornerRadius) ? workspace.theme.cornerRadius : 'off',
-	)
-	const [scrollbarAccent, setScrollbarAccent] = useState<EffectLevel>(
-		isEffectLevel(workspace.theme.scrollbarAccent) ? workspace.theme.scrollbarAccent : 'off',
-	)
 	const [lineHeight, setLineHeight] = useState(workspace.theme.lineHeight ?? DEFAULT_LINE_HEIGHT)
 
 	const currentPreset = workspace.layout.type === 'preset' ? workspace.layout.preset : null
@@ -509,9 +500,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 			glowLevel,
 			scanlineLevel,
 			noiseLevel,
-			borderGlowLevel,
-			cornerRadius,
-			scrollbarAccent,
+			scrollbarAccent: preset?.scrollbarAccent,
 			cursorColor: preset?.cursorColor,
 			selectionColor: preset?.selectionColor,
 			lineHeight,
@@ -529,9 +518,6 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		glowLevel,
 		scanlineLevel,
 		noiseLevel,
-		borderGlowLevel,
-		cornerRadius,
-		scrollbarAccent,
 		lineHeight,
 	])
 
@@ -567,9 +553,6 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		setGlowLevel(preset?.glowLevel ?? 'off')
 		setScanlineLevel(preset?.scanlineLevel ?? 'off')
 		setNoiseLevel(preset?.noiseLevel ?? 'off')
-		setBorderGlowLevel(preset?.borderGlowLevel ?? 'off')
-		setCornerRadius(preset?.cornerRadius ?? 'off')
-		setScrollbarAccent(preset?.scrollbarAccent ?? 'off')
 	}, [selectedPreset])
 
 	// Auto-persist name with debounce to avoid excessive disk writes on every keystroke.
@@ -966,25 +949,6 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								onChange={setNoiseLevel}
 								label="Noise"
 							/>
-							<SegmentedButton
-								options={EFFECT_LEVELS}
-								value={borderGlowLevel}
-								onChange={setBorderGlowLevel}
-								label="Border glow"
-							/>
-							<SegmentedButton
-								options={EFFECT_LEVELS}
-								value={cornerRadius}
-								onChange={setCornerRadius}
-								label="Roundness"
-							/>
-							<SegmentedButton
-								options={EFFECT_LEVELS}
-								value={scrollbarAccent}
-								onChange={setScrollbarAccent}
-								label="Scrollbar"
-							/>
-
 						</SettingsSection>
 					</>
 				</div>

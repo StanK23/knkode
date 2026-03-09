@@ -11,7 +11,6 @@ import {
 	DEFAULT_PANE_OPACITY,
 	DEFAULT_SCROLLBACK,
 	EFFECT_MULTIPLIERS,
-	type EffectLevel,
 	type PaneTheme,
 	isEffectLevel,
 } from '../../../shared/types'
@@ -590,12 +589,7 @@ export function TerminalView({
 	const glowMul = mul(mergedTheme.glowLevel)
 	const scanlineMul = mul(mergedTheme.scanlineLevel)
 	const noiseMul = mul(mergedTheme.noiseLevel)
-	const borderGlowMul = mul(mergedTheme.borderGlowLevel)
 	const scrollbarMul = mul(mergedTheme.scrollbarAccent)
-
-	const CORNER_RADIUS: Record<EffectLevel, number> = { off: 0, subtle: 6, medium: 12, intense: 20 }
-	const cornerPx =
-		CORNER_RADIUS[isEffectLevel(mergedTheme.cornerRadius) ? mergedTheme.cornerRadius : 'off']
 
 	// Fallback: use accent color for glow/gradient when the preset doesn't define them.
 	// This lets effect controls work on ALL themes, not just identity themes.
@@ -609,12 +603,6 @@ export function TerminalView({
 	// Glow box-shadow alpha values — scaled by the multiplier
 	const glowInnerAlpha = 0.5 * glowMul
 	const glowOuterAlpha = 0.7 * glowMul
-
-	// Border glow — only on focused pane
-	const borderGlowShadow =
-		borderGlowMul > 0 && isFocused && effectGlow
-			? `0 0 ${Math.round(16 * borderGlowMul)}px ${hexToRgba(effectGlow, 0.6 * borderGlowMul)}, inset 0 0 ${Math.round(8 * borderGlowMul)}px ${hexToRgba(effectGlow, 0.3 * borderGlowMul)}`
-			: undefined
 
 	// Scrollbar accent — set CSS custom property on wrapper
 	const scrollbarColor =
@@ -630,10 +618,6 @@ export function TerminalView({
 				backgroundColor: wrapperBg,
 				backdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
 				WebkitBackdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
-				borderRadius: cornerPx > 0 ? `${cornerPx}px` : undefined,
-				overflow: cornerPx > 0 ? 'hidden' : undefined,
-				boxShadow: borderGlowShadow,
-				transition: 'box-shadow 150ms ease',
 				'--scrollbar-accent-color': scrollbarColor,
 			} as React.CSSProperties}
 		>

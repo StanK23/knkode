@@ -87,10 +87,6 @@ export interface PaneTheme {
 	scanlineLevel?: EffectLevel
 	/** Noise/grain overlay intensity. Static texture for film/CRT aesthetic. */
 	noiseLevel?: EffectLevel
-	/** Border glow intensity on focused pane. Box-shadow using glow/accent color. */
-	borderGlowLevel?: EffectLevel
-	/** Corner rounding level. Maps to border-radius pixels. */
-	cornerRadius?: EffectLevel
 	/** Scrollbar thumb accent color intensity. Uses glow/accent color. */
 	scrollbarAccent?: EffectLevel
 	/** Custom cursor color (hex). Falls back to foreground when omitted. */
