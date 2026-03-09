@@ -582,9 +582,18 @@ export function TerminalView({
 	const scanlineMul =
 		EFFECT_MULTIPLIERS[isEffectLevel(mergedTheme.scanlineLevel) ? mergedTheme.scanlineLevel : 'off']
 
+	// Fallback: use accent color for glow/gradient when the preset doesn't define them.
+	// This lets effect controls work on ALL themes, not just identity themes.
+	const effectGlow = mergedTheme.glow ?? mergedTheme.accent
+	const effectGradient =
+		mergedTheme.gradient ??
+		(effectGlow
+			? `linear-gradient(180deg, ${hexToRgba(effectGlow, 0.1)} 0%, transparent 50%)`
+			: null)
+
 	// Glow box-shadow alpha values — scaled by the multiplier
-	const glowInnerAlpha = 0.17 * glowMul
-	const glowOuterAlpha = 0.28 * glowMul
+	const glowInnerAlpha = 0.25 * glowMul
+	const glowOuterAlpha = 0.4 * glowMul
 
 	return (
 		<div
@@ -592,17 +601,17 @@ export function TerminalView({
 			className="relative w-full h-full p-1.5"
 			style={{ backgroundColor: wrapperBg }}
 		>
-			{gradientMul > 0 && mergedTheme.gradient && isValidGradient(mergedTheme.gradient) && (
+			{gradientMul > 0 && effectGradient && isValidGradient(effectGradient) && (
 				<div
 					className="absolute inset-0 pointer-events-none z-[1]"
-					style={{ background: mergedTheme.gradient, opacity: gradientMul }}
+					style={{ background: effectGradient, opacity: gradientMul }}
 				/>
 			)}
-			{glowMul > 0 && mergedTheme.glow && (
+			{glowMul > 0 && effectGlow && (
 				<div
 					className="pane-glow absolute inset-0 pointer-events-none z-[2] rounded-sm"
 					style={{
-						boxShadow: `inset 0 0 18px ${hexToRgba(mergedTheme.glow, glowInnerAlpha)}, 0 0 12px ${hexToRgba(mergedTheme.glow, glowOuterAlpha)}`,
+						boxShadow: `inset 0 0 18px ${hexToRgba(effectGlow, glowInnerAlpha)}, 0 0 12px ${hexToRgba(effectGlow, glowOuterAlpha)}`,
 					}}
 				/>
 			)}

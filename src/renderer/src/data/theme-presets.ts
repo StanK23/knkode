@@ -218,7 +218,7 @@ export const THEME_PRESETS = [
 		foreground: '#00ff41',
 		accent: '#00ff41',
 		glow: '#00ff41',
-		gradient: 'linear-gradient(180deg, rgba(0, 255, 65, 0.03) 0%, transparent 40%)',
+		gradient: 'linear-gradient(180deg, rgba(0, 255, 65, 0.12) 0%, transparent 40%)',
 		gradientLevel: 'medium',
 		glowLevel: 'medium',
 		scanlineLevel: 'subtle',
@@ -247,7 +247,7 @@ export const THEME_PRESETS = [
 		foreground: '#f0e6ff',
 		accent: '#ff2a6d',
 		glow: '#ff2a6d',
-		gradient: 'linear-gradient(135deg, rgba(255, 42, 109, 0.04) 0%, rgba(5, 217, 232, 0.03) 100%)',
+		gradient: 'linear-gradient(135deg, rgba(255, 42, 109, 0.12) 0%, rgba(5, 217, 232, 0.08) 100%)',
 		gradientLevel: 'medium',
 		glowLevel: 'medium',
 		ansiColors: {
@@ -275,7 +275,7 @@ export const THEME_PRESETS = [
 		foreground: '#e0e0f0',
 		accent: '#9945ff',
 		glow: '#14f195',
-		gradient: 'linear-gradient(160deg, rgba(153, 69, 255, 0.03) 0%, rgba(20, 241, 149, 0.03) 100%)',
+		gradient: 'linear-gradient(160deg, rgba(153, 69, 255, 0.12) 0%, rgba(20, 241, 149, 0.08) 100%)',
 		gradientLevel: 'medium',
 		glowLevel: 'medium',
 		ansiColors: {

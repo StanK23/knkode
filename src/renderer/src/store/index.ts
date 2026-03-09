@@ -416,10 +416,13 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 
 	updateWorkspace: async (workspace) => {
-		await window.api.saveWorkspace(workspace)
+		// Update store first (optimistic) so UI reflects changes instantly,
+		// then persist to disk. Prevents race where closing settings before
+		// IPC save completes would lose the change.
 		set((state) => ({
 			workspaces: state.workspaces.map((w) => (w.id === workspace.id ? workspace : w)),
 		}))
+		await window.api.saveWorkspace(workspace)
 	},
 
 	duplicateWorkspace: async (id) => {
