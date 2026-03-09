@@ -243,6 +243,20 @@
 		contain: strict;
 	}
 
+	/* Film grain / noise texture — GPU-friendly repeating conic gradient.
+	   Opacity is set via inline style in Terminal.tsx scaled by EFFECT_MULTIPLIERS. */
+	.pane-noise {
+		background: repeating-conic-gradient(#000 0% 25%, transparent 0% 50%) 0 0 / 2px 2px;
+		contain: strict;
+	}
+
+	/* Scrollbar accent — terminal-scoped override using CSS custom property.
+	   Set via inline style on the terminal wrapper div in Terminal.tsx. */
+	.scrollbar-accent .xterm-viewport::-webkit-scrollbar-thumb {
+		background: var(--scrollbar-accent-color) !important;
+		border-radius: 3px;
+	}
+
 	@media (prefers-reduced-motion: reduce) {
 		.animate-panel-in {
 			animation: none;
