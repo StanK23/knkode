@@ -30,6 +30,10 @@ export const DEFAULT_SCROLLBACK = 5000
 export const MIN_SCROLLBACK = 500
 export const MAX_SCROLLBACK = 50000
 
+export const DEFAULT_LINE_HEIGHT = 1.0
+export const MIN_LINE_HEIGHT = 1.0
+export const MAX_LINE_HEIGHT = 2.0
+
 export function isCursorStyle(v: string): v is CursorStyle {
 	return (CURSOR_STYLES as readonly string[]).includes(v)
 }
@@ -81,6 +85,22 @@ export interface PaneTheme {
 	glowLevel?: EffectLevel
 	/** CRT scanline overlay intensity. Controls scanline opacity via EFFECT_MULTIPLIERS. */
 	scanlineLevel?: EffectLevel
+	/** Vignette overlay intensity. Radial gradient darkening pane edges. */
+	vignetteLevel?: EffectLevel
+	/** Noise/grain overlay intensity. Static texture for film/CRT aesthetic. */
+	noiseLevel?: EffectLevel
+	/** Border glow intensity on focused pane. Box-shadow using glow/accent color. */
+	borderGlowLevel?: EffectLevel
+	/** Corner rounding level. Maps to border-radius pixels. */
+	cornerRadius?: EffectLevel
+	/** Scrollbar thumb accent color intensity. Uses glow/accent color. */
+	scrollbarAccent?: EffectLevel
+	/** Custom cursor color (hex). Falls back to foreground when omitted. */
+	cursorColor?: string
+	/** Custom selection highlight color (hex). Falls back to foreground+alpha when omitted. */
+	selectionColor?: string
+	/** Terminal line height multiplier. Range [1.0, 2.0]. Defaults to DEFAULT_LINE_HEIGHT. */
+	lineHeight?: number
 	/** Theme preset name — links to THEME_PRESETS for full identity. */
 	preset?: string
 }
