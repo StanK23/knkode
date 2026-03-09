@@ -87,8 +87,6 @@ export interface PaneTheme {
 	scanlineLevel?: EffectLevel
 	/** Noise/grain overlay intensity. Static texture for film/CRT aesthetic. */
 	noiseLevel?: EffectLevel
-	/** Backdrop blur intensity (px). Only visible when paneOpacity < 1. */
-	blurLevel?: EffectLevel
 	/** Scrollbar thumb accent color intensity. Uses glow/accent color. */
 	scrollbarAccent?: EffectLevel
 	/** Custom cursor color (hex). Falls back to foreground when omitted. */
@@ -175,7 +173,6 @@ export const IPC = {
 	// App
 	APP_GET_HOME_DIR: 'app:get-home-dir',
 	APP_OPEN_EXTERNAL: 'app:open-external',
-	APP_SET_VIBRANCY: 'app:set-vibrancy',
 
 	// PTY
 	PTY_CREATE: 'pty:create',

@@ -37,14 +37,15 @@ function createWindow(): void {
 		title: 'knkode',
 		// transparent: true is required on macOS for vibrancy but causes issues on
 		// Windows without frame: false and has no blur equivalent on Linux.
-		// Vibrancy/backgroundMaterial are NOT set here — they're toggled at runtime
-		// via APP_SET_VIBRANCY IPC based on the workspace blur setting.
 		...(isMac && {
 			transparent: true,
 			titleBarStyle: 'hiddenInset' as const,
 			trafficLightPosition: { x: 12, y: 12 },
+			vibrancy: 'under-window' as const,
 			hasShadow: true,
 		}),
+		// Windows: backgroundMaterial works independently of transparent flag
+		...(isWindows && { backgroundMaterial: 'acrylic' as const }),
 		// Linux: no platform-native blur API in Electron — opaque window
 		...(!isMac && !isWindows && { backgroundColor: '#1a1a2e' }),
 		webPreferences: {

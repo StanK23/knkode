@@ -14,7 +14,6 @@ export type ThemePreset = Pick<
 	| 'glowLevel'
 	| 'scanlineLevel'
 	| 'noiseLevel'
-	| 'blurLevel'
 	| 'scrollbarAccent'
 	| 'cursorColor'
 	| 'selectionColor'
