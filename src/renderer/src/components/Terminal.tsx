@@ -9,6 +9,7 @@ import {
 	DEFAULT_CURSOR_STYLE,
 	DEFAULT_PANE_OPACITY,
 	DEFAULT_SCROLLBACK,
+	EFFECT_MULTIPLIERS,
 	type PaneTheme,
 } from '../../../shared/types'
 import { buildFontFamily, buildXtermTheme } from '../data/theme-presets'
@@ -578,23 +579,35 @@ export function TerminalView({
 			className="relative w-full h-full p-1.5"
 			style={{ backgroundColor: wrapperBg }}
 		>
-			{mergedTheme.gradient && isValidGradient(mergedTheme.gradient) && (
-				<div
-					className="absolute inset-0 pointer-events-none z-[1]"
-					style={{ background: mergedTheme.gradient }}
-				/>
-			)}
-			{mergedTheme.animatedGlow && mergedTheme.glow && (
-				<div
-					className="pane-glow absolute inset-0 pointer-events-none z-[2] rounded-sm"
-					style={{
-						boxShadow: `inset 0 0 18px ${hexToRgba(mergedTheme.glow, 0.12)}, 0 0 12px ${hexToRgba(mergedTheme.glow, 0.2)}`,
-					}}
-				/>
-			)}
-			{mergedTheme.scanline && (
-				<div className="pane-scanline absolute inset-0 pointer-events-none z-[3]" />
-			)}
+			{(() => {
+				const gm = EFFECT_MULTIPLIERS[mergedTheme.gradientLevel ?? 'off']
+				return gm > 0 && mergedTheme.gradient && isValidGradient(mergedTheme.gradient) ? (
+					<div
+						className="absolute inset-0 pointer-events-none z-[1]"
+						style={{ background: mergedTheme.gradient, opacity: Math.min(1, gm) }}
+					/>
+				) : null
+			})()}
+			{(() => {
+				const glm = EFFECT_MULTIPLIERS[mergedTheme.glowLevel ?? 'off']
+				return glm > 0 && mergedTheme.glow ? (
+					<div
+						className="pane-glow absolute inset-0 pointer-events-none z-[2] rounded-sm"
+						style={{
+							boxShadow: `inset 0 0 18px ${hexToRgba(mergedTheme.glow, Math.min(1, 0.12 * glm))}, 0 0 12px ${hexToRgba(mergedTheme.glow, Math.min(1, 0.2 * glm))}`,
+						}}
+					/>
+				) : null
+			})()}
+			{(() => {
+				const sm = EFFECT_MULTIPLIERS[mergedTheme.scanlineLevel ?? 'off']
+				return sm > 0 ? (
+					<div
+						className="pane-scanline absolute inset-0 pointer-events-none z-[3]"
+						style={{ opacity: Math.min(1, sm) }}
+					/>
+				) : null
+			})()}
 			{showSearch && (
 				<search className="absolute top-1 right-2 z-10 flex items-center gap-1 bg-elevated border border-edge rounded-sm px-2 py-1 shadow-panel">
 					<input
