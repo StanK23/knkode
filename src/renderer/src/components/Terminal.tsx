@@ -676,7 +676,15 @@ export function TerminalView({
 					Scroll to bottom &#x25BC;
 				</button>
 			)}
-			<div ref={containerRef} className="w-full h-full" />
+			<div
+				ref={containerRef}
+				className="w-full h-full"
+				style={
+					glowMul > 0 && effectGlow
+						? { filter: `drop-shadow(0 0 ${1 + 2 * glowMul}px ${effectGlow})` }
+						: undefined
+				}
+			/>
 		</div>
 	)
 }
