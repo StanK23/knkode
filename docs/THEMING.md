@@ -28,8 +28,9 @@ Each preset in `THEME_PRESETS` has:
 | `accent` | `string` | No | UI accent color — buttons, focus rings, active indicators |
 | `glow` | `string` | No | Glow effect color — `box-shadow` on themed elements |
 | `gradient` | `string` | No | CSS gradient overlay on terminal panes (identity themes only) |
-| `animatedGlow` | `boolean` | No | Makes glow pulse (4s ease-in-out cycle) instead of static |
-| `scanline` | `boolean` | No | CRT-style scanline overlay with slow drift |
+| `gradientLevel` | `EffectLevel` | No | Gradient overlay intensity: `'off'` / `'subtle'` / `'medium'` / `'intense'` |
+| `glowLevel` | `EffectLevel` | No | Glow effect intensity: `'off'` / `'subtle'` / `'medium'` / `'intense'` |
+| `scanlineLevel` | `EffectLevel` | No | CRT scanline overlay intensity: `'off'` / `'subtle'` / `'medium'` / `'intense'` |
 
 *All current presets define `ansiColors`. When omitted, xterm.js uses built-in defaults.
 
@@ -55,13 +56,13 @@ Themes built around a single brand or aesthetic identity: Matrix, Cyberpunk, Sol
 
 Identity themes also include **visual effects** that make each workspace feel like a different app:
 
-| Theme | Gradient | Animated Glow | Scanline |
-|-------|----------|---------------|----------|
-| Matrix | Green top-down vignette (3% opacity) | Pulsing green border glow | CRT scanlines with drift |
-| Cyberpunk | Diagonal pink → cyan tint (3-4% opacity) | Pulsing neon pink border glow | — |
-| Solana | Diagonal purple → green tint (3% opacity) | Pulsing brand-colored border glow | — |
+| Theme | Gradient | Glow | Scanline |
+|-------|----------|------|----------|
+| Matrix | Green top-down vignette (3% opacity) | Pulsing green border glow (medium) | CRT scanlines with drift (subtle) |
+| Cyberpunk | Diagonal pink → cyan tint (3-4% opacity) | Pulsing neon pink border glow (medium) | — |
+| Solana | Diagonal purple → green tint (3% opacity) | Pulsing brand-colored border glow (medium) | — |
 
-Effects are rendered as `pointer-events: none` overlay divs in `Terminal.tsx` and respect `prefers-reduced-motion`.
+Effects are rendered as `pointer-events: none` overlay divs in `Terminal.tsx` and respect `prefers-reduced-motion`. Users can adjust each effect independently via the **Visual Effects** section in Settings → Terminal, choosing from Off / Subtle / Medium / Intense levels.
 
 ## CSS Custom Properties
 
@@ -92,7 +93,7 @@ Elevated and overlay surfaces are derived by mixing the background toward white 
 | `--color-accent` | Per-theme accent or auto-derived (`#6c63ff` dark / `#4d46e5` light) |
 | `--color-danger` | Error/destructive actions (`#e74c3c`, constant) |
 | `--color-edge` | Borders — mix(bg, fg, 0.85) |
-| `--theme-glow` | Box-shadow value or `none` — e.g., `0 0 12px rgba(189, 147, 249, 0.4)` |
+| `--theme-glow` | Box-shadow value or `none` — used by `generateThemeVariables()` for themed panels. Pane-level glow uses inline `boxShadow` with alpha values scaled by `EFFECT_MULTIPLIERS` (base alphas: 0.17 inner, 0.28 outer). |
 
 ### Typography
 | Variable | Description |
@@ -120,8 +121,9 @@ Add to `THEME_PRESETS` in `src/renderer/src/data/theme-presets.ts`:
     glow: '#7aa2f7',       // optional — no glow if omitted
     // Identity themes add visual effects (optional for community themes):
     gradient: 'linear-gradient(180deg, rgba(122, 162, 247, 0.03) 0%, transparent 40%)',
-    animatedGlow: true,
-    scanline: false,       // true only for retro/CRT aesthetics
+    gradientLevel: 'medium',
+    glowLevel: 'medium',
+    scanlineLevel: 'off',  // 'subtle' only for retro/CRT aesthetics
     ansiColors: {
         black: '#15161e',
         red: '#f7768e',
@@ -148,23 +150,25 @@ Add to `THEME_PRESETS` in `src/renderer/src/data/theme-presets.ts`:
 - **Background + foreground**: Ensure sufficient contrast (WCAG AA minimum). Dark themes: bg luminance < 0.2, fg luminance > 0.6. Light themes: invert.
 - **ANSI colors**: Each should be distinguishable against the background. For community themes, keep conventional associations (red = errors, green = success).
 - **Accent**: Should contrast with both canvas and content. Avoid colors too close to danger (`#e74c3c`).
-- **Glow**: Use the accent or a complementary color. The engine applies it at 40% opacity in a 12px box-shadow.
+- **Glow**: Use the accent or a complementary color. The `--theme-glow` CSS variable uses 40% opacity for themed panels; the pane-level glow uses lower base alphas (0.17/0.28) scaled by `EFFECT_MULTIPLIERS`.
 
 ### 4. For identity themes
 
 - Remap ANSI slots to your palette. The green channel should dominate for Matrix-style monochrome.
 - Always provide both `accent` and `glow`.
-- Add visual effects — at minimum `animatedGlow: true` and a `gradient` overlay:
+- Add visual effects using `EffectLevel` (`'off'` | `'subtle'` | `'medium'` | `'intense'`):
   - **`gradient`**: A CSS `linear-gradient()` string at very low opacity (3-5%) to tint the pane background. Use the theme's signature colors.
-  - **`animatedGlow`**: Set to `true` to make the glow border pulse. Uses the `glow` color for `box-shadow`.
-  - **`scanline`**: Set to `true` for CRT/retro aesthetics. Adds a `repeating-linear-gradient` overlay with slow drift animation. Use sparingly — only where it fits the theme identity.
+  - **`gradientLevel`**: Controls gradient overlay opacity via `EFFECT_MULTIPLIERS`. Set to `'medium'` as a default.
+  - **`glowLevel`**: Controls pulsing box-shadow intensity. Uses the `glow` color. Set to `'medium'` for identity themes.
+  - **`scanlineLevel`**: CRT scanline overlay. Set to `'subtle'` for retro aesthetics, leave undefined otherwise.
+  - Users can override any level via the Visual Effects section in Settings — preset values are defaults.
 - Add the theme name to the identity theme test arrays in `theme-presets.test.ts`.
 
 ### 5. Effect guidelines
 
-- Gradients should be barely perceptible (3-5% opacity) — atmosphere, not obstruction.
-- The glow animation runs at 4 seconds per cycle with `ease-in-out` — fast enough to feel alive, slow enough to not distract.
-- Scanlines use 3% opacity black lines at 4px pitch — visible on close inspection but invisible during focused work.
+- Gradients should be barely perceptible at authored opacity (3-5%) — atmosphere, not obstruction. These authored values are further scaled by `EFFECT_MULTIPLIERS` based on the user's chosen level (off=0, subtle=0.4, medium=0.7, intense=1.0).
+- The glow animation runs at 4 seconds per cycle with `ease-in-out` — fast enough to feel alive, slow enough to not distract. Glow box-shadow alpha values (base: 0.17 inner, 0.28 outer) are multiplied by the effect level.
+- Scanlines use 3% opacity black lines at 4px pitch — visible on close inspection but invisible during focused work. Scanline overlay opacity is controlled by the effect level multiplier.
 - Glow and scanline animations are disabled when `prefers-reduced-motion: reduce` is set. The glow falls back to static 70% opacity; the scanline pattern remains visible but static. Gradient overlays are inherently static and unaffected.
 
 ### 6. Validation

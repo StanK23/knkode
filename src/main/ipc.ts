@@ -2,7 +2,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { ipcMain, shell } from 'electron'
 import type { AppState, Snippet, Workspace } from '../shared/types'
-import { IPC } from '../shared/types'
+import { IPC, isEffectLevel } from '../shared/types'
 import {
 	deleteWorkspace,
 	getAppState,
@@ -61,6 +61,11 @@ function assertWorkspace(value: unknown): asserts value is Workspace {
 			theme.paneOpacity > 1
 		) {
 			throw new Error('Invalid workspace: paneOpacity must be a finite number in [0, 1]')
+		}
+	}
+	for (const field of ['gradientLevel', 'glowLevel', 'scanlineLevel'] as const) {
+		if (theme[field] !== undefined && !isEffectLevel(theme[field])) {
+			throw new Error(`Invalid workspace: ${field} must be a valid EffectLevel`)
 		}
 	}
 	if (!obj.layout || typeof obj.layout !== 'object')

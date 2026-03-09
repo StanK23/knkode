@@ -13,7 +13,8 @@ export function isValidGradient(value: string): boolean {
 		!value.includes(';') &&
 		!value.includes('{') &&
 		!value.includes('url(') &&
-		!value.includes('expression(')
+		!value.includes('expression(') &&
+		!value.includes('var(')
 	)
 }
 

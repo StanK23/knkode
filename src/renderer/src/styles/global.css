@@ -223,39 +223,38 @@
 	/* ── Identity theme effects ───────────────────────────────────── */
 
 	/* Pulsing glow — pulses the overlay div between 50% and 100% opacity.
-	   The box-shadow itself is set via inline style in Terminal.tsx. */
-	@keyframes glow-pulse {
-		0%,
-		100% {
-			opacity: 0.5;
-		}
-		50% {
-			opacity: 1;
-		}
-	}
+	   The box-shadow itself is set via inline style in Terminal.tsx.
+	   will-change promotes to GPU layer so opacity changes don't trigger re-paint. */
 	.pane-glow {
-		animation: glow-pulse 4s ease-in-out infinite;
+		contain: strict;
 	}
 
-	/* CRT scanline overlay — subtle horizontal lines that slowly drift.
-	   Used by themes with scanline: true. */
-	@keyframes scanline-drift {
-		0% {
-			background-position: 0 0;
-		}
-		100% {
-			background-position: 0 200px;
-		}
-	}
+	/* CRT scanline overlay — static horizontal lines.
+	   Used by themes with scanlineLevel set (e.g. 'subtle', 'medium', 'intense').
+	   contain: strict isolates rendering from the rest of the page. */
 	.pane-scanline {
 		background: repeating-linear-gradient(
 			0deg,
 			transparent,
 			transparent 2px,
-			rgba(0, 0, 0, 0.03) 2px,
-			rgba(0, 0, 0, 0.03) 4px
+			rgba(0, 0, 0, 0.25) 2px,
+			rgba(0, 0, 0, 0.25) 4px
 		);
-		animation: scanline-drift 20s linear infinite;
+		contain: strict;
+	}
+
+	/* Film grain / noise texture — GPU-friendly repeating conic gradient.
+	   Opacity is set via inline style in Terminal.tsx scaled by EFFECT_MULTIPLIERS. */
+	.pane-noise {
+		background: repeating-conic-gradient(#000 0% 25%, transparent 0% 50%) 0 0 / 2px 2px;
+		contain: strict;
+	}
+
+	/* Scrollbar accent — terminal-scoped override using CSS custom property.
+	   Set via inline style on the terminal wrapper div in Terminal.tsx. */
+	.scrollbar-accent .xterm-viewport::-webkit-scrollbar-thumb {
+		background: var(--scrollbar-accent-color) !important;
+		border-radius: 3px;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
@@ -264,13 +263,6 @@
 		}
 		.settings-input {
 			transition: none;
-		}
-		.pane-glow {
-			animation: none;
-			opacity: 0.7;
-		}
-		.pane-scanline {
-			animation: none;
 		}
 	}
 }

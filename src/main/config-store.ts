@@ -1,7 +1,14 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { app } from 'electron'
-import { type AppState, DEFAULT_UNFOCUSED_DIM, type Snippet, type Workspace } from '../shared/types'
+import {
+	type AppState,
+	DEFAULT_UNFOCUSED_DIM,
+	type PaneTheme,
+	type Snippet,
+	type Workspace,
+	isEffectLevel,
+} from '../shared/types'
 
 const CONFIG_DIR = path.join(app.getPath('home'), '.knkode')
 const WORKSPACES_FILE = path.join(CONFIG_DIR, 'workspaces.json')
@@ -105,8 +112,48 @@ export function migrateTheme(ws: Workspace): Workspace {
 	}
 }
 
+/** Migrate legacy boolean effect fields (animatedGlow, scanline) to EffectLevel fields,
+ *  removing the legacy fields in the process. Also adds gradientLevel: 'medium' when a
+ *  gradient string is present but no level is set. */
+export function migrateEffectLevels(ws: Workspace): Workspace {
+	const raw = ws.theme as unknown as Record<string, unknown>
+
+	const needsMigration =
+		'animatedGlow' in raw ||
+		'scanline' in raw ||
+		('gradient' in raw && typeof raw.gradient === 'string' && !('gradientLevel' in raw))
+
+	if (!needsMigration) return ws
+
+	const updates: Partial<Pick<PaneTheme, 'glowLevel' | 'scanlineLevel' | 'gradientLevel'>> = {}
+
+	if ('animatedGlow' in raw) {
+		if (raw.animatedGlow === true && !isEffectLevel(raw.glowLevel)) {
+			updates.glowLevel = 'medium'
+		}
+	}
+
+	if ('scanline' in raw) {
+		if (raw.scanline === true && !isEffectLevel(raw.scanlineLevel)) {
+			updates.scanlineLevel = 'medium'
+		}
+	}
+
+	if ('gradient' in raw && typeof raw.gradient === 'string' && !isEffectLevel(raw.gradientLevel)) {
+		updates.gradientLevel = 'medium'
+	}
+
+	console.info('[config-store] Migrated effect levels for workspace:', ws.id)
+
+	const { animatedGlow: _, scanline: _s, ...themeWithoutLegacy } = raw
+	return {
+		...ws,
+		theme: { ...themeWithoutLegacy, ...updates } as typeof ws.theme,
+	}
+}
+
 export function getWorkspaces(): Workspace[] {
-	return readJson<Workspace[]>(WORKSPACES_FILE, []).map(migrateTheme)
+	return readJson<Workspace[]>(WORKSPACES_FILE, []).map(migrateTheme).map(migrateEffectLevels)
 }
 
 export function saveWorkspace(workspace: Workspace): void {

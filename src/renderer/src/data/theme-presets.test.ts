@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { isEffectLevel } from '../../../shared/types'
 import { hexToRgb, isDark, isValidHex } from '../utils/colors'
 import {
 	THEME_PRESETS,
@@ -195,6 +196,20 @@ describe('THEME_PRESETS data integrity', () => {
 			}
 		}
 	})
+
+	it('every preset effect level is a valid EffectLevel', () => {
+		for (const preset of THEME_PRESETS as readonly ThemePreset[]) {
+			for (const key of ['gradientLevel', 'glowLevel', 'scanlineLevel'] as const) {
+				const val = preset[key]
+				if (val !== undefined) {
+					expect(
+						isEffectLevel(val),
+						`${preset.name}.${key} = "${val}" is not a valid EffectLevel`,
+					).toBe(true)
+				}
+			}
+		}
+	})
 })
 
 describe('identity theme properties', () => {
@@ -234,24 +249,25 @@ describe('identity theme properties', () => {
 		}
 	})
 
-	it('all identity themes have animatedGlow and gradient', () => {
+	it('all identity themes have glowLevel and gradientLevel', () => {
 		for (const name of ['Matrix', 'Cyberpunk', 'Solana']) {
 			const preset = findPreset(name)
 			if (!preset) throw new Error(`${name} preset missing`)
-			expect(preset.animatedGlow, `${name} should have animatedGlow`).toBe(true)
+			expect(preset.glowLevel, `${name} should have glowLevel`).toBe('medium')
+			expect(preset.gradientLevel, `${name} should have gradientLevel`).toBe('medium')
 			expect(preset.gradient, `${name} should have gradient`).toBeDefined()
 		}
 	})
 
-	it('only Matrix has scanlines', () => {
+	it('only Matrix has scanlineLevel set', () => {
 		const matrix = findPreset('Matrix')
 		if (!matrix) throw new Error('Matrix preset missing')
-		expect(matrix.scanline).toBe(true)
+		expect(matrix.scanlineLevel).toBe('subtle')
 
 		const cyberpunk = findPreset('Cyberpunk')
 		const solana = findPreset('Solana')
-		expect(cyberpunk?.scanline).toBeFalsy()
-		expect(solana?.scanline).toBeFalsy()
+		expect(cyberpunk?.scanlineLevel).toBeUndefined()
+		expect(solana?.scanlineLevel).toBeUndefined()
 	})
 
 	it('identity theme gradients are valid CSS gradient strings', () => {
@@ -277,8 +293,9 @@ describe('identity theme properties', () => {
 			const preset = findPreset(name)
 			if (!preset) throw new Error(`${name} preset missing`)
 			expect(preset.gradient, `${name} should not have gradient`).toBeUndefined()
-			expect(preset.animatedGlow, `${name} should not have animatedGlow`).toBeUndefined()
-			expect(preset.scanline, `${name} should not have scanline`).toBeUndefined()
+			expect(preset.gradientLevel, `${name} should not have gradientLevel`).toBeUndefined()
+			expect(preset.glowLevel, `${name} should not have glowLevel`).toBeUndefined()
+			expect(preset.scanlineLevel, `${name} should not have scanlineLevel`).toBeUndefined()
 		}
 	})
 })

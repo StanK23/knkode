@@ -7,10 +7,32 @@ export const DEFAULT_PANE_OPACITY = 1 as const
 export const CURSOR_STYLES = ['block', 'underline', 'bar'] as const
 export type CursorStyle = (typeof CURSOR_STYLES)[number]
 
+// Ordered by intensity, low to high — UI renders left-to-right in this order
+export const EFFECT_LEVELS = ['off', 'subtle', 'medium', 'intense'] as const
+export type EffectLevel = (typeof EFFECT_LEVELS)[number]
+
+/** Opacity/intensity multiplier for each effect level. Applied to gradient div opacity,
+ *  glow box-shadow alpha values, and scanline overlay opacity.
+ *  All values are in [0, 1] so they can be used directly as CSS opacity. */
+export const EFFECT_MULTIPLIERS: Record<EffectLevel, number> = {
+	off: 0,
+	subtle: 0.4,
+	medium: 0.7,
+	intense: 1.0,
+} as const
+
+export function isEffectLevel(v: unknown): v is EffectLevel {
+	return typeof v === 'string' && (EFFECT_LEVELS as readonly string[]).includes(v)
+}
+
 export const DEFAULT_CURSOR_STYLE: CursorStyle = 'bar'
 export const DEFAULT_SCROLLBACK = 5000
 export const MIN_SCROLLBACK = 500
 export const MAX_SCROLLBACK = 50000
+
+export const DEFAULT_LINE_HEIGHT = 1.0
+export const MIN_LINE_HEIGHT = 1.0
+export const MAX_LINE_HEIGHT = 2.0
 
 export function isCursorStyle(v: string): v is CursorStyle {
 	return (CURSOR_STYLES as readonly string[]).includes(v)
@@ -55,12 +77,24 @@ export interface PaneTheme {
 	accent?: string
 	/** Glow color for theme effects (box-shadow). No glow when omitted. */
 	glow?: string
-	/** CSS gradient overlay on terminal panes. Applied as a subtle atmospheric layer. */
+	/** CSS gradient overlay on terminal panes. Applied as a low-opacity overlay. */
 	gradient?: string
-	/** When true, the glow effect pulses instead of remaining static. */
-	animatedGlow?: boolean
-	/** When true, a CRT-style scanline overlay is rendered on terminal panes. */
-	scanline?: boolean
+	/** Gradient overlay intensity. Controls the div opacity via EFFECT_MULTIPLIERS. */
+	gradientLevel?: EffectLevel
+	/** Glow effect intensity. Controls box-shadow alpha scaling via EFFECT_MULTIPLIERS. */
+	glowLevel?: EffectLevel
+	/** CRT scanline overlay intensity. Controls scanline opacity via EFFECT_MULTIPLIERS. */
+	scanlineLevel?: EffectLevel
+	/** Noise/grain overlay intensity. Static texture for film/CRT aesthetic. */
+	noiseLevel?: EffectLevel
+	/** Scrollbar thumb accent color intensity. Uses glow/accent color. */
+	scrollbarAccent?: EffectLevel
+	/** Custom cursor color (hex). Falls back to foreground when omitted. */
+	cursorColor?: string
+	/** Custom selection highlight color (hex). Falls back to foreground+alpha when omitted. */
+	selectionColor?: string
+	/** Terminal line height multiplier. Range [1.0, 2.0]. Defaults to DEFAULT_LINE_HEIGHT. */
+	lineHeight?: number
 	/** Theme preset name — links to THEME_PRESETS for full identity. */
 	preset?: string
 }

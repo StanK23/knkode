@@ -7,9 +7,12 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import '@xterm/xterm/css/xterm.css'
 import {
 	DEFAULT_CURSOR_STYLE,
+	DEFAULT_LINE_HEIGHT,
 	DEFAULT_PANE_OPACITY,
 	DEFAULT_SCROLLBACK,
+	EFFECT_MULTIPLIERS,
 	type PaneTheme,
+	isEffectLevel,
 } from '../../../shared/types'
 import { buildFontFamily, buildXtermTheme } from '../data/theme-presets'
 import { useStore } from '../store'
@@ -224,6 +227,7 @@ export function TerminalView({
 				cursorStyle: t.cursorStyle ?? DEFAULT_CURSOR_STYLE,
 				allowProposedApi: true,
 				scrollback: t.scrollback ?? DEFAULT_SCROLLBACK,
+				lineHeight: t.lineHeight ?? DEFAULT_LINE_HEIGHT,
 				allowTransparency: opacity < 1,
 			})
 
@@ -460,12 +464,15 @@ export function TerminalView({
 		termRef.current.options.theme = buildXtermTheme(mergedTheme, opacity)
 		termRef.current.options.cursorStyle = mergedTheme.cursorStyle ?? DEFAULT_CURSOR_STYLE
 		termRef.current.options.scrollback = mergedTheme.scrollback ?? DEFAULT_SCROLLBACK
+		const newLineHeight = mergedTheme.lineHeight ?? DEFAULT_LINE_HEIGHT
 		const newFontFamily = buildFontFamily(mergedTheme.fontFamily)
 		const metricsChanged =
 			termRef.current.options.fontSize !== mergedTheme.fontSize ||
-			termRef.current.options.fontFamily !== newFontFamily
+			termRef.current.options.fontFamily !== newFontFamily ||
+			termRef.current.options.lineHeight !== newLineHeight
 		termRef.current.options.fontSize = mergedTheme.fontSize
 		termRef.current.options.fontFamily = newFontFamily
+		termRef.current.options.lineHeight = newLineHeight
 		// Toggle WebGL based on opacity — WebGL doesn't support transparent backgrounds.
 		// See also: cache-miss (line ~275) and cache-hit (line ~348) guards.
 		const cached = terminalCache.get(paneId)
@@ -567,33 +574,78 @@ export function TerminalView({
 		[handleSearchNav, closeSearch],
 	)
 
-	const wrapperBg = useMemo(() => {
+	const { wrapperBg, blurPx } = useMemo(() => {
 		const opacity = mergedTheme.paneOpacity ?? DEFAULT_PANE_OPACITY
-		return resolveBackground(mergedTheme.background, opacity)
+		return {
+			wrapperBg: resolveBackground(mergedTheme.background, opacity),
+			blurPx: opacity < 1 ? Math.round((1 - opacity) * 24) : 0,
+		}
 	}, [mergedTheme])
+
+	// Pre-compute effect multipliers with runtime validation for deserialized config values
+	const mul = (level: unknown) =>
+		EFFECT_MULTIPLIERS[isEffectLevel(level) ? level : 'off']
+	const gradientMul = mul(mergedTheme.gradientLevel)
+	const glowMul = mul(mergedTheme.glowLevel)
+	const scanlineMul = mul(mergedTheme.scanlineLevel)
+	const noiseMul = mul(mergedTheme.noiseLevel)
+	const scrollbarMul = mul(mergedTheme.scrollbarAccent)
+
+	// Fallback: use accent color for glow/gradient when the preset doesn't define them.
+	// This lets effect controls work on ALL themes, not just identity themes.
+	const effectGlow = mergedTheme.glow ?? mergedTheme.accent
+	const effectGradient =
+		mergedTheme.gradient ??
+		(effectGlow
+			? `linear-gradient(180deg, ${hexToRgba(effectGlow, 0.25)} 0%, transparent 50%)`
+			: null)
+
+	// Glow box-shadow alpha values — scaled by the multiplier
+	const glowInnerAlpha = 0.5 * glowMul
+	const glowOuterAlpha = 0.7 * glowMul
+
+	// Scrollbar accent — set CSS custom property on wrapper
+	const scrollbarColor =
+		scrollbarMul > 0 && effectGlow
+			? hexToRgba(effectGlow, 0.4 + 0.6 * scrollbarMul)
+			: undefined
 
 	return (
 		<div
 			ref={wrapperRef}
-			className="relative w-full h-full p-1.5"
-			style={{ backgroundColor: wrapperBg }}
+			className={`relative w-full h-full p-1.5${scrollbarColor ? ' scrollbar-accent' : ''}`}
+			style={{
+				backgroundColor: wrapperBg,
+				backdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
+				WebkitBackdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
+				'--scrollbar-accent-color': scrollbarColor,
+			} as React.CSSProperties}
 		>
-			{mergedTheme.gradient && isValidGradient(mergedTheme.gradient) && (
+			{gradientMul > 0 && effectGradient && isValidGradient(effectGradient) && (
 				<div
 					className="absolute inset-0 pointer-events-none z-[1]"
-					style={{ background: mergedTheme.gradient }}
+					style={{ background: effectGradient, opacity: gradientMul, contain: 'strict' }}
 				/>
 			)}
-			{mergedTheme.animatedGlow && mergedTheme.glow && (
+			{glowMul > 0 && effectGlow && (
 				<div
 					className="pane-glow absolute inset-0 pointer-events-none z-[2] rounded-sm"
 					style={{
-						boxShadow: `inset 0 0 18px ${hexToRgba(mergedTheme.glow, 0.12)}, 0 0 12px ${hexToRgba(mergedTheme.glow, 0.2)}`,
+						boxShadow: `inset 0 0 18px ${hexToRgba(effectGlow, glowInnerAlpha)}, 0 0 12px ${hexToRgba(effectGlow, glowOuterAlpha)}`,
 					}}
 				/>
 			)}
-			{mergedTheme.scanline && (
-				<div className="pane-scanline absolute inset-0 pointer-events-none z-[3]" />
+			{scanlineMul > 0 && (
+				<div
+					className="pane-scanline absolute inset-0 pointer-events-none z-[3]"
+					style={{ opacity: scanlineMul }}
+				/>
+			)}
+			{noiseMul > 0 && (
+				<div
+					className="pane-noise absolute inset-0 pointer-events-none z-[5]"
+					style={{ opacity: noiseMul * 0.5 }}
+				/>
 			)}
 			{showSearch && (
 				<search className="absolute top-1 right-2 z-10 flex items-center gap-1 bg-elevated border border-edge rounded-sm px-2 py-1 shadow-panel">
