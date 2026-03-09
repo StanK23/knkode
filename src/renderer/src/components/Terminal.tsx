@@ -218,17 +218,19 @@ export function TerminalView({
 		if (!cached) {
 			// ── CACHE MISS: first mount for this paneId ──────────────────────
 			const t = themeRef.current
-			const opacity = t.paneOpacity ?? DEFAULT_PANE_OPACITY
+			const initUserOpacity = t.paneOpacity ?? DEFAULT_PANE_OPACITY
+			const initBlurMul = EFFECT_MULTIPLIERS[isEffectLevel(t.blurLevel) ? t.blurLevel : 'off']
+			const initOpacity = initBlurMul > 0 ? Math.min(initUserOpacity, 1 - initBlurMul * 0.3) : initUserOpacity
 			const term = new XTerm({
 				fontSize: t.fontSize,
 				fontFamily: buildFontFamily(t.fontFamily),
-				theme: buildXtermTheme(t, opacity),
+				theme: buildXtermTheme(t, initOpacity),
 				cursorBlink: true,
 				cursorStyle: t.cursorStyle ?? DEFAULT_CURSOR_STYLE,
 				allowProposedApi: true,
 				scrollback: t.scrollback ?? DEFAULT_SCROLLBACK,
 				lineHeight: t.lineHeight ?? DEFAULT_LINE_HEIGHT,
-				allowTransparency: opacity < 1,
+				allowTransparency: initOpacity < 1,
 			})
 
 			const fitAddon = new FitAddon()
@@ -271,7 +273,7 @@ export function TerminalView({
 			}
 
 			// WebGL renderer doesn't support transparent backgrounds — skip when translucent
-			if (opacity >= 1) tryLoadWebgl(entry)
+			if (initOpacity >= 1) tryLoadWebgl(entry)
 
 			// Shift+Enter → send LF (\n) instead of xterm's default CR (\r).
 			// Programs that distinguish the two (e.g. Claude Code CLI) can treat
@@ -344,7 +346,10 @@ export function TerminalView({
 				console.warn('[terminal] clearDecorations failed on remount:', err)
 			}
 			// WebGL context may have been lost when detached — reload only if opaque
-			const cachedOpacity = themeRef.current.paneOpacity ?? DEFAULT_PANE_OPACITY
+			const ct = themeRef.current
+			const cachedUserOpacity = ct.paneOpacity ?? DEFAULT_PANE_OPACITY
+			const cachedBlurMul = EFFECT_MULTIPLIERS[isEffectLevel(ct.blurLevel) ? ct.blurLevel : 'off']
+			const cachedOpacity = cachedBlurMul > 0 ? Math.min(cachedUserOpacity, 1 - cachedBlurMul * 0.3) : cachedUserOpacity
 			if (cachedOpacity >= 1) tryLoadWebgl(cached)
 		}
 
@@ -459,9 +464,8 @@ export function TerminalView({
 	// cell metrics). Restores scroll position and focus after fit() since it disrupts both.
 	useEffect(() => {
 		if (!termRef.current || !fitAddonRef.current) return
-		const opacity = mergedTheme.paneOpacity ?? DEFAULT_PANE_OPACITY
-		termRef.current.options.allowTransparency = opacity < 1
-		termRef.current.options.theme = buildXtermTheme(mergedTheme, opacity)
+		termRef.current.options.allowTransparency = effectiveOpacity < 1
+		termRef.current.options.theme = buildXtermTheme(mergedTheme, effectiveOpacity)
 		termRef.current.options.cursorStyle = mergedTheme.cursorStyle ?? DEFAULT_CURSOR_STYLE
 		termRef.current.options.scrollback = mergedTheme.scrollback ?? DEFAULT_SCROLLBACK
 		const newLineHeight = mergedTheme.lineHeight ?? DEFAULT_LINE_HEIGHT
@@ -473,13 +477,13 @@ export function TerminalView({
 		termRef.current.options.fontSize = mergedTheme.fontSize
 		termRef.current.options.fontFamily = newFontFamily
 		termRef.current.options.lineHeight = newLineHeight
-		// Toggle WebGL based on opacity — WebGL doesn't support transparent backgrounds.
+		// Toggle WebGL based on effective opacity — WebGL doesn't support transparent backgrounds.
 		// See also: cache-miss (line ~275) and cache-hit (line ~348) guards.
 		const cached = terminalCache.get(paneId)
 		if (cached) {
-			if (opacity < 1 && cached.webglAddon) {
+			if (effectiveOpacity < 1 && cached.webglAddon) {
 				disposeWebgl(cached)
-			} else if (opacity >= 1 && !cached.webglAddon) {
+			} else if (effectiveOpacity >= 1 && !cached.webglAddon) {
 				tryLoadWebgl(cached)
 			}
 		}
@@ -574,11 +578,6 @@ export function TerminalView({
 		[handleSearchNav, closeSearch],
 	)
 
-	const wrapperBg = useMemo(() => {
-		const opacity = mergedTheme.paneOpacity ?? DEFAULT_PANE_OPACITY
-		return resolveBackground(mergedTheme.background, opacity)
-	}, [mergedTheme])
-
 	// Pre-compute effect multipliers with runtime validation for deserialized config values
 	const mul = (level: unknown) =>
 		EFFECT_MULTIPLIERS[isEffectLevel(level) ? level : 'off']
@@ -588,6 +587,17 @@ export function TerminalView({
 	const noiseMul = mul(mergedTheme.noiseLevel)
 	const blurMul = mul(mergedTheme.blurLevel)
 	const scrollbarMul = mul(mergedTheme.scrollbarAccent)
+
+	// Blur needs transparency to be visible — force a translucent background when blur is active.
+	// Effective opacity = min(userOpacity, blur-derived cap). blur cap: 1 - blurMul * 0.3
+	// e.g. subtle blur caps at 0.88, medium at 0.79, intense at 0.70.
+	const userOpacity = mergedTheme.paneOpacity ?? DEFAULT_PANE_OPACITY
+	const effectiveOpacity = blurMul > 0 ? Math.min(userOpacity, 1 - blurMul * 0.3) : userOpacity
+
+	const wrapperBg = useMemo(
+		() => resolveBackground(mergedTheme.background, effectiveOpacity),
+		[mergedTheme.background, effectiveOpacity],
+	)
 
 	// Fallback: use accent color for glow/gradient when the preset doesn't define them.
 	// This lets effect controls work on ALL themes, not just identity themes.
