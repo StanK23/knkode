@@ -175,6 +175,7 @@ export const IPC = {
 	// App
 	APP_GET_HOME_DIR: 'app:get-home-dir',
 	APP_OPEN_EXTERNAL: 'app:open-external',
+	APP_SET_VIBRANCY: 'app:set-vibrancy',
 
 	// PTY
 	PTY_CREATE: 'pty:create',

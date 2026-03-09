@@ -13,6 +13,7 @@ import {
 	saveWorkspace,
 } from './config-store'
 import { trackPane, untrackPane } from './cwd-tracker'
+import { getMainWindow } from './main-window'
 import { createPty, killPty, resizePty, writePty } from './pty-manager'
 
 const MAX_PANE_ID_LENGTH = 128
@@ -115,6 +116,18 @@ function assertAppState(value: unknown): asserts value is AppState {
 
 export function registerIpcHandlers(): void {
 	ipcMain.handle(IPC.APP_GET_HOME_DIR, () => os.homedir())
+
+	ipcMain.handle(IPC.APP_SET_VIBRANCY, (_e, enabled: unknown) => {
+		if (typeof enabled !== 'boolean') throw new Error('Invalid vibrancy: expected boolean')
+		const win = getMainWindow()
+		if (!win) return
+		if (process.platform === 'darwin') {
+			win.setVibrancy(enabled ? 'under-window' : null as never)
+		}
+		if (process.platform === 'win32') {
+			win.setBackgroundMaterial(enabled ? 'acrylic' : 'none')
+		}
+	})
 
 	ipcMain.handle(IPC.APP_OPEN_EXTERNAL, (_e, url: unknown) => {
 		assertString(url, 'url')
