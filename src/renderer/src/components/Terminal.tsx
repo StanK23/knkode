@@ -218,17 +218,17 @@ export function TerminalView({
 		if (!cached) {
 			// ── CACHE MISS: first mount for this paneId ──────────────────────
 			const t = themeRef.current
-			const initOpacity = t.paneOpacity ?? DEFAULT_PANE_OPACITY
+			const opacity = t.paneOpacity ?? DEFAULT_PANE_OPACITY
 			const term = new XTerm({
 				fontSize: t.fontSize,
 				fontFamily: buildFontFamily(t.fontFamily),
-				theme: buildXtermTheme(t, initOpacity),
+				theme: buildXtermTheme(t, opacity),
 				cursorBlink: true,
 				cursorStyle: t.cursorStyle ?? DEFAULT_CURSOR_STYLE,
 				allowProposedApi: true,
 				scrollback: t.scrollback ?? DEFAULT_SCROLLBACK,
 				lineHeight: t.lineHeight ?? DEFAULT_LINE_HEIGHT,
-				allowTransparency: initOpacity < 1,
+				allowTransparency: opacity < 1,
 			})
 
 			const fitAddon = new FitAddon()
@@ -271,7 +271,7 @@ export function TerminalView({
 			}
 
 			// WebGL renderer doesn't support transparent backgrounds — skip when translucent
-			if (initOpacity >= 1) tryLoadWebgl(entry)
+			if (opacity >= 1) tryLoadWebgl(entry)
 
 			// Shift+Enter → send LF (\n) instead of xterm's default CR (\r).
 			// Programs that distinguish the two (e.g. Claude Code CLI) can treat
@@ -459,8 +459,9 @@ export function TerminalView({
 	// cell metrics). Restores scroll position and focus after fit() since it disrupts both.
 	useEffect(() => {
 		if (!termRef.current || !fitAddonRef.current) return
-		termRef.current.options.allowTransparency = paneOpacity < 1
-		termRef.current.options.theme = buildXtermTheme(mergedTheme, paneOpacity)
+		const opacity = mergedTheme.paneOpacity ?? DEFAULT_PANE_OPACITY
+		termRef.current.options.allowTransparency = opacity < 1
+		termRef.current.options.theme = buildXtermTheme(mergedTheme, opacity)
 		termRef.current.options.cursorStyle = mergedTheme.cursorStyle ?? DEFAULT_CURSOR_STYLE
 		termRef.current.options.scrollback = mergedTheme.scrollback ?? DEFAULT_SCROLLBACK
 		const newLineHeight = mergedTheme.lineHeight ?? DEFAULT_LINE_HEIGHT
@@ -472,13 +473,13 @@ export function TerminalView({
 		termRef.current.options.fontSize = mergedTheme.fontSize
 		termRef.current.options.fontFamily = newFontFamily
 		termRef.current.options.lineHeight = newLineHeight
-		// Toggle WebGL based on effective opacity — WebGL doesn't support transparent backgrounds.
+		// Toggle WebGL based on opacity — WebGL doesn't support transparent backgrounds.
 		// See also: cache-miss (line ~275) and cache-hit (line ~348) guards.
 		const cached = terminalCache.get(paneId)
 		if (cached) {
-			if (paneOpacity < 1 && cached.webglAddon) {
+			if (opacity < 1 && cached.webglAddon) {
 				disposeWebgl(cached)
-			} else if (paneOpacity >= 1 && !cached.webglAddon) {
+			} else if (opacity >= 1 && !cached.webglAddon) {
 				tryLoadWebgl(cached)
 			}
 		}
@@ -573,6 +574,14 @@ export function TerminalView({
 		[handleSearchNav, closeSearch],
 	)
 
+	const { wrapperBg, blurPx } = useMemo(() => {
+		const opacity = mergedTheme.paneOpacity ?? DEFAULT_PANE_OPACITY
+		return {
+			wrapperBg: resolveBackground(mergedTheme.background, opacity),
+			blurPx: opacity < 1 ? Math.round((1 - opacity) * 24) : 0,
+		}
+	}, [mergedTheme])
+
 	// Pre-compute effect multipliers with runtime validation for deserialized config values
 	const mul = (level: unknown) =>
 		EFFECT_MULTIPLIERS[isEffectLevel(level) ? level : 'off']
@@ -580,15 +589,7 @@ export function TerminalView({
 	const glowMul = mul(mergedTheme.glowLevel)
 	const scanlineMul = mul(mergedTheme.scanlineLevel)
 	const noiseMul = mul(mergedTheme.noiseLevel)
-	const blurMul = mul(mergedTheme.blurLevel)
 	const scrollbarMul = mul(mergedTheme.scrollbarAccent)
-
-	const paneOpacity = mergedTheme.paneOpacity ?? DEFAULT_PANE_OPACITY
-
-	const wrapperBg = useMemo(
-		() => resolveBackground(mergedTheme.background, paneOpacity),
-		[mergedTheme.background, paneOpacity],
-	)
 
 	// Fallback: use accent color for glow/gradient when the preset doesn't define them.
 	// This lets effect controls work on ALL themes, not just identity themes.
@@ -615,18 +616,11 @@ export function TerminalView({
 			className={`relative w-full h-full p-1.5${scrollbarColor ? ' scrollbar-accent' : ''}`}
 			style={{
 				backgroundColor: wrapperBg,
+				backdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
+				WebkitBackdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
 				'--scrollbar-accent-color': scrollbarColor,
 			} as React.CSSProperties}
 		>
-			{/* Blur mask: when vibrancy is on (OS-level blur), this overlay controls
-			    how much blur shows through. intense = fully transparent overlay (full blur),
-			    subtle = mostly opaque overlay (slight blur). */}
-			{blurMul > 0 && blurMul < 1 && (
-				<div
-					className="absolute inset-0 pointer-events-none"
-					style={{ background: mergedTheme.background, opacity: 1 - blurMul, contain: 'strict' }}
-				/>
-			)}
 			{gradientMul > 0 && effectGradient && isValidGradient(effectGradient) && (
 				<div
 					className="absolute inset-0 pointer-events-none z-[1]"
