@@ -4,7 +4,7 @@ import { app } from 'electron'
 import {
 	type AppState,
 	DEFAULT_UNFOCUSED_DIM,
-	type EffectLevel,
+	type PaneTheme,
 	type Snippet,
 	type Workspace,
 	isEffectLevel,
@@ -112,9 +112,10 @@ export function migrateTheme(ws: Workspace): Workspace {
 	}
 }
 
-/** Migrate legacy boolean effect fields (animatedGlow, scanline) to EffectLevel fields.
- *  Also adds gradientLevel: 'medium' when a gradient string is present but no level is set. */
-function migrateEffectLevels(ws: Workspace): Workspace {
+/** Migrate legacy boolean effect fields (animatedGlow, scanline) to EffectLevel fields,
+ *  removing the legacy fields in the process. Also adds gradientLevel: 'medium' when a
+ *  gradient string is present but no level is set. */
+export function migrateEffectLevels(ws: Workspace): Workspace {
 	const raw = ws.theme as unknown as Record<string, unknown>
 
 	const needsMigration =
@@ -124,33 +125,34 @@ function migrateEffectLevels(ws: Workspace): Workspace {
 
 	if (!needsMigration) return ws
 
-	const updates: Partial<Record<string, EffectLevel>> = {}
+	const updates: Partial<Pick<PaneTheme, 'glowLevel' | 'scanlineLevel' | 'gradientLevel'>> = {}
 
 	if ('animatedGlow' in raw) {
-		if (raw.animatedGlow === true && !isEffectLevel(raw.glowLevel as string)) {
+		if (raw.animatedGlow === true && !isEffectLevel(raw.glowLevel)) {
 			updates.glowLevel = 'medium'
 		}
-		raw.animatedGlow = undefined
 	}
 
 	if ('scanline' in raw) {
-		if (raw.scanline === true && !isEffectLevel(raw.scanlineLevel as string)) {
+		if (raw.scanline === true && !isEffectLevel(raw.scanlineLevel)) {
 			updates.scanlineLevel = 'medium'
 		}
-		raw.scanline = undefined
 	}
 
 	if (
 		'gradient' in raw &&
 		typeof raw.gradient === 'string' &&
-		!isEffectLevel(raw.gradientLevel as string)
+		!isEffectLevel(raw.gradientLevel)
 	) {
 		updates.gradientLevel = 'medium'
 	}
 
+	console.info('[config-store] Migrated effect levels for workspace:', ws.id)
+
+	const { animatedGlow: _, scanline: _s, ...themeWithoutLegacy } = raw
 	return {
 		...ws,
-		theme: { ...ws.theme, ...updates } as typeof ws.theme,
+		theme: { ...themeWithoutLegacy, ...updates } as typeof ws.theme,
 	}
 }
 
