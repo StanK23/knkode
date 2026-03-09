@@ -24,11 +24,19 @@ The rendered agent view (stream-json parsing, custom chat UI) works but carries 
 
 **Decision:** Focus on TUI-native experience — multi-pane layout, theming, stability. The rendered view is preserved on `dev/agent-workspace` and can be resumed later if needed.
 
-## Theming Rework Plan
+## Theming Rework — Phase 1 (Complete)
 1. ~~PR #76: Settings tabs~~ (merged)
 2. ~~PR #77: Theme engine — ANSI palettes, accent, glow~~ (merged)
 3. ~~PR #78: Theme presets — 11 distinct identities~~ (merged)
-4. PR #4: Theming guide document
+4. ~~PR #79: Theming guide~~ (merged)
+5. ~~PR #80: Visual effects — gradients, glow, scanlines~~ (merged)
+
+## What's Next
+Implement configurable effects + new identity themes — see `docs/plans/2026-03-09-configurable-effects-plan.md`
+
+1. PR: `feature/effect-levels` — EffectLevel type, segmented button UI, opacity scaling
+2. PR: `feature/identity-themes-v2` — 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic)
+3. PR: `docs/theming-guide-v2` — Update THEMING.md for levels + new themes
 
 ## Remaining Work
 - Fix TUI scroll-jumping-to-top bug
