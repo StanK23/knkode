@@ -13,6 +13,13 @@ export type ThemePreset = Pick<
 	| 'gradientLevel'
 	| 'glowLevel'
 	| 'scanlineLevel'
+	| 'vignetteLevel'
+	| 'noiseLevel'
+	| 'borderGlowLevel'
+	| 'cornerRadius'
+	| 'scrollbarAccent'
+	| 'cursorColor'
+	| 'selectionColor'
 > & { name: string }
 
 /** Tango-based ANSI palette used by the Default Dark preset. */
@@ -222,6 +229,12 @@ export const THEME_PRESETS = [
 		gradientLevel: 'medium',
 		glowLevel: 'medium',
 		scanlineLevel: 'subtle',
+		vignetteLevel: 'subtle',
+		noiseLevel: 'subtle',
+		borderGlowLevel: 'medium',
+		scrollbarAccent: 'medium',
+		cursorColor: '#00ff41',
+		selectionColor: '#00ff41',
 		ansiColors: {
 			black: '#0a0a0a',
 			red: '#00cc33',
@@ -250,6 +263,12 @@ export const THEME_PRESETS = [
 		gradient: 'linear-gradient(135deg, rgba(255, 42, 109, 0.3) 0%, rgba(5, 217, 232, 0.2) 100%)',
 		gradientLevel: 'medium',
 		glowLevel: 'medium',
+		vignetteLevel: 'medium',
+		borderGlowLevel: 'medium',
+		cornerRadius: 'subtle',
+		scrollbarAccent: 'medium',
+		cursorColor: '#ff2a6d',
+		selectionColor: '#05d9e8',
 		ansiColors: {
 			black: '#0d0221',
 			red: '#ff2a6d',
@@ -278,6 +297,12 @@ export const THEME_PRESETS = [
 		gradient: 'linear-gradient(160deg, rgba(153, 69, 255, 0.3) 0%, rgba(20, 241, 149, 0.2) 100%)',
 		gradientLevel: 'medium',
 		glowLevel: 'medium',
+		vignetteLevel: 'subtle',
+		borderGlowLevel: 'medium',
+		cornerRadius: 'subtle',
+		scrollbarAccent: 'medium',
+		cursorColor: '#14f195',
+		selectionColor: '#9945ff',
 		ansiColors: {
 			black: '#0c0c1d',
 			red: '#ff6b6b',
@@ -340,14 +365,17 @@ export function buildFontFamily(family?: string): string {
  *  When opacity < 1, the background is converted to an rgba value for translucency.
  *  ANSI colors are validated before passing to xterm — invalid values are skipped. */
 export function buildXtermTheme(
-	t: Pick<PaneTheme, 'background' | 'foreground' | 'ansiColors'>,
+	t: Pick<PaneTheme, 'background' | 'foreground' | 'ansiColors' | 'cursorColor' | 'selectionColor'>,
 	opacity = 1,
 ): ITheme {
 	const theme: ITheme = {
 		background: resolveBackground(t.background, opacity),
 		foreground: t.foreground,
-		cursor: t.foreground,
-		selectionBackground: `${t.foreground}33`,
+		cursor: t.cursorColor && isValidHex(t.cursorColor) ? t.cursorColor : t.foreground,
+		selectionBackground:
+			t.selectionColor && isValidHex(t.selectionColor)
+				? `${t.selectionColor}55`
+				: `${t.foreground}33`,
 	}
 
 	if (t.ansiColors) {
