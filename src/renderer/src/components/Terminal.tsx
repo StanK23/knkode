@@ -7,9 +7,11 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import '@xterm/xterm/css/xterm.css'
 import {
 	DEFAULT_CURSOR_STYLE,
+	DEFAULT_LINE_HEIGHT,
 	DEFAULT_PANE_OPACITY,
 	DEFAULT_SCROLLBACK,
 	EFFECT_MULTIPLIERS,
+	type EffectLevel,
 	type PaneTheme,
 	isEffectLevel,
 } from '../../../shared/types'
@@ -226,6 +228,7 @@ export function TerminalView({
 				cursorStyle: t.cursorStyle ?? DEFAULT_CURSOR_STYLE,
 				allowProposedApi: true,
 				scrollback: t.scrollback ?? DEFAULT_SCROLLBACK,
+				lineHeight: t.lineHeight ?? DEFAULT_LINE_HEIGHT,
 				allowTransparency: opacity < 1,
 			})
 
@@ -462,12 +465,15 @@ export function TerminalView({
 		termRef.current.options.theme = buildXtermTheme(mergedTheme, opacity)
 		termRef.current.options.cursorStyle = mergedTheme.cursorStyle ?? DEFAULT_CURSOR_STYLE
 		termRef.current.options.scrollback = mergedTheme.scrollback ?? DEFAULT_SCROLLBACK
+		const newLineHeight = mergedTheme.lineHeight ?? DEFAULT_LINE_HEIGHT
 		const newFontFamily = buildFontFamily(mergedTheme.fontFamily)
 		const metricsChanged =
 			termRef.current.options.fontSize !== mergedTheme.fontSize ||
-			termRef.current.options.fontFamily !== newFontFamily
+			termRef.current.options.fontFamily !== newFontFamily ||
+			termRef.current.options.lineHeight !== newLineHeight
 		termRef.current.options.fontSize = mergedTheme.fontSize
 		termRef.current.options.fontFamily = newFontFamily
+		termRef.current.options.lineHeight = newLineHeight
 		// Toggle WebGL based on opacity — WebGL doesn't support transparent backgrounds.
 		// See also: cache-miss (line ~275) and cache-hit (line ~348) guards.
 		const cached = terminalCache.get(paneId)
@@ -578,12 +584,19 @@ export function TerminalView({
 	}, [mergedTheme])
 
 	// Pre-compute effect multipliers with runtime validation for deserialized config values
-	const gradientMul =
-		EFFECT_MULTIPLIERS[isEffectLevel(mergedTheme.gradientLevel) ? mergedTheme.gradientLevel : 'off']
-	const glowMul =
-		EFFECT_MULTIPLIERS[isEffectLevel(mergedTheme.glowLevel) ? mergedTheme.glowLevel : 'off']
-	const scanlineMul =
-		EFFECT_MULTIPLIERS[isEffectLevel(mergedTheme.scanlineLevel) ? mergedTheme.scanlineLevel : 'off']
+	const mul = (level: unknown) =>
+		EFFECT_MULTIPLIERS[isEffectLevel(level) ? level : 'off']
+	const gradientMul = mul(mergedTheme.gradientLevel)
+	const glowMul = mul(mergedTheme.glowLevel)
+	const scanlineMul = mul(mergedTheme.scanlineLevel)
+	const vignetteMul = mul(mergedTheme.vignetteLevel)
+	const noiseMul = mul(mergedTheme.noiseLevel)
+	const borderGlowMul = mul(mergedTheme.borderGlowLevel)
+	const scrollbarMul = mul(mergedTheme.scrollbarAccent)
+
+	const CORNER_RADIUS: Record<EffectLevel, number> = { off: 0, subtle: 4, medium: 8, intense: 16 }
+	const cornerPx =
+		CORNER_RADIUS[isEffectLevel(mergedTheme.cornerRadius) ? mergedTheme.cornerRadius : 'off']
 
 	// Fallback: use accent color for glow/gradient when the preset doesn't define them.
 	// This lets effect controls work on ALL themes, not just identity themes.
@@ -598,15 +611,32 @@ export function TerminalView({
 	const glowInnerAlpha = 0.5 * glowMul
 	const glowOuterAlpha = 0.7 * glowMul
 
+	// Border glow — only on focused pane
+	const borderGlowShadow =
+		borderGlowMul > 0 && isFocused && effectGlow
+			? `0 0 ${Math.round(6 * borderGlowMul)}px ${hexToRgba(effectGlow, 0.4 * borderGlowMul)}, inset 0 0 ${Math.round(4 * borderGlowMul)}px ${hexToRgba(effectGlow, 0.15 * borderGlowMul)}`
+			: undefined
+
+	// Scrollbar accent — set CSS custom property on wrapper
+	const scrollbarColor =
+		scrollbarMul > 0 && effectGlow
+			? hexToRgba(effectGlow, 0.4 + 0.6 * scrollbarMul)
+			: undefined
+
 	return (
 		<div
 			ref={wrapperRef}
-			className="relative w-full h-full p-1.5"
+			className={`relative w-full h-full p-1.5${scrollbarColor ? ' scrollbar-accent' : ''}`}
 			style={{
 				backgroundColor: wrapperBg,
 				backdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
 				WebkitBackdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
-			}}
+				borderRadius: cornerPx > 0 ? `${cornerPx}px` : undefined,
+				overflow: cornerPx > 0 ? 'hidden' : undefined,
+				boxShadow: borderGlowShadow,
+				transition: 'box-shadow 150ms ease',
+				'--scrollbar-accent-color': scrollbarColor,
+			} as React.CSSProperties}
 		>
 			{gradientMul > 0 && effectGradient && isValidGradient(effectGradient) && (
 				<div
@@ -626,6 +656,22 @@ export function TerminalView({
 				<div
 					className="pane-scanline absolute inset-0 pointer-events-none z-[3]"
 					style={{ opacity: scanlineMul }}
+				/>
+			)}
+			{vignetteMul > 0 && (
+				<div
+					className="absolute inset-0 pointer-events-none z-[4]"
+					style={{
+						background: 'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.7) 100%)',
+						opacity: vignetteMul,
+						contain: 'strict',
+					}}
+				/>
+			)}
+			{noiseMul > 0 && (
+				<div
+					className="pane-noise absolute inset-0 pointer-events-none z-[5]"
+					style={{ opacity: noiseMul * 0.15 }}
 				/>
 			)}
 			{showSearch && (
