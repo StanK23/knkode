@@ -248,8 +248,8 @@
 			0deg,
 			transparent,
 			transparent 2px,
-			rgba(0, 0, 0, 0.12) 2px,
-			rgba(0, 0, 0, 0.12) 4px
+			rgba(0, 0, 0, 0.25) 2px,
+			rgba(0, 0, 0, 0.25) 4px
 		);
 		contain: strict;
 	}

@@ -588,12 +588,12 @@ export function TerminalView({
 	const effectGradient =
 		mergedTheme.gradient ??
 		(effectGlow
-			? `linear-gradient(180deg, ${hexToRgba(effectGlow, 0.1)} 0%, transparent 50%)`
+			? `linear-gradient(180deg, ${hexToRgba(effectGlow, 0.25)} 0%, transparent 50%)`
 			: null)
 
 	// Glow box-shadow alpha values — scaled by the multiplier
-	const glowInnerAlpha = 0.25 * glowMul
-	const glowOuterAlpha = 0.4 * glowMul
+	const glowInnerAlpha = 0.5 * glowMul
+	const glowOuterAlpha = 0.7 * glowMul
 
 	return (
 		<div
