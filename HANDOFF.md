@@ -31,10 +31,18 @@ The rendered agent view (stream-json parsing, custom chat UI) works but carries 
 4. ~~PR #79: Theming guide~~ (merged)
 5. ~~PR #80: Visual effects — gradients, glow, scanlines~~ (merged)
 
-## What's Next
-Implement configurable effects + new identity themes — see `docs/plans/2026-03-09-configurable-effects-plan.md`
+## Active Reviews
 
-1. PR: `feature/effect-levels` — EffectLevel type, segmented button UI, opacity scaling
+### PR #81 — feat: configurable effect levels with segmented button UI
+- State: `docs/reviews/PR-81/_state.json`
+- Agents: 8/8 completed
+- Phase: done (fixes applied)
+- Awaiting user approval to merge
+
+## What's Next
+Configurable effects + new identity themes — see `docs/plans/2026-03-09-configurable-effects-plan.md`
+
+1. ~~PR #81: `feature/effect-levels` — EffectLevel type, segmented button UI, opacity scaling~~ (review fixes applied, awaiting merge)
 2. PR: `feature/identity-themes-v2` — 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic)
 3. PR: `docs/theming-guide-v2` — Update THEMING.md for levels + new themes
 
