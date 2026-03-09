@@ -615,11 +615,18 @@ export function TerminalView({
 			className={`relative w-full h-full p-1.5${scrollbarColor ? ' scrollbar-accent' : ''}`}
 			style={{
 				backgroundColor: wrapperBg,
-				backdropFilter: blurMul > 0 ? `blur(${Math.round(blurMul * 24)}px)` : undefined,
-				WebkitBackdropFilter: blurMul > 0 ? `blur(${Math.round(blurMul * 24)}px)` : undefined,
 				'--scrollbar-accent-color': scrollbarColor,
 			} as React.CSSProperties}
 		>
+			{/* Blur mask: when vibrancy is on (OS-level blur), this overlay controls
+			    how much blur shows through. intense = fully transparent overlay (full blur),
+			    subtle = mostly opaque overlay (slight blur). */}
+			{blurMul > 0 && blurMul < 1 && (
+				<div
+					className="absolute inset-0 pointer-events-none"
+					style={{ background: mergedTheme.background, opacity: 1 - blurMul, contain: 'strict' }}
+				/>
+			)}
 			{gradientMul > 0 && effectGradient && isValidGradient(effectGradient) && (
 				<div
 					className="absolute inset-0 pointer-events-none z-[1]"

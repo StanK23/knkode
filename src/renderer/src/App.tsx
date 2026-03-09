@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { PaneArea } from './components/PaneArea'
 import { SettingsPanel } from './components/SettingsPanel'
@@ -49,6 +49,18 @@ export function App() {
 		})
 		return unsubscribe
 	}, [updatePaneCwd])
+
+	// Toggle Electron vibrancy (macOS) / backgroundMaterial (Windows) based on blur setting.
+	// Vibrancy is binary — CSS masking layer in Terminal.tsx handles level simulation.
+	const wantVibrancy = activeWorkspace?.theme.blurLevel !== undefined && activeWorkspace.theme.blurLevel !== 'off'
+	const prevVibrancyRef = useRef<boolean | null>(null)
+	useEffect(() => {
+		if (prevVibrancyRef.current === wantVibrancy) return
+		prevVibrancyRef.current = wantVibrancy
+		window.api.setVibrancy(wantVibrancy).catch((err) => {
+			console.warn('[App] setVibrancy failed:', err)
+		})
+	}, [wantVibrancy])
 
 	// Must be above early returns to satisfy React's rules of hooks
 	const themeStyles = useMemo(() => {
