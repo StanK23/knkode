@@ -223,7 +223,8 @@
 	/* ── Identity theme effects ───────────────────────────────────── */
 
 	/* Pulsing glow — pulses the overlay div between 50% and 100% opacity.
-	   The box-shadow itself is set via inline style in Terminal.tsx. */
+	   The box-shadow itself is set via inline style in Terminal.tsx.
+	   will-change promotes to GPU layer so opacity changes don't trigger re-paint. */
 	@keyframes glow-pulse {
 		0%,
 		100% {
@@ -235,18 +236,13 @@
 	}
 	.pane-glow {
 		animation: glow-pulse 4s ease-in-out infinite;
+		will-change: opacity;
+		contain: strict;
 	}
 
-	/* CRT scanline overlay — subtle horizontal lines that slowly drift.
-	   Used by themes with scanlineLevel set (e.g. 'subtle', 'medium', 'intense'). */
-	@keyframes scanline-drift {
-		0% {
-			background-position: 0 0;
-		}
-		100% {
-			background-position: 0 200px;
-		}
-	}
+	/* CRT scanline overlay — static horizontal lines.
+	   Used by themes with scanlineLevel set (e.g. 'subtle', 'medium', 'intense').
+	   contain: strict isolates rendering from the rest of the page. */
 	.pane-scanline {
 		background: repeating-linear-gradient(
 			0deg,
@@ -255,7 +251,7 @@
 			rgba(0, 0, 0, 0.12) 2px,
 			rgba(0, 0, 0, 0.12) 4px
 		);
-		animation: scanline-drift 20s linear infinite;
+		contain: strict;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
@@ -268,9 +264,6 @@
 		.pane-glow {
 			animation: none;
 			opacity: 0.7;
-		}
-		.pane-scanline {
-			animation: none;
 		}
 	}
 }
