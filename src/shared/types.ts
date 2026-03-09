@@ -62,14 +62,14 @@ export interface PaneTheme {
 	background: string
 	foreground: string
 	fontSize: number
-	/** Black overlay opacity on unfocused panes. Clamped to [0, 0.7] by the UI. */
+	/** Black overlay opacity on unfocused panes. Clamped to [0, 0.9] by the UI. */
 	unfocusedDim: number
 	fontFamily?: string
 	/** Terminal scrollback buffer size in lines. Valid: 500–50000. Defaults to DEFAULT_SCROLLBACK if omitted. */
 	scrollback?: number
 	/** Terminal cursor style. Defaults to DEFAULT_CURSOR_STYLE if omitted. */
 	cursorStyle?: CursorStyle
-	/** Terminal background opacity. 0.1 = near-transparent, 1 = fully opaque. Clamped to [0.1, 1] by the UI. Defaults to DEFAULT_PANE_OPACITY. */
+	/** Terminal background opacity. 0.05 = near-transparent, 1 = fully opaque. Clamped to [0.05, 1] by the UI. Defaults to DEFAULT_PANE_OPACITY. */
 	paneOpacity?: number
 	/** ANSI 16-color palette. When omitted, xterm.js uses its built-in defaults. */
 	ansiColors?: AnsiColors

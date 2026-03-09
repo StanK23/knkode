@@ -734,7 +734,7 @@ export function Pane({
 					}`}
 					style={
 						!isFocused && workspaceTheme.unfocusedDim > 0
-							? { opacity: Math.max(0, Math.min(0.7, workspaceTheme.unfocusedDim)) }
+							? { opacity: Math.max(0, Math.min(0.9, workspaceTheme.unfocusedDim)) }
 							: undefined
 					}
 				/>
