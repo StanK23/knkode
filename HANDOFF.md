@@ -6,6 +6,9 @@
 - Active plan: Theming Rework (knktx board: 6acd4876)
 
 ## What Was Done
+- PR #81 merged (feature/effect-levels → dev/theming): Configurable effect levels with SegmentedButton UI — EffectLevel type (off/subtle/medium/intense), dim/opacity as segmented buttons, noise overlay, scrollbar accent, cursor/selection colors from presets, line height control, removed glow-pulse animation for performance
+- PR #80 merged: Visual effects for identity themes — gradients, glow, scanlines
+- PR #79 merged: Theming guide for contributors
 - PR #78 merged (feature/theme-presets → dev/theming): Trimmed 16 presets to 11 most distinct. Added 3 identity themes (Matrix, Cyberpunk, Solana) with full ANSI palettes, accent, glow. 8-agent review, all findings fixed.
 - PR #77 merged (feature/theme-engine → dev/theming): Deep theming engine — ANSI 16-color palettes, per-theme accent/glow CSS vars, preset-based selection. 10-agent review, all findings fixed.
 - PR #76 merged (feature/settings-tabs → dev/theming): Settings panel split into Workspace/Terminal tabs with full ARIA compliance
@@ -31,18 +34,10 @@ The rendered agent view (stream-json parsing, custom chat UI) works but carries 
 4. ~~PR #79: Theming guide~~ (merged)
 5. ~~PR #80: Visual effects — gradients, glow, scanlines~~ (merged)
 
-## Active Reviews
+## Theming Rework — Phase 2 (In Progress)
+Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 
-### PR #81 — feat: configurable effect levels with segmented button UI
-- State: `docs/reviews/PR-81/_state.json`
-- Agents: 8/8 completed
-- Phase: done (fixes applied)
-- Awaiting user approval to merge
-
-## What's Next
-Configurable effects + new identity themes — see `docs/plans/2026-03-09-configurable-effects-plan.md`
-
-1. ~~PR #81: `feature/effect-levels` — EffectLevel type, segmented button UI, opacity scaling~~ (review fixes applied, awaiting merge)
+1. ~~PR #81: `feature/effect-levels` — EffectLevel type, segmented button UI, opacity scaling~~ (merged)
 2. PR: `feature/identity-themes-v2` — 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic)
 3. PR: `docs/theming-guide-v2` — Update THEMING.md for levels + new themes
 
