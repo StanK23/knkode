@@ -2,12 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
 	CURSOR_STYLES,
 	DEFAULT_CURSOR_STYLE,
+	DEFAULT_LINE_HEIGHT,
 	DEFAULT_PANE_OPACITY,
 	DEFAULT_SCROLLBACK,
 	EFFECT_LEVELS,
 	type EffectLevel,
 	type LayoutPreset,
+	MAX_LINE_HEIGHT,
 	MAX_SCROLLBACK,
+	MIN_LINE_HEIGHT,
 	MIN_SCROLLBACK,
 	type PaneConfig,
 	type PaneTheme,
@@ -470,6 +473,24 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const [scanlineLevel, setScanlineLevel] = useState<EffectLevel>(
 		isEffectLevel(workspace.theme.scanlineLevel) ? workspace.theme.scanlineLevel : 'off',
 	)
+	const [vignetteLevel, setVignetteLevel] = useState<EffectLevel>(
+		isEffectLevel(workspace.theme.vignetteLevel) ? workspace.theme.vignetteLevel : 'off',
+	)
+	const [noiseLevel, setNoiseLevel] = useState<EffectLevel>(
+		isEffectLevel(workspace.theme.noiseLevel) ? workspace.theme.noiseLevel : 'off',
+	)
+	const [borderGlowLevel, setBorderGlowLevel] = useState<EffectLevel>(
+		isEffectLevel(workspace.theme.borderGlowLevel) ? workspace.theme.borderGlowLevel : 'off',
+	)
+	const [cornerRadius, setCornerRadius] = useState<EffectLevel>(
+		isEffectLevel(workspace.theme.cornerRadius) ? workspace.theme.cornerRadius : 'off',
+	)
+	const [scrollbarAccent, setScrollbarAccent] = useState<EffectLevel>(
+		isEffectLevel(workspace.theme.scrollbarAccent) ? workspace.theme.scrollbarAccent : 'off',
+	)
+	const [cursorColor, setCursorColor] = useState(workspace.theme.cursorColor ?? '')
+	const [selectionColor, setSelectionColor] = useState(workspace.theme.selectionColor ?? '')
+	const [lineHeight, setLineHeight] = useState(workspace.theme.lineHeight ?? DEFAULT_LINE_HEIGHT)
 
 	const currentPreset = workspace.layout.type === 'preset' ? workspace.layout.preset : null
 
@@ -492,6 +513,14 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 			gradientLevel,
 			glowLevel,
 			scanlineLevel,
+			vignetteLevel,
+			noiseLevel,
+			borderGlowLevel,
+			cornerRadius,
+			scrollbarAccent,
+			cursorColor: cursorColor || undefined,
+			selectionColor: selectionColor || undefined,
+			lineHeight,
 			preset: selectedPreset,
 		}
 	}, [
@@ -505,6 +534,14 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		gradientLevel,
 		glowLevel,
 		scanlineLevel,
+		vignetteLevel,
+		noiseLevel,
+		borderGlowLevel,
+		cornerRadius,
+		scrollbarAccent,
+		cursorColor,
+		selectionColor,
+		lineHeight,
 	])
 
 	// Auto-persist: save full workspace with updated color/theme whenever those fields change.
@@ -538,6 +575,13 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		setGradientLevel(preset?.gradientLevel ?? 'off')
 		setGlowLevel(preset?.glowLevel ?? 'off')
 		setScanlineLevel(preset?.scanlineLevel ?? 'off')
+		setVignetteLevel(preset?.vignetteLevel ?? 'off')
+		setNoiseLevel(preset?.noiseLevel ?? 'off')
+		setBorderGlowLevel(preset?.borderGlowLevel ?? 'off')
+		setCornerRadius(preset?.cornerRadius ?? 'off')
+		setScrollbarAccent(preset?.scrollbarAccent ?? 'off')
+		setCursorColor(preset?.cursorColor ?? '')
+		setSelectionColor(preset?.selectionColor ?? '')
 	}, [selectedPreset])
 
 	// Auto-persist name with debounce to avoid excessive disk writes on every keystroke.
@@ -899,6 +943,103 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								onChange={setScanlineLevel}
 								label="Scanlines"
 							/>
+							<SegmentedButton
+								options={EFFECT_LEVELS}
+								value={vignetteLevel}
+								onChange={setVignetteLevel}
+								label="Vignette"
+							/>
+							<SegmentedButton
+								options={EFFECT_LEVELS}
+								value={noiseLevel}
+								onChange={setNoiseLevel}
+								label="Noise"
+							/>
+							<SegmentedButton
+								options={EFFECT_LEVELS}
+								value={borderGlowLevel}
+								onChange={setBorderGlowLevel}
+								label="Border glow"
+							/>
+							<SegmentedButton
+								options={EFFECT_LEVELS}
+								value={cornerRadius}
+								onChange={setCornerRadius}
+								label="Roundness"
+							/>
+							<SegmentedButton
+								options={EFFECT_LEVELS}
+								value={scrollbarAccent}
+								onChange={setScrollbarAccent}
+								label="Scrollbar"
+							/>
+
+							<div className="flex items-center gap-3">
+								<span className="text-xs text-content-secondary w-20 shrink-0">Line height</span>
+								<div className="flex items-center gap-2">
+									<button
+										type="button"
+										onClick={() =>
+											setLineHeight((h) => Math.max(MIN_LINE_HEIGHT, +(h - 0.1).toFixed(1)))
+										}
+										aria-label="Decrease line height"
+										className="stepper-btn"
+									>
+										-
+									</button>
+									<span className="text-xs text-content tabular-nums w-5 text-center">
+										{lineHeight.toFixed(1)}
+									</span>
+									<button
+										type="button"
+										onClick={() =>
+											setLineHeight((h) => Math.min(MAX_LINE_HEIGHT, +(h + 0.1).toFixed(1)))
+										}
+										aria-label="Increase line height"
+										className="stepper-btn"
+									>
+										+
+									</button>
+								</div>
+							</div>
+
+							<div className="flex items-center gap-3">
+								<span className="text-xs text-content-secondary w-20 shrink-0">Cursor color</span>
+								<input
+									type="color"
+									value={cursorColor || '#ffffff'}
+									onChange={(e) => setCursorColor(e.target.value)}
+									className="color-swatch"
+								/>
+								{cursorColor && (
+									<button
+										type="button"
+										onClick={() => setCursorColor('')}
+										className="btn-ghost text-content-muted hover:text-content text-[11px]"
+									>
+										Reset
+									</button>
+								)}
+							</div>
+
+							<div className="flex items-center gap-3">
+								<span className="text-xs text-content-secondary w-20 shrink-0">Selection</span>
+								<input
+									type="color"
+									value={selectionColor || '#ffffff'}
+									onChange={(e) => setSelectionColor(e.target.value)}
+									className="color-swatch"
+								/>
+								{selectionColor && (
+									<button
+										type="button"
+										onClick={() => setSelectionColor('')}
+										className="btn-ghost text-content-muted hover:text-content text-[11px]"
+									>
+										Reset
+									</button>
+								)}
+							</div>
 						</SettingsSection>
 					</>
 				</div>
