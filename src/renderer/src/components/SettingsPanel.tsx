@@ -808,7 +808,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 						</SettingsSection>
 
 						{/* Display */}
-						<SettingsSection label="Display" gap={12}>
+						<SettingsSection label="Display" gap={8}>
 							<div className="flex items-center gap-3">
 								<span className="text-xs text-content-secondary w-20 shrink-0">Size</span>
 								<div className="flex items-center gap-2">
@@ -868,10 +868,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								/>
 								<span className="text-[11px] text-content-muted">lines</span>
 							</label>
-						</SettingsSection>
 
-						{/* Behavior */}
-						<SettingsSection label="Behavior" gap={8}>
 							<SegmentedButton
 								options={EFFECT_LEVELS}
 								value={dimLevel}
@@ -884,10 +881,6 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								onChange={setOpacityLevel}
 								label="Opacity"
 							/>
-						</SettingsSection>
-
-						{/* Visual Effects */}
-						<SettingsSection label="Visual Effects" gap={8}>
 							<SegmentedButton
 								options={EFFECT_LEVELS}
 								value={gradientLevel}
