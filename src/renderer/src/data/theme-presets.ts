@@ -10,8 +10,9 @@ export type ThemePreset = Pick<
 	| 'accent'
 	| 'glow'
 	| 'gradient'
-	| 'animatedGlow'
-	| 'scanline'
+	| 'gradientLevel'
+	| 'glowLevel'
+	| 'scanlineLevel'
 > & { name: string }
 
 /** Tango-based ANSI palette used by the Default Dark preset. */
@@ -218,8 +219,9 @@ export const THEME_PRESETS = [
 		accent: '#00ff41',
 		glow: '#00ff41',
 		gradient: 'linear-gradient(180deg, rgba(0, 255, 65, 0.03) 0%, transparent 40%)',
-		animatedGlow: true,
-		scanline: true,
+		gradientLevel: 'medium',
+		glowLevel: 'medium',
+		scanlineLevel: 'subtle',
 		ansiColors: {
 			black: '#0a0a0a',
 			red: '#00cc33',
@@ -246,7 +248,8 @@ export const THEME_PRESETS = [
 		accent: '#ff2a6d',
 		glow: '#ff2a6d',
 		gradient: 'linear-gradient(135deg, rgba(255, 42, 109, 0.04) 0%, rgba(5, 217, 232, 0.03) 100%)',
-		animatedGlow: true,
+		gradientLevel: 'medium',
+		glowLevel: 'medium',
 		ansiColors: {
 			black: '#0d0221',
 			red: '#ff2a6d',
@@ -273,7 +276,8 @@ export const THEME_PRESETS = [
 		accent: '#9945ff',
 		glow: '#14f195',
 		gradient: 'linear-gradient(160deg, rgba(153, 69, 255, 0.03) 0%, rgba(20, 241, 149, 0.03) 100%)',
-		animatedGlow: true,
+		gradientLevel: 'medium',
+		glowLevel: 'medium',
 		ansiColors: {
 			black: '#0c0c1d',
 			red: '#ff6b6b',
