@@ -7,20 +7,22 @@ export const DEFAULT_PANE_OPACITY = 1 as const
 export const CURSOR_STYLES = ['block', 'underline', 'bar'] as const
 export type CursorStyle = (typeof CURSOR_STYLES)[number]
 
+// Ordered by intensity, low to high — UI renders left-to-right in this order
 export const EFFECT_LEVELS = ['off', 'subtle', 'medium', 'intense'] as const
 export type EffectLevel = (typeof EFFECT_LEVELS)[number]
 
 /** Opacity/intensity multiplier for each effect level. Applied to gradient div opacity,
- *  glow box-shadow alpha values, and scanline overlay opacity. */
+ *  glow box-shadow alpha values, and scanline overlay opacity.
+ *  All values are in [0, 1] so they can be used directly as CSS opacity. */
 export const EFFECT_MULTIPLIERS: Record<EffectLevel, number> = {
 	off: 0,
 	subtle: 0.4,
-	medium: 1.0,
-	intense: 1.5,
-}
+	medium: 0.7,
+	intense: 1.0,
+} as const
 
-export function isEffectLevel(v: string): v is EffectLevel {
-	return (EFFECT_LEVELS as readonly string[]).includes(v)
+export function isEffectLevel(v: unknown): v is EffectLevel {
+	return typeof v === 'string' && (EFFECT_LEVELS as readonly string[]).includes(v)
 }
 
 export const DEFAULT_CURSOR_STYLE: CursorStyle = 'bar'
