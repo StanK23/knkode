@@ -130,17 +130,21 @@ function migrateEffectLevels(ws: Workspace): Workspace {
 		if (raw.animatedGlow === true && !isEffectLevel(raw.glowLevel as string)) {
 			updates.glowLevel = 'medium'
 		}
-		delete raw.animatedGlow
+		raw.animatedGlow = undefined
 	}
 
 	if ('scanline' in raw) {
 		if (raw.scanline === true && !isEffectLevel(raw.scanlineLevel as string)) {
 			updates.scanlineLevel = 'medium'
 		}
-		delete raw.scanline
+		raw.scanline = undefined
 	}
 
-	if ('gradient' in raw && typeof raw.gradient === 'string' && !isEffectLevel(raw.gradientLevel as string)) {
+	if (
+		'gradient' in raw &&
+		typeof raw.gradient === 'string' &&
+		!isEffectLevel(raw.gradientLevel as string)
+	) {
 		updates.gradientLevel = 'medium'
 	}
 
