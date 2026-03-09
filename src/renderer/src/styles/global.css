@@ -238,7 +238,7 @@
 	}
 
 	/* CRT scanline overlay — subtle horizontal lines that slowly drift.
-	   Used by themes with scanline: true. */
+	   Used by themes with scanlineLevel set (e.g. 'subtle', 'medium', 'intense'). */
 	@keyframes scanline-drift {
 		0% {
 			background-position: 0 0;

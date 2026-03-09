@@ -28,9 +28,9 @@ Each preset in `THEME_PRESETS` has:
 | `accent` | `string` | No | UI accent color — buttons, focus rings, active indicators |
 | `glow` | `string` | No | Glow effect color — `box-shadow` on themed elements |
 | `gradient` | `string` | No | CSS gradient overlay on terminal panes (identity themes only) |
-| `gradientLevel` | `EffectLevel` | No | Gradient intensity: `'off'` / `'subtle'` / `'medium'` / `'intense'` |
-| `glowLevel` | `EffectLevel` | No | Glow intensity — controls pulsing box-shadow alpha scaling |
-| `scanlineLevel` | `EffectLevel` | No | CRT scanline overlay intensity |
+| `gradientLevel` | `EffectLevel` | No | Gradient overlay intensity: `'off'` / `'subtle'` / `'medium'` / `'intense'` |
+| `glowLevel` | `EffectLevel` | No | Glow effect intensity: `'off'` / `'subtle'` / `'medium'` / `'intense'` |
+| `scanlineLevel` | `EffectLevel` | No | CRT scanline overlay intensity: `'off'` / `'subtle'` / `'medium'` / `'intense'` |
 
 *All current presets define `ansiColors`. When omitted, xterm.js uses built-in defaults.
 
@@ -93,7 +93,7 @@ Elevated and overlay surfaces are derived by mixing the background toward white 
 | `--color-accent` | Per-theme accent or auto-derived (`#6c63ff` dark / `#4d46e5` light) |
 | `--color-danger` | Error/destructive actions (`#e74c3c`, constant) |
 | `--color-edge` | Borders — mix(bg, fg, 0.85) |
-| `--theme-glow` | Box-shadow value or `none` — e.g., `0 0 12px rgba(189, 147, 249, 0.4)` |
+| `--theme-glow` | Box-shadow value or `none` — used by `generateThemeVariables()` for themed panels. Pane-level glow uses inline `boxShadow` with alpha values scaled by `EFFECT_MULTIPLIERS` (base alphas: 0.17 inner, 0.28 outer). |
 
 ### Typography
 | Variable | Description |
@@ -150,7 +150,7 @@ Add to `THEME_PRESETS` in `src/renderer/src/data/theme-presets.ts`:
 - **Background + foreground**: Ensure sufficient contrast (WCAG AA minimum). Dark themes: bg luminance < 0.2, fg luminance > 0.6. Light themes: invert.
 - **ANSI colors**: Each should be distinguishable against the background. For community themes, keep conventional associations (red = errors, green = success).
 - **Accent**: Should contrast with both canvas and content. Avoid colors too close to danger (`#e74c3c`).
-- **Glow**: Use the accent or a complementary color. The engine applies it at 40% opacity in a 12px box-shadow.
+- **Glow**: Use the accent or a complementary color. The `--theme-glow` CSS variable uses 40% opacity for themed panels; the pane-level glow uses lower base alphas (0.17/0.28) scaled by `EFFECT_MULTIPLIERS`.
 
 ### 4. For identity themes
 
@@ -166,9 +166,9 @@ Add to `THEME_PRESETS` in `src/renderer/src/data/theme-presets.ts`:
 
 ### 5. Effect guidelines
 
-- Gradients should be barely perceptible (3-5% opacity) — atmosphere, not obstruction.
-- The glow animation runs at 4 seconds per cycle with `ease-in-out` — fast enough to feel alive, slow enough to not distract.
-- Scanlines use 3% opacity black lines at 4px pitch — visible on close inspection but invisible during focused work.
+- Gradients should be barely perceptible at authored opacity (3-5%) — atmosphere, not obstruction. These authored values are further scaled by `EFFECT_MULTIPLIERS` based on the user's chosen level (off=0, subtle=0.4, medium=0.7, intense=1.0).
+- The glow animation runs at 4 seconds per cycle with `ease-in-out` — fast enough to feel alive, slow enough to not distract. Glow box-shadow alpha values (base: 0.17 inner, 0.28 outer) are multiplied by the effect level.
+- Scanlines use 3% opacity black lines at 4px pitch — visible on close inspection but invisible during focused work. Scanline overlay opacity is controlled by the effect level multiplier.
 - Glow and scanline animations are disabled when `prefers-reduced-motion: reduce` is set. The glow falls back to static 70% opacity; the scanline pattern remains visible but static. Gradient overlays are inherently static and unaffected.
 
 ### 6. Validation
