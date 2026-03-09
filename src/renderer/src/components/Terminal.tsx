@@ -574,12 +574,9 @@ export function TerminalView({
 		[handleSearchNav, closeSearch],
 	)
 
-	const { wrapperBg, blurPx } = useMemo(() => {
+	const wrapperBg = useMemo(() => {
 		const opacity = mergedTheme.paneOpacity ?? DEFAULT_PANE_OPACITY
-		return {
-			wrapperBg: resolveBackground(mergedTheme.background, opacity),
-			blurPx: opacity < 1 ? Math.round((1 - opacity) * 24) : 0,
-		}
+		return resolveBackground(mergedTheme.background, opacity)
 	}, [mergedTheme])
 
 	// Pre-compute effect multipliers with runtime validation for deserialized config values
@@ -589,6 +586,7 @@ export function TerminalView({
 	const glowMul = mul(mergedTheme.glowLevel)
 	const scanlineMul = mul(mergedTheme.scanlineLevel)
 	const noiseMul = mul(mergedTheme.noiseLevel)
+	const blurMul = mul(mergedTheme.blurLevel)
 	const scrollbarMul = mul(mergedTheme.scrollbarAccent)
 
 	// Fallback: use accent color for glow/gradient when the preset doesn't define them.
@@ -616,8 +614,8 @@ export function TerminalView({
 			className={`relative w-full h-full p-1.5${scrollbarColor ? ' scrollbar-accent' : ''}`}
 			style={{
 				backgroundColor: wrapperBg,
-				backdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
-				WebkitBackdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
+				backdropFilter: blurMul > 0 ? `blur(${Math.round(blurMul * 24)}px)` : undefined,
+				WebkitBackdropFilter: blurMul > 0 ? `blur(${Math.round(blurMul * 24)}px)` : undefined,
 				'--scrollbar-accent-color': scrollbarColor,
 			} as React.CSSProperties}
 		>

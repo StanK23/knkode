@@ -33,12 +33,12 @@ import { LayoutPicker } from './LayoutPicker'
 import { SettingsSection } from './SettingsSection'
 
 /** Numeric values for the EffectLevel-based dim and opacity controls. */
-const DIM_VALUES: Record<EffectLevel, number> = { off: 0, subtle: 0.15, medium: 0.3, intense: 0.5 }
+const DIM_VALUES: Record<EffectLevel, number> = { off: 0, subtle: 0.3, medium: 0.6, intense: 0.9 }
 const OPACITY_VALUES: Record<EffectLevel, number> = {
 	off: 1.0,
-	subtle: 0.85,
-	medium: 0.7,
-	intense: 0.5,
+	subtle: 0.7,
+	medium: 0.4,
+	intense: 0.05,
 }
 
 /** Find the closest EffectLevel key for a numeric value. */
@@ -476,6 +476,9 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const [noiseLevel, setNoiseLevel] = useState<EffectLevel>(
 		isEffectLevel(workspace.theme.noiseLevel) ? workspace.theme.noiseLevel : 'off',
 	)
+	const [blurLevel, setBlurLevel] = useState<EffectLevel>(
+		isEffectLevel(workspace.theme.blurLevel) ? workspace.theme.blurLevel : 'off',
+	)
 	const [lineHeight, setLineHeight] = useState(workspace.theme.lineHeight ?? DEFAULT_LINE_HEIGHT)
 
 	const currentPreset = workspace.layout.type === 'preset' ? workspace.layout.preset : null
@@ -500,6 +503,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 			glowLevel,
 			scanlineLevel,
 			noiseLevel,
+			blurLevel,
 			scrollbarAccent: preset?.scrollbarAccent,
 			cursorColor: preset?.cursorColor,
 			selectionColor: preset?.selectionColor,
@@ -518,6 +522,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		glowLevel,
 		scanlineLevel,
 		noiseLevel,
+		blurLevel,
 		lineHeight,
 	])
 
@@ -553,6 +558,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		setGlowLevel(preset?.glowLevel ?? 'off')
 		setScanlineLevel(preset?.scanlineLevel ?? 'off')
 		setNoiseLevel(preset?.noiseLevel ?? 'off')
+		setBlurLevel(preset?.blurLevel ?? 'off')
 	}, [selectedPreset])
 
 	// Auto-persist name with debounce to avoid excessive disk writes on every keystroke.
@@ -924,6 +930,12 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								value={opacityLevel}
 								onChange={setOpacityLevel}
 								label="Opacity"
+							/>
+							<SegmentedButton
+								options={EFFECT_LEVELS}
+								value={blurLevel}
+								onChange={setBlurLevel}
+								label="Blur"
 							/>
 							<SegmentedButton
 								options={EFFECT_LEVELS}

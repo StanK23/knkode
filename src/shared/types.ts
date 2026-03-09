@@ -87,6 +87,8 @@ export interface PaneTheme {
 	scanlineLevel?: EffectLevel
 	/** Noise/grain overlay intensity. Static texture for film/CRT aesthetic. */
 	noiseLevel?: EffectLevel
+	/** Backdrop blur intensity (px). Only visible when paneOpacity < 1. */
+	blurLevel?: EffectLevel
 	/** Scrollbar thumb accent color intensity. Uses glow/accent color. */
 	scrollbarAccent?: EffectLevel
 	/** Custom cursor color (hex). Falls back to foreground when omitted. */
