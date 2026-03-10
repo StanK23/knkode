@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import type { Workspace } from '../../../shared/types'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { WORKSPACE_COLORS, useStore } from '../store'
@@ -56,11 +56,18 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 		resetDragState()
 	}, [resetDragState])
 
-	const openTabs: Workspace[] = appState.openWorkspaceIds
-		.map((id) => workspaces.find((w) => w.id === id))
-		.filter((w): w is Workspace => w !== undefined)
+	const openTabs = useMemo(
+		() =>
+			appState.openWorkspaceIds
+				.map((id) => workspaces.find((w) => w.id === id))
+				.filter((w): w is Workspace => w !== undefined),
+		[appState.openWorkspaceIds, workspaces],
+	)
 
-	const closedWorkspaces = workspaces.filter((w) => !appState.openWorkspaceIds.includes(w.id))
+	const closedWorkspaces = useMemo(
+		() => workspaces.filter((w) => !appState.openWorkspaceIds.includes(w.id)),
+		[appState.openWorkspaceIds, workspaces],
+	)
 
 	const updateWorkspaceField = useCallback(
 		(id: string, updates: Partial<Workspace>) => {
@@ -89,8 +96,10 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 		[duplicateWorkspace],
 	)
 
-	const handleNewWorkspace = useCallback(async () => {
-		await createDefaultWorkspace()
+	const handleNewWorkspace = useCallback(() => {
+		createDefaultWorkspace().catch((err) => {
+			console.error('[tabbar] Failed to create workspace:', err)
+		})
 	}, [createDefaultWorkspace])
 
 	return (
@@ -109,7 +118,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 						workspace={ws}
 						isActive={ws.id === appState.activeWorkspaceId}
 						index={i}
-						paneCount={Object.keys(ws.panes).length}
+						paneCount={Object.keys(ws.panes ?? {}).length}
 						onActivate={setActiveWorkspace}
 						onClose={closeWorkspaceTab}
 						onRename={handleRename}
