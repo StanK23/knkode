@@ -1,12 +1,13 @@
 # HANDOFF
 
 ## Current State
-- Branch: `feature/tab-bar-redesign` (from `dev/theming`)
+- Branch: `dev/theming` (theming rework base)
 - `dev/agent-workspace` branch preserved with all rendered view work (PRs #58-75)
 - Active plan: Theming Rework Phase 2 (knktx board: 6acd4876)
 
 ## What Was Done
-- PR #83 merged (feature/identity-themes-v2 → dev/theming): 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic) with full ANSI palettes, effect levels, cursor/selection colors. Also fixed stale THEMING.md docs. 5-agent review, all findings fixed.
+- PR #84 merged: Tab bar redesign — colored workspace tabs (3px left accent strip + color-mix tint), flex-based dynamic sizing, pane count badges, SVG icons, roving tabindex a11y. 9-agent review, all findings fixed.
+- PR #83 merged: 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic) with full ANSI palettes, effect levels, cursor/selection colors. 5-agent review, all findings fixed.
 - PR #82 merged: Rescaled dim/opacity, extracted shared constants
 - PR #81 merged: Configurable effect levels with SegmentedButton UI
 - PR #80 merged: Visual effects for identity themes — gradients, glow, scanlines
@@ -43,7 +44,7 @@ Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 2. ~~PR #82: `fix/effect-rescale-blur` — Rescale dim/opacity, extract shared constants~~ (merged)
 3. ~~PR #83: `feature/identity-themes-v2` — 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic)~~ (merged)
 4. ~~Docs update committed directly on `dev/theming` — user overrides + legacy migration sections~~ (done)
-5. PR #84: `feature/tab-bar-redesign` — Colored workspace tabs, wider default, dynamic sizing, count badges. 9-agent review, all findings fixed.
+5. ~~PR #84: `feature/tab-bar-redesign` — Colored workspace tabs, wider default, dynamic sizing, count badges. 9-agent review, all findings fixed.~~ (merged)
 6. PR: `feature/pane-status-bar` — Pane header with cwd path, git branch badge
 
 ## Remaining Work
