@@ -6,6 +6,7 @@
 - Active plan: Theming Rework Phase 2 (knktx board: 6acd4876)
 
 ## What Was Done
+- PR #87 merged: Clickable PR badge in pane status bar — async `gh pr view` detection with 60s refresh, PrInfo IPC plumbing, shared PrBadge component across 16 variants, URL validation, OPEN-only filter. 9-agent review, all findings fixed.
 - PR #86 merged: Morphing pane status bar — 16 theme variants with unique layouts, typography, badge shapes, separators, border styles. SnippetTrigger component-as-prop pattern for per-variant styled snippet buttons. ScrollButton morphs per variant. 9-agent review, all findings fixed.
 - PR #84 merged: Tab bar redesign — colored workspace tabs (3px left accent strip + color-mix tint), flex-based dynamic sizing, pane count badges, SVG icons, roving tabindex a11y. 9-agent review, all findings fixed.
 - PR #83 merged: 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic) with full ANSI palettes, effect levels, cursor/selection colors. 5-agent review, all findings fixed.
@@ -48,9 +49,9 @@ Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 5. ~~PR #84: `feature/tab-bar-redesign` — Colored workspace tabs, wider default, dynamic sizing, count badges. 9-agent review, all findings fixed.~~ (merged)
 6. ~~PR #85: `feature/pane-status-bar` — Git branch IPC plumbing, paneBranches store, badge in pane header. 9-agent review, all findings fixed.~~ (merged)
 7. ~~PR #86: `feature/pane-chrome-variants` — Morphing status bar with 16 theme variants + scroll buttons. 9-agent review, all findings fixed.~~ (merged)
+8. ~~PR #87: `feature/pr-badge` — Clickable PR badge in pane status bar. 9-agent review, all findings fixed.~~ (merged)
 
 ## What's Next
-- PR #87 (in progress): Clickable PR badge in pane status bar — `feature/pr-badge`
 - Future: interactive branch switching dropdown + cwd click-to-navigate (new IPC features)
 
 ## Remaining Work
