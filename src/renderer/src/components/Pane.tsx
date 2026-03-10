@@ -711,6 +711,7 @@ export function Pane({
 					paneId={paneId}
 					theme={workspaceTheme}
 					themeOverride={config.themeOverride}
+					presetName={workspaceTheme.preset}
 					focusGeneration={focusGeneration}
 					isFocused={isFocused}
 					onFocus={handleFocus}

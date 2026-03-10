@@ -17,6 +17,8 @@ import {
 import { buildFontFamily, buildXtermTheme } from '../data/theme-presets'
 import { useStore } from '../store'
 import { hexToRgba, isValidGradient, resolveBackground } from '../utils/colors'
+import { getVariant } from './pane-chrome'
+import type { VariantTheme } from './pane-chrome'
 
 const SEARCH_BTN =
 	'bg-transparent border-none text-content-muted cursor-pointer text-xs min-w-[28px] min-h-[28px] flex items-center justify-center hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none rounded-sm'
@@ -160,6 +162,7 @@ interface TerminalProps {
 	paneId: string
 	theme: PaneTheme
 	themeOverride: Partial<PaneTheme> | null
+	presetName?: string
 	focusGeneration: number
 	isFocused: boolean
 	onFocus: () => void
@@ -169,6 +172,7 @@ export function TerminalView({
 	paneId,
 	theme,
 	themeOverride,
+	presetName,
 	focusGeneration,
 	isFocused,
 	onFocus,
@@ -203,6 +207,17 @@ export function TerminalView({
 	})
 
 	const mergedTheme = useMemo(() => ({ ...theme, ...themeOverride }), [theme, themeOverride])
+
+	const variant = getVariant(presetName)
+	const scrollTheme = useMemo<VariantTheme>(
+		() => ({
+			background: mergedTheme.background,
+			foreground: mergedTheme.foreground,
+			accent: mergedTheme.accent ?? '#888888',
+			glow: mergedTheme.glow,
+		}),
+		[mergedTheme.background, mergedTheme.foreground, mergedTheme.accent, mergedTheme.glow],
+	)
 
 	// Keep themeRef in sync for the mount effect's initial render
 	themeRef.current = mergedTheme
@@ -683,24 +698,7 @@ export function TerminalView({
 					</button>
 				</search>
 			)}
-			{/* Inline style required: colors must match the terminal's runtime theme,
-			    which varies per pane and cannot be expressed as Tailwind classes. */}
-			{isScrolledUp && (
-				<button
-					type="button"
-					onClick={scrollToBottom}
-					aria-label="Scroll to bottom"
-					className="absolute bottom-3 left-3 right-3 z-10 h-9 rounded-sm flex items-center justify-center gap-1.5 text-xs cursor-pointer whitespace-nowrap overflow-hidden hover:brightness-110 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
-					style={{
-						backgroundColor: `${mergedTheme.background}e6`,
-						color: mergedTheme.foreground,
-						border: `1px solid ${mergedTheme.foreground}22`,
-						boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-					}}
-				>
-					Scroll to bottom &#x25BC;
-				</button>
-			)}
+			{isScrolledUp && <variant.ScrollButton onClick={scrollToBottom} theme={scrollTheme} />}
 			<div ref={containerRef} className="w-full h-full" />
 		</div>
 	)
