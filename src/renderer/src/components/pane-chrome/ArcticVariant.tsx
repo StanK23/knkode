@@ -70,7 +70,7 @@ function StatusBar({
 				className={`bg-transparent border-none cursor-pointer px-0.5 leading-none opacity-40 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
 				style={{ color: theme.accent }}
 			>
-				⚡
+				{'>_'}
 			</SnippetTrigger>
 
 			<button

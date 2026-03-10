@@ -58,7 +58,7 @@ function StatusBar({
 				className={`bg-transparent border-none cursor-pointer text-[10px] px-0.5 leading-none ${FOCUS_VIS}`}
 				style={{ color: theme.foreground }}
 			>
-				⚡
+				{'>_'}
 			</SnippetTrigger>
 
 			<div className="flex items-center gap-0.5 opacity-0 hover:opacity-60 focus-within:opacity-60 transition-opacity duration-300">

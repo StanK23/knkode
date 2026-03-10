@@ -68,7 +68,7 @@ function StatusBar({
 				className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none opacity-40 hover:opacity-80 transition-opacity rounded-md ${FOCUS_VIS}`}
 				style={{ color: theme.foreground }}
 			>
-				⚡
+				{'>_'}
 			</SnippetTrigger>
 
 			<button

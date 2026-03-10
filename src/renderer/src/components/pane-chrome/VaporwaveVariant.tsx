@@ -68,7 +68,7 @@ function StatusBar({
 						color: theme.foreground,
 					}}
 				>
-					⚡ CMD
+					{'>_'}
 				</SnippetTrigger>
 
 				<button
