@@ -10,7 +10,9 @@ import {
 	type LayoutPreset,
 	MAX_LINE_HEIGHT,
 	MAX_SCROLLBACK,
+	MAX_UNFOCUSED_DIM,
 	MIN_LINE_HEIGHT,
+	MIN_PANE_OPACITY,
 	MIN_SCROLLBACK,
 	type PaneConfig,
 	type PaneTheme,
@@ -33,12 +35,12 @@ import { LayoutPicker } from './LayoutPicker'
 import { SettingsSection } from './SettingsSection'
 
 /** Numeric values for the EffectLevel-based dim and opacity controls. */
-const DIM_VALUES: Record<EffectLevel, number> = { off: 0, subtle: 0.15, medium: 0.3, intense: 0.5 }
+const DIM_VALUES: Record<EffectLevel, number> = { off: 0, subtle: 0.3, medium: 0.6, intense: MAX_UNFOCUSED_DIM }
 const OPACITY_VALUES: Record<EffectLevel, number> = {
 	off: 1.0,
-	subtle: 0.85,
-	medium: 0.7,
-	intense: 0.5,
+	subtle: 0.7,
+	medium: 0.4,
+	intense: MIN_PANE_OPACITY,
 }
 
 /** Find the closest EffectLevel key for a numeric value. */
@@ -47,7 +49,7 @@ function closestLevel(value: number, map: Record<EffectLevel, number>): EffectLe
 	let bestDist = Number.POSITIVE_INFINITY
 	for (const [level, num] of Object.entries(map)) {
 		const dist = Math.abs(value - num)
-		if (dist < bestDist) {
+		if (dist <= bestDist) {
 			bestDist = dist
 			best = level as EffectLevel
 		}
