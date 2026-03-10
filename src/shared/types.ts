@@ -186,6 +186,7 @@ export const IPC = {
 	PTY_DATA: 'pty:data',
 	PTY_EXIT: 'pty:exit',
 	PTY_CWD_CHANGED: 'pty:cwd-changed',
+	PTY_BRANCH_CHANGED: 'pty:branch-changed',
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]

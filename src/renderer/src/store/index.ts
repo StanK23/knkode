@@ -208,6 +208,8 @@ interface StoreState {
 	 *  Prevents double-creation on Allotment remount.
 	 *  IMPORTANT: Always create a new Set on mutation — Zustand uses reference equality. */
 	activePtyIds: Set<string>
+	/** Current git branch per pane. Ephemeral runtime state — not persisted to disk. */
+	paneBranches: Record<string, string | null>
 
 	// Actions
 	setFocusedPane: (paneId: string | null) => void
@@ -247,6 +249,9 @@ interface StoreState {
 	) => void
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
+	/** Update git branch for a pane. No workspaceId needed — branch state is a flat
+	 *  ephemeral map (not persisted inside workspace objects like cwd). */
+	updatePaneBranch: (paneId: string, branch: string | null) => void
 	saveState: () => Promise<void>
 	addSnippet: (name: string, command: string) => void
 	updateSnippet: (id: string, updates: Pick<Snippet, 'name' | 'command'>) => void
@@ -277,6 +282,7 @@ export const useStore = create<StoreState>((set, get) => ({
 	focusGeneration: 0,
 	visitedWorkspaceIds: [],
 	activePtyIds: new Set(),
+	paneBranches: {},
 
 	setFocusedPane: (paneId) =>
 		set((state) => ({ focusedPaneId: paneId, focusGeneration: state.focusGeneration + 1 })),
@@ -495,10 +501,14 @@ export const useStore = create<StoreState>((set, get) => ({
 			activeWorkspaceId: newActive,
 		}
 		await window.api.saveAppState(newAppState)
+		const paneIds = workspace ? Object.keys(workspace.panes) : []
+		const cleanedBranches = { ...get().paneBranches }
+		for (const pid of paneIds) delete cleanedBranches[pid]
 		set({
 			workspaces: get().workspaces.filter((w) => w.id !== id),
 			appState: newAppState,
 			visitedWorkspaceIds: get().visitedWorkspaceIds.filter((wid) => wid !== id),
+			paneBranches: cleanedBranches,
 		})
 	},
 
@@ -567,7 +577,14 @@ export const useStore = create<StoreState>((set, get) => ({
 			if (newActive && !newVisited.includes(newActive)) {
 				newVisited.push(newActive)
 			}
-			return { appState: newAppState, visitedWorkspaceIds: newVisited }
+			const paneIds = workspace ? Object.keys(workspace.panes) : []
+			const cleanedBranches = { ...state.paneBranches }
+			for (const pid of paneIds) delete cleanedBranches[pid]
+			return {
+				appState: newAppState,
+				visitedWorkspaceIds: newVisited,
+				paneBranches: cleanedBranches,
+			}
 		})
 	},
 
@@ -647,6 +664,7 @@ export const useStore = create<StoreState>((set, get) => ({
 			if (!newTree) return state
 
 			const { [paneId]: _, ...remainingPanes } = workspace.panes
+			const { [paneId]: __, ...remainingBranches } = state.paneBranches
 			const updated = {
 				...workspace,
 				layout: { type: 'custom' as const, tree: newTree },
@@ -658,6 +676,7 @@ export const useStore = create<StoreState>((set, get) => ({
 			return {
 				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
 				focusedPaneId: state.focusedPaneId === paneId ? null : state.focusedPaneId,
+				paneBranches: remainingBranches,
 			}
 		})
 	},
@@ -894,6 +913,13 @@ export const useStore = create<StoreState>((set, get) => ({
 			return {
 				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
 			}
+		})
+	},
+
+	updatePaneBranch: (paneId, branch) => {
+		set((state) => {
+			if (state.paneBranches[paneId] === branch) return state
+			return { paneBranches: { ...state.paneBranches, [paneId]: branch } }
 		})
 	},
 

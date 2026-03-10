@@ -45,7 +45,20 @@ Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 3. ~~PR #83: `feature/identity-themes-v2` — 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic)~~ (merged)
 4. ~~Docs update committed directly on `dev/theming` — user overrides + legacy migration sections~~ (done)
 5. ~~PR #84: `feature/tab-bar-redesign` — Colored workspace tabs, wider default, dynamic sizing, count badges. 9-agent review, all findings fixed.~~ (merged)
-6. PR: `feature/pane-status-bar` — Pane header with cwd path, git branch badge
+6. PR #85: `feature/pane-status-bar` — Git branch IPC plumbing (review findings pending fix)
+7. PR: `feature/pane-chrome-variants` — Morphing status bar with 16 theme variants + scroll buttons
+
+## Active Reviews
+
+### PR #85 — feat: pane status bar with git branch badge
+- State: `docs/reviews/PR-85/_state.json`
+- Agents: 9/9 completed
+- Phase: fixing — 3 must-fix, 5 suggestions, 4 nitpicks
+
+## What's Next
+Implement morphing status bar — see `docs/plans/2026-03-11-morphing-status-bar-plan.md`
+1. Fix PR #85 review findings → merge plumbing
+2. New PR `feature/pane-chrome-variants` — variant architecture + 16 unique status bars + scroll buttons
 
 ## Remaining Work
 - Fix TUI scroll-jumping-to-top bug
