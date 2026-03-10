@@ -101,7 +101,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 			{/* Tabs */}
 			<div
 				role="tablist"
-				className="no-drag flex items-end gap-px pl-traffic pt-1.5 overflow-x-auto overflow-y-hidden flex-1"
+				className="no-drag flex items-end gap-0.5 pl-traffic pt-1.5 overflow-x-auto overflow-y-hidden flex-1"
 			>
 				{openTabs.map((ws, i) => (
 					<Tab
@@ -131,9 +131,20 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 					onClick={handleNewWorkspace}
 					title={`New workspace (${modKey}+T)`}
 					aria-label="Create new workspace"
-					className="bg-transparent border-none text-content-muted cursor-pointer text-lg leading-none min-w-[44px] px-2.5 h-tab flex items-center justify-center shrink-0 hover:text-content hover:bg-overlay rounded-sm focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none transition-colors duration-300 ease-[var(--ease-mechanical)]"
+					className="bg-transparent border-none text-content-muted cursor-pointer min-w-[44px] px-2.5 h-tab flex items-center justify-center shrink-0 hover:text-content hover:bg-overlay rounded-sm focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none transition-colors duration-300 ease-[var(--ease-mechanical)]"
 				>
-					+
+					<svg
+						width="14"
+						height="14"
+						viewBox="0 0 14 14"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="1.5"
+						strokeLinecap="round"
+						aria-hidden="true"
+					>
+						<path d="M7 2v10M2 7h10" />
+					</svg>
 				</button>
 			</div>
 
