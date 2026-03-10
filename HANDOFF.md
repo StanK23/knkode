@@ -3,7 +3,7 @@
 ## Current State
 - Branch: `dev/theming` (theming rework base)
 - `dev/agent-workspace` branch preserved with all rendered view work (PRs #58-75)
-- Active plan: Theming Rework Phase 2 (knktx board: 6acd4876)
+- Active plan: Theming Rework Phase 2 (knktx board: 6acd4876-8e7a-47e4-859f-0bc67d7c432f)
 
 ## What Was Done
 - PR #87 merged: Clickable PR badge in pane status bar — async `gh pr view` detection with 60s refresh, PrInfo IPC plumbing, shared PrBadge component across 16 variants, URL validation, OPEN-only filter. 9-agent review, all findings fixed.
