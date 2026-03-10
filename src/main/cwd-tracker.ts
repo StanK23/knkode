@@ -65,7 +65,8 @@ function checkPrStatus(cwd: string, callback: (pr: PrInfo | null) => void): void
 				} else {
 					callback(null)
 				}
-			} catch {
+			} catch (parseErr) {
+				console.warn('[cwd-tracker] Failed to parse gh pr output:', stdout.slice(0, 200), parseErr)
 				callback(null)
 			}
 		},
