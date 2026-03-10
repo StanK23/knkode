@@ -580,7 +580,11 @@ export const useStore = create<StoreState>((set, get) => ({
 			const paneIds = workspace ? Object.keys(workspace.panes) : []
 			const cleanedBranches = { ...state.paneBranches }
 			for (const pid of paneIds) delete cleanedBranches[pid]
-			return { appState: newAppState, visitedWorkspaceIds: newVisited, paneBranches: cleanedBranches }
+			return {
+				appState: newAppState,
+				visitedWorkspaceIds: newVisited,
+				paneBranches: cleanedBranches,
+			}
 		})
 	},
 

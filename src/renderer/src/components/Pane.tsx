@@ -402,8 +402,7 @@ export function Pane({
 				</span>
 
 				{branch && (
-					<span
-						role="status"
+					<output
 						aria-label={`Git branch: ${branch}`}
 						className="flex items-center gap-1 text-accent text-[10px] font-medium shrink-0 max-w-[140px]"
 						title={branch}
@@ -417,7 +416,7 @@ export function Pane({
 							<path d="M9.5 3.25a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.5 2.5 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25Z" />
 						</svg>
 						<span className="overflow-hidden text-ellipsis whitespace-nowrap">{branch}</span>
-					</span>
+					</output>
 				)}
 
 				<SnippetDropdown paneId={paneId} />
