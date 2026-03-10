@@ -48,16 +48,9 @@ Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 6. ~~PR #85: `feature/pane-status-bar` — Git branch IPC plumbing, paneBranches store, badge in pane header. 9-agent review, all findings fixed.~~ (merged)
 7. PR: `feature/pane-chrome-variants` — Morphing status bar with 16 theme variants + scroll buttons
 
-## Active Reviews
-
-### PR #86 — feat: morphing pane status bar with 16 theme variants
-- State: `docs/reviews/PR-86/_state.json`
-- Agents: 9/9 completed
-- Phase: done — compiled report ready, awaiting fix pass
-- Findings: 8 must-fix, 10 suggestions, 6 nitpicks
-
 ## What's Next
-Address PR #86 review findings — see `docs/reviews/PR-86/compiled-report.md`
+- PR #86 ready for merge: morphing pane status bar with 16 theme variants. 9-agent review complete, all must-fix items addressed.
+- Future: Add interactive branch switching dropdown + cwd click-to-navigate (new IPC features)
 
 ## Remaining Work
 - Fix TUI scroll-jumping-to-top bug
