@@ -1,11 +1,13 @@
 import { registerVariant } from '.'
-import { FOCUS_VIS, FolderIcon } from './shared'
+import { FOCUS_VIS, FolderIcon, PrBadge } from './shared'
 import type { PaneVariant, ScrollButtonProps, StatusBarProps } from './types'
 
 function StatusBar({
 	label,
 	cwd,
 	branch,
+	pr,
+	onOpenExternal,
 	isFocused,
 	canClose,
 	theme,
@@ -65,6 +67,19 @@ function StatusBar({
 				>
 					{branch}
 				</output>
+			)}
+
+			{pr && (
+				<PrBadge
+					pr={pr}
+					onOpenExternal={onOpenExternal}
+					className="text-[10px] font-medium px-2 py-px rounded-full hover:brightness-110 transition-all"
+					style={{
+						background: `linear-gradient(135deg, ${theme.accent}33, ${glowColor}33)`,
+						color: theme.foreground,
+						border: `1px solid ${theme.accent}44`,
+					}}
+				/>
 			)}
 
 			<span className="opacity-30">·</span>

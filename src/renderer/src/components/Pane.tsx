@@ -5,6 +5,7 @@ import {
 	MAX_UNFOCUSED_DIM,
 	type PaneConfig,
 	type PaneTheme,
+	type PrInfo,
 } from '../../../shared/types'
 import { findPreset } from '../data/theme-presets'
 import { resolveBackground } from '../utils/colors'
@@ -164,6 +165,8 @@ interface PaneProps {
 	canClose: boolean
 	/** Current git branch for this pane, or null if unavailable. */
 	branch: string | null
+	/** Current PR info for this pane's branch, or null if no PR. */
+	pr: PrInfo | null
 	isFocused: boolean
 	focusGeneration: number
 	onFocus: (paneId: string) => void
@@ -180,6 +183,7 @@ export function Pane({
 	onClose,
 	canClose,
 	branch,
+	pr,
 	isFocused,
 	focusGeneration,
 	onFocus,
@@ -316,6 +320,12 @@ export function Pane({
 		],
 	)
 
+	const handleOpenExternal = useCallback((url: string) => {
+		window.api.openExternal(url).catch((err: unknown) => {
+			console.error('[pane] Failed to open URL:', url, err)
+		})
+	}, [])
+
 	const PaneSnippetTrigger = useCallback(
 		(props: { className?: string; style?: React.CSSProperties; children?: React.ReactNode }) => (
 			<SnippetDropdown paneId={paneId} {...props} />
@@ -418,6 +428,8 @@ export function Pane({
 					label={config.label}
 					cwd={shortCwd}
 					branch={branch}
+					pr={pr}
+					onOpenExternal={handleOpenExternal}
 					isFocused={isFocused}
 					canClose={canClose}
 					theme={variantTheme}

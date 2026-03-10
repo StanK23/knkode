@@ -1,4 +1,4 @@
-import { FOCUS_VIS, FolderIcon, GitIcon } from './shared'
+import { FOCUS_VIS, FolderIcon, GitIcon, PrBadge } from './shared'
 import type { PaneVariant, ScrollButtonProps, StatusBarProps } from './types'
 
 // DefaultVariant intentionally uses Tailwind semantic classes (bg-elevated, text-accent, etc.)
@@ -7,6 +7,8 @@ function StatusBar({
 	label,
 	cwd,
 	branch,
+	pr,
+	onOpenExternal,
 	isFocused,
 	canClose,
 	onSplitVertical,
@@ -55,6 +57,14 @@ function StatusBar({
 					<GitIcon />
 					<span className="overflow-hidden text-ellipsis whitespace-nowrap">{branch}</span>
 				</output>
+			)}
+
+			{pr && (
+				<PrBadge
+					pr={pr}
+					onOpenExternal={onOpenExternal}
+					className="bg-transparent text-accent text-[10px] font-medium px-0.5 leading-none hover:text-content"
+				/>
 			)}
 
 			<SnippetTrigger

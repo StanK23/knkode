@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppState, IpcChannel, Snippet, Workspace } from '../shared/types'
+import type { AppState, IpcChannel, PrInfo, Snippet, Workspace } from '../shared/types'
 import { IPC } from '../shared/types'
 
 type Unsubscribe = () => void
@@ -50,6 +50,8 @@ const api = {
 		onIpcEvent<[string, string]>(IPC.PTY_CWD_CHANGED, cb),
 	onPtyBranchChanged: (cb: (paneId: string, branch: string | null) => void): Unsubscribe =>
 		onIpcEvent<[string, string | null]>(IPC.PTY_BRANCH_CHANGED, cb),
+	onPtyPrChanged: (cb: (paneId: string, pr: PrInfo | null) => void): Unsubscribe =>
+		onIpcEvent<[string, PrInfo | null]>(IPC.PTY_PR_CHANGED, cb),
 }
 
 contextBridge.exposeInMainWorld('api', api)

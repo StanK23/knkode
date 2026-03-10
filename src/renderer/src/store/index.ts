@@ -7,6 +7,7 @@ import type {
 	LayoutPreset,
 	PaneConfig,
 	PaneTheme,
+	PrInfo,
 	Snippet,
 	SplitDirection,
 	Workspace,
@@ -178,6 +179,20 @@ function addToVisited(visited: string[], id: string): string[] {
 	return visited.includes(id) ? visited : [...visited, id]
 }
 
+/** Remove pane-scoped ephemeral state (branches, PRs) for a set of pane IDs. */
+function cleanPaneEphemeral(
+	state: { paneBranches: Record<string, string | null>; panePrs: Record<string, PrInfo | null> },
+	paneIds: string[],
+): { paneBranches: Record<string, string | null>; panePrs: Record<string, PrInfo | null> } {
+	const paneBranches = { ...state.paneBranches }
+	const panePrs = { ...state.panePrs }
+	for (const pid of paneIds) {
+		delete paneBranches[pid]
+		delete panePrs[pid]
+	}
+	return { paneBranches, panePrs }
+}
+
 const WORKSPACE_COLORS = [
 	'#6c63ff',
 	'#e74c3c',
@@ -210,6 +225,8 @@ interface StoreState {
 	activePtyIds: Set<string>
 	/** Current git branch per pane. Ephemeral runtime state — not persisted to disk. */
 	paneBranches: Record<string, string | null>
+	/** Current PR info per pane. Ephemeral runtime state — not persisted to disk. */
+	panePrs: Record<string, PrInfo | null>
 
 	// Actions
 	setFocusedPane: (paneId: string | null) => void
@@ -252,6 +269,9 @@ interface StoreState {
 	/** Update git branch for a pane. No workspaceId needed — branch state is a flat
 	 *  ephemeral map (not persisted inside workspace objects like cwd). */
 	updatePaneBranch: (paneId: string, branch: string | null) => void
+	/** Update PR info for a pane. No workspaceId needed — PR state is a flat
+	 *  ephemeral map (not persisted inside workspace objects). */
+	updatePanePr: (paneId: string, pr: PrInfo | null) => void
 	saveState: () => Promise<void>
 	addSnippet: (name: string, command: string) => void
 	updateSnippet: (id: string, updates: Pick<Snippet, 'name' | 'command'>) => void
@@ -283,6 +303,7 @@ export const useStore = create<StoreState>((set, get) => ({
 	visitedWorkspaceIds: [],
 	activePtyIds: new Set(),
 	paneBranches: {},
+	panePrs: {},
 
 	setFocusedPane: (paneId) =>
 		set((state) => ({ focusedPaneId: paneId, focusGeneration: state.focusGeneration + 1 })),
@@ -502,13 +523,11 @@ export const useStore = create<StoreState>((set, get) => ({
 		}
 		await window.api.saveAppState(newAppState)
 		const paneIds = workspace ? Object.keys(workspace.panes) : []
-		const cleanedBranches = { ...get().paneBranches }
-		for (const pid of paneIds) delete cleanedBranches[pid]
 		set({
 			workspaces: get().workspaces.filter((w) => w.id !== id),
 			appState: newAppState,
 			visitedWorkspaceIds: get().visitedWorkspaceIds.filter((wid) => wid !== id),
-			paneBranches: cleanedBranches,
+			...cleanPaneEphemeral(get(), paneIds),
 		})
 	},
 
@@ -578,12 +597,10 @@ export const useStore = create<StoreState>((set, get) => ({
 				newVisited.push(newActive)
 			}
 			const paneIds = workspace ? Object.keys(workspace.panes) : []
-			const cleanedBranches = { ...state.paneBranches }
-			for (const pid of paneIds) delete cleanedBranches[pid]
 			return {
 				appState: newAppState,
 				visitedWorkspaceIds: newVisited,
-				paneBranches: cleanedBranches,
+				...cleanPaneEphemeral(state, paneIds),
 			}
 		})
 	},
@@ -664,7 +681,6 @@ export const useStore = create<StoreState>((set, get) => ({
 			if (!newTree) return state
 
 			const { [paneId]: _, ...remainingPanes } = workspace.panes
-			const { [paneId]: __, ...remainingBranches } = state.paneBranches
 			const updated = {
 				...workspace,
 				layout: { type: 'custom' as const, tree: newTree },
@@ -676,7 +692,7 @@ export const useStore = create<StoreState>((set, get) => ({
 			return {
 				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
 				focusedPaneId: state.focusedPaneId === paneId ? null : state.focusedPaneId,
-				paneBranches: remainingBranches,
+				...cleanPaneEphemeral(state, [paneId]),
 			}
 		})
 	},
@@ -920,6 +936,14 @@ export const useStore = create<StoreState>((set, get) => ({
 		set((state) => {
 			if (state.paneBranches[paneId] === branch) return state
 			return { paneBranches: { ...state.paneBranches, [paneId]: branch } }
+		})
+	},
+
+	updatePanePr: (paneId, pr) => {
+		set((state) => {
+			// PR number is the stable identity; title/url changes within a poll cycle are negligible
+			if (state.panePrs[paneId]?.number === pr?.number) return state
+			return { panePrs: { ...state.panePrs, [paneId]: pr } }
 		})
 	},
 

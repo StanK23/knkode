@@ -1,12 +1,19 @@
-import { execFileSync } from 'node:child_process'
+import { execFile, execFileSync } from 'node:child_process'
+import type { PrInfo } from '../shared/types'
 import { IPC } from '../shared/types'
 import { safeSend } from './main-window'
 import { getPtyCwd } from './pty-manager'
 
 const trackedPanes = new Map<string, string>() // paneId -> last observed cwd (polled, may lag)
 const trackedBranches = new Map<string, string | null>() // paneId -> last observed git branch (null = not a git repo or unknown)
+const trackedPrs = new Map<string, PrInfo | null>() // paneId -> last observed PR info
+const prLastChecked = new Map<string, number>() // paneId -> timestamp of last PR check
 let intervalId: ReturnType<typeof setInterval> | null = null
 let gitMissing = false // Log ENOENT only once to avoid spamming
+let ghMissing = false // Log ENOENT only once for gh CLI
+
+// Avoid hammering the gh CLI; PRs change infrequently
+const PR_REFRESH_INTERVAL_MS = 60_000
 
 /** Run `git rev-parse --abbrev-ref HEAD` in a directory.
  *  Returns null on any failure (not a git repo, git not installed, timeout, etc.). */
@@ -28,20 +35,87 @@ function getGitBranch(cwd: string): string | null {
 	}
 }
 
+/** Run `gh pr view --json number,url,title,state` asynchronously in a directory.
+ *  Calls back with PrInfo or null (null on any error, including no open PR on current branch). */
+function checkPrStatus(cwd: string, callback: (pr: PrInfo | null) => void): void {
+	if (ghMissing) {
+		callback(null)
+		return
+	}
+	execFile(
+		'gh',
+		['pr', 'view', '--json', 'number,url,title,state'],
+		{ cwd, timeout: 10_000 },
+		(err, stdout) => {
+			if (err) {
+				if (!ghMissing && 'code' in err && err.code === 'ENOENT') {
+					ghMissing = true
+					console.warn('[cwd-tracker] gh CLI not found — PR detection disabled')
+				} else if ('killed' in err && err.killed) {
+					console.warn('[cwd-tracker] gh pr view timed out for', cwd)
+				}
+				callback(null)
+				return
+			}
+			try {
+				const data = JSON.parse(stdout)
+				if (
+					typeof data.number === 'number' &&
+					typeof data.url === 'string' &&
+					typeof data.title === 'string' &&
+					data.state === 'OPEN'
+				) {
+					// Validate URL format before trusting gh output
+					try {
+						const parsed = new URL(data.url)
+						if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+							callback(null)
+							return
+						}
+					} catch {
+						callback(null)
+						return
+					}
+					const title =
+						typeof data.title === 'string' && data.title.length > 256
+							? `${data.title.slice(0, 253)}...`
+							: data.title
+					callback({ number: data.number, url: data.url, title })
+				} else {
+					callback(null)
+				}
+			} catch (parseErr) {
+				console.warn('[cwd-tracker] Failed to parse gh pr output:', stdout.slice(0, 200), parseErr)
+				callback(null)
+			}
+		},
+	)
+}
+
+/** Re-fetch PR status on branch change or every PR_REFRESH_INTERVAL_MS. */
+function shouldCheckPr(paneId: string, branchChanged: boolean): boolean {
+	if (branchChanged) return true
+	const lastChecked = prLastChecked.get(paneId) ?? 0
+	return Date.now() - lastChecked >= PR_REFRESH_INTERVAL_MS
+}
+
 export function trackPane(paneId: string, initialCwd: string): void {
 	trackedPanes.set(paneId, initialCwd)
 	trackedBranches.set(paneId, null)
+	trackedPrs.set(paneId, null)
 }
 
 export function untrackPane(paneId: string): void {
 	trackedPanes.delete(paneId)
 	trackedBranches.delete(paneId)
+	trackedPrs.delete(paneId)
+	prLastChecked.delete(paneId)
 }
 
 export function startCwdTracking(): void {
 	if (intervalId) return
 
-	// 3s balances UI responsiveness against lsof + git subprocess cost per pane
+	// 3s balances UI responsiveness against lsof + git + gh subprocess cost per pane
 	intervalId = setInterval(() => {
 		for (const [paneId, lastCwd] of trackedPanes) {
 			try {
@@ -54,9 +128,34 @@ export function startCwdTracking(): void {
 				const cwd = currentCwd ?? lastCwd
 				const currentBranch = getGitBranch(cwd)
 				const lastBranch = trackedBranches.get(paneId) ?? null
-				if (currentBranch !== lastBranch) {
+				const branchChanged = currentBranch !== lastBranch
+				if (branchChanged) {
 					trackedBranches.set(paneId, currentBranch)
 					safeSend(IPC.PTY_BRANCH_CHANGED, paneId, currentBranch)
+				}
+
+				// PR detection — async, fires event when result arrives
+				if (currentBranch && shouldCheckPr(paneId, branchChanged)) {
+					if (branchChanged) {
+						// Clear stale PR from previous branch immediately
+						const hadPr = trackedPrs.get(paneId) !== null
+						trackedPrs.set(paneId, null)
+						if (hadPr) safeSend(IPC.PTY_PR_CHANGED, paneId, null)
+					}
+					prLastChecked.set(paneId, Date.now())
+					checkPrStatus(cwd, (pr) => {
+						if (!trackedPanes.has(paneId)) return // pane closed during async check
+						const current = trackedPrs.get(paneId)
+						const changed = pr?.number !== current?.number
+						if (changed) {
+							trackedPrs.set(paneId, pr)
+							safeSend(IPC.PTY_PR_CHANGED, paneId, pr)
+						}
+					})
+				} else if (!currentBranch && trackedPrs.get(paneId) !== null) {
+					// No branch = no PR
+					trackedPrs.set(paneId, null)
+					safeSend(IPC.PTY_PR_CHANGED, paneId, null)
 				}
 			} catch (err) {
 				console.warn(
@@ -75,4 +174,6 @@ export function stopCwdTracking(): void {
 	}
 	trackedPanes.clear()
 	trackedBranches.clear()
+	trackedPrs.clear()
+	prLastChecked.clear()
 }

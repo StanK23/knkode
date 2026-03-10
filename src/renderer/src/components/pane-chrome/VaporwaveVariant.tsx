@@ -1,11 +1,13 @@
 import { registerVariant } from '.'
-import { FOCUS_VIS } from './shared'
+import { FOCUS_VIS, PrBadge } from './shared'
 import type { PaneVariant, ScrollButtonProps, StatusBarProps } from './types'
 
 function StatusBar({
 	label,
 	cwd,
 	branch,
+	pr,
+	onOpenExternal,
 	isFocused,
 	canClose,
 	theme,
@@ -114,21 +116,35 @@ function StatusBar({
 				)}
 			</div>
 
-			{/* Row 2: git branch */}
-			{branch && (
-				<div className="flex items-center py-1">
-					<output
-						aria-label={`Git branch: ${branch}`}
-						className="text-[10px] font-medium px-3 py-0.5 rounded-full overflow-hidden text-ellipsis whitespace-nowrap"
-						title={branch}
-						style={{
-							background: `linear-gradient(135deg, ${theme.accent}, ${glowColor})`,
-							color: theme.background,
-							boxShadow: isFocused ? `0 0 8px ${glowColor}44` : 'none',
-						}}
-					>
-						{branch}
-					</output>
+			{/* Row 2: git branch + PR */}
+			{(branch || pr) && (
+				<div className="flex items-center gap-1.5 py-1">
+					{branch && (
+						<output
+							aria-label={`Git branch: ${branch}`}
+							className="text-[10px] font-medium px-3 py-0.5 rounded-full overflow-hidden text-ellipsis whitespace-nowrap"
+							title={branch}
+							style={{
+								background: `linear-gradient(135deg, ${theme.accent}, ${glowColor})`,
+								color: theme.background,
+								boxShadow: isFocused ? `0 0 8px ${glowColor}44` : 'none',
+							}}
+						>
+							{branch}
+						</output>
+					)}
+					{pr && (
+						<PrBadge
+							pr={pr}
+							onOpenExternal={onOpenExternal}
+							className="text-[10px] font-medium px-3 py-0.5 rounded-full hover:brightness-110 transition-all"
+							style={{
+								background: `linear-gradient(135deg, ${theme.accent}, ${glowColor})`,
+								color: theme.background,
+								boxShadow: isFocused ? `0 0 8px ${glowColor}44` : 'none',
+							}}
+						/>
+					)}
 				</div>
 			)}
 		</div>

@@ -1,11 +1,13 @@
 import { registerVariant } from '.'
-import { FOCUS_VIS } from './shared'
+import { FOCUS_VIS, PrBadge } from './shared'
 import type { PaneVariant, ScrollButtonProps, StatusBarProps } from './types'
 
 function StatusBar({
 	label,
 	cwd,
 	branch,
+	pr,
+	onOpenExternal,
 	isFocused,
 	canClose,
 	theme,
@@ -68,6 +70,15 @@ function StatusBar({
 				>
 					{branch}
 				</output>
+			)}
+
+			{pr && (
+				<PrBadge
+					pr={pr}
+					onOpenExternal={onOpenExternal}
+					className="bg-transparent text-[9px] font-bold uppercase tracking-widest px-1 leading-none opacity-50 hover:opacity-100 transition-opacity"
+					style={{ color: theme.accent, textShadow: `0 0 4px ${glowColor}88` }}
+				/>
 			)}
 
 			<SnippetTrigger
