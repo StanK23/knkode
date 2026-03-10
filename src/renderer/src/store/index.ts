@@ -249,6 +249,8 @@ interface StoreState {
 	) => void
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
+	/** Update git branch for a pane. No workspaceId needed — branch state is a flat
+	 *  ephemeral map (not persisted inside workspace objects like cwd). */
 	updatePaneBranch: (paneId: string, branch: string | null) => void
 	saveState: () => Promise<void>
 	addSnippet: (name: string, command: string) => void
