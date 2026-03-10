@@ -65,8 +65,7 @@ function StatusBar({
 
 			{snippetDropdown}
 
-			{/* Ghost buttons — invisible until hover */}
-			<div className="flex items-center gap-0.5 opacity-0 hover:opacity-70 transition-opacity duration-200">
+			<div className="flex items-center gap-0.5 opacity-0 hover:opacity-70 focus-within:opacity-70 transition-opacity duration-200">
 				<button
 					type="button"
 					onClick={onSplitVertical}
