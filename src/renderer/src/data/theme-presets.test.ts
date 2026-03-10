@@ -199,7 +199,13 @@ describe('THEME_PRESETS data integrity', () => {
 
 	it('every preset effect level is a valid EffectLevel', () => {
 		for (const preset of THEME_PRESETS as readonly ThemePreset[]) {
-			for (const key of ['gradientLevel', 'glowLevel', 'scanlineLevel'] as const) {
+			for (const key of [
+				'gradientLevel',
+				'glowLevel',
+				'scanlineLevel',
+				'noiseLevel',
+				'scrollbarAccent',
+			] as const) {
 				const val = preset[key]
 				if (val !== undefined) {
 					expect(
@@ -212,10 +218,31 @@ describe('THEME_PRESETS data integrity', () => {
 	})
 })
 
+const IDENTITY_THEMES: readonly (typeof THEME_PRESETS)[number]['name'][] = [
+	'Matrix',
+	'Cyberpunk',
+	'Solana',
+	'Amber',
+	'Vaporwave',
+	'Ocean',
+	'Sunset',
+	'Arctic',
+]
+
+const CRT_THEMES = ['Matrix', 'Amber'] as const
+const NOISE_THEMES = ['Matrix', 'Amber', 'Sunset'] as const
+
+/** Look up a preset by name, throwing if missing. Reduces boilerplate in tests. */
+function requirePreset(name: string): ThemePreset {
+	const preset = findPreset(name)
+	if (!preset) throw new Error(`${name} preset missing`)
+	return preset
+}
+
 describe('identity theme properties', () => {
 	it('Matrix is green-dominant — green channel >= red and blue for all ANSI colors', () => {
-		const matrix: ThemePreset | undefined = findPreset('Matrix')
-		if (!matrix?.ansiColors) throw new Error('Matrix preset missing')
+		const matrix = requirePreset('Matrix')
+		if (!matrix.ansiColors) throw new Error('Matrix ansiColors missing')
 		expect(matrix.glow).toBe('#00ff41')
 		for (const [key, value] of Object.entries(matrix.ansiColors)) {
 			if (key === 'black') continue
@@ -226,56 +253,145 @@ describe('identity theme properties', () => {
 	})
 
 	it('Cyberpunk has neon glow and very dark background', () => {
-		const cyberpunk = findPreset('Cyberpunk')
-		if (!cyberpunk) throw new Error('Cyberpunk preset missing')
+		const cyberpunk = requirePreset('Cyberpunk')
 		expect(cyberpunk.accent).toBe('#ff2a6d')
 		expect(cyberpunk.glow).toBe('#ff2a6d')
 		expect(isDark(cyberpunk.background)).toBe(true)
 	})
 
 	it('Solana has brand purple accent and green glow', () => {
-		const solana = findPreset('Solana')
-		if (!solana) throw new Error('Solana preset missing')
+		const solana = requirePreset('Solana')
 		expect(solana.accent).toBe('#9945ff')
 		expect(solana.glow).toBe('#14f195')
 	})
 
 	it('all identity themes have both accent and glow', () => {
-		for (const name of ['Matrix', 'Cyberpunk', 'Solana']) {
-			const preset = findPreset(name)
-			if (!preset) throw new Error(`${name} preset missing`)
+		for (const name of IDENTITY_THEMES) {
+			const preset = requirePreset(name)
 			expect(preset.accent, `${name} should have accent`).toBeDefined()
 			expect(preset.glow, `${name} should have glow`).toBeDefined()
 		}
 	})
 
 	it('all identity themes have glowLevel and gradientLevel', () => {
-		for (const name of ['Matrix', 'Cyberpunk', 'Solana']) {
-			const preset = findPreset(name)
-			if (!preset) throw new Error(`${name} preset missing`)
-			expect(preset.glowLevel, `${name} should have glowLevel`).toBe('medium')
+		for (const name of IDENTITY_THEMES) {
+			const preset = requirePreset(name)
+			expect(['medium', 'intense'], `${name} should have glowLevel medium or intense`).toContain(
+				preset.glowLevel,
+			)
 			expect(preset.gradientLevel, `${name} should have gradientLevel`).toBe('medium')
 			expect(preset.gradient, `${name} should have gradient`).toBeDefined()
 		}
 	})
 
-	it('only Matrix has scanlineLevel set', () => {
-		const matrix = findPreset('Matrix')
-		if (!matrix) throw new Error('Matrix preset missing')
-		expect(matrix.scanlineLevel).toBe('subtle')
+	it('all identity themes have cursorColor and selectionColor as valid hex', () => {
+		for (const name of IDENTITY_THEMES) {
+			const preset = requirePreset(name)
+			expect(preset.cursorColor, `${name} should have cursorColor`).toBeDefined()
+			expect(preset.selectionColor, `${name} should have selectionColor`).toBeDefined()
+			expect(isValidHex(preset.cursorColor ?? ''), `${name}.cursorColor valid hex`).toBe(true)
+			expect(isValidHex(preset.selectionColor ?? ''), `${name}.selectionColor valid hex`).toBe(true)
+		}
+	})
 
-		const cyberpunk = findPreset('Cyberpunk')
-		const solana = findPreset('Solana')
-		expect(cyberpunk?.scanlineLevel).toBeUndefined()
-		expect(solana?.scanlineLevel).toBeUndefined()
+	it('all identity themes have scrollbarAccent', () => {
+		for (const name of IDENTITY_THEMES) {
+			const preset = requirePreset(name)
+			expect(isEffectLevel(preset.scrollbarAccent), `${name} should have scrollbarAccent`).toBe(
+				true,
+			)
+		}
+	})
+
+	it('CRT themes have scanlineLevel set', () => {
+		for (const name of CRT_THEMES) {
+			const preset = requirePreset(name)
+			expect(preset.scanlineLevel, `${name} should have scanlineLevel`).toBe('subtle')
+		}
+	})
+
+	it('non-CRT identity themes do not have scanlineLevel', () => {
+		for (const name of IDENTITY_THEMES.filter(
+			(n) => !(CRT_THEMES as readonly string[]).includes(n),
+		)) {
+			const preset = requirePreset(name)
+			expect(preset.scanlineLevel, `${name} should not have scanlineLevel`).toBeUndefined()
+		}
+	})
+
+	it('noise themes have noiseLevel set', () => {
+		for (const name of NOISE_THEMES) {
+			const preset = requirePreset(name)
+			expect(preset.noiseLevel, `${name} should have noiseLevel`).toBe('subtle')
+		}
+	})
+
+	it('non-noise identity themes do not have noiseLevel', () => {
+		for (const name of IDENTITY_THEMES.filter(
+			(n) => !(NOISE_THEMES as readonly string[]).includes(n),
+		)) {
+			const preset = requirePreset(name)
+			expect(preset.noiseLevel, `${name} should not have noiseLevel`).toBeUndefined()
+		}
 	})
 
 	it('identity theme gradients are valid CSS gradient strings', () => {
-		for (const name of ['Matrix', 'Cyberpunk', 'Solana']) {
-			const preset = findPreset(name)
-			if (!preset) throw new Error(`${name} preset missing`)
+		for (const name of IDENTITY_THEMES) {
+			const preset = requirePreset(name)
 			expect(preset.gradient).toMatch(/^linear-gradient\(/)
 		}
+	})
+
+	it('Amber is amber-dominant — warm tones (R > B, G > B) for all ANSI colors', () => {
+		const amber = requirePreset('Amber')
+		if (!amber.ansiColors) throw new Error('Amber ansiColors missing')
+		for (const [key, value] of Object.entries(amber.ansiColors)) {
+			if (key === 'black') continue
+			const [r, g, b] = hexToRgb(value)
+			expect(r, `${key} R > B`).toBeGreaterThan(b)
+			expect(g, `${key} G > B`).toBeGreaterThan(b)
+		}
+	})
+
+	it('Vaporwave has intense glow — maximalist aesthetic', () => {
+		const vaporwave = requirePreset('Vaporwave')
+		expect(vaporwave.glowLevel).toBe('intense')
+	})
+
+	it('Ocean is teal-dominant — teal/cyan channels prominent in ANSI colors', () => {
+		const ocean = requirePreset('Ocean')
+		if (!ocean.ansiColors) throw new Error('Ocean ansiColors missing')
+		let tealCount = 0
+		for (const [key, value] of Object.entries(ocean.ansiColors)) {
+			if (key === 'black') continue
+			const [r, g, b] = hexToRgb(value)
+			if (g >= r && b >= r) tealCount++
+		}
+		expect(tealCount, 'most Ocean ANSI colors should be teal/blue-dominant').toBeGreaterThan(8)
+	})
+
+	it('Sunset uses warm tones — red channel prominent in ANSI colors', () => {
+		const sunset = requirePreset('Sunset')
+		if (!sunset.ansiColors) throw new Error('Sunset ansiColors missing')
+		let warmCount = 0
+		for (const [key, value] of Object.entries(sunset.ansiColors)) {
+			if (key === 'black') continue
+			const [r, , b] = hexToRgb(value)
+			if (r >= b) warmCount++
+		}
+		expect(warmCount, 'most Sunset ANSI colors should be warm (R >= B)').toBeGreaterThan(12)
+	})
+
+	it('Arctic uses cool tones — blue channel prominent in ANSI colors', () => {
+		const arctic = requirePreset('Arctic')
+		if (!arctic.ansiColors) throw new Error('Arctic ansiColors missing')
+		let coolCount = 0
+		for (const [key, value] of Object.entries(arctic.ansiColors)) {
+			if (key === 'black') continue
+			const [r, , b] = hexToRgb(value)
+			if (b >= r) coolCount++
+		}
+		expect(coolCount, 'most Arctic ANSI colors should be cool (B >= R)').toBeGreaterThan(12)
 	})
 
 	it('community themes do not have effects', () => {
@@ -290,12 +406,13 @@ describe('identity theme properties', () => {
 			'Solarized Light',
 		]
 		for (const name of community) {
-			const preset = findPreset(name)
-			if (!preset) throw new Error(`${name} preset missing`)
+			const preset = requirePreset(name)
 			expect(preset.gradient, `${name} should not have gradient`).toBeUndefined()
 			expect(preset.gradientLevel, `${name} should not have gradientLevel`).toBeUndefined()
 			expect(preset.glowLevel, `${name} should not have glowLevel`).toBeUndefined()
 			expect(preset.scanlineLevel, `${name} should not have scanlineLevel`).toBeUndefined()
+			expect(preset.noiseLevel, `${name} should not have noiseLevel`).toBeUndefined()
+			expect(preset.scrollbarAccent, `${name} should not have scrollbarAccent`).toBeUndefined()
 		}
 	})
 })
