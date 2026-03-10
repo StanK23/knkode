@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import {
 	DEFAULT_PANE_OPACITY,
 	type DropPosition,
+	MAX_UNFOCUSED_DIM,
 	type PaneConfig,
 	type PaneTheme,
 } from '../../../shared/types'
@@ -734,7 +735,7 @@ export function Pane({
 					}`}
 					style={
 						!isFocused && workspaceTheme.unfocusedDim > 0
-							? { opacity: Math.max(0, Math.min(0.9, workspaceTheme.unfocusedDim)) }
+							? { opacity: Math.max(0, Math.min(MAX_UNFOCUSED_DIM, workspaceTheme.unfocusedDim)) }
 							: undefined
 					}
 				/>

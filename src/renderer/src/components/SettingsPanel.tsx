@@ -10,7 +10,9 @@ import {
 	type LayoutPreset,
 	MAX_LINE_HEIGHT,
 	MAX_SCROLLBACK,
+	MAX_UNFOCUSED_DIM,
 	MIN_LINE_HEIGHT,
+	MIN_PANE_OPACITY,
 	MIN_SCROLLBACK,
 	type PaneConfig,
 	type PaneTheme,
@@ -33,12 +35,12 @@ import { LayoutPicker } from './LayoutPicker'
 import { SettingsSection } from './SettingsSection'
 
 /** Numeric values for the EffectLevel-based dim and opacity controls. */
-const DIM_VALUES: Record<EffectLevel, number> = { off: 0, subtle: 0.3, medium: 0.6, intense: 0.9 }
+const DIM_VALUES: Record<EffectLevel, number> = { off: 0, subtle: 0.3, medium: 0.6, intense: MAX_UNFOCUSED_DIM }
 const OPACITY_VALUES: Record<EffectLevel, number> = {
 	off: 1.0,
 	subtle: 0.7,
 	medium: 0.4,
-	intense: 0.05,
+	intense: MIN_PANE_OPACITY,
 }
 
 /** Find the closest EffectLevel key for a numeric value. */
