@@ -18,6 +18,7 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 	const focusedPaneId = useStore((s) => s.focusedPaneId)
 	const focusGeneration = useStore((s) => s.focusGeneration)
 	const setFocusedPane = useStore((s) => s.setFocusedPane)
+	const paneBranches = useStore((s) => s.paneBranches)
 	const paneCount = Object.keys(workspace.panes).length
 	const paneIndexMap = useMemo(() => {
 		const order = getPaneIdsInOrder(workspace.layout.tree)
@@ -86,6 +87,7 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 					onSplitVertical={(id) => handleSplit(id, 'horizontal')}
 					onClose={handleClose}
 					canClose={paneCount > 1}
+					branch={paneBranches[node.paneId] ?? null}
 					isFocused={focusedPaneId === node.paneId}
 					focusGeneration={focusGeneration}
 					onFocus={setFocusedPane}
