@@ -62,14 +62,13 @@ function StatusBar({
 
 			{snippetDropdown}
 
-			{/* Color-coded: split=accent, close=red-tinted */}
 			<button
 				type="button"
 				onClick={onSplitVertical}
 				title="Split vertical"
 				aria-label="Split pane vertically"
 				className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
-				style={{ color: '#66d9ef' }}
+				style={{ color: theme.accent }}
 			>
 				┃
 			</button>
@@ -79,7 +78,7 @@ function StatusBar({
 				title="Split horizontal"
 				aria-label="Split pane horizontally"
 				className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
-				style={{ color: '#66d9ef' }}
+				style={{ color: theme.accent }}
 			>
 				━
 			</button>
@@ -90,7 +89,7 @@ function StatusBar({
 					title="Close pane"
 					aria-label="Close pane"
 					className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
-					style={{ color: '#f92672' }}
+					style={{ color: theme.foreground }}
 				>
 					✕
 				</button>
