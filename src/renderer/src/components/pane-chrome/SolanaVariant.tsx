@@ -75,7 +75,7 @@ function StatusBar({
 					onClick={() => onOpenExternal(pr.url)}
 					title={pr.title}
 					aria-label={`Open PR #${pr.number}`}
-					className={`text-[10px] font-medium px-2 py-px rounded-full cursor-pointer border-none hover:brightness-110 transition-opacity ${FOCUS_VIS}`}
+					className={`text-[10px] font-medium px-2 py-px rounded-full cursor-pointer hover:brightness-110 transition-opacity ${FOCUS_VIS}`}
 					style={{
 						background: `linear-gradient(135deg, ${theme.accent}33, ${glowColor}33)`,
 						color: theme.foreground,
