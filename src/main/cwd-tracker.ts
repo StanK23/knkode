@@ -4,10 +4,12 @@ import { safeSend } from './main-window'
 import { getPtyCwd } from './pty-manager'
 
 const trackedPanes = new Map<string, string>() // paneId -> last observed cwd (polled, may lag)
-const trackedBranches = new Map<string, string | null>() // paneId -> last observed branch
+const trackedBranches = new Map<string, string | null>() // paneId -> last observed git branch (null = not a git repo or unknown)
 let intervalId: ReturnType<typeof setInterval> | null = null
+let gitMissing = false // Log ENOENT only once to avoid spamming
 
-/** Run `git rev-parse --abbrev-ref HEAD` in a directory. Returns null if not a git repo. */
+/** Run `git rev-parse --abbrev-ref HEAD` in a directory.
+ *  Returns null on any failure (not a git repo, git not installed, timeout, etc.). */
 function getGitBranch(cwd: string): string | null {
 	try {
 		const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
@@ -17,7 +19,11 @@ function getGitBranch(cwd: string): string | null {
 			stdio: ['ignore', 'pipe', 'ignore'],
 		}).trim()
 		return branch || null
-	} catch {
+	} catch (err: unknown) {
+		if (!gitMissing && err instanceof Error && 'code' in err && err.code === 'ENOENT') {
+			gitMissing = true
+			console.warn('[cwd-tracker] git not found — branch detection disabled')
+		}
 		return null
 	}
 }
@@ -35,7 +41,7 @@ export function untrackPane(paneId: string): void {
 export function startCwdTracking(): void {
 	if (intervalId) return
 
-	// 3s balances UI responsiveness against lsof subprocess cost per pane
+	// 3s balances UI responsiveness against lsof + git subprocess cost per pane
 	intervalId = setInterval(() => {
 		for (const [paneId, lastCwd] of trackedPanes) {
 			try {
