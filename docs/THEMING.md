@@ -56,11 +56,16 @@ Themes built around a single brand or aesthetic identity: Matrix, Cyberpunk, Sol
 
 Identity themes also include **visual effects** that make each workspace feel like a different app:
 
-| Theme | Gradient | Glow | Scanline |
-|-------|----------|------|----------|
-| Matrix | Green top-down vignette (3% opacity) | Pulsing green border glow (medium) | CRT scanlines with drift (subtle) |
-| Cyberpunk | Diagonal pink → cyan tint (3-4% opacity) | Pulsing neon pink border glow (medium) | — |
-| Solana | Diagonal purple → green tint (3% opacity) | Pulsing brand-colored border glow (medium) | — |
+| Theme | Gradient | Glow | Scanline | Noise |
+|-------|----------|------|----------|-------|
+| Matrix | Green top-down vignette | Pulsing green (medium) | CRT scanlines (subtle) | Phosphor grain (subtle) |
+| Cyberpunk | Diagonal pink → cyan | Pulsing neon pink (medium) | — | — |
+| Solana | Diagonal purple → green | Pulsing brand-colored (medium) | — | — |
+| Amber | Amber top-down vignette | Warm amber (medium) | CRT scanlines (subtle) | Phosphor grain (subtle) |
+| Vaporwave | 3-stop diagonal pink → cyan → purple | Bubblegum pink (intense) | — | — |
+| Ocean | Top-down blue → teal | Bioluminescent green (medium) | — | — |
+| Sunset | Top-down gold → red | Warm red (medium) | — | Painterly grain (subtle) |
+| Arctic | Top-down mint → cyan | Crystalline mint (medium) | — | — |
 
 Effects are rendered as `pointer-events: none` overlay divs in `Terminal.tsx` and respect `prefers-reduced-motion`. Users can adjust each effect independently via the **Visual Effects** section in Settings → Terminal, choosing from Off / Subtle / Medium / Intense levels.
 
