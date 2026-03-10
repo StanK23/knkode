@@ -123,6 +123,7 @@ export function startCwdTracking(): void {
 					}
 					prLastChecked.set(paneId, Date.now())
 					checkPrStatus(cwd, (pr) => {
+						if (!trackedPanes.has(paneId)) return // pane closed during async check
 						const current = trackedPrs.get(paneId)
 						const changed = pr?.number !== current?.number
 						if (changed) {
