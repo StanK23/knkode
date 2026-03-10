@@ -1,5 +1,5 @@
 import { registerVariant } from '.'
-import { FOCUS_VIS } from './shared'
+import { FOCUS_VIS, PrBadge } from './shared'
 import type { PaneVariant, ScrollButtonProps, StatusBarProps } from './types'
 
 function StatusBar({
@@ -73,16 +73,12 @@ function StatusBar({
 			)}
 
 			{pr && (
-				<button
-					type="button"
-					onClick={() => onOpenExternal(pr.url)}
-					title={pr.title}
-					aria-label={`Open PR #${pr.number}`}
-					className={`bg-transparent border-none cursor-pointer text-[9px] font-bold uppercase tracking-widest px-1 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
+				<PrBadge
+					pr={pr}
+					onOpenExternal={onOpenExternal}
+					className="bg-transparent text-[9px] font-bold uppercase tracking-widest px-1 leading-none opacity-50 hover:opacity-100 transition-opacity"
 					style={{ color: theme.accent, textShadow: `0 0 4px ${glowColor}88` }}
-				>
-					#{pr.number}
-				</button>
+				/>
 			)}
 
 			<SnippetTrigger

@@ -1,4 +1,4 @@
-import { FOCUS_VIS, FolderIcon, GitIcon } from './shared'
+import { FOCUS_VIS, FolderIcon, GitIcon, PrBadge } from './shared'
 import type { PaneVariant, ScrollButtonProps, StatusBarProps } from './types'
 
 // DefaultVariant intentionally uses Tailwind semantic classes (bg-elevated, text-accent, etc.)
@@ -60,15 +60,11 @@ function StatusBar({
 			)}
 
 			{pr && (
-				<button
-					type="button"
-					onClick={() => onOpenExternal(pr.url)}
-					title={pr.title}
-					aria-label={`Open PR #${pr.number}`}
-					className={`bg-transparent border-none text-accent text-[10px] font-medium cursor-pointer px-0.5 leading-none hover:text-content ${FOCUS_VIS}`}
-				>
-					#{pr.number}
-				</button>
+				<PrBadge
+					pr={pr}
+					onOpenExternal={onOpenExternal}
+					className="bg-transparent text-accent text-[10px] font-medium px-0.5 leading-none hover:text-content"
+				/>
 			)}
 
 			<SnippetTrigger

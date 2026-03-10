@@ -1,5 +1,5 @@
 import { registerVariant } from '.'
-import { FOCUS_VIS, FolderIcon } from './shared'
+import { FOCUS_VIS, FolderIcon, PrBadge } from './shared'
 import type { PaneVariant, ScrollButtonProps, StatusBarProps } from './types'
 
 function StatusBar({
@@ -63,19 +63,15 @@ function StatusBar({
 			)}
 
 			{pr && (
-				<button
-					type="button"
-					onClick={() => onOpenExternal(pr.url)}
-					title={pr.title}
-					aria-label={`Open PR #${pr.number}`}
-					className={`text-[10px] font-medium px-2 py-px rounded-md cursor-pointer border-none hover:brightness-110 transition-opacity ${FOCUS_VIS}`}
+				<PrBadge
+					pr={pr}
+					onOpenExternal={onOpenExternal}
+					className="text-[10px] font-medium px-2 py-px rounded-md hover:brightness-110 transition-opacity"
 					style={{
 						backgroundColor: `${theme.accent}18`,
 						color: theme.foreground,
 					}}
-				>
-					#{pr.number}
-				</button>
+				/>
 			)}
 
 			<span className="opacity-20" style={{ color: theme.accent }}>
