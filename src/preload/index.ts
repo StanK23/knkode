@@ -48,6 +48,8 @@ const api = {
 		onIpcEvent<[string, number]>(IPC.PTY_EXIT, cb),
 	onPtyCwdChanged: (cb: (paneId: string, cwd: string) => void): Unsubscribe =>
 		onIpcEvent<[string, string]>(IPC.PTY_CWD_CHANGED, cb),
+	onPtyBranchChanged: (cb: (paneId: string, branch: string | null) => void): Unsubscribe =>
+		onIpcEvent<[string, string | null]>(IPC.PTY_BRANCH_CHANGED, cb),
 }
 
 contextBridge.exposeInMainWorld('api', api)
