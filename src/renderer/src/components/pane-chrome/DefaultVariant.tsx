@@ -14,6 +14,7 @@ function StatusBar({
 	isEditing,
 	editInputProps,
 	snippetDropdown,
+	shortcuts,
 }: StatusBarProps) {
 	return (
 		<div
@@ -46,7 +47,7 @@ function StatusBar({
 			{branch && (
 				<output
 					aria-label={`Git branch: ${branch}`}
-					className="flex items-center gap-1 text-accent text-[10px] font-medium shrink-0 max-w-[140px]"
+					className="flex items-center gap-1 text-accent text-[10px] font-medium shrink-0 max-w-[200px]"
 					title={branch}
 				>
 					<GitIcon />
@@ -61,7 +62,7 @@ function StatusBar({
 			<button
 				type="button"
 				onClick={onSplitVertical}
-				title="Split vertical"
+				title={`Split vertical (${shortcuts.splitV})`}
 				aria-label="Split pane vertically"
 				className={`bg-transparent border-none text-content-muted cursor-pointer px-0.5 text-[11px] leading-none hover:text-content ${FOCUS_VIS}`}
 			>
@@ -70,7 +71,7 @@ function StatusBar({
 			<button
 				type="button"
 				onClick={onSplitHorizontal}
-				title="Split horizontal"
+				title={`Split horizontal (${shortcuts.splitH})`}
 				aria-label="Split pane horizontally"
 				className={`bg-transparent border-none text-content-muted cursor-pointer px-0.5 text-[11px] leading-none hover:text-content ${FOCUS_VIS}`}
 			>
@@ -80,7 +81,7 @@ function StatusBar({
 				<button
 					type="button"
 					onClick={onClose}
-					title="Close pane"
+					title={`Close pane (${shortcuts.close})`}
 					aria-label="Close pane"
 					className={`bg-transparent border-none text-danger cursor-pointer px-0.5 text-[11px] leading-none hover:brightness-125 ${FOCUS_VIS}`}
 				>

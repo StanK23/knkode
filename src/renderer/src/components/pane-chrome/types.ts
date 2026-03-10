@@ -29,6 +29,7 @@ export interface StatusBarProps {
 		onKeyDown: (e: React.KeyboardEvent) => void
 	}
 	snippetDropdown: React.ReactNode
+	shortcuts: { splitV: string; splitH: string; close: string }
 }
 
 /** Props passed to every ScrollButton variant component. */

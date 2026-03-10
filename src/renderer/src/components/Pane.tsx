@@ -8,6 +8,7 @@ import {
 } from '../../../shared/types'
 import { findPreset } from '../data/theme-presets'
 import { resolveBackground } from '../utils/colors'
+import { modKey } from '../utils/platform'
 
 type ContextPanelKind = 'cwd' | 'cmd' | 'theme' | 'move'
 type DropZone = DropPosition | 'center'
@@ -413,6 +414,11 @@ export function Pane({
 					isEditing={isEditing}
 					editInputProps={inputProps}
 					snippetDropdown={<SnippetDropdown paneId={paneId} />}
+					shortcuts={{
+						splitV: `${modKey}+D`,
+						splitH: `${modKey}+Shift+D`,
+						close: `${modKey}+W`,
+					}}
 				/>
 
 				{showContext && (

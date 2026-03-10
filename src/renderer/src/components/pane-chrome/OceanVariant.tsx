@@ -16,6 +16,7 @@ function StatusBar({
 	isEditing,
 	editInputProps,
 	snippetDropdown,
+	shortcuts,
 }: StatusBarProps) {
 	const glowColor = theme.glow ?? theme.accent
 	return (
@@ -52,7 +53,7 @@ function StatusBar({
 			{branch && (
 				<output
 					aria-label={`Git branch: ${branch}`}
-					className="shrink-0 max-w-[140px] text-[10px] px-2 py-px rounded-md overflow-hidden text-ellipsis whitespace-nowrap"
+					className="shrink-0 max-w-[200px] text-[10px] px-2 py-px rounded-md overflow-hidden text-ellipsis whitespace-nowrap"
 					title={branch}
 					style={{
 						backgroundColor: `${theme.accent}22`,
@@ -69,7 +70,7 @@ function StatusBar({
 				<button
 					type="button"
 					onClick={onSplitVertical}
-					title="Split vertical"
+					title={`Split vertical (${shortcuts.splitV})`}
 					aria-label="Split pane vertically"
 					className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none ${FOCUS_VIS}`}
 					style={{ color: theme.accent }}
@@ -79,7 +80,7 @@ function StatusBar({
 				<button
 					type="button"
 					onClick={onSplitHorizontal}
-					title="Split horizontal"
+					title={`Split horizontal (${shortcuts.splitH})`}
 					aria-label="Split pane horizontally"
 					className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none ${FOCUS_VIS}`}
 					style={{ color: theme.accent }}
@@ -90,7 +91,7 @@ function StatusBar({
 					<button
 						type="button"
 						onClick={onClose}
-						title="Close pane"
+						title={`Close pane (${shortcuts.close})`}
 						aria-label="Close pane"
 						className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none ${FOCUS_VIS}`}
 						style={{ color: theme.accent }}
