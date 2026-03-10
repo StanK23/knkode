@@ -115,7 +115,6 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 			aria-label="Scroll to bottom"
 			className={`absolute bottom-3 left-1/4 right-1/4 z-10 h-8 rounded-full flex items-center justify-center text-xs cursor-pointer hover:brightness-110 ${FOCUS_VIS}`}
 			style={{
-				backgroundColor: `${theme.background}dd`,
 				color: theme.foreground,
 				border: `1px solid ${theme.accent}66`,
 				background: `linear-gradient(135deg, ${theme.accent}11, ${glowColor}11), ${theme.background}dd`,
