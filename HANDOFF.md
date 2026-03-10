@@ -49,8 +49,8 @@ Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 7. PR: `feature/pane-chrome-variants` — Morphing status bar with 16 theme variants + scroll buttons
 
 ## What's Next
-Implement morphing status bar — see `docs/plans/2026-03-11-morphing-status-bar-plan.md`
-- Task 2: New PR `feature/pane-chrome-variants` — variant architecture + 16 unique status bars + scroll buttons
+- PR #86 ready for merge: morphing pane status bar with 16 theme variants. 9-agent review complete, all must-fix items addressed.
+- Future: Add interactive branch switching dropdown + cwd click-to-navigate (new IPC features)
 
 ## Remaining Work
 - Fix TUI scroll-jumping-to-top bug
