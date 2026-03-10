@@ -1,7 +1,7 @@
 # HANDOFF
 
 ## Current State
-- Branch: `dev/theming` (theming rework base)
+- Branch: `feature/tab-bar-redesign` (from `dev/theming`)
 - `dev/agent-workspace` branch preserved with all rendered view work (PRs #58-75)
 - Active plan: Theming Rework Phase 2 (knktx board: 6acd4876)
 
@@ -42,8 +42,8 @@ Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 1. ~~PR #81: `feature/effect-levels` — EffectLevel type, segmented button UI, opacity scaling~~ (merged)
 2. ~~PR #82: `fix/effect-rescale-blur` — Rescale dim/opacity, extract shared constants~~ (merged)
 3. ~~PR #83: `feature/identity-themes-v2` — 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic)~~ (merged)
-4. PR: `docs/theming-guide-v2` — Update THEMING.md for levels + new themes
-5. PR: `feature/tab-bar-redesign` — Colored workspace tabs, wider default, dynamic sizing, count badges
+4. ~~Docs update committed directly on `dev/theming` — user overrides + legacy migration sections~~ (done)
+5. PR #84: `feature/tab-bar-redesign` — Colored workspace tabs, wider default, dynamic sizing, count badges. 9-agent review, all findings fixed.
 6. PR: `feature/pane-status-bar` — Pane header with cwd path, git branch badge
 
 ## Remaining Work
