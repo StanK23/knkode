@@ -38,7 +38,7 @@ The rendered agent view (stream-json parsing, custom chat UI) works but carries 
 4. ~~PR #79: Theming guide~~ (merged)
 5. ~~PR #80: Visual effects — gradients, glow, scanlines~~ (merged)
 
-## Theming Rework — Phase 2 (In Progress)
+## Theming Rework — Phase 2 (Complete)
 Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 
 1. ~~PR #81: `feature/effect-levels` — EffectLevel type, segmented button UI, opacity scaling~~ (merged)
@@ -50,8 +50,8 @@ Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 7. ~~PR #86: `feature/pane-chrome-variants` — Morphing status bar with 16 theme variants + scroll buttons. 9-agent review, all findings fixed.~~ (merged)
 
 ## What's Next
-- Add interactive branch switching dropdown (new IPC features)
-- Add cwd click-to-navigate in status bar (new IPC features)
+- Implement PR badge — see `docs/plans/2026-03-11-pr-badge-plan.md`
+- Future: interactive branch switching dropdown + cwd click-to-navigate (new IPC features)
 
 ## Remaining Work
 - Fix TUI scroll-jumping-to-top bug

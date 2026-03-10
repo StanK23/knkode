@@ -106,6 +106,14 @@ src/
 - **All animations CSS-only** — transitions, box-shadow, opacity, clip-path. No JS animation.
 - Design: `docs/plans/2026-03-11-morphing-status-bar-design.md`
 
+### PR Badge in Status Bar (2026-03-11)
+- **Clickable PR number** (`#86`) in pane status bar when branch has an open GitHub PR
+- **Detection**: `gh pr view --json number,url,title` — triggered on branch change + 60s refresh
+- **Click**: Opens PR URL in browser via `APP_OPEN_EXTERNAL` IPC (validates `https://`)
+- **Graceful degradation**: No badge if `gh` not installed, not authenticated, or no PR exists
+- **Each variant** styles the PR badge to match its theme aesthetic
+- Design: `docs/plans/2026-03-11-pr-badge-design.md`
+
 ### IPC Pattern
 - Main ↔ Renderer via Electron IPC (contextBridge)
 - Channel names in `IPC` const object (`src/shared/types.ts`)
