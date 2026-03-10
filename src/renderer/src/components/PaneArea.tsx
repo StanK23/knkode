@@ -84,7 +84,7 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 					onClose={handleClose}
 					canClose={paneCount > 1}
 					branch={paneBranches[node.paneId] ?? null}
-				pr={panePrs[node.paneId] ?? null}
+					pr={panePrs[node.paneId] ?? null}
 					isFocused={focusedPaneId === node.paneId}
 					focusGeneration={focusGeneration}
 					onFocus={setFocusedPane}
