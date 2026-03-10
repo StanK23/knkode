@@ -1,18 +1,6 @@
 import { registerVariant } from '.'
+import { FOCUS_VIS, FolderIcon } from './shared'
 import type { PaneVariant, ScrollButtonProps, StatusBarProps } from './types'
-
-const FOCUS_VIS = 'focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none'
-
-const FOLDER_ICON = (
-	<svg
-		viewBox="0 0 16 16"
-		fill="currentColor"
-		aria-hidden="true"
-		className="w-3 h-3 shrink-0 opacity-50"
-	>
-		<path d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2c-.33-.44-.85-.7-1.4-.7Z" />
-	</svg>
-)
 
 function StatusBar({
 	label,
@@ -51,7 +39,7 @@ function StatusBar({
 			)}
 
 			<span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap opacity-50 flex items-center gap-1 text-[10px]">
-				{FOLDER_ICON}
+				<FolderIcon className="opacity-50" />
 				{cwd}
 			</span>
 

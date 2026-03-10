@@ -1,7 +1,6 @@
 import { registerVariant } from '.'
+import { FOCUS_VIS } from './shared'
 import type { PaneVariant, ScrollButtonProps, StatusBarProps } from './types'
-
-const FOCUS_VIS = 'focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none'
 
 function StatusBar({
 	label,
