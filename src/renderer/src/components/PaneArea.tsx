@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import 'allotment/dist/style.css'
 import type { LayoutNode, PaneConfig, Workspace } from '../../../shared/types'
 import { isLayoutBranch } from '../../../shared/types'
-import { getPaneIdsInOrder, useStore } from '../store'
+import { useStore } from '../store'
 import { Pane } from './Pane'
 import { disposeTerminal } from './Terminal'
 
@@ -20,10 +20,6 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 	const setFocusedPane = useStore((s) => s.setFocusedPane)
 	const paneBranches = useStore((s) => s.paneBranches)
 	const paneCount = Object.keys(workspace.panes).length
-	const paneIndexMap = useMemo(() => {
-		const order = getPaneIdsInOrder(workspace.layout.tree)
-		return new Map(order.map((id, i) => [id, i + 1]))
-	}, [workspace.layout.tree])
 
 	// Dispose cached terminals for panes that were removed (close pane).
 	// Needed because the terminal cache is module-level and outlives the React
@@ -76,7 +72,6 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 				<Pane
 					key={node.paneId}
 					paneId={node.paneId}
-					paneIndex={paneIndexMap.get(node.paneId) ?? 1}
 					workspaceId={workspace.id}
 					config={config}
 					workspaceTheme={workspace.theme}
