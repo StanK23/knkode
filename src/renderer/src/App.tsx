@@ -54,7 +54,8 @@ export function App() {
 	// Listen for git branch changes from the main process
 	useEffect(() => {
 		const unsubscribe = window.api.onPtyBranchChanged((paneId, branch) => {
-			updatePaneBranch(paneId, branch)
+			const ws = useStore.getState().workspaces.find((w) => paneId in w.panes)
+			if (ws) updatePaneBranch(paneId, branch)
 		})
 		return unsubscribe
 	}, [updatePaneBranch])
