@@ -29,7 +29,7 @@ function StatusBar({
 					: `linear-gradient(90deg, ${theme.accent}44, ${glowColor}44, ${theme.accent}44) 1`,
 			}}
 		>
-			{/* Row 1: label, cwd */}
+			{/* Row 1: label, cwd, snippet, actions */}
 			<div
 				className="flex items-center gap-2 text-[11px] tracking-wider font-light pt-1"
 				style={{ color: theme.foreground }}
@@ -60,10 +60,9 @@ function StatusBar({
 				>
 					{cwd}
 				</span>
-			</div>
 
-			{/* Row 2: action buttons + snippet + git branch */}
-			<div className="flex items-center gap-1.5 py-1">
+				{snippetDropdown}
+
 				<button
 					type="button"
 					onClick={onSplitVertical}
@@ -105,15 +104,14 @@ function StatusBar({
 						CLOSE ✕
 					</button>
 				)}
+			</div>
 
-				{snippetDropdown}
-
-				<span className="flex-1" />
-
-				{branch && (
+			{/* Row 2: git branch */}
+			{branch && (
+				<div className="flex items-center py-1">
 					<output
 						aria-label={`Git branch: ${branch}`}
-						className="shrink-0 max-w-[200px] text-[10px] font-medium px-3 py-0.5 rounded-full overflow-hidden text-ellipsis whitespace-nowrap"
+						className="text-[10px] font-medium px-3 py-0.5 rounded-full overflow-hidden text-ellipsis whitespace-nowrap"
 						title={branch}
 						style={{
 							background: `linear-gradient(135deg, ${theme.accent}, ${glowColor})`,
@@ -123,8 +121,8 @@ function StatusBar({
 					>
 						{branch}
 					</output>
-				)}
-			</div>
+				</div>
+			)}
 		</div>
 	)
 }

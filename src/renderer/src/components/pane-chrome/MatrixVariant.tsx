@@ -51,7 +51,7 @@ function StatusBar({
 			{branch && (
 				<output
 					aria-label={`Git branch: ${branch}`}
-					className="shrink-0 max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap opacity-80"
+					className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap opacity-80"
 					title={branch}
 				>
 					<span className="mx-1 opacity-40">|</span>[{branch}]
