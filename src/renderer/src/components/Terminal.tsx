@@ -583,8 +583,7 @@ export function TerminalView({
 	}, [mergedTheme])
 
 	// Pre-compute effect multipliers with runtime validation for deserialized config values
-	const mul = (level: unknown) =>
-		EFFECT_MULTIPLIERS[isEffectLevel(level) ? level : 'off']
+	const mul = (level: unknown) => EFFECT_MULTIPLIERS[isEffectLevel(level) ? level : 'off']
 	const gradientMul = mul(mergedTheme.gradientLevel)
 	const glowMul = mul(mergedTheme.glowLevel)
 	const scanlineMul = mul(mergedTheme.scanlineLevel)
@@ -606,20 +605,20 @@ export function TerminalView({
 
 	// Scrollbar accent — set CSS custom property on wrapper
 	const scrollbarColor =
-		scrollbarMul > 0 && effectGlow
-			? hexToRgba(effectGlow, 0.4 + 0.6 * scrollbarMul)
-			: undefined
+		scrollbarMul > 0 && effectGlow ? hexToRgba(effectGlow, 0.4 + 0.6 * scrollbarMul) : undefined
 
 	return (
 		<div
 			ref={wrapperRef}
 			className={`relative w-full h-full p-1.5${scrollbarColor ? ' scrollbar-accent' : ''}`}
-			style={{
-				backgroundColor: wrapperBg,
-				backdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
-				WebkitBackdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
-				'--scrollbar-accent-color': scrollbarColor,
-			} as React.CSSProperties}
+			style={
+				{
+					backgroundColor: wrapperBg,
+					backdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
+					WebkitBackdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
+					'--scrollbar-accent-color': scrollbarColor,
+				} as React.CSSProperties
+			}
 		>
 			{gradientMul > 0 && effectGradient && isValidGradient(effectGradient) && (
 				<div

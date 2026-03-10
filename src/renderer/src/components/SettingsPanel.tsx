@@ -35,7 +35,12 @@ import { LayoutPicker } from './LayoutPicker'
 import { SettingsSection } from './SettingsSection'
 
 /** Numeric values for the EffectLevel-based dim and opacity controls. */
-const DIM_VALUES: Record<EffectLevel, number> = { off: 0, subtle: 0.3, medium: 0.6, intense: MAX_UNFOCUSED_DIM }
+const DIM_VALUES: Record<EffectLevel, number> = {
+	off: 0,
+	subtle: 0.3,
+	medium: 0.6,
+	intense: MAX_UNFOCUSED_DIM,
+}
 const OPACITY_VALUES: Record<EffectLevel, number> = {
 	off: 1.0,
 	subtle: 0.7,
