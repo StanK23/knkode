@@ -16,6 +16,7 @@ export function App() {
 	const workspaces = useStore((s) => s.workspaces)
 	const appState = useStore((s) => s.appState)
 	const updatePaneCwd = useStore((s) => s.updatePaneCwd)
+	const updatePaneBranch = useStore((s) => s.updatePaneBranch)
 	const visitedWorkspaceIds = useStore((s) => s.visitedWorkspaceIds)
 
 	const [showSettings, setShowSettings] = useState(false)
@@ -49,6 +50,14 @@ export function App() {
 		})
 		return unsubscribe
 	}, [updatePaneCwd])
+
+	// Listen for git branch changes from the main process
+	useEffect(() => {
+		const unsubscribe = window.api.onPtyBranchChanged((paneId, branch) => {
+			updatePaneBranch(paneId, branch)
+		})
+		return unsubscribe
+	}, [updatePaneBranch])
 
 	// Must be above early returns to satisfy React's rules of hooks
 	const themeStyles = useMemo(() => {
