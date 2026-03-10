@@ -163,6 +163,13 @@ export interface Snippet {
 	readonly command: string
 }
 
+/** PR info for a pane's current branch. */
+export interface PrInfo {
+	readonly number: number
+	readonly url: string
+	readonly title: string
+}
+
 // IPC channel names
 export const IPC = {
 	// Config
@@ -187,6 +194,7 @@ export const IPC = {
 	PTY_EXIT: 'pty:exit',
 	PTY_CWD_CHANGED: 'pty:cwd-changed',
 	PTY_BRANCH_CHANGED: 'pty:branch-changed',
+	PTY_PR_CHANGED: 'pty:pr-changed',
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
