@@ -226,9 +226,7 @@ export const THEME_PRESETS = [
 		gradientLevel: 'medium',
 		glowLevel: 'medium',
 		scanlineLevel: 'subtle',
-
 		noiseLevel: 'subtle',
-
 		scrollbarAccent: 'medium',
 		cursorColor: '#00ff41',
 		selectionColor: '#00ff41',
