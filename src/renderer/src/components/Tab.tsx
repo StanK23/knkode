@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import type { Workspace } from '../../../shared/types'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useInlineEdit } from '../hooks/useInlineEdit'
@@ -7,6 +7,7 @@ interface TabProps {
 	workspace: Workspace
 	isActive: boolean
 	index: number
+	paneCount: number
 	onActivate: (id: string) => void
 	onClose: (id: string) => void
 	onRename: (id: string, name: string) => void
@@ -25,6 +26,7 @@ export function Tab({
 	workspace,
 	isActive,
 	index,
+	paneCount,
 	onActivate,
 	onClose,
 	onRename,
@@ -58,6 +60,17 @@ export function Tab({
 
 	useClickOutside(contextRef, closeContext, showContext)
 
+	const tabStyle = useMemo(() => {
+		const style: React.CSSProperties = {}
+		if (isActive) {
+			style.borderLeft = `3px solid ${workspace.color}`
+			style.background = `color-mix(in srgb, ${workspace.color} 8%, var(--color-overlay-active))`
+		} else {
+			style.borderLeft = '3px solid transparent'
+		}
+		return style
+	}, [isActive, workspace.color])
+
 	return (
 		<div
 			role="tab"
@@ -81,33 +94,51 @@ export function Tab({
 			onDragOver={(e) => onDragOver(e, index)}
 			onDrop={() => onDrop(index)}
 			onDragEnd={onDragEnd}
-			className={`flex items-center gap-1.5 px-3 h-tab cursor-pointer rounded-t-md select-none relative min-w-20 max-w-[180px] transition-colors duration-300 ease-[var(--ease-mechanical)] ${
-				isActive ? 'bg-overlay-active' : 'bg-overlay hover:bg-overlay-hover'
+			className={`group flex items-center gap-2 px-3 h-tab cursor-pointer rounded-t-md select-none relative transition-colors duration-300 ease-[var(--ease-mechanical)] flex-[0_1_200px] min-w-[100px] max-w-[240px] ${
+				isActive ? '' : 'bg-overlay hover:bg-overlay-hover'
 			} ${isDragOver ? 'shadow-[inset_2px_0_0_var(--color-accent)]' : ''} ${
 				isDragging ? 'opacity-40' : ''
 			}`}
-			style={{
-				borderBottom: isActive ? `2px solid ${workspace.color}` : '2px solid transparent',
-			}}
+			style={tabStyle}
 		>
+			{/* Color indicator dot */}
 			<span
 				aria-hidden="true"
-				className="w-2 h-2 rounded-full shrink-0"
+				className="w-2.5 h-2.5 rounded-full shrink-0"
 				style={{ background: workspace.color }}
 			/>
 
+			{/* Tab name */}
 			{isEditing ? (
 				<input
 					{...inputProps}
 					onClick={(e) => e.stopPropagation()}
-					className="bg-elevated border border-accent rounded-sm text-content text-xs py-px px-1 outline-none w-20"
+					className="bg-elevated border border-accent rounded-sm text-content text-xs py-px px-1 outline-none flex-1 min-w-0"
 				/>
 			) : (
-				<span className="text-content text-xs whitespace-nowrap overflow-hidden text-ellipsis">
+				<span
+					className={`text-xs whitespace-nowrap overflow-hidden text-ellipsis flex-1 min-w-0 ${
+						isActive ? 'text-content font-medium' : 'text-content-secondary'
+					}`}
+				>
 					{workspace.name}
 				</span>
 			)}
 
+			{/* Pane count badge */}
+			{paneCount > 1 && (
+				<span
+					className="text-[9px] leading-none font-medium px-1.5 py-0.5 rounded-full shrink-0"
+					style={{
+						background: `color-mix(in srgb, ${workspace.color} 20%, transparent)`,
+						color: workspace.color,
+					}}
+				>
+					{paneCount}
+				</span>
+			)}
+
+			{/* Close button — always visible on active, visible on hover for inactive */}
 			<button
 				type="button"
 				onClick={(e) => {
@@ -115,11 +146,25 @@ export function Tab({
 					onClose(workspace.id)
 				}}
 				aria-label={`Close ${workspace.name}`}
-				className="bg-transparent border-none text-content-muted cursor-pointer px-0.5 text-[10px] leading-none ml-auto shrink-0 hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+				className={`bg-transparent border-none text-content-muted cursor-pointer p-0.5 rounded-sm shrink-0 hover:text-content hover:bg-overlay focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none transition-all duration-200 ${
+					isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+				}`}
 			>
-				✕
+				<svg
+					width="12"
+					height="12"
+					viewBox="0 0 12 12"
+					fill="none"
+					stroke="currentColor"
+					strokeWidth="1.5"
+					strokeLinecap="round"
+					aria-hidden="true"
+				>
+					<path d="M3 3l6 6M9 3l-6 6" />
+				</svg>
 			</button>
 
+			{/* Context menu */}
 			{showContext && (
 				<div
 					ref={contextRef}

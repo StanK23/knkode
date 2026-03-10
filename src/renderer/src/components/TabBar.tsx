@@ -109,6 +109,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 						workspace={ws}
 						isActive={ws.id === appState.activeWorkspaceId}
 						index={i}
+						paneCount={Object.keys(ws.panes).length}
 						onActivate={setActiveWorkspace}
 						onClose={closeWorkspaceTab}
 						onRename={handleRename}
