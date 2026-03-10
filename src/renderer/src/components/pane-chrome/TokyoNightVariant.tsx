@@ -6,6 +6,8 @@ function StatusBar({
 	label,
 	cwd,
 	branch,
+	pr,
+	onOpenExternal,
 	isFocused,
 	canClose,
 	theme,
@@ -52,6 +54,19 @@ function StatusBar({
 				>
 					{branch}
 				</output>
+			)}
+
+			{pr && (
+				<button
+					type="button"
+					onClick={() => onOpenExternal(pr.url)}
+					title={pr.title}
+					aria-label={`Open PR #${pr.number}`}
+					className={`bg-transparent border-none text-[10px] font-light px-0.5 leading-none cursor-pointer ${FOCUS_VIS}`}
+					style={{ color: theme.accent }}
+				>
+					#{pr.number}
+				</button>
 			)}
 
 			<SnippetTrigger

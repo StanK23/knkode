@@ -7,6 +7,8 @@ function StatusBar({
 	label,
 	cwd,
 	branch,
+	pr,
+	onOpenExternal,
 	isFocused,
 	canClose,
 	onSplitVertical,
@@ -55,6 +57,18 @@ function StatusBar({
 					<GitIcon />
 					<span className="overflow-hidden text-ellipsis whitespace-nowrap">{branch}</span>
 				</output>
+			)}
+
+			{pr && (
+				<button
+					type="button"
+					onClick={() => onOpenExternal(pr.url)}
+					title={pr.title}
+					aria-label={`Open PR #${pr.number}`}
+					className={`bg-transparent border-none text-accent text-[10px] font-medium cursor-pointer px-0.5 leading-none hover:text-content ${FOCUS_VIS}`}
+				>
+					#{pr.number}
+				</button>
 			)}
 
 			<SnippetTrigger

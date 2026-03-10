@@ -6,6 +6,8 @@ function StatusBar({
 	label,
 	cwd,
 	branch,
+	pr,
+	onOpenExternal,
 	isFocused,
 	canClose,
 	theme,
@@ -114,21 +116,39 @@ function StatusBar({
 				)}
 			</div>
 
-			{/* Row 2: git branch */}
-			{branch && (
-				<div className="flex items-center py-1">
-					<output
-						aria-label={`Git branch: ${branch}`}
-						className="text-[10px] font-medium px-3 py-0.5 rounded-full overflow-hidden text-ellipsis whitespace-nowrap"
-						title={branch}
-						style={{
-							background: `linear-gradient(135deg, ${theme.accent}, ${glowColor})`,
-							color: theme.background,
-							boxShadow: isFocused ? `0 0 8px ${glowColor}44` : 'none',
-						}}
-					>
-						{branch}
-					</output>
+			{/* Row 2: git branch + PR */}
+			{(branch || pr) && (
+				<div className="flex items-center gap-1.5 py-1">
+					{branch && (
+						<output
+							aria-label={`Git branch: ${branch}`}
+							className="text-[10px] font-medium px-3 py-0.5 rounded-full overflow-hidden text-ellipsis whitespace-nowrap"
+							title={branch}
+							style={{
+								background: `linear-gradient(135deg, ${theme.accent}, ${glowColor})`,
+								color: theme.background,
+								boxShadow: isFocused ? `0 0 8px ${glowColor}44` : 'none',
+							}}
+						>
+							{branch}
+						</output>
+					)}
+					{pr && (
+						<button
+							type="button"
+							onClick={() => onOpenExternal(pr.url)}
+							title={pr.title}
+							aria-label={`Open PR #${pr.number}`}
+							className={`text-[10px] font-medium px-3 py-0.5 rounded-full cursor-pointer border-none hover:brightness-110 transition-all ${FOCUS_VIS}`}
+							style={{
+								background: `linear-gradient(135deg, ${theme.accent}, ${glowColor})`,
+								color: theme.background,
+								boxShadow: isFocused ? `0 0 8px ${glowColor}44` : 'none',
+							}}
+						>
+							#{pr.number}
+						</button>
+					)}
 				</div>
 			)}
 		</div>

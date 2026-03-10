@@ -6,6 +6,8 @@ function StatusBar({
 	label,
 	cwd,
 	branch,
+	pr,
+	onOpenExternal,
 	isFocused,
 	canClose,
 	theme,
@@ -60,6 +62,24 @@ function StatusBar({
 				>
 					{branch}
 				</output>
+			)}
+
+			{pr && (
+				<button
+					type="button"
+					onClick={() => onOpenExternal(pr.url)}
+					title={pr.title}
+					aria-label={`Open PR #${pr.number}`}
+					className={`text-[10px] tracking-wider font-light px-2 py-px cursor-pointer opacity-40 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
+					style={{
+						border: `1px solid ${theme.accent}44`,
+						color: theme.foreground,
+						borderRadius: 0,
+						backgroundColor: 'transparent',
+					}}
+				>
+					#{pr.number}
+				</button>
 			)}
 
 			<span className="opacity-20" style={{ color: theme.accent }}>
