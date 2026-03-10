@@ -1,18 +1,19 @@
 # HANDOFF
 
 ## Current State
-- Branch: `feature/identity-themes-v2` (from dev/theming)
+- Branch: `dev/theming` (theming rework base)
 - `dev/agent-workspace` branch preserved with all rendered view work (PRs #58-75)
 - Active plan: Theming Rework Phase 2 (knktx board: 6acd4876)
 
 ## What Was Done
-- PR #82 merged (fix/effect-rescale-blur → dev/theming): Rescaled dim (intense 0.5→0.9) and opacity (intense 0.5→0.05), raised Pane.tsx dim clamp to match, extracted MAX_UNFOCUSED_DIM/MIN_PANE_OPACITY as shared constants, fixed closestLevel tie-breaking
-- PR #81 merged (feature/effect-levels → dev/theming): Configurable effect levels with SegmentedButton UI — EffectLevel type (off/subtle/medium/intense), dim/opacity as segmented buttons, noise overlay, scrollbar accent, cursor/selection colors from presets, line height control, removed glow-pulse animation for performance
+- PR #83 merged (feature/identity-themes-v2 → dev/theming): 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic) with full ANSI palettes, effect levels, cursor/selection colors. Also fixed stale THEMING.md docs. 5-agent review, all findings fixed.
+- PR #82 merged: Rescaled dim/opacity, extracted shared constants
+- PR #81 merged: Configurable effect levels with SegmentedButton UI
 - PR #80 merged: Visual effects for identity themes — gradients, glow, scanlines
 - PR #79 merged: Theming guide for contributors
-- PR #78 merged (feature/theme-presets → dev/theming): Trimmed 16 presets to 11 most distinct. Added 3 identity themes (Matrix, Cyberpunk, Solana) with full ANSI palettes, accent, glow. 8-agent review, all findings fixed.
-- PR #77 merged (feature/theme-engine → dev/theming): Deep theming engine — ANSI 16-color palettes, per-theme accent/glow CSS vars, preset-based selection. 10-agent review, all findings fixed.
-- PR #76 merged (feature/settings-tabs → dev/theming): Settings panel split into Workspace/Terminal tabs with full ARIA compliance
+- PR #78 merged: Theme presets — 11 distinct identities with full ANSI palettes
+- PR #77 merged: Theme engine — ANSI 16-color palettes, per-theme accent/glow CSS vars
+- PR #76 merged: Settings panel tabs with ARIA compliance
 - CI workflow disabled (.github/workflows/ci.yml.disabled)
 - PR #75 merged to dev/agent-workspace: Status bar layout (static + dynamic streaming bar), context gauge, token formatting, prompt caching support, isResponding turn-level tracking
 - PR #74 merged: Status bar model/tokens + inline block token badges
@@ -40,7 +41,7 @@ Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 
 1. ~~PR #81: `feature/effect-levels` — EffectLevel type, segmented button UI, opacity scaling~~ (merged)
 2. ~~PR #82: `fix/effect-rescale-blur` — Rescale dim/opacity, extract shared constants~~ (merged)
-3. PR #83: `feature/identity-themes-v2` — 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic) ← **review complete, fixes applied**
+3. ~~PR #83: `feature/identity-themes-v2` — 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic)~~ (merged)
 4. PR: `docs/theming-guide-v2` — Update THEMING.md for levels + new themes
 5. PR: `feature/tab-bar-redesign` — Colored workspace tabs, wider default, dynamic sizing, count badges
 6. PR: `feature/pane-status-bar` — Pane header with cwd path, git branch badge
