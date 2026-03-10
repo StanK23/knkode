@@ -66,10 +66,9 @@ function initThemeInput(override: Partial<PaneTheme> | null): ThemeInputFields {
 
 interface SnippetDropdownProps {
 	paneId: string
-	theme?: VariantTheme
 }
 
-function SnippetDropdown({ paneId, theme }: SnippetDropdownProps) {
+function SnippetDropdown({ paneId }: SnippetDropdownProps) {
 	const [open, setOpen] = useState(false)
 	const ref = useRef<HTMLDivElement>(null)
 	const menuRef = useRef<HTMLDivElement>(null)
@@ -121,8 +120,13 @@ function SnippetDropdown({ paneId, theme }: SnippetDropdownProps) {
 				aria-label="Quick commands"
 				aria-expanded={open}
 				aria-haspopup="true"
-				className="bg-transparent border-none cursor-pointer px-0.5 text-[11px] leading-none opacity-50 hover:opacity-100 transition-opacity focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
-				style={theme ? { color: theme.accent } : undefined}
+				className="bg-transparent border-none cursor-pointer px-0.5 leading-none opacity-50 hover:opacity-100 transition-opacity focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+				style={{
+					color: 'inherit',
+					font: 'inherit',
+					letterSpacing: 'inherit',
+					textTransform: 'inherit' as const,
+				}}
 			>
 				&gt;_
 			</button>
@@ -418,7 +422,7 @@ export function Pane({
 					onDoubleClickLabel={startEditing}
 					isEditing={isEditing}
 					editInputProps={inputProps}
-					snippetDropdown={<SnippetDropdown paneId={paneId} theme={variantTheme} />}
+					snippetDropdown={<SnippetDropdown paneId={paneId} />}
 					shortcuts={{
 						splitV: `${modKey}+D`,
 						splitH: `${modKey}+Shift+D`,
