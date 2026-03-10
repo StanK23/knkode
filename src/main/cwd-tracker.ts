@@ -12,6 +12,7 @@ let intervalId: ReturnType<typeof setInterval> | null = null
 let gitMissing = false // Log ENOENT only once to avoid spamming
 let ghMissing = false // Log ENOENT only once for gh CLI
 
+// Avoid hammering the gh CLI; PRs change infrequently
 const PR_REFRESH_INTERVAL_MS = 60_000
 
 /** Run `git rev-parse --abbrev-ref HEAD` in a directory.
@@ -91,6 +92,7 @@ function checkPrStatus(cwd: string, callback: (pr: PrInfo | null) => void): void
 	)
 }
 
+/** Re-fetch PR status on branch change or every PR_REFRESH_INTERVAL_MS. */
 function shouldCheckPr(paneId: string, branchChanged: boolean): boolean {
 	if (branchChanged) return true
 	const lastChecked = prLastChecked.get(paneId) ?? 0
@@ -113,7 +115,7 @@ export function untrackPane(paneId: string): void {
 export function startCwdTracking(): void {
 	if (intervalId) return
 
-	// 3s balances UI responsiveness against lsof + git subprocess cost per pane
+	// 3s balances UI responsiveness against lsof + git + gh subprocess cost per pane
 	intervalId = setInterval(() => {
 		for (const [paneId, lastCwd] of trackedPanes) {
 			try {

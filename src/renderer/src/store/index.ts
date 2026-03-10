@@ -941,6 +941,7 @@ export const useStore = create<StoreState>((set, get) => ({
 
 	updatePanePr: (paneId, pr) => {
 		set((state) => {
+			// PR number is the stable identity; title/url changes within a poll cycle are negligible
 			if (state.panePrs[paneId]?.number === pr?.number) return state
 			return { panePrs: { ...state.panePrs, [paneId]: pr } }
 		})
