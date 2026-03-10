@@ -321,7 +321,9 @@ export function Pane({
 	)
 
 	const handleOpenExternal = useCallback((url: string) => {
-		window.api.openExternal(url)
+		window.api.openExternal(url).catch((err: unknown) => {
+			console.error('[pane] Failed to open URL:', url, err)
+		})
 	}, [])
 
 	const PaneSnippetTrigger = useCallback(
