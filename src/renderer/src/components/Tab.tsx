@@ -1,7 +1,9 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { Workspace } from '../../../shared/types'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useInlineEdit } from '../hooks/useInlineEdit'
+
+const INACTIVE_TAB_STYLE: React.CSSProperties = { borderLeft: '3px solid transparent' }
 
 interface TabProps {
 	workspace: Workspace
@@ -60,16 +62,19 @@ export function Tab({
 
 	useClickOutside(contextRef, closeContext, showContext)
 
-	const tabStyle = useMemo(() => {
-		const style: React.CSSProperties = {}
-		if (isActive) {
-			style.borderLeft = `3px solid ${workspace.color}`
-			style.background = `color-mix(in srgb, ${workspace.color} 8%, var(--color-overlay-active))`
-		} else {
-			style.borderLeft = '3px solid transparent'
-		}
-		return style
-	}, [isActive, workspace.color])
+	const tabStyle: React.CSSProperties = isActive
+		? {
+				borderLeft: `3px solid ${workspace.color}`,
+				background: `color-mix(in srgb, ${workspace.color} 8%, var(--color-overlay-active))`,
+			}
+		: INACTIVE_TAB_STYLE
+
+	const bgClass = isActive ? '' : 'bg-overlay hover:bg-overlay-hover'
+	const dragOverClass = isDragOver ? 'shadow-[inset_2px_0_0_var(--color-accent)]' : ''
+	const draggingClass = isDragging ? 'opacity-40' : ''
+	const closeVisibility = isActive
+		? 'opacity-100'
+		: 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100'
 
 	return (
 		<div
@@ -114,11 +119,7 @@ export function Tab({
 			onDragOver={(e) => onDragOver(e, index)}
 			onDrop={() => onDrop(index)}
 			onDragEnd={onDragEnd}
-			className={`group flex items-center gap-2 px-3 h-tab cursor-pointer rounded-t-md select-none relative transition-colors duration-300 ease-[var(--ease-mechanical)] flex-[0_1_200px] min-w-[100px] max-w-[240px] ${
-				isActive ? '' : 'bg-overlay hover:bg-overlay-hover'
-			} ${isDragOver ? 'shadow-[inset_2px_0_0_var(--color-accent)]' : ''} ${
-				isDragging ? 'opacity-40' : ''
-			}`}
+			className={`group flex items-center gap-2 px-3 h-tab cursor-pointer rounded-t-md select-none relative transition-colors duration-300 ease-[var(--ease-mechanical)] flex-[0_1_200px] min-w-[100px] max-w-[240px] ${bgClass} ${dragOverClass} ${draggingClass}`}
 			style={tabStyle}
 		>
 			{/* Color indicator dot */}
@@ -167,11 +168,7 @@ export function Tab({
 					onClose(workspace.id)
 				}}
 				aria-label={`Close ${workspace.name}`}
-				className={`bg-transparent border-none text-content-muted cursor-pointer p-0.5 rounded-sm shrink-0 hover:text-content hover:bg-overlay focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none transition-all duration-200 ${
-					isActive
-						? 'opacity-100'
-						: 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100'
-				}`}
+				className={`bg-transparent border-none text-content-muted cursor-pointer p-0.5 rounded-sm shrink-0 hover:text-content hover:bg-overlay focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none transition-all duration-200 ${closeVisibility}`}
 			>
 				<svg
 					width="12"
