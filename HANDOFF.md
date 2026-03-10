@@ -6,6 +6,7 @@
 - Active plan: Theming Rework (knktx board: 6acd4876)
 
 ## What Was Done
+- PR #82 merged (fix/effect-rescale-blur → dev/theming): Rescaled dim (intense 0.5→0.9) and opacity (intense 0.5→0.05), raised Pane.tsx dim clamp to match, extracted MAX_UNFOCUSED_DIM/MIN_PANE_OPACITY as shared constants, fixed closestLevel tie-breaking
 - PR #81 merged (feature/effect-levels → dev/theming): Configurable effect levels with SegmentedButton UI — EffectLevel type (off/subtle/medium/intense), dim/opacity as segmented buttons, noise overlay, scrollbar accent, cursor/selection colors from presets, line height control, removed glow-pulse animation for performance
 - PR #80 merged: Visual effects for identity themes — gradients, glow, scanlines
 - PR #79 merged: Theming guide for contributors
@@ -38,10 +39,11 @@ The rendered agent view (stream-json parsing, custom chat UI) works but carries 
 Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 
 1. ~~PR #81: `feature/effect-levels` — EffectLevel type, segmented button UI, opacity scaling~~ (merged)
-2. PR: `feature/identity-themes-v2` — 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic)
-3. PR: `docs/theming-guide-v2` — Update THEMING.md for levels + new themes
-4. PR: `feature/tab-bar-redesign` — Colored workspace tabs, wider default, dynamic sizing, count badges
-5. PR: `feature/pane-status-bar` — Pane header with cwd path, git branch badge
+2. ~~PR #82: `fix/effect-rescale-blur` — Rescale dim/opacity, extract shared constants~~ (merged)
+3. PR: `feature/identity-themes-v2` — 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic)
+4. PR: `docs/theming-guide-v2` — Update THEMING.md for levels + new themes
+5. PR: `feature/tab-bar-redesign` — Colored workspace tabs, wider default, dynamic sizing, count badges
+6. PR: `feature/pane-status-bar` — Pane header with cwd path, git branch badge
 
 ## Remaining Work
 - Fix TUI scroll-jumping-to-top bug
