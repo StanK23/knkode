@@ -9,6 +9,7 @@ interface TabProps {
 	workspace: Workspace
 	isActive: boolean
 	index: number
+	/** Number of panes in this workspace. Always >= 1. Badge shown when > 1. */
 	paneCount: number
 	onActivate: (id: string) => void
 	onClose: (id: string) => void

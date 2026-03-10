@@ -209,7 +209,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 								>
 									<span
 										aria-hidden="true"
-										className="w-2 h-2 rounded-full shrink-0"
+										className="w-2.5 h-2.5 rounded-full shrink-0"
 										style={{ background: ws.color }}
 									/>
 									{ws.name}
