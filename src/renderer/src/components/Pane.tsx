@@ -47,6 +47,7 @@ import { FontPicker } from './FontPicker'
 import { TerminalView } from './Terminal'
 import { getVariant } from './pane-chrome'
 import type { VariantTheme } from './pane-chrome'
+import { buildVariantTheme } from './pane-chrome/shared'
 
 interface ThemeInputFields {
 	background: string
@@ -294,12 +295,15 @@ export function Pane({
 	const preset = workspaceTheme.preset ? findPreset(workspaceTheme.preset) : undefined
 	const variant = getVariant(workspaceTheme.preset)
 	const variantTheme = useMemo<VariantTheme>(
-		() => ({
-			background: workspaceTheme.background,
-			foreground: workspaceTheme.foreground,
-			accent: workspaceTheme.accent ?? preset?.accent ?? '#888888',
-			glow: workspaceTheme.glow ?? preset?.glow,
-		}),
+		() =>
+			buildVariantTheme({
+				background: workspaceTheme.background,
+				foreground: workspaceTheme.foreground,
+				accent: workspaceTheme.accent,
+				glow: workspaceTheme.glow,
+				presetAccent: preset?.accent,
+				presetGlow: preset?.glow,
+			}),
 		[
 			workspaceTheme.background,
 			workspaceTheme.foreground,
@@ -717,7 +721,8 @@ export function Pane({
 					paneId={paneId}
 					theme={workspaceTheme}
 					themeOverride={config.themeOverride}
-					presetName={workspaceTheme.preset}
+					variant={variant}
+					variantTheme={variantTheme}
 					focusGeneration={focusGeneration}
 					isFocused={isFocused}
 					onFocus={handleFocus}

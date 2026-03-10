@@ -1,4 +1,23 @@
-/** Shared constants for pane-chrome variant components. */
+/** Shared constants and utilities for pane-chrome variant components. */
+
+import type { VariantTheme } from './types'
+
+/** Build a VariantTheme from workspace/preset colors with fallback accent. */
+export function buildVariantTheme(colors: {
+	background: string
+	foreground: string
+	accent?: string
+	glow?: string
+	presetAccent?: string
+	presetGlow?: string
+}): VariantTheme {
+	return {
+		background: colors.background,
+		foreground: colors.foreground,
+		accent: colors.accent ?? colors.presetAccent ?? DEFAULT_ACCENT,
+		glow: colors.glow ?? colors.presetGlow,
+	}
+}
 
 /** Focus-visible ring applied to interactive elements in all variants. */
 export const FOCUS_VIS = 'focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none'
