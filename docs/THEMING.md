@@ -184,7 +184,24 @@ Add to `THEME_PRESETS` in `src/renderer/src/data/theme-presets.ts`:
 - Scanlines use 25% opacity black lines at 4px pitch — visible on close inspection but invisible during focused work. Scanline overlay opacity is controlled by the effect level multiplier.
 - Noise uses a static grain texture at half the effect multiplier opacity (e.g., `noiseMul * 0.5`). Best for CRT aesthetics (phosphor grain) or painterly effects.
 
-### 6. Validation
+### 6. User overrides (segmented buttons)
+
+Preset effect levels are **defaults** — users can override each effect per-workspace via Settings → Terminal → Visual Effects. The UI renders a `SegmentedButton` for each effect (Gradient, Glow, Scanlines, Noise, plus Dim and Opacity for unfocused panes). Each button shows the four `EffectLevel` options left-to-right: Off / Subtle / Medium / Intense.
+
+When a user changes a level, the new value is stored in the workspace's `PaneTheme` in `config-store` and persists across sessions. The preset value is only used as the initial default when no override exists.
+
+### 7. Migration from legacy boolean fields
+
+Before the `EffectLevel` system (PR #81), effects used boolean fields: `animatedGlow: boolean` and `scanline: boolean`. The migration in `config-store.ts` (`migrateLegacyEffects`) handles this automatically on config load:
+
+- `animatedGlow: true` → `glowLevel: 'medium'` (only if no `glowLevel` already set)
+- `scanline: true` → `scanlineLevel: 'subtle'` (only if no `scanlineLevel` already set)
+- `false` values are silently dropped (equivalent to `'off'`)
+- Legacy fields are removed from the persisted config after migration
+
+No action needed from contributors — the migration runs once on load and is transparent.
+
+### 8. Validation
 
 All color values are validated:
 - `isValidHex()` accepts `#RGB`, `#RRGGBB`, or bare `RGB`/`RRGGBB`
