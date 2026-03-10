@@ -47,7 +47,7 @@ function closestLevel(value: number, map: Record<EffectLevel, number>): EffectLe
 	let bestDist = Number.POSITIVE_INFINITY
 	for (const [level, num] of Object.entries(map)) {
 		const dist = Math.abs(value - num)
-		if (dist < bestDist) {
+		if (dist <= bestDist) {
 			bestDist = dist
 			best = level as EffectLevel
 		}
