@@ -1,9 +1,9 @@
 # HANDOFF
 
 ## Current State
-- Branch: `dev/theming` (theming rework base)
+- Branch: `feature/identity-themes-v2` (from dev/theming)
 - `dev/agent-workspace` branch preserved with all rendered view work (PRs #58-75)
-- Active plan: Theming Rework (knktx board: 6acd4876)
+- Active plan: Theming Rework Phase 2 (knktx board: 6acd4876)
 
 ## What Was Done
 - PR #82 merged (fix/effect-rescale-blur → dev/theming): Rescaled dim (intense 0.5→0.9) and opacity (intense 0.5→0.05), raised Pane.tsx dim clamp to match, extracted MAX_UNFOCUSED_DIM/MIN_PANE_OPACITY as shared constants, fixed closestLevel tie-breaking
@@ -40,7 +40,7 @@ Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 
 1. ~~PR #81: `feature/effect-levels` — EffectLevel type, segmented button UI, opacity scaling~~ (merged)
 2. ~~PR #82: `fix/effect-rescale-blur` — Rescale dim/opacity, extract shared constants~~ (merged)
-3. PR: `feature/identity-themes-v2` — 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic)
+3. PR: `feature/identity-themes-v2` — 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic) ← **in progress**
 4. PR: `docs/theming-guide-v2` — Update THEMING.md for levels + new themes
 5. PR: `feature/tab-bar-redesign` — Colored workspace tabs, wider default, dynamic sizing, count badges
 6. PR: `feature/pane-status-bar` — Pane header with cwd path, git branch badge
