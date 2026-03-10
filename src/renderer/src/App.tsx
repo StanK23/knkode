@@ -17,6 +17,7 @@ export function App() {
 	const appState = useStore((s) => s.appState)
 	const updatePaneCwd = useStore((s) => s.updatePaneCwd)
 	const updatePaneBranch = useStore((s) => s.updatePaneBranch)
+	const updatePanePr = useStore((s) => s.updatePanePr)
 	const visitedWorkspaceIds = useStore((s) => s.visitedWorkspaceIds)
 
 	const [showSettings, setShowSettings] = useState(false)
@@ -59,6 +60,15 @@ export function App() {
 		})
 		return unsubscribe
 	}, [updatePaneBranch])
+
+	// Listen for PR status changes from the main process
+	useEffect(() => {
+		const unsubscribe = window.api.onPtyPrChanged((paneId, pr) => {
+			const ws = useStore.getState().workspaces.find((w) => paneId in w.panes)
+			if (ws) updatePanePr(paneId, pr)
+		})
+		return unsubscribe
+	}, [updatePanePr])
 
 	// Must be above early returns to satisfy React's rules of hooks
 	const themeStyles = useMemo(() => {

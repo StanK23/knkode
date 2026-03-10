@@ -1,4 +1,5 @@
 import type { RefObject } from 'react'
+import type { PrInfo } from '../../../../shared/types'
 
 /** Runtime theme colors available to every variant. */
 export interface VariantTheme {
@@ -13,6 +14,10 @@ export interface StatusBarProps {
 	label: string
 	cwd: string
 	branch: string | null
+	/** PR associated with the current branch, or null if no open PR. */
+	pr: PrInfo | null
+	/** Open a URL in the user's default browser. */
+	onOpenExternal: (url: string) => void
 	isFocused: boolean
 	canClose: boolean
 	theme: VariantTheme

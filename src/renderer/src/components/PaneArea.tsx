@@ -19,6 +19,7 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 	const focusGeneration = useStore((s) => s.focusGeneration)
 	const setFocusedPane = useStore((s) => s.setFocusedPane)
 	const paneBranches = useStore((s) => s.paneBranches)
+	const panePrs = useStore((s) => s.panePrs)
 	const paneCount = Object.keys(workspace.panes).length
 
 	// Dispose cached terminals for panes that were removed (close pane).
@@ -83,6 +84,7 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 					onClose={handleClose}
 					canClose={paneCount > 1}
 					branch={paneBranches[node.paneId] ?? null}
+				pr={panePrs[node.paneId] ?? null}
 					isFocused={focusedPaneId === node.paneId}
 					focusGeneration={focusGeneration}
 					onFocus={setFocusedPane}
