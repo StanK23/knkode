@@ -50,7 +50,7 @@ Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 7. ~~PR #86: `feature/pane-chrome-variants` — Morphing status bar with 16 theme variants + scroll buttons. 9-agent review, all findings fixed.~~ (merged)
 
 ## What's Next
-- Implement PR badge — see `docs/plans/2026-03-11-pr-badge-plan.md`
+- PR #87 (in progress): Clickable PR badge in pane status bar — `feature/pr-badge`
 - Future: interactive branch switching dropdown + cwd click-to-navigate (new IPC features)
 
 ## Remaining Work
