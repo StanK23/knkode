@@ -40,7 +40,7 @@ Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 
 1. ~~PR #81: `feature/effect-levels` — EffectLevel type, segmented button UI, opacity scaling~~ (merged)
 2. ~~PR #82: `fix/effect-rescale-blur` — Rescale dim/opacity, extract shared constants~~ (merged)
-3. PR: `feature/identity-themes-v2` — 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic) ← **in progress**
+3. PR #83: `feature/identity-themes-v2` — 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic) ← **review complete, fixes applied**
 4. PR: `docs/theming-guide-v2` — Update THEMING.md for levels + new themes
 5. PR: `feature/tab-bar-redesign` — Colored workspace tabs, wider default, dynamic sizing, count badges
 6. PR: `feature/pane-status-bar` — Pane header with cwd path, git branch badge
