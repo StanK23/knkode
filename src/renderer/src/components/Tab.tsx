@@ -74,7 +74,7 @@ export function Tab({
 	return (
 		<div
 			role="tab"
-			tabIndex={0}
+			tabIndex={isActive ? 0 : -1}
 			aria-selected={isActive}
 			aria-roledescription="draggable tab"
 			draggable={!isEditing}
@@ -83,6 +83,26 @@ export function Tab({
 				if (e.key === 'Enter' || e.key === ' ') {
 					e.preventDefault()
 					onActivate(workspace.id)
+				}
+				if (
+					e.key === 'ArrowRight' ||
+					e.key === 'ArrowLeft' ||
+					e.key === 'Home' ||
+					e.key === 'End'
+				) {
+					e.preventDefault()
+					const tabs = e.currentTarget
+						.closest('[role="tablist"]')
+						?.querySelectorAll<HTMLElement>('[role="tab"]')
+					if (!tabs) return
+					const count = tabs.length
+					let target = index
+					if (e.key === 'ArrowRight') target = (index + 1) % count
+					else if (e.key === 'ArrowLeft') target = (index - 1 + count) % count
+					else if (e.key === 'Home') target = 0
+					else if (e.key === 'End') target = count - 1
+					tabs[target]?.focus()
+					tabs[target]?.click()
 				}
 			}}
 			onContextMenu={handleContextMenu}
@@ -128,6 +148,7 @@ export function Tab({
 			{/* Pane count badge */}
 			{paneCount > 1 && (
 				<span
+					aria-label={`${paneCount} panes`}
 					className="text-[9px] leading-none font-medium px-1.5 py-0.5 rounded-full shrink-0"
 					style={{
 						background: `color-mix(in srgb, ${workspace.color} 20%, transparent)`,
@@ -147,7 +168,9 @@ export function Tab({
 				}}
 				aria-label={`Close ${workspace.name}`}
 				className={`bg-transparent border-none text-content-muted cursor-pointer p-0.5 rounded-sm shrink-0 hover:text-content hover:bg-overlay focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none transition-all duration-200 ${
-					isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+					isActive
+						? 'opacity-100'
+						: 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100'
 				}`}
 			>
 				<svg
