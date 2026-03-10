@@ -6,6 +6,7 @@
 - Active plan: Theming Rework Phase 2 (knktx board: 6acd4876)
 
 ## What Was Done
+- PR #86 merged: Morphing pane status bar — 16 theme variants with unique layouts, typography, badge shapes, separators, border styles. SnippetTrigger component-as-prop pattern for per-variant styled snippet buttons. ScrollButton morphs per variant. 9-agent review, all findings fixed.
 - PR #84 merged: Tab bar redesign — colored workspace tabs (3px left accent strip + color-mix tint), flex-based dynamic sizing, pane count badges, SVG icons, roving tabindex a11y. 9-agent review, all findings fixed.
 - PR #83 merged: 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic) with full ANSI palettes, effect levels, cursor/selection colors. 5-agent review, all findings fixed.
 - PR #82 merged: Rescaled dim/opacity, extracted shared constants
@@ -46,11 +47,11 @@ Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 4. ~~Docs update committed directly on `dev/theming` — user overrides + legacy migration sections~~ (done)
 5. ~~PR #84: `feature/tab-bar-redesign` — Colored workspace tabs, wider default, dynamic sizing, count badges. 9-agent review, all findings fixed.~~ (merged)
 6. ~~PR #85: `feature/pane-status-bar` — Git branch IPC plumbing, paneBranches store, badge in pane header. 9-agent review, all findings fixed.~~ (merged)
-7. PR: `feature/pane-chrome-variants` — Morphing status bar with 16 theme variants + scroll buttons
+7. ~~PR #86: `feature/pane-chrome-variants` — Morphing status bar with 16 theme variants + scroll buttons. 9-agent review, all findings fixed.~~ (merged)
 
 ## What's Next
-- PR #86 ready for merge: morphing pane status bar with 16 theme variants. 9-agent review complete, all must-fix items addressed.
-- Future: Add interactive branch switching dropdown + cwd click-to-navigate (new IPC features)
+- Add interactive branch switching dropdown (new IPC features)
+- Add cwd click-to-navigate in status bar (new IPC features)
 
 ## Remaining Work
 - Fix TUI scroll-jumping-to-top bug
