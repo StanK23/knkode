@@ -62,7 +62,22 @@ function checkPrStatus(cwd: string, callback: (pr: PrInfo | null) => void): void
 					typeof data.title === 'string' &&
 					data.state === 'OPEN'
 				) {
-					callback({ number: data.number, url: data.url, title: data.title })
+					// Validate URL format before trusting gh output
+					try {
+						const parsed = new URL(data.url)
+						if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+							callback(null)
+							return
+						}
+					} catch {
+						callback(null)
+						return
+					}
+					const title =
+						typeof data.title === 'string' && data.title.length > 256
+							? `${data.title.slice(0, 253)}...`
+							: data.title
+					callback({ number: data.number, url: data.url, title })
 				} else {
 					callback(null)
 				}
