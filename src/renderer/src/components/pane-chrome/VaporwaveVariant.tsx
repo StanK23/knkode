@@ -15,7 +15,7 @@ function StatusBar({
 	onDoubleClickLabel,
 	isEditing,
 	editInputProps,
-	snippetDropdown,
+	SnippetTrigger,
 	shortcuts,
 }: StatusBarProps) {
 	const glowColor = theme.glow ?? theme.accent
@@ -61,7 +61,15 @@ function StatusBar({
 					{cwd}
 				</span>
 
-				{snippetDropdown}
+				<SnippetTrigger
+					className={`text-[9px] tracking-wider font-medium px-2 py-0.5 rounded-full cursor-pointer border-none hover:brightness-110 transition-all ${FOCUS_VIS}`}
+					style={{
+						background: `linear-gradient(135deg, ${theme.accent}44, ${glowColor}44)`,
+						color: theme.foreground,
+					}}
+				>
+					⚡ CMD
+				</SnippetTrigger>
 
 				<button
 					type="button"

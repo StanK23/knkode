@@ -15,7 +15,7 @@ function StatusBar({
 	onDoubleClickLabel,
 	isEditing,
 	editInputProps,
-	snippetDropdown,
+	SnippetTrigger,
 	shortcuts,
 }: StatusBarProps) {
 	return (
@@ -66,7 +66,12 @@ function StatusBar({
 				│
 			</span>
 
-			{snippetDropdown}
+			<SnippetTrigger
+				className={`bg-transparent border-none cursor-pointer px-0.5 leading-none opacity-40 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
+				style={{ color: theme.accent }}
+			>
+				⚡
+			</SnippetTrigger>
 
 			<button
 				type="button"

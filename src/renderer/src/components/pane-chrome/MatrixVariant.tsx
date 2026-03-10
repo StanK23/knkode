@@ -15,7 +15,7 @@ function StatusBar({
 	onDoubleClickLabel,
 	isEditing,
 	editInputProps,
-	snippetDropdown,
+	SnippetTrigger,
 	shortcuts,
 }: StatusBarProps) {
 	const fg = isFocused ? theme.accent : theme.foreground
@@ -60,7 +60,12 @@ function StatusBar({
 
 			<span className="mx-1 opacity-40">|</span>
 
-			{snippetDropdown}
+			<SnippetTrigger
+				className={`bg-transparent border-none cursor-pointer px-0.5 leading-none opacity-60 hover:opacity-100 ${FOCUS_VIS}`}
+				style={{ color: fg }}
+			>
+				[CMD]
+			</SnippetTrigger>
 
 			<button
 				type="button"
