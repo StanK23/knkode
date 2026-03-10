@@ -179,6 +179,20 @@ function addToVisited(visited: string[], id: string): string[] {
 	return visited.includes(id) ? visited : [...visited, id]
 }
 
+/** Remove pane-scoped ephemeral state (branches, PRs) for a set of pane IDs. */
+function cleanPaneEphemeral(
+	state: { paneBranches: Record<string, string | null>; panePrs: Record<string, PrInfo | null> },
+	paneIds: string[],
+): { paneBranches: Record<string, string | null>; panePrs: Record<string, PrInfo | null> } {
+	const paneBranches = { ...state.paneBranches }
+	const panePrs = { ...state.panePrs }
+	for (const pid of paneIds) {
+		delete paneBranches[pid]
+		delete panePrs[pid]
+	}
+	return { paneBranches, panePrs }
+}
+
 const WORKSPACE_COLORS = [
 	'#6c63ff',
 	'#e74c3c',
@@ -509,18 +523,11 @@ export const useStore = create<StoreState>((set, get) => ({
 		}
 		await window.api.saveAppState(newAppState)
 		const paneIds = workspace ? Object.keys(workspace.panes) : []
-		const cleanedBranches = { ...get().paneBranches }
-		const cleanedPrs = { ...get().panePrs }
-		for (const pid of paneIds) {
-			delete cleanedBranches[pid]
-			delete cleanedPrs[pid]
-		}
 		set({
 			workspaces: get().workspaces.filter((w) => w.id !== id),
 			appState: newAppState,
 			visitedWorkspaceIds: get().visitedWorkspaceIds.filter((wid) => wid !== id),
-			paneBranches: cleanedBranches,
-			panePrs: cleanedPrs,
+			...cleanPaneEphemeral(get(), paneIds),
 		})
 	},
 
@@ -590,17 +597,10 @@ export const useStore = create<StoreState>((set, get) => ({
 				newVisited.push(newActive)
 			}
 			const paneIds = workspace ? Object.keys(workspace.panes) : []
-			const cleanedBranches = { ...state.paneBranches }
-			const cleanedPrs = { ...state.panePrs }
-			for (const pid of paneIds) {
-				delete cleanedBranches[pid]
-				delete cleanedPrs[pid]
-			}
 			return {
 				appState: newAppState,
 				visitedWorkspaceIds: newVisited,
-				paneBranches: cleanedBranches,
-				panePrs: cleanedPrs,
+				...cleanPaneEphemeral(state, paneIds),
 			}
 		})
 	},
@@ -681,8 +681,6 @@ export const useStore = create<StoreState>((set, get) => ({
 			if (!newTree) return state
 
 			const { [paneId]: _, ...remainingPanes } = workspace.panes
-			const { [paneId]: __, ...remainingBranches } = state.paneBranches
-			const { [paneId]: ___, ...remainingPrs } = state.panePrs
 			const updated = {
 				...workspace,
 				layout: { type: 'custom' as const, tree: newTree },
@@ -694,8 +692,7 @@ export const useStore = create<StoreState>((set, get) => ({
 			return {
 				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
 				focusedPaneId: state.focusedPaneId === paneId ? null : state.focusedPaneId,
-				paneBranches: remainingBranches,
-				panePrs: remainingPrs,
+				...cleanPaneEphemeral(state, [paneId]),
 			}
 		})
 	},
