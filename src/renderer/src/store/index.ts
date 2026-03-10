@@ -499,10 +499,14 @@ export const useStore = create<StoreState>((set, get) => ({
 			activeWorkspaceId: newActive,
 		}
 		await window.api.saveAppState(newAppState)
+		const paneIds = workspace ? Object.keys(workspace.panes) : []
+		const cleanedBranches = { ...get().paneBranches }
+		for (const pid of paneIds) delete cleanedBranches[pid]
 		set({
 			workspaces: get().workspaces.filter((w) => w.id !== id),
 			appState: newAppState,
 			visitedWorkspaceIds: get().visitedWorkspaceIds.filter((wid) => wid !== id),
+			paneBranches: cleanedBranches,
 		})
 	},
 
@@ -571,7 +575,10 @@ export const useStore = create<StoreState>((set, get) => ({
 			if (newActive && !newVisited.includes(newActive)) {
 				newVisited.push(newActive)
 			}
-			return { appState: newAppState, visitedWorkspaceIds: newVisited }
+			const paneIds = workspace ? Object.keys(workspace.panes) : []
+			const cleanedBranches = { ...state.paneBranches }
+			for (const pid of paneIds) delete cleanedBranches[pid]
+			return { appState: newAppState, visitedWorkspaceIds: newVisited, paneBranches: cleanedBranches }
 		})
 	},
 
@@ -651,6 +658,7 @@ export const useStore = create<StoreState>((set, get) => ({
 			if (!newTree) return state
 
 			const { [paneId]: _, ...remainingPanes } = workspace.panes
+			const { [paneId]: __, ...remainingBranches } = state.paneBranches
 			const updated = {
 				...workspace,
 				layout: { type: 'custom' as const, tree: newTree },
@@ -662,6 +670,7 @@ export const useStore = create<StoreState>((set, get) => ({
 			return {
 				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
 				focusedPaneId: state.focusedPaneId === paneId ? null : state.focusedPaneId,
+				paneBranches: remainingBranches,
 			}
 		})
 	},
