@@ -1,6 +1,8 @@
 import { FOCUS_VIS, FolderIcon, GitIcon } from './shared'
 import type { PaneVariant, ScrollButtonProps, StatusBarProps } from './types'
 
+// DefaultVariant intentionally uses Tailwind semantic classes (bg-elevated, text-accent, etc.)
+// instead of the theme prop, so it adapts via CSS custom properties rather than inline styles.
 function StatusBar({
 	label,
 	cwd,

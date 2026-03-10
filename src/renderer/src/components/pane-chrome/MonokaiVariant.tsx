@@ -121,4 +121,3 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 
 const MonokaiVariant: PaneVariant = { StatusBar, ScrollButton }
 registerVariant('Monokai', MonokaiVariant)
-export { MonokaiVariant }

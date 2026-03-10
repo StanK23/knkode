@@ -150,4 +150,3 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 
 const VaporwaveVariant: PaneVariant = { StatusBar, ScrollButton }
 registerVariant('Vaporwave', VaporwaveVariant)
-export { VaporwaveVariant }

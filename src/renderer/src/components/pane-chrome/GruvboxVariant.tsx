@@ -122,4 +122,3 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 
 const GruvboxVariant: PaneVariant = { StatusBar, ScrollButton }
 registerVariant('Gruvbox', GruvboxVariant)
-export { GruvboxVariant }

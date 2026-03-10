@@ -114,4 +114,3 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 
 const TokyoNightVariant: PaneVariant = { StatusBar, ScrollButton }
 registerVariant('Tokyo Night', TokyoNightVariant)
-export { TokyoNightVariant }

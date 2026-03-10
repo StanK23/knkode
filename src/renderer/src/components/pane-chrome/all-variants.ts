@@ -1,4 +1,8 @@
-/** Side-effect imports — each file calls registerVariant() at module scope. */
+/**
+ * Side-effect imports — each file calls registerVariant() at module scope.
+ * When adding a new variant: create the file, then add its import here.
+ * Missing imports cause the variant to silently fall back to DefaultVariant.
+ */
 import './AmberVariant'
 import './ArcticVariant'
 import './CatppuccinVariant'

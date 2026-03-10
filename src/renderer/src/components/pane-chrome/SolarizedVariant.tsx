@@ -121,4 +121,3 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 
 const SolarizedVariant: PaneVariant = { StatusBar, ScrollButton }
 registerVariant('Solarized Light', SolarizedVariant)
-export { SolarizedVariant }

@@ -125,4 +125,3 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 
 const ArcticVariant: PaneVariant = { StatusBar, ScrollButton }
 registerVariant('Arctic', ArcticVariant)
-export { ArcticVariant }

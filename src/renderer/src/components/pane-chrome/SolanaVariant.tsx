@@ -129,4 +129,3 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 
 const SolanaVariant: PaneVariant = { StatusBar, ScrollButton }
 registerVariant('Solana', SolanaVariant)
-export { SolanaVariant }

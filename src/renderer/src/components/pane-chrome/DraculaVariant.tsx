@@ -123,4 +123,3 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 
 const DraculaVariant: PaneVariant = { StatusBar, ScrollButton }
 registerVariant('Dracula', DraculaVariant)
-export { DraculaVariant }

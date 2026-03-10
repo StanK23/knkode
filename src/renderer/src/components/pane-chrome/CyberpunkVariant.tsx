@@ -132,4 +132,3 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 
 const CyberpunkVariant: PaneVariant = { StatusBar, ScrollButton }
 registerVariant('Cyberpunk', CyberpunkVariant)
-export { CyberpunkVariant }

@@ -126,4 +126,3 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 
 const OceanVariant: PaneVariant = { StatusBar, ScrollButton }
 registerVariant('Ocean', OceanVariant)
-export { OceanVariant }

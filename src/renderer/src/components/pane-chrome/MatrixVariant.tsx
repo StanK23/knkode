@@ -119,4 +119,3 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 
 const MatrixVariant: PaneVariant = { StatusBar, ScrollButton }
 registerVariant('Matrix', MatrixVariant)
-export { MatrixVariant }

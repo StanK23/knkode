@@ -122,4 +122,3 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 
 const CatppuccinVariant: PaneVariant = { StatusBar, ScrollButton }
 registerVariant('Catppuccin', CatppuccinVariant)
-export { CatppuccinVariant }

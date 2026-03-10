@@ -45,8 +45,7 @@ import { useStore } from '../store'
 import { isValidCwd } from '../utils/validation'
 import { FontPicker } from './FontPicker'
 import { TerminalView } from './Terminal'
-import { getVariant } from './pane-chrome'
-import type { VariantTheme } from './pane-chrome'
+import { type VariantTheme, getVariant } from './pane-chrome'
 import { buildVariantTheme } from './pane-chrome/shared'
 
 interface ThemeInputFields {

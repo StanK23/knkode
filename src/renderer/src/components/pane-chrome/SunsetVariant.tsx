@@ -128,4 +128,3 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 
 const SunsetVariant: PaneVariant = { StatusBar, ScrollButton }
 registerVariant('Sunset', SunsetVariant)
-export { SunsetVariant }

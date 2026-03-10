@@ -115,4 +115,3 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 
 const NordVariant: PaneVariant = { StatusBar, ScrollButton }
 registerVariant('Nord', NordVariant)
-export { NordVariant }

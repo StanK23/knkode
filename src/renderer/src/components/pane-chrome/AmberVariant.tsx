@@ -119,4 +119,3 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 
 const AmberVariant: PaneVariant = { StatusBar, ScrollButton }
 registerVariant('Amber', AmberVariant)
-export { AmberVariant }
