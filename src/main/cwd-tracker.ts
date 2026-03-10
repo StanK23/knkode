@@ -50,6 +50,8 @@ function checkPrStatus(cwd: string, callback: (pr: PrInfo | null) => void): void
 				if (!ghMissing && 'code' in err && err.code === 'ENOENT') {
 					ghMissing = true
 					console.warn('[cwd-tracker] gh CLI not found — PR detection disabled')
+				} else if ('killed' in err && err.killed) {
+					console.warn('[cwd-tracker] gh pr view timed out for', cwd)
 				}
 				callback(null)
 				return
