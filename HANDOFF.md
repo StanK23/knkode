@@ -43,7 +43,7 @@ Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 2. ~~PR #82: `fix/effect-rescale-blur` — Rescale dim/opacity, extract shared constants~~ (merged)
 3. ~~PR #83: `feature/identity-themes-v2` — 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic)~~ (merged)
 4. ~~Docs update committed directly on `dev/theming` — user overrides + legacy migration sections~~ (done)
-5. PR: `feature/tab-bar-redesign` — Colored workspace tabs, wider default, dynamic sizing, count badges (in progress)
+5. PR #84: `feature/tab-bar-redesign` — Colored workspace tabs, wider default, dynamic sizing, count badges. 9-agent review, all findings fixed.
 6. PR: `feature/pane-status-bar` — Pane header with cwd path, git branch badge
 
 ## Remaining Work
