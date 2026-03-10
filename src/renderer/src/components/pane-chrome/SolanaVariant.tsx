@@ -73,7 +73,7 @@ function StatusBar({
 				<PrBadge
 					pr={pr}
 					onOpenExternal={onOpenExternal}
-					className="text-[10px] font-medium px-2 py-px rounded-full hover:brightness-110 transition-opacity"
+					className="text-[10px] font-medium px-2 py-px rounded-full hover:brightness-110 transition-all"
 					style={{
 						background: `linear-gradient(135deg, ${theme.accent}33, ${glowColor}33)`,
 						color: theme.foreground,
