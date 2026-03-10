@@ -66,9 +66,12 @@ function initThemeInput(override: Partial<PaneTheme> | null): ThemeInputFields {
 
 interface SnippetDropdownProps {
 	paneId: string
+	className?: string
+	style?: React.CSSProperties
+	children?: React.ReactNode
 }
 
-function SnippetDropdown({ paneId }: SnippetDropdownProps) {
+function SnippetDropdown({ paneId, className, style, children }: SnippetDropdownProps) {
 	const [open, setOpen] = useState(false)
 	const ref = useRef<HTMLDivElement>(null)
 	const menuRef = useRef<HTMLDivElement>(null)
@@ -120,15 +123,10 @@ function SnippetDropdown({ paneId }: SnippetDropdownProps) {
 				aria-label="Quick commands"
 				aria-expanded={open}
 				aria-haspopup="true"
-				className="bg-transparent border-none cursor-pointer px-0.5 leading-none opacity-50 hover:opacity-100 transition-opacity focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
-				style={{
-					color: 'inherit',
-					font: 'inherit',
-					letterSpacing: 'inherit',
-					textTransform: 'inherit' as const,
-				}}
+				className={className}
+				style={style}
 			>
-				&gt;_
+				{children ?? '>_'}
 			</button>
 			{open && (
 				<div ref={menuRef} role="menu" className="ctx-menu right-0 top-full left-auto">
@@ -318,6 +316,13 @@ export function Pane({
 		],
 	)
 
+	const PaneSnippetTrigger = useCallback(
+		(props: { className?: string; style?: React.CSSProperties; children?: React.ReactNode }) => (
+			<SnippetDropdown paneId={paneId} {...props} />
+		),
+		[paneId],
+	)
+
 	const handleFocus = useCallback(() => onFocus(paneId), [paneId, onFocus])
 
 	const handleDragStart = useCallback(
@@ -422,7 +427,7 @@ export function Pane({
 					onDoubleClickLabel={startEditing}
 					isEditing={isEditing}
 					editInputProps={inputProps}
-					snippetDropdown={<SnippetDropdown paneId={paneId} />}
+					SnippetTrigger={PaneSnippetTrigger}
 					shortcuts={{
 						splitV: `${modKey}+D`,
 						splitH: `${modKey}+Shift+D`,

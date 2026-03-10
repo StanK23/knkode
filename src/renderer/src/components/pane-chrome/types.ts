@@ -28,7 +28,11 @@ export interface StatusBarProps {
 		onBlur: () => void
 		onKeyDown: (e: React.KeyboardEvent) => void
 	}
-	snippetDropdown: React.ReactNode
+	SnippetTrigger: React.ComponentType<{
+		className?: string
+		style?: React.CSSProperties
+		children?: React.ReactNode
+	}>
 	shortcuts: { splitV: string; splitH: string; close: string }
 }
 
