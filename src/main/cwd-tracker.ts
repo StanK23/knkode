@@ -34,8 +34,8 @@ function getGitBranch(cwd: string): string | null {
 	}
 }
 
-/** Run `gh pr view --json number,url,title` asynchronously in a directory.
- *  Calls back with PrInfo or null. Never throws. */
+/** Run `gh pr view --json number,url,title,state` asynchronously in a directory.
+ *  Calls back with PrInfo or null (null on any error, including no open PR on current branch). */
 function checkPrStatus(cwd: string, callback: (pr: PrInfo | null) => void): void {
 	if (ghMissing) {
 		callback(null)
@@ -43,7 +43,7 @@ function checkPrStatus(cwd: string, callback: (pr: PrInfo | null) => void): void
 	}
 	execFile(
 		'gh',
-		['pr', 'view', '--json', 'number,url,title'],
+		['pr', 'view', '--json', 'number,url,title,state'],
 		{ cwd, timeout: 10_000 },
 		(err, stdout) => {
 			if (err) {
@@ -59,7 +59,8 @@ function checkPrStatus(cwd: string, callback: (pr: PrInfo | null) => void): void
 				if (
 					typeof data.number === 'number' &&
 					typeof data.url === 'string' &&
-					typeof data.title === 'string'
+					typeof data.title === 'string' &&
+					data.state === 'OPEN'
 				) {
 					callback({ number: data.number, url: data.url, title: data.title })
 				} else {
