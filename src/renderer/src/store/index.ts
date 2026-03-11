@@ -1046,12 +1046,12 @@ function removeLeafFromTree(node: LayoutNode, targetPaneId: string): LayoutNode 
 	return { ...node, children: remaining }
 }
 
-/** Find a leaf by pane ID and replace it using the given function.
- *  The replacer receives the matched leaf and returns its replacement node. */
+/** Find a node by pane ID and replace it using the given function.
+ *  The replacer receives the matched node and returns its replacement. */
 function replaceLeafInTree(
 	node: LayoutNode,
 	targetPaneId: string,
-	replacer: (leaf: LayoutNode) => LayoutNode,
+	replacer: (matched: LayoutNode) => LayoutNode,
 ): LayoutNode {
 	if (isLayoutBranch(node)) {
 		return {

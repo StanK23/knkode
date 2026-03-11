@@ -16,7 +16,8 @@ export const EFFECT_LEVELS = ['off', 'subtle', 'medium', 'intense'] as const
 export type EffectLevel = (typeof EFFECT_LEVELS)[number]
 
 /** Opacity/intensity multiplier for each effect level. Applied to gradient div opacity,
- *  glow box-shadow alpha values, and scanline overlay opacity.
+ *  glow box-shadow alpha values, scanline overlay opacity, noise overlay opacity,
+ *  and scrollbar accent color alpha.
  *  All values are in [0, 1] so they can be used directly as CSS opacity. */
 export const EFFECT_MULTIPLIERS: Record<EffectLevel, number> = {
 	off: 0,
