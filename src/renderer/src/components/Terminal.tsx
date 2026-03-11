@@ -38,6 +38,15 @@ function getLinesFromBottom(term: XTerm): number {
 	return Math.max(0, term.buffer.active.baseY - term.buffer.active.viewportY)
 }
 
+/** Proposed dimensions from xterm's fit addon, or null if geometry cannot be computed yet. */
+function getProposedDimensions(fitAddon: FitAddon): { cols: number; rows: number } | null {
+	const dims = fitAddon.proposeDimensions()
+	if (!dims || Number.isNaN(dims.cols) || Number.isNaN(dims.rows)) {
+		return null
+	}
+	return dims
+}
+
 /**
  * Call fitAddon.fit() and restore the user's scroll position afterward.
  * Skips scroll management for the alternate screen buffer (TUIs like vim,
@@ -48,6 +57,10 @@ function getLinesFromBottom(term: XTerm): number {
  * inflating baseY disproportionately and causing a ratio to overshoot.
  */
 function fitAndPreserveScroll(term: XTerm, fitAddon: FitAddon): void {
+	const dims = getProposedDimensions(fitAddon)
+	if (!dims) return
+	if (dims.cols === term.cols && dims.rows === term.rows) return
+
 	const isAlternateBuffer = term.buffer.active.type === 'alternate'
 	if (isAlternateBuffer) {
 		fitAddon.fit()
@@ -189,6 +202,11 @@ export function TerminalView({
 	// Ref allows the theme-update effect to re-focus without adding isFocused to its deps
 	const isFocusedRef = useRef(isFocused)
 	isFocusedRef.current = isFocused
+
+	// Suppresses handleViewportScroll during fitAndPreserveScroll. fit() can
+	// emit intermediate viewport scroll events that do not represent user
+	// intent and can corrupt the saved scroll snapshot.
+	const isFittingRef = useRef(false)
 
 	const [isScrolledUp, setIsScrolledUp] = useState(false)
 	const [showSearch, setShowSearch] = useState(false)
@@ -371,7 +389,7 @@ export function TerminalView({
 		// savedScrollRef and cause panes to jump to top on workspace switch.
 		const viewport = term.element?.querySelector('.xterm-viewport')
 		const handleViewportScroll = () => {
-			if (!isActiveRef.current) return
+			if (!isActiveRef.current || isFittingRef.current) return
 			const atBottom = isTermAtBottom(term)
 			setIsScrolledUp(!atBottom)
 			savedScrollRef.current = { atBottom, linesFromBottom: getLinesFromBottom(term) }
@@ -393,9 +411,12 @@ export function TerminalView({
 			requestAnimationFrame(() => {
 				try {
 					if (!containerRef.current?.clientWidth) return
+					isFittingRef.current = true
 					fitAndPreserveScroll(term, fitAddon)
 				} catch (err) {
 					console.warn('[terminal] fit()/scroll failed during resize:', err)
+				} finally {
+					isFittingRef.current = false
 				}
 			})
 		})
@@ -490,10 +511,13 @@ export function TerminalView({
 		}
 		if (metricsChanged) {
 			try {
+				isFittingRef.current = true
 				fitAndPreserveScroll(termRef.current, fitAddonRef.current)
 				if (isFocusedRef.current) termRef.current.focus()
 			} catch (err) {
 				console.warn('[terminal] fit()/scroll failed during theme update:', err)
+			} finally {
+				isFittingRef.current = false
 			}
 		}
 		// paneId needed because the effect reads from terminalCache by paneId

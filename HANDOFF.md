@@ -1,11 +1,13 @@
 # HANDOFF
 
 ## Current State
-- Branch: `dev/theming` (theming rework base)
+- Branch: `codex/fix-tui-scroll-jump` (targets `dev/theming`)
 - `dev/agent-workspace` branch preserved with all rendered view work (PRs #58-75)
-- Active plan: Theming Rework Phase 2 (knktx board: 6acd4876-8e7a-47e4-859f-0bc67d7c432f)
+- Active plan: TUI Scroll Jump Bug (knktx board: 610ca3a2-3c03-493f-a533-e5c67d231da5)
 
 ## What Was Done
+- In progress on `codex/fix-tui-scroll-jump`: restored `isFittingRef` gating in `Terminal.tsx` so fit-induced viewport scroll events do not corrupt saved scroll state during resize/theme-driven fits.
+- In progress on `codex/fix-tui-scroll-jump`: skip `fitAndPreserveScroll()` when the fit addon reports unchanged rows/cols, avoiding no-op scroll restoration on incidental layout churn.
 - PR #87 merged: Clickable PR badge in pane status bar — async `gh pr view` detection with 60s refresh, PrInfo IPC plumbing, shared PrBadge component across 16 variants, URL validation, OPEN-only filter. 9-agent review, all findings fixed.
 - PR #86 merged: Morphing pane status bar — 16 theme variants with unique layouts, typography, badge shapes, separators, border styles. SnippetTrigger component-as-prop pattern for per-variant styled snippet buttons. ScrollButton morphs per variant. 9-agent review, all findings fixed.
 - PR #84 merged: Tab bar redesign — colored workspace tabs (3px left accent strip + color-mix tint), flex-based dynamic sizing, pane count badges, SVG icons, roving tabindex a11y. 9-agent review, all findings fixed.
@@ -55,7 +57,7 @@ Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 - Future: interactive branch switching dropdown + cwd click-to-navigate (new IPC features)
 
 ## Remaining Work
-- Fix TUI scroll-jumping-to-top bug
+- Validate `codex/fix-tui-scroll-jump` against Claude/Gemini TUI behavior, then merge to `dev/theming`
 
 ## Previous Work
 - PR #58: Translucent pane backgrounds with blur
