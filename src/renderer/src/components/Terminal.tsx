@@ -1,4 +1,4 @@
-import { FitAddon } from '@xterm/addon-fit'
+import { type ITerminalDimensions, FitAddon } from '@xterm/addon-fit'
 import { SearchAddon } from '@xterm/addon-search'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { WebglAddon } from '@xterm/addon-webgl'
@@ -38,20 +38,34 @@ function getLinesFromBottom(term: XTerm): number {
 	return Math.max(0, term.buffer.active.baseY - term.buffer.active.viewportY)
 }
 
-/** Proposed dimensions from xterm's fit addon, or null if geometry cannot be computed yet. */
-function getProposedDimensions(fitAddon: FitAddon): { cols: number; rows: number } | null {
+/**
+ * Proposed dimensions from xterm's fit addon, or null if valid geometry
+ * cannot be computed (missing container, detached element, or degenerate sizing).
+ * May throw if the addon is disposed — callers must handle exceptions.
+ */
+function getProposedDimensions(fitAddon: FitAddon): ITerminalDimensions | null {
 	const dims = fitAddon.proposeDimensions()
-	if (!dims || Number.isNaN(dims.cols) || Number.isNaN(dims.rows)) {
-		return null
-	}
+	// NaN check: proposeDimensions computes cols/rows from CSS measurements
+	// that can produce NaN when the container has zero width (e.g. display:none).
+	// TypeScript types say `number` but the runtime value can be NaN.
+	if (!dims || Number.isNaN(dims.cols) || Number.isNaN(dims.rows)) return null
+	if (dims.cols <= 0 || dims.rows <= 0) return null
 	return dims
 }
 
 /**
- * Call fitAddon.fit() and restore the user's scroll position afterward.
+ * Fit the terminal to its container and restore scroll position afterward.
+ *
+ * Early-returns without calling fit() when:
+ * - Geometry cannot be computed (null from getProposedDimensions)
+ * - Proposed dimensions match current cols/rows — avoids the scroll
+ *   snapshot/restore overhead on no-op fits (xterm's own fit() has its own
+ *   internal dimension guard, but this skips scroll preservation too)
+ *
  * Skips scroll management for the alternate screen buffer (TUIs like vim,
  * htop) — the alternate buffer has no scrollback, so viewportY/baseY are
  * always 0 and scroll restoration is meaningless.
+ *
  * For the normal buffer, preserves exact distance from bottom instead of a
  * ratio. When the terminal narrows, long lines re-wrap into more rows,
  * inflating baseY disproportionately and causing a ratio to overshoot.
