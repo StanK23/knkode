@@ -414,352 +414,345 @@ export function Pane({
 			onDragLeave={handlePaneDragLeave}
 			onDrop={handlePaneDrop}
 		>
-			<div
-				draggable={!isEditing}
-				aria-roledescription="draggable pane"
-				onDragStart={handleDragStart}
-				onDragEnd={handleDragEnd}
-				onContextMenu={handleContextMenu}
-				onMouseDown={handleFocus}
-				className={`shrink-0 relative select-none ${isDragging ? 'opacity-40' : ''}`}
-				style={isFocused ? headerStyles.focused : headerStyles.unfocused}
-			>
-				<variant.StatusBar
-					label={config.label}
-					cwd={shortCwd}
-					branch={branch}
-					pr={pr}
-					onOpenExternal={handleOpenExternal}
-					isFocused={isFocused}
-					canClose={canClose}
-					theme={variantTheme}
-					onSplitVertical={() => onSplitVertical(paneId)}
-					onSplitHorizontal={() => onSplitHorizontal(paneId)}
-					onClose={() => onClose(paneId)}
-					onDoubleClickLabel={startEditing}
-					isEditing={isEditing}
-					editInputProps={inputProps}
-					SnippetTrigger={PaneSnippetTrigger}
-					shortcuts={{
-						splitV: `${modKey}+D`,
-						splitH: `${modKey}+Shift+D`,
-						close: `${modKey}+W`,
-					}}
-				/>
-
-				{showContext && (
-					<div
-						ref={contextRef}
-						className="ctx-menu"
-						/* Inline style required: position fixed escapes allotment's overflow:hidden,
-						   and dynamic cursor coordinates cannot be expressed as Tailwind classes.
-						   Overrides the `absolute` from .ctx-menu (Tab/TabBar still use absolute). */
-						style={{
-							position: 'fixed',
-							left: clampedPos?.x ?? 0,
-							top: clampedPos?.y ?? 0,
-							visibility: clampedPos ? 'visible' : 'hidden',
-						}}
-						/* Prevent header's onMouseDown (handleFocus) from firing — without this,
-						   the zustand store update triggers a synchronous re-render that disrupts
-						   click events on menu buttons (the "stuck dismiss" bug). */
-						onMouseDown={stopPropagation}
-					>
-						<button
-							type="button"
-							className="ctx-item"
-							onClick={() => {
-								onSplitVertical(paneId)
-								closeContext()
+			<variant.Frame
+				label={config.label}
+				cwd={shortCwd}
+				branch={branch}
+				pr={pr}
+				onOpenExternal={handleOpenExternal}
+				isFocused={isFocused}
+				canClose={canClose}
+				theme={variantTheme}
+				onSplitVertical={() => onSplitVertical(paneId)}
+				onSplitHorizontal={() => onSplitHorizontal(paneId)}
+				onClose={() => onClose(paneId)}
+				onDoubleClickLabel={startEditing}
+				isEditing={isEditing}
+				editInputProps={inputProps}
+				SnippetTrigger={PaneSnippetTrigger}
+				shortcuts={{
+					splitV: `${modKey}+D`,
+					splitH: `${modKey}+Shift+D`,
+					close: `${modKey}+W`,
+				}}
+				headerProps={{
+					draggable: !isEditing,
+					'aria-roledescription': 'draggable pane',
+					onDragStart: handleDragStart,
+					onDragEnd: handleDragEnd,
+					onContextMenu: handleContextMenu,
+					onMouseDown: handleFocus,
+					className: `shrink-0 relative select-none ${isDragging ? 'opacity-40' : ''}`,
+					style: isFocused ? headerStyles.focused : headerStyles.unfocused,
+				}}
+				contextMenu={
+					showContext ? (
+						<div
+							ref={contextRef}
+							className="ctx-menu"
+							style={{
+								position: 'fixed',
+								left: clampedPos?.x ?? 0,
+								top: clampedPos?.y ?? 0,
+								visibility: clampedPos ? 'visible' : 'hidden',
 							}}
+							onMouseDown={stopPropagation}
 						>
-							Split Vertical
-						</button>
-						<button
-							type="button"
-							className="ctx-item"
-							onClick={() => {
-								onSplitHorizontal(paneId)
-								closeContext()
-							}}
-						>
-							Split Horizontal
-						</button>
-						{/* canClose ensures the source workspace keeps at least one pane after the move */}
-						{canClose && otherOpenWorkspaces.length > 0 && (
-							<>
-								<div className="ctx-separator" />
-								<button
-									type="button"
-									className="ctx-item"
-									onClick={() => setContextPanel(contextPanel === 'move' ? null : 'move')}
-								>
-									Move to Workspace
-								</button>
-								{contextPanel === 'move' && (
-									<div className="flex flex-col gap-0.5 px-1 py-1">
-										{otherOpenWorkspaces.map((ws) => (
-											<button
-												type="button"
-												key={ws.id}
-												className="ctx-item flex items-center gap-2"
-												onClick={() => {
-													movePaneToWorkspace(workspaceId, paneId, ws.id)
-													closeContext()
-												}}
-											>
-												<span
-													className="w-2 h-2 rounded-full shrink-0"
-													aria-hidden="true"
-													style={{ background: ws.color }}
-												/>
-												<span className="truncate">{ws.name}</span>
-											</button>
-										))}
-									</div>
-								)}
-							</>
-						)}
-						<div className="ctx-separator" />
-						<button
-							type="button"
-							className="ctx-item"
-							onClick={() => {
-								startEditing()
-								closeContext()
-							}}
-						>
-							Rename
-						</button>
-						<button
-							type="button"
-							className="ctx-item"
-							onClick={() => {
-								setCwdInput(config.cwd)
-								setContextPanel(contextPanel === 'cwd' ? null : 'cwd')
-							}}
-						>
-							Change Directory
-						</button>
-						{contextPanel === 'cwd' && (
-							<form
-								className="flex gap-1 px-3 py-1 pb-2"
-								onSubmit={(e) => {
-									e.preventDefault()
-									const cwd = cwdInput.trim()
-									if (cwd && isValidCwd(cwd)) {
-										onUpdateConfig(paneId, { cwd })
-									}
-									closeContext()
-								}}
-							>
-								<input
-									type="text"
-									value={cwdInput}
-									onChange={(e) => setCwdInput(e.target.value)}
-									placeholder="/path/to/directory"
-									className="ctx-input flex-1 min-w-0"
-									ref={(el) => el?.focus()}
-								/>
-								<button type="submit" className="ctx-submit">
-									Set
-								</button>
-							</form>
-						)}
-						<button
-							type="button"
-							className="ctx-item"
-							onClick={() => {
-								setCmdInput(config.startupCommand ?? '')
-								setContextPanel(contextPanel === 'cmd' ? null : 'cmd')
-							}}
-						>
-							Set Startup Command
-						</button>
-						{contextPanel === 'cmd' && (
-							<form
-								className="flex gap-1 px-3 py-1 pb-2"
-								onSubmit={(e) => {
-									e.preventDefault()
-									onUpdateConfig(paneId, {
-										startupCommand: cmdInput.trim() || null,
-									})
-									closeContext()
-								}}
-							>
-								<input
-									type="text"
-									value={cmdInput}
-									onChange={(e) => setCmdInput(e.target.value)}
-									placeholder="npm run dev"
-									className="ctx-input flex-1 min-w-0"
-									ref={(el) => el?.focus()}
-								/>
-								<button type="submit" className="ctx-submit">
-									Set
-								</button>
-							</form>
-						)}
-						<button
-							type="button"
-							className="ctx-item"
-							onClick={() => {
-								setThemeInput(initThemeInput(config.themeOverride))
-								setContextPanel(contextPanel === 'theme' ? null : 'theme')
-							}}
-						>
-							Theme Override
-						</button>
-						{contextPanel === 'theme' && (
-							<div className="flex flex-col gap-1.5 px-3 py-1 pb-2">
-								<label className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
-									<span>Background</span>
-									<input
-										type="text"
-										value={themeInput.background}
-										onChange={(e) => setThemeInput((t) => ({ ...t, background: e.target.value }))}
-										placeholder={workspaceTheme.background}
-										className="ctx-input flex-1 min-w-0"
-									/>
-								</label>
-								<label className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
-									<span>Foreground</span>
-									<input
-										type="text"
-										value={themeInput.foreground}
-										onChange={(e) => setThemeInput((t) => ({ ...t, foreground: e.target.value }))}
-										placeholder={workspaceTheme.foreground}
-										className="ctx-input flex-1 min-w-0"
-									/>
-								</label>
-								<span className="text-[11px] text-content-muted">Font</span>
-								<FontPicker
-									value={themeInput.fontFamily}
-									onChange={(font) => setThemeInput((t) => ({ ...t, fontFamily: font }))}
-									size="sm"
-								/>
-								<div className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
-									<span>Font size</span>
-									<div className="flex items-center gap-1">
-										<button
-											type="button"
-											onClick={() =>
-												setThemeInput((t) => {
-													const cur = Number(t.fontSize) || workspaceTheme.fontSize
-													return { ...t, fontSize: String(Math.max(8, cur - 1)) }
-												})
-											}
-											aria-label="Decrease font size"
-											className="bg-canvas border border-edge rounded-sm text-content cursor-pointer w-5 h-5 flex items-center justify-center text-[10px] hover:bg-overlay"
-										>
-											-
-										</button>
-										<span className="tabular-nums w-4 text-center">
-											{themeInput.fontSize || workspaceTheme.fontSize}
-										</span>
-										<button
-											type="button"
-											onClick={() =>
-												setThemeInput((t) => {
-													const cur = Number(t.fontSize) || workspaceTheme.fontSize
-													return { ...t, fontSize: String(Math.min(32, cur + 1)) }
-												})
-											}
-											aria-label="Increase font size"
-											className="bg-canvas border border-edge rounded-sm text-content cursor-pointer w-5 h-5 flex items-center justify-center text-[10px] hover:bg-overlay"
-										>
-											+
-										</button>
-									</div>
-								</div>
-								<div className="flex gap-1">
-									<button
-										type="button"
-										className="ctx-submit"
-										onClick={() => {
-											const override: Partial<PaneTheme> = {}
-											if (themeInput.background) override.background = themeInput.background
-											if (themeInput.foreground) override.foreground = themeInput.foreground
-											if (themeInput.fontSize) {
-												const fs = Number(themeInput.fontSize)
-												if (Number.isFinite(fs) && fs >= 8 && fs <= 32) override.fontSize = fs
-											}
-											if (themeInput.fontFamily) override.fontFamily = themeInput.fontFamily
-											onUpdateConfig(paneId, {
-												themeOverride: Object.keys(override).length > 0 ? override : null,
-											})
-											closeContext()
-										}}
-									>
-										Apply
-									</button>
-									<button
-										type="button"
-										className="ctx-submit text-content-muted"
-										onClick={() => {
-											onUpdateConfig(paneId, { themeOverride: null })
-											closeContext()
-										}}
-									>
-										Reset
-									</button>
-								</div>
-							</div>
-						)}
-						<div className="ctx-separator" />
-						<button
-							type="button"
-							className="ctx-item"
-							onClick={() => {
-								killPtys([paneId])
-								ensurePty(paneId, config.cwd, config.startupCommand)
-								closeContext()
-								onFocus(paneId)
-							}}
-						>
-							Restart Pane
-						</button>
-						{canClose && (
 							<button
 								type="button"
-								className="ctx-item text-danger"
+								className="ctx-item"
 								onClick={() => {
-									onClose(paneId)
+									onSplitVertical(paneId)
 									closeContext()
 								}}
 							>
-								Close Pane
+								Split Vertical
 							</button>
-						)}
-					</div>
-				)}
-			</div>
-
-			{/* Dim overlay scoped to terminal area only (not the header).
-			    Always rendered to enable CSS transition; opacity toggled via class.
-			    Inline style required: Tailwind cannot express dynamic runtime opacity. */}
-			<div className="flex-1 overflow-hidden p-px relative">
-				<TerminalView
-					paneId={paneId}
-					theme={workspaceTheme}
-					themeOverride={config.themeOverride}
-					variant={variant}
-					variantTheme={variantTheme}
-					focusGeneration={focusGeneration}
-					isFocused={isFocused}
-					onFocus={handleFocus}
-				/>
-				<div
-					className={`absolute inset-0 bg-black pointer-events-none transition-opacity duration-150 ${
-						!isFocused && workspaceTheme.unfocusedDim > 0 ? '' : 'opacity-0'
-					}`}
-					style={
-						!isFocused && workspaceTheme.unfocusedDim > 0
-							? { opacity: Math.max(0, Math.min(MAX_UNFOCUSED_DIM, workspaceTheme.unfocusedDim)) }
-							: undefined
-					}
-				/>
-			</div>
+							<button
+								type="button"
+								className="ctx-item"
+								onClick={() => {
+									onSplitHorizontal(paneId)
+									closeContext()
+								}}
+							>
+								Split Horizontal
+							</button>
+							{canClose && otherOpenWorkspaces.length > 0 && (
+								<>
+									<div className="ctx-separator" />
+									<button
+										type="button"
+										className="ctx-item"
+										onClick={() => setContextPanel(contextPanel === 'move' ? null : 'move')}
+									>
+										Move to Workspace
+									</button>
+									{contextPanel === 'move' && (
+										<div className="flex flex-col gap-0.5 px-1 py-1">
+											{otherOpenWorkspaces.map((ws) => (
+												<button
+													type="button"
+													key={ws.id}
+													className="ctx-item flex items-center gap-2"
+													onClick={() => {
+														movePaneToWorkspace(workspaceId, paneId, ws.id)
+														closeContext()
+													}}
+												>
+													<span
+														className="w-2 h-2 rounded-full shrink-0"
+														aria-hidden="true"
+														style={{ background: ws.color }}
+													/>
+													<span className="truncate">{ws.name}</span>
+												</button>
+											))}
+										</div>
+									)}
+								</>
+							)}
+							<div className="ctx-separator" />
+							<button
+								type="button"
+								className="ctx-item"
+								onClick={() => {
+									startEditing()
+									closeContext()
+								}}
+							>
+								Rename
+							</button>
+							<button
+								type="button"
+								className="ctx-item"
+								onClick={() => {
+									setCwdInput(config.cwd)
+									setContextPanel(contextPanel === 'cwd' ? null : 'cwd')
+								}}
+							>
+								Change Directory
+							</button>
+							{contextPanel === 'cwd' && (
+								<form
+									className="flex gap-1 px-3 py-1 pb-2"
+									onSubmit={(e) => {
+										e.preventDefault()
+										const cwd = cwdInput.trim()
+										if (cwd && isValidCwd(cwd)) {
+											onUpdateConfig(paneId, { cwd })
+										}
+										closeContext()
+									}}
+								>
+									<input
+										type="text"
+										value={cwdInput}
+										onChange={(e) => setCwdInput(e.target.value)}
+										placeholder="/path/to/directory"
+										className="ctx-input flex-1 min-w-0"
+										ref={(el) => el?.focus()}
+									/>
+									<button type="submit" className="ctx-submit">
+										Set
+									</button>
+								</form>
+							)}
+							<button
+								type="button"
+								className="ctx-item"
+								onClick={() => {
+									setCmdInput(config.startupCommand ?? '')
+									setContextPanel(contextPanel === 'cmd' ? null : 'cmd')
+								}}
+							>
+								Set Startup Command
+							</button>
+							{contextPanel === 'cmd' && (
+								<form
+									className="flex gap-1 px-3 py-1 pb-2"
+									onSubmit={(e) => {
+										e.preventDefault()
+										onUpdateConfig(paneId, {
+											startupCommand: cmdInput.trim() || null,
+										})
+										closeContext()
+									}}
+								>
+									<input
+										type="text"
+										value={cmdInput}
+										onChange={(e) => setCmdInput(e.target.value)}
+										placeholder="npm run dev"
+										className="ctx-input flex-1 min-w-0"
+										ref={(el) => el?.focus()}
+									/>
+									<button type="submit" className="ctx-submit">
+										Set
+									</button>
+								</form>
+							)}
+							<button
+								type="button"
+								className="ctx-item"
+								onClick={() => {
+									setThemeInput(initThemeInput(config.themeOverride))
+									setContextPanel(contextPanel === 'theme' ? null : 'theme')
+								}}
+							>
+								Theme Override
+							</button>
+							{contextPanel === 'theme' && (
+								<div className="flex flex-col gap-1.5 px-3 py-1 pb-2">
+									<label className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
+										<span>Background</span>
+										<input
+											type="text"
+											value={themeInput.background}
+											onChange={(e) => setThemeInput((t) => ({ ...t, background: e.target.value }))}
+											placeholder={workspaceTheme.background}
+											className="ctx-input flex-1 min-w-0"
+										/>
+									</label>
+									<label className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
+										<span>Foreground</span>
+										<input
+											type="text"
+											value={themeInput.foreground}
+											onChange={(e) => setThemeInput((t) => ({ ...t, foreground: e.target.value }))}
+											placeholder={workspaceTheme.foreground}
+											className="ctx-input flex-1 min-w-0"
+										/>
+									</label>
+									<span className="text-[11px] text-content-muted">Font</span>
+									<FontPicker
+										value={themeInput.fontFamily}
+										onChange={(font) => setThemeInput((t) => ({ ...t, fontFamily: font }))}
+										size="sm"
+									/>
+									<div className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
+										<span>Font size</span>
+										<div className="flex items-center gap-1">
+											<button
+												type="button"
+												onClick={() =>
+													setThemeInput((t) => {
+														const cur = Number(t.fontSize) || workspaceTheme.fontSize
+														return { ...t, fontSize: String(Math.max(8, cur - 1)) }
+													})
+												}
+												aria-label="Decrease font size"
+												className="bg-canvas border border-edge rounded-sm text-content cursor-pointer w-5 h-5 flex items-center justify-center text-[10px] hover:bg-overlay"
+											>
+												-
+											</button>
+											<span className="tabular-nums w-4 text-center">
+												{themeInput.fontSize || workspaceTheme.fontSize}
+											</span>
+											<button
+												type="button"
+												onClick={() =>
+													setThemeInput((t) => {
+														const cur = Number(t.fontSize) || workspaceTheme.fontSize
+														return { ...t, fontSize: String(Math.min(32, cur + 1)) }
+													})
+												}
+												aria-label="Increase font size"
+												className="bg-canvas border border-edge rounded-sm text-content cursor-pointer w-5 h-5 flex items-center justify-center text-[10px] hover:bg-overlay"
+											>
+												+
+											</button>
+										</div>
+									</div>
+									<div className="flex gap-1">
+										<button
+											type="button"
+											className="ctx-submit"
+											onClick={() => {
+												const override: Partial<PaneTheme> = {}
+												if (themeInput.background) override.background = themeInput.background
+												if (themeInput.foreground) override.foreground = themeInput.foreground
+												if (themeInput.fontSize) {
+													const fs = Number(themeInput.fontSize)
+													if (Number.isFinite(fs) && fs >= 8 && fs <= 32) override.fontSize = fs
+												}
+												if (themeInput.fontFamily) override.fontFamily = themeInput.fontFamily
+												onUpdateConfig(paneId, {
+													themeOverride: Object.keys(override).length > 0 ? override : null,
+												})
+												closeContext()
+											}}
+										>
+											Apply
+										</button>
+										<button
+											type="button"
+											className="ctx-submit text-content-muted"
+											onClick={() => {
+												onUpdateConfig(paneId, { themeOverride: null })
+												closeContext()
+											}}
+										>
+											Reset
+										</button>
+									</div>
+								</div>
+							)}
+							<div className="ctx-separator" />
+							<button
+								type="button"
+								className="ctx-item"
+								onClick={() => {
+									killPtys([paneId])
+									ensurePty(paneId, config.cwd, config.startupCommand)
+									closeContext()
+									onFocus(paneId)
+								}}
+							>
+								Restart Pane
+							</button>
+							{canClose && (
+								<button
+									type="button"
+									className="ctx-item text-danger"
+									onClick={() => {
+										onClose(paneId)
+										closeContext()
+									}}
+								>
+									Close Pane
+								</button>
+							)}
+						</div>
+					) : null
+				}
+			>
+				{/* Dim overlay scoped to terminal area only (not the header).
+				    Always rendered to enable CSS transition; opacity toggled via class.
+				    Inline style required: Tailwind cannot express dynamic runtime opacity. */}
+				<div className="flex-1 overflow-hidden p-px relative h-full">
+					<TerminalView
+						paneId={paneId}
+						theme={workspaceTheme}
+						themeOverride={config.themeOverride}
+						variant={variant}
+						variantTheme={variantTheme}
+						focusGeneration={focusGeneration}
+						isFocused={isFocused}
+						onFocus={handleFocus}
+					/>
+					<div
+						className={`absolute inset-0 bg-black pointer-events-none transition-opacity duration-150 ${
+							!isFocused && workspaceTheme.unfocusedDim > 0 ? '' : 'opacity-0'
+						}`}
+						style={
+							!isFocused && workspaceTheme.unfocusedDim > 0
+								? { opacity: Math.max(0, Math.min(MAX_UNFOCUSED_DIM, workspaceTheme.unfocusedDim)) }
+								: undefined
+						}
+					/>
+				</div>
+			</variant.Frame>
 
 			{/* Drop zone overlay — shows where the dragged pane will land
 			    (swap for center, split for edges) */}
