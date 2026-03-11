@@ -38,6 +38,15 @@ function getLinesFromBottom(term: XTerm): number {
 	return Math.max(0, term.buffer.active.baseY - term.buffer.active.viewportY)
 }
 
+/** Restore a previously saved scroll position (distance-from-bottom). */
+function restoreScroll(term: XTerm, saved: SavedScroll): void {
+	if (saved.atBottom) {
+		term.scrollToBottom()
+	} else {
+		term.scrollToLine(Math.max(0, term.buffer.active.baseY - saved.linesFromBottom))
+	}
+}
+
 /**
  * Proposed dimensions from xterm's fit addon, or null if valid geometry
  * cannot be computed (missing container, detached element, or degenerate sizing).
@@ -81,16 +90,9 @@ function fitAndPreserveScroll(term: XTerm, fitAddon: FitAddon): void {
 		return
 	}
 
-	const atBottom = isTermAtBottom(term)
-	const saved = getLinesFromBottom(term)
-
+	const saved: SavedScroll = { atBottom: isTermAtBottom(term), linesFromBottom: getLinesFromBottom(term) }
 	fitAddon.fit()
-
-	if (atBottom) {
-		term.scrollToBottom()
-	} else {
-		term.scrollToLine(Math.max(0, term.buffer.active.baseY - saved))
-	}
+	restoreScroll(term, saved)
 }
 
 /**
@@ -494,12 +496,7 @@ export function TerminalView({
 		}
 		if (termRef.current) {
 			const term = termRef.current
-			const { atBottom, linesFromBottom: saved } = savedScrollRef.current
-			if (atBottom) {
-				term.scrollToBottom()
-			} else {
-				term.scrollToLine(Math.max(0, term.buffer.active.baseY - saved))
-			}
+			restoreScroll(term, savedScrollRef.current)
 			isActiveRef.current = true
 			setIsScrolledUp(!isTermAtBottom(term))
 		} else {
