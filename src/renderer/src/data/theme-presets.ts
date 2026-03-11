@@ -230,9 +230,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#00ff41',
 		selectionColor: '#00ff41',
-		// Digital rain columns — vertical streaks with top-down fade
+		// Digital rain — vertical glow columns at staggered heights
 		decoration:
-			'repeating-linear-gradient(90deg, rgba(0,255,65,0.12) 0px, rgba(0,255,65,0.12) 1px, transparent 1px, transparent 18px), repeating-linear-gradient(90deg, rgba(0,255,65,0.06) 0px, transparent 1px, transparent 7px), linear-gradient(180deg, rgba(0,255,65,0.15) 0%, transparent 60%)',
+			'linear-gradient(180deg, rgba(0,255,65,0.14) 0%, transparent 65%) no-repeat 8% 0 / 3% 60%, linear-gradient(180deg, rgba(0,255,65,0.1) 0%, transparent 70%) no-repeat 22% 0 / 2% 45%, linear-gradient(180deg, rgba(0,255,65,0.12) 0%, transparent 60%) no-repeat 40% 0 / 3% 55%, linear-gradient(180deg, rgba(0,255,65,0.08) 0%, transparent 65%) no-repeat 58% 0 / 2% 40%, linear-gradient(180deg, rgba(0,255,65,0.13) 0%, transparent 55%) no-repeat 72% 0 / 3% 70%, linear-gradient(180deg, rgba(0,255,65,0.09) 0%, transparent 60%) no-repeat 88% 0 / 2% 50%',
 		ansiColors: {
 			black: '#0a0a0a',
 			red: '#00cc33',
@@ -265,9 +265,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#ff2a6d',
 		selectionColor: '#05d9e8',
-		// Diagonal geometry — crossing neon slashes
+		// Diagonal accent blocks at opposite corners (matching SVG widget)
 		decoration:
-			'repeating-linear-gradient(135deg, rgba(255,42,109,0.12) 0px, rgba(255,42,109,0.12) 1px, transparent 1px, transparent 28px), repeating-linear-gradient(45deg, rgba(5,217,232,0.08) 0px, rgba(5,217,232,0.08) 1px, transparent 1px, transparent 36px), radial-gradient(ellipse 70% 50% at 80% 20%, rgba(255,42,109,0.08) 0%, transparent 60%)',
+			'linear-gradient(135deg, transparent 60%, rgba(255,42,109,0.1) 75%, rgba(255,42,109,0.06) 100%) no-repeat, linear-gradient(315deg, transparent 70%, rgba(5,217,232,0.07) 85%, rgba(5,217,232,0.04) 100%) no-repeat',
 		ansiColors: {
 			black: '#0d0221',
 			red: '#ff2a6d',
@@ -300,9 +300,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#14f195',
 		selectionColor: '#9945ff',
-		// Gradient orbs — large glowing blobs at corners
+		// Soft orbs at opposite corners (matching SVG widget circles)
 		decoration:
-			'radial-gradient(ellipse 50% 45% at 5% 95%, rgba(153,69,255,0.18) 0%, transparent 70%), radial-gradient(ellipse 45% 50% at 95% 5%, rgba(20,241,149,0.14) 0%, transparent 70%), radial-gradient(ellipse 30% 30% at 50% 50%, rgba(153,69,255,0.06) 0%, transparent 60%)',
+			'radial-gradient(circle at 82% 27%, rgba(153,69,255,0.07) 0%, transparent 40%), radial-gradient(circle at 18% 80%, rgba(20,241,149,0.05) 0%, transparent 35%)',
 		ansiColors: {
 			black: '#0c0c1d',
 			red: '#ff6b6b',
@@ -336,9 +336,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#ffb000',
 		selectionColor: '#e09000',
-		// CRT phosphor burn — warm center glow with heavy vignette
+		// CRT phosphor — center glow (matching SVG widget radial)
 		decoration:
-			'radial-gradient(ellipse 70% 60% at 50% 50%, rgba(255,176,0,0.1) 0%, transparent 50%), radial-gradient(ellipse 130% 130% at 50% 50%, transparent 30%, rgba(0,0,0,0.35) 100%), repeating-linear-gradient(0deg, rgba(255,176,0,0.04) 0px, rgba(255,176,0,0.04) 1px, transparent 1px, transparent 4px)',
+			'radial-gradient(ellipse 70% 70% at 50% 50%, rgba(255,176,0,0.06) 0%, transparent 60%)',
 		ansiColors: {
 			black: '#0c0800',
 			red: '#cc7a00',
@@ -371,9 +371,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#01cdfe',
 		selectionColor: '#7b2fff',
-		// Retro grid — neon wireframe floor with horizon glow
+		// Retro perspective grid in bottom half (matching SVG widget)
 		decoration:
-			'repeating-linear-gradient(0deg, rgba(255,45,149,0.1) 0px, rgba(255,45,149,0.1) 1px, transparent 1px, transparent 40px), repeating-linear-gradient(90deg, rgba(1,205,254,0.08) 0px, rgba(1,205,254,0.08) 1px, transparent 1px, transparent 40px), linear-gradient(180deg, transparent 40%, rgba(123,47,255,0.12) 100%)',
+			'linear-gradient(0deg, rgba(255,113,206,0.06) 0px, rgba(255,113,206,0.06) 1px, transparent 1px) no-repeat 0 68% / 100% 1px, linear-gradient(0deg, rgba(255,113,206,0.06) 0px, rgba(255,113,206,0.06) 1px, transparent 1px) no-repeat 0 78% / 100% 1px, linear-gradient(0deg, rgba(255,113,206,0.06) 0px, rgba(255,113,206,0.06) 1px, transparent 1px) no-repeat 0 90% / 100% 1px, linear-gradient(180deg, transparent 60%, rgba(123,47,255,0.06) 100%)',
 		ansiColors: {
 			black: '#0a0015',
 			red: '#ff2d95',
@@ -406,9 +406,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#00e5b0',
 		selectionColor: '#0070a0',
-		// Deep ocean — layered depth with rising light columns
+		// Bioluminescent glow (matching SVG widget radial + dots)
 		decoration:
-			'radial-gradient(ellipse 40% 80% at 20% 100%, rgba(0,229,176,0.15) 0%, transparent 60%), radial-gradient(ellipse 35% 70% at 75% 100%, rgba(0,200,255,0.12) 0%, transparent 60%), radial-gradient(ellipse 25% 60% at 50% 100%, rgba(0,229,176,0.08) 0%, transparent 50%), linear-gradient(180deg, rgba(0,200,255,0.04) 0%, transparent 30%, rgba(0,229,176,0.1) 100%)',
+			'radial-gradient(ellipse 50% 50% at 30% 40%, rgba(0,200,255,0.08) 0%, transparent 50%)',
 		ansiColors: {
 			black: '#020b14',
 			red: '#1e8fa0',
@@ -442,9 +442,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#ffc040',
 		selectionColor: '#e04028',
-		// Ember glow — smoldering hotspots with heat shimmer
+		// Ember glow from top center (matching SVG widget radial)
 		decoration:
-			'radial-gradient(ellipse 45% 40% at 15% 85%, rgba(224,64,40,0.18) 0%, transparent 65%), radial-gradient(ellipse 50% 35% at 85% 65%, rgba(255,192,64,0.14) 0%, transparent 60%), radial-gradient(ellipse 60% 30% at 50% 100%, rgba(224,64,40,0.12) 0%, transparent 50%), linear-gradient(180deg, transparent 60%, rgba(255,120,40,0.08) 100%)',
+			'radial-gradient(ellipse 60% 60% at 50% 20%, rgba(232,160,64,0.08) 0%, transparent 50%)',
 		ansiColors: {
 			black: '#110808',
 			red: '#e04028',
@@ -477,9 +477,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#a0e0f8',
 		selectionColor: '#3878a0',
-		// Crystalline fractures — diagonal ice shards with aurora glow
+		// Faint crystalline lines at corners (matching SVG widget)
 		decoration:
-			'repeating-linear-gradient(120deg, rgba(112,232,204,0.1) 0px, rgba(112,232,204,0.1) 1px, transparent 1px, transparent 50px), repeating-linear-gradient(60deg, rgba(72,200,224,0.07) 0px, rgba(72,200,224,0.07) 1px, transparent 1px, transparent 65px), radial-gradient(ellipse 90% 40% at 50% 0%, rgba(160,224,248,0.12) 0%, transparent 50%)',
+			'linear-gradient(150deg, transparent 55%, rgba(72,200,224,0.04) 80%, transparent 95%) no-repeat 100% 0 / 30% 35%, linear-gradient(330deg, transparent 60%, rgba(72,200,224,0.03) 85%, transparent 100%) no-repeat 0 70% / 25% 30%',
 		ansiColors: {
 			black: '#050d18',
 			red: '#5898b8',
