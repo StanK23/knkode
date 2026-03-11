@@ -31,10 +31,12 @@ function Frame({
 	const activeC1 = isFocused ? c1 : `${c1}88`
 	const activeC2 = isFocused ? c2 : `${c2}88`
 
+	const isBottom = theme.statusBarPosition === 'bottom'
+
 	return (
 		<div
-			className="relative flex flex-col h-full w-full bg-[#0d0221] overflow-hidden"
-			style={{ padding: '8px 12px 24px 12px' }}
+			className="relative flex flex-col h-full w-full bg-transparent overflow-hidden"
+			style={{ padding: isBottom ? '8px 12px 24px 12px' : '24px 12px 8px 12px' }}
 		>
 			{/* SVG Vector Overlays */}
 			<svg
@@ -94,13 +96,14 @@ function Frame({
 			{/* Custom Cyberpunk Status Bar */}
 			<div
 				{...headerProps}
-				className={`${headerProps.className || ''} absolute bottom-0 left-0 w-full h-7 flex items-center gap-2 px-4 text-[9px] font-mono font-bold uppercase tracking-widest shrink-0 select-none transition-all duration-300 z-20`}
+				className={`${headerProps.className || ''} absolute ${isBottom ? 'bottom-0' : 'top-0'} left-0 w-full h-7 flex items-center gap-2 px-4 text-[9px] font-mono font-bold uppercase tracking-widest shrink-0 select-none transition-all duration-300 z-20`}
 				style={{
 					...headerProps.style,
 					color: theme.foreground,
-					borderTop: `1px solid ${activeC1}88`,
+					borderTop: isBottom ? `1px solid ${activeC1}88` : 'none',
+					borderBottom: isBottom ? 'none' : `1px solid ${activeC1}88`,
 					background: `linear-gradient(90deg, ${activeC1}22 0%, ${activeC2}11 100%)`,
-					boxShadow: isFocused ? `0 -1px 8px ${glowColor}44` : 'none',
+					boxShadow: isFocused ? `0 ${isBottom ? '-1px' : '1px'} 8px ${glowColor}44` : 'none',
 				}}
 			>
 				{isEditing ? (

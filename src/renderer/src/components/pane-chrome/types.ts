@@ -7,6 +7,7 @@ export interface VariantTheme {
 	foreground: string
 	accent: string
 	glow?: string
+	statusBarPosition?: 'top' | 'bottom'
 }
 
 /** Props passed to every StatusBar variant component. */

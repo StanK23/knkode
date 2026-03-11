@@ -25,10 +25,120 @@ function Frame({
 }: FrameProps) {
 	const glowColor = theme.glow ?? theme.accent
 	const c1 = theme.accent // deep blue/cyan
+	const isBottom = theme.statusBarPosition === 'bottom'
+
+	const header = (
+		<div
+			{...headerProps}
+			className={`${headerProps.className || ''} flex items-center gap-2 px-4 text-[11px] font-light shrink-0 select-none transition-all duration-300 z-20`}
+			style={{
+				...headerProps.style,
+				height: 36,
+				color: theme.foreground,
+				background: isBottom
+					? `linear-gradient(0deg, ${c1}11 0%, transparent 100%)`
+					: `linear-gradient(180deg, ${c1}11 0%, transparent 100%)`,
+				borderTop: isBottom ? `1px solid ${c1}22` : 'none',
+				borderBottom: isBottom ? 'none' : `1px solid ${c1}22`,
+				boxShadow: isFocused ? `0 ${isBottom ? '-' : ''}4px 12px ${glowColor}11` : 'none',
+			}}
+		>
+			{isEditing ? (
+				<input
+					{...editInputProps}
+					className="bg-transparent border rounded-sm font-light text-[11px] py-px px-1 outline-none w-20"
+					style={{ borderColor: theme.accent, color: theme.foreground }}
+				/>
+			) : (
+				<span onDoubleClick={onDoubleClickLabel} className="cursor-default shrink-0 font-medium">
+					{label}
+				</span>
+			)}
+
+			<span
+				className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap opacity-50"
+				style={{
+					maskImage: 'linear-gradient(90deg, black 80%, transparent)',
+					WebkitMaskImage: 'linear-gradient(90deg, black 80%, transparent)',
+				}}
+			>
+				~ {cwd}
+			</span>
+
+			{branch && (
+				<output
+					aria-label={`Git branch: ${branch}`}
+					className="min-w-0 text-[10px] px-2 py-px rounded-md overflow-hidden text-ellipsis whitespace-nowrap"
+					title={branch}
+					style={{
+						backgroundColor: `${theme.accent}22`,
+						color: theme.foreground,
+					}}
+				>
+					{branch}
+				</output>
+			)}
+
+			{pr && (
+				<PrBadge
+					pr={pr}
+					onOpenExternal={onOpenExternal}
+					className="text-[10px] px-2 py-px rounded-md hover:brightness-110 transition-all"
+					style={{
+						backgroundColor: `${theme.accent}22`,
+						color: theme.foreground,
+					}}
+				/>
+			)}
+
+			<SnippetTrigger
+				className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none ${FOCUS_VIS}`}
+				style={{ color: theme.accent }}
+			>
+				{'>_'}
+			</SnippetTrigger>
+
+			<div className="flex items-center gap-0.5 opacity-0 hover:opacity-70 focus-within:opacity-70 has-[:focus-visible]:opacity-70 transition-opacity duration-200">
+				<button
+					type="button"
+					onClick={onSplitVertical}
+					title={`Split vertical (${shortcuts.splitV})`}
+					aria-label="Split pane vertically"
+					className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none ${FOCUS_VIS}`}
+					style={{ color: theme.accent }}
+				>
+					┃
+				</button>
+				<button
+					type="button"
+					onClick={onSplitHorizontal}
+					title={`Split horizontal (${shortcuts.splitH})`}
+					aria-label="Split pane horizontally"
+					className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none ${FOCUS_VIS}`}
+					style={{ color: theme.accent }}
+				>
+					━
+				</button>
+				{canClose && (
+					<button
+						type="button"
+						onClick={onClose}
+						title={`Close pane (${shortcuts.close})`}
+						aria-label="Close pane"
+						className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none ${FOCUS_VIS}`}
+						style={{ color: theme.accent }}
+					>
+						✕
+					</button>
+				)}
+			</div>
+			{contextMenu}
+		</div>
+	)
 
 	return (
 		<div
-			className="relative flex flex-col h-full w-full bg-[#020b14] overflow-hidden"
+			className="relative flex flex-col h-full w-full bg-transparent overflow-hidden"
 			style={{ padding: '12px' }}
 		>
 			{/* Watery Depth Background Layer */}
@@ -49,118 +159,16 @@ function Frame({
 					backgroundColor: 'rgba(2, 11, 20, 0.4)',
 				}}
 			>
-				{/* Ocean Header */}
-				<div
-					{...headerProps}
-					className={`${headerProps.className || ''} flex items-center gap-2 px-4 text-[11px] font-light shrink-0 select-none transition-all duration-300 z-20`}
-					style={{
-						...headerProps.style,
-						height: 36,
-						color: theme.foreground,
-						background: `linear-gradient(180deg, ${c1}11 0%, transparent 100%)`,
-						borderBottom: `1px solid ${c1}22`,
-						boxShadow: isFocused ? `0 4px 12px ${glowColor}11` : 'none',
-					}}
-				>
-					{isEditing ? (
-						<input
-							{...editInputProps}
-							className="bg-transparent border rounded-sm font-light text-[11px] py-px px-1 outline-none w-20"
-							style={{ borderColor: theme.accent, color: theme.foreground }}
-						/>
-					) : (
-						<span
-							onDoubleClick={onDoubleClickLabel}
-							className="cursor-default shrink-0 font-medium"
-						>
-							{label}
-						</span>
-					)}
-
-					<span
-						className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap opacity-50"
-						style={{
-							maskImage: 'linear-gradient(90deg, black 80%, transparent)',
-							WebkitMaskImage: 'linear-gradient(90deg, black 80%, transparent)',
-						}}
-					>
-						~ {cwd}
-					</span>
-
-					{branch && (
-						<output
-							aria-label={`Git branch: ${branch}`}
-							className="min-w-0 text-[10px] px-2 py-px rounded-md overflow-hidden text-ellipsis whitespace-nowrap"
-							title={branch}
-							style={{
-								backgroundColor: `${theme.accent}22`,
-								color: theme.foreground,
-							}}
-						>
-							{branch}
-						</output>
-					)}
-
-					{pr && (
-						<PrBadge
-							pr={pr}
-							onOpenExternal={onOpenExternal}
-							className="text-[10px] px-2 py-px rounded-md hover:brightness-110 transition-all"
-							style={{
-								backgroundColor: `${theme.accent}22`,
-								color: theme.foreground,
-							}}
-						/>
-					)}
-
-					<SnippetTrigger
-						className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none ${FOCUS_VIS}`}
-						style={{ color: theme.accent }}
-					>
-						{'>_'}
-					</SnippetTrigger>
-
-					<div className="flex items-center gap-0.5 opacity-0 hover:opacity-70 focus-within:opacity-70 has-[:focus-visible]:opacity-70 transition-opacity duration-200">
-						<button
-							type="button"
-							onClick={onSplitVertical}
-							title={`Split vertical (${shortcuts.splitV})`}
-							aria-label="Split pane vertically"
-							className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none ${FOCUS_VIS}`}
-							style={{ color: theme.accent }}
-						>
-							┃
-						</button>
-						<button
-							type="button"
-							onClick={onSplitHorizontal}
-							title={`Split horizontal (${shortcuts.splitH})`}
-							aria-label="Split pane horizontally"
-							className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none ${FOCUS_VIS}`}
-							style={{ color: theme.accent }}
-						>
-							━
-						</button>
-						{canClose && (
-							<button
-								type="button"
-								onClick={onClose}
-								title={`Close pane (${shortcuts.close})`}
-								aria-label="Close pane"
-								className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none ${FOCUS_VIS}`}
-								style={{ color: theme.accent }}
-							>
-								✕
-							</button>
-						)}
-					</div>
-					{contextMenu}
-				</div>
+				{!isBottom && header}
 
 				{/* Screen Area */}
-				<div className="relative z-10 flex-1 w-full min-h-0 bg-transparent px-2 mt-1">
+				<div
+					className={`relative z-10 flex-1 w-full min-h-0 bg-transparent px-2 ${isBottom ? 'mb-1' : 'mt-1'}`}
+				>
 					{children}
 				</div>
+
+				{isBottom && header}
 			</div>
 		</div>
 	)

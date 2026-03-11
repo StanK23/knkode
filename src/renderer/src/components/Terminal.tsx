@@ -651,98 +651,21 @@ export function TerminalView({
 		[handleSearchNav, closeSearch],
 	)
 
-	const { wrapperBg, blurPx } = useMemo(() => {
-		const opacity = mergedTheme.paneOpacity ?? DEFAULT_PANE_OPACITY
-		return {
-			wrapperBg: resolveBackground(mergedTheme.background, opacity),
-			blurPx: opacity < 1 ? Math.round((1 - opacity) * 24) : 0,
-		}
-	}, [mergedTheme])
-
-	// Pre-compute effect multipliers with runtime validation for deserialized config values
-	const { gradientMul, glowMul, scanlineMul, noiseMul, scrollbarMul } = useMemo(() => {
+	const { scrollbarMul } = useMemo(() => {
 		const mul = (level: unknown) => EFFECT_MULTIPLIERS[isEffectLevel(level) ? level : 'off']
-		return {
-			gradientMul: mul(mergedTheme.gradientLevel),
-			glowMul: mul(mergedTheme.glowLevel),
-			scanlineMul: mul(mergedTheme.scanlineLevel),
-			noiseMul: mul(mergedTheme.noiseLevel),
-			scrollbarMul: mul(mergedTheme.scrollbarAccent),
-		}
+		return { scrollbarMul: mul(mergedTheme.scrollbarAccent) }
 	}, [mergedTheme])
 
-	// Fallback: use accent color for glow/gradient when the preset doesn't define them.
-	// This lets effect controls work on ALL themes, not just identity themes.
 	const effectGlow = mergedTheme.glow ?? mergedTheme.accent
-	const effectGradient =
-		mergedTheme.gradient ??
-		(effectGlow
-			? `linear-gradient(180deg, ${hexToRgba(effectGlow, 0.25)} 0%, transparent 50%)`
-			: null)
-
-	// Glow box-shadow alpha values — scaled by the multiplier
-	const glowInnerAlpha = 0.5 * glowMul
-	const glowOuterAlpha = 0.7 * glowMul
-
-	// Scrollbar accent — set CSS custom property on wrapper
 	const scrollbarColor =
 		scrollbarMul > 0 && effectGlow ? hexToRgba(effectGlow, 0.4 + 0.6 * scrollbarMul) : undefined
-
-	// Per-preset background decoration (digital rain, retro grid, etc.)
-	const presetDecoration = useMemo(
-		() => (mergedTheme.preset ? findPreset(mergedTheme.preset)?.decoration : undefined),
-		[mergedTheme.preset],
-	)
 
 	return (
 		<div
 			ref={wrapperRef}
 			className={`relative w-full h-full${scrollbarColor ? ' scrollbar-accent' : ''}`}
-			style={
-				{
-					backgroundColor: wrapperBg,
-					backdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
-					WebkitBackdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
-					'--scrollbar-accent-color': scrollbarColor,
-				} as React.CSSProperties
-			}
+			style={{ '--scrollbar-accent-color': scrollbarColor } as React.CSSProperties}
 		>
-			{presetDecoration && (
-				<div
-					className="absolute inset-0 pointer-events-none z-0"
-					style={{ background: presetDecoration, contain: 'layout paint style' }}
-				/>
-			)}
-			{gradientMul > 0 && effectGradient && isValidGradient(effectGradient) && (
-				<div
-					className="absolute inset-0 pointer-events-none z-[1]"
-					style={{
-						background: effectGradient,
-						opacity: gradientMul,
-						contain: 'layout paint style',
-					}}
-				/>
-			)}
-			{glowMul > 0 && effectGlow && (
-				<div
-					className="pane-glow absolute inset-0 pointer-events-none z-[2] rounded-sm"
-					style={{
-						boxShadow: `inset 0 0 18px ${hexToRgba(effectGlow, glowInnerAlpha)}, 0 0 12px ${hexToRgba(effectGlow, glowOuterAlpha)}`,
-					}}
-				/>
-			)}
-			{scanlineMul > 0 && (
-				<div
-					className="pane-scanline absolute inset-0 pointer-events-none z-[3]"
-					style={{ opacity: scanlineMul }}
-				/>
-			)}
-			{noiseMul > 0 && (
-				<div
-					className="pane-noise absolute inset-0 pointer-events-none z-[5]"
-					style={{ opacity: noiseMul * 0.5 }}
-				/>
-			)}
 			{showSearch && (
 				<search className="absolute top-2.5 right-3.5 z-10 flex items-center gap-1 bg-elevated border border-edge rounded-sm px-2 py-1 shadow-panel">
 					<input

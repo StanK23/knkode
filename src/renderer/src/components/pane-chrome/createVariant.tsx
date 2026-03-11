@@ -90,115 +90,121 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 			: () => null
 		const actionCls = `bg-transparent border-none cursor-pointer leading-none transition-opacity ${FOCUS_VIS} ${sb.action.className}`
 		const actionStyle = sb.action.style(theme)
+		const isBottom = theme.statusBarPosition === 'bottom'
+
+		const header = (
+			<div
+				{...headerProps}
+				className={`${headerProps.className || ''} flex items-center shrink-0 select-none transition-colors duration-200 ${sb.className}`}
+				style={{ ...headerProps.style, height: sb.height, ...sb.style(theme, isFocused) }}
+			>
+				{isEditing ? (
+					<input
+						{...editInputProps}
+						className={`bg-transparent outline-none ${sb.editInput.className}`}
+						style={sb.editInput.style(theme)}
+					/>
+				) : (
+					<span
+						onDoubleClick={onDoubleClickLabel}
+						className={`cursor-default shrink-0 ${sb.label?.className ?? 'font-medium'}`}
+						style={sb.label?.style?.(theme, isFocused)}
+					>
+						{label}
+					</span>
+				)}
+
+				{(sb.showSeparatorAfterLabel ?? true) && <Sep />}
+
+				<span
+					className={`flex-1 overflow-hidden text-ellipsis whitespace-nowrap ${sb.cwd.className}`}
+					style={sb.cwd.style?.(theme)}
+				>
+					{sb.cwd.icon === 'folder' ? (
+						sb.cwd.iconStyle ? (
+							<span style={sb.cwd.iconStyle(theme)}>
+								<FolderIcon className={sb.cwd.iconClassName} />
+							</span>
+						) : (
+							<FolderIcon className={sb.cwd.iconClassName} />
+						)
+					) : sb.cwd.icon ? (
+						<>
+							<span style={sb.cwd.iconStyle?.(theme)}>{sb.cwd.icon}</span>{' '}
+						</>
+					) : sb.cwd.prefix ? (
+						<>{sb.cwd.prefix}</>
+					) : null}
+					{cwd}
+				</span>
+
+				{branch && (
+					<output
+						aria-label={`Git branch: ${branch}`}
+						className={`min-w-0 overflow-hidden text-ellipsis whitespace-nowrap ${sb.branch.className}`}
+						title={branch}
+						style={sb.branch.style(theme)}
+					>
+						{sb.branch.format ? sb.branch.format(branch) : branch}
+					</output>
+				)}
+
+				{pr && (
+					<PrBadge
+						pr={pr}
+						onOpenExternal={onOpenExternal}
+						className={`transition-all ${sb.pr.className}`}
+						style={sb.pr.style(theme)}
+					/>
+				)}
+
+				<Sep />
+
+				<SnippetTrigger className={actionCls} style={actionStyle}>
+					{sb.snippet.label}
+				</SnippetTrigger>
+
+				<button
+					type="button"
+					onClick={onSplitVertical}
+					title={`Split vertical (${shortcuts.splitV})`}
+					aria-label="Split pane vertically"
+					className={actionCls}
+					style={actionStyle}
+				>
+					┃
+				</button>
+				<button
+					type="button"
+					onClick={onSplitHorizontal}
+					title={`Split horizontal (${shortcuts.splitH})`}
+					aria-label="Split pane horizontally"
+					className={actionCls}
+					style={actionStyle}
+				>
+					━
+				</button>
+				{canClose && (
+					<button
+						type="button"
+						onClick={onClose}
+						title={`Close pane (${shortcuts.close})`}
+						aria-label="Close pane"
+						className={actionCls}
+						style={actionStyle}
+					>
+						✕
+					</button>
+				)}
+				{contextMenu}
+			</div>
+		)
 
 		return (
 			<>
-				<div
-					{...headerProps}
-					className={`${headerProps.className || ''} flex items-center shrink-0 select-none transition-colors duration-200 ${sb.className}`}
-					style={{ ...headerProps.style, height: sb.height, ...sb.style(theme, isFocused) }}
-				>
-					{isEditing ? (
-						<input
-							{...editInputProps}
-							className={`bg-transparent outline-none ${sb.editInput.className}`}
-							style={sb.editInput.style(theme)}
-						/>
-					) : (
-						<span
-							onDoubleClick={onDoubleClickLabel}
-							className={`cursor-default shrink-0 ${sb.label?.className ?? 'font-medium'}`}
-							style={sb.label?.style?.(theme, isFocused)}
-						>
-							{label}
-						</span>
-					)}
-
-					{(sb.showSeparatorAfterLabel ?? true) && <Sep />}
-
-					<span
-						className={`flex-1 overflow-hidden text-ellipsis whitespace-nowrap ${sb.cwd.className}`}
-						style={sb.cwd.style?.(theme)}
-					>
-						{sb.cwd.icon === 'folder' ? (
-							sb.cwd.iconStyle ? (
-								<span style={sb.cwd.iconStyle(theme)}>
-									<FolderIcon className={sb.cwd.iconClassName} />
-								</span>
-							) : (
-								<FolderIcon className={sb.cwd.iconClassName} />
-							)
-						) : sb.cwd.icon ? (
-							<>
-								<span style={sb.cwd.iconStyle?.(theme)}>{sb.cwd.icon}</span>{' '}
-							</>
-						) : sb.cwd.prefix ? (
-							<>{sb.cwd.prefix}</>
-						) : null}
-						{cwd}
-					</span>
-
-					{branch && (
-						<output
-							aria-label={`Git branch: ${branch}`}
-							className={`min-w-0 overflow-hidden text-ellipsis whitespace-nowrap ${sb.branch.className}`}
-							title={branch}
-							style={sb.branch.style(theme)}
-						>
-							{sb.branch.format ? sb.branch.format(branch) : branch}
-						</output>
-					)}
-
-					{pr && (
-						<PrBadge
-							pr={pr}
-							onOpenExternal={onOpenExternal}
-							className={`transition-all ${sb.pr.className}`}
-							style={sb.pr.style(theme)}
-						/>
-					)}
-
-					<Sep />
-
-					<SnippetTrigger className={actionCls} style={actionStyle}>
-						{sb.snippet.label}
-					</SnippetTrigger>
-
-					<button
-						type="button"
-						onClick={onSplitVertical}
-						title={`Split vertical (${shortcuts.splitV})`}
-						aria-label="Split pane vertically"
-						className={actionCls}
-						style={actionStyle}
-					>
-						┃
-					</button>
-					<button
-						type="button"
-						onClick={onSplitHorizontal}
-						title={`Split horizontal (${shortcuts.splitH})`}
-						aria-label="Split pane horizontally"
-						className={actionCls}
-						style={actionStyle}
-					>
-						━
-					</button>
-					{canClose && (
-						<button
-							type="button"
-							onClick={onClose}
-							title={`Close pane (${shortcuts.close})`}
-							aria-label="Close pane"
-							className={actionCls}
-							style={actionStyle}
-						>
-							✕
-						</button>
-					)}
-					{contextMenu}
-				</div>
+				{!isBottom && header}
 				{children}
+				{isBottom && header}
 			</>
 		)
 	}

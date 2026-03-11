@@ -4,19 +4,23 @@ import type { PrInfo } from '../../../../shared/types'
 import type { VariantTheme } from './types'
 
 /** Build a VariantTheme from workspace/preset colors with fallback accent. */
-export function buildVariantTheme(colors: {
-	background: string
-	foreground: string
-	accent?: string
-	glow?: string
-	presetAccent?: string
-	presetGlow?: string
-}): VariantTheme {
+export function buildVariantTheme(
+	colors: {
+		background: string
+		foreground: string
+		accent?: string
+		glow?: string
+		presetAccent?: string
+		presetGlow?: string
+	},
+	statusBarPosition?: 'top' | 'bottom',
+): VariantTheme {
 	return {
 		background: colors.background,
 		foreground: colors.foreground,
 		accent: colors.accent ?? colors.presetAccent ?? DEFAULT_ACCENT,
 		glow: colors.glow ?? colors.presetGlow,
+		statusBarPosition: statusBarPosition ?? 'top',
 	}
 }
 
