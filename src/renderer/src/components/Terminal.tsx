@@ -273,16 +273,21 @@ export function TerminalView({
 			// ── CACHE MISS: first mount for this paneId ──────────────────────
 			const t = themeRef.current
 			const opacity = t.paneOpacity ?? DEFAULT_PANE_OPACITY
+			const hasEffects =
+				(t.gradientLevel && t.gradientLevel !== 'off') ||
+				(t.preset && findPreset(t.preset)?.decoration)
+			const termOpacity = hasEffects ? 0 : opacity
+
 			const term = new XTerm({
 				fontSize: t.fontSize,
 				fontFamily: buildFontFamily(t.fontFamily),
-				theme: buildXtermTheme(t, opacity),
+				theme: buildXtermTheme(t, termOpacity),
 				cursorBlink: true,
 				cursorStyle: t.cursorStyle ?? DEFAULT_CURSOR_STYLE,
 				allowProposedApi: true,
 				scrollback: t.scrollback ?? DEFAULT_SCROLLBACK,
 				lineHeight: t.lineHeight ?? DEFAULT_LINE_HEIGHT,
-				allowTransparency: opacity < 1,
+				allowTransparency: termOpacity < 1,
 			})
 
 			const fitAddon = new FitAddon()
@@ -535,8 +540,13 @@ export function TerminalView({
 	useEffect(() => {
 		if (!termRef.current || !fitAddonRef.current) return
 		const opacity = mergedTheme.paneOpacity ?? DEFAULT_PANE_OPACITY
-		termRef.current.options.allowTransparency = opacity < 1
-		termRef.current.options.theme = buildXtermTheme(mergedTheme, opacity)
+		const hasEffects =
+			(mergedTheme.gradientLevel && mergedTheme.gradientLevel !== 'off') ||
+			(mergedTheme.preset && findPreset(mergedTheme.preset)?.decoration)
+		const termOpacity = hasEffects ? 0 : opacity
+
+		termRef.current.options.allowTransparency = termOpacity < 1
+		termRef.current.options.theme = buildXtermTheme(mergedTheme, termOpacity)
 		termRef.current.options.cursorStyle = mergedTheme.cursorStyle ?? DEFAULT_CURSOR_STYLE
 		termRef.current.options.scrollback = mergedTheme.scrollback ?? DEFAULT_SCROLLBACK
 		const newLineHeight = mergedTheme.lineHeight ?? DEFAULT_LINE_HEIGHT
@@ -552,9 +562,9 @@ export function TerminalView({
 		// See also: the tryLoadWebgl guards in the cache-miss and cache-hit branches of the mount effect.
 		const cached = terminalCache.get(paneId)
 		if (cached) {
-			if (opacity < 1 && cached.webglAddon) {
+			if (termOpacity < 1 && cached.webglAddon) {
 				disposeWebgl(cached)
-			} else if (opacity >= 1 && !cached.webglAddon) {
+			} else if (termOpacity >= 1 && !cached.webglAddon) {
 				tryLoadWebgl(cached)
 			}
 		}
