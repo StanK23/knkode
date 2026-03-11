@@ -1,12 +1,11 @@
 # HANDOFF
 
 ## Current State
-- Branch: `fix/passive-output-scroll-jump`
+- Branch: `dev/theming`
 - `dev/agent-workspace` branch preserved with all rendered view work (PRs #58-75)
-- Active bug card: Passive terminal scroll jump during large output bursts (knktx card: `e650a1c6-4437-4bbe-aaa7-fff9fd334d5d`)
 
 ## What Was Done
-- In progress on `fix/passive-output-scroll-jump`: added shared terminal scroll snapshot/sync helpers, re-sync scroll state after xterm `onWriteParsed` batches, and block restore-time viewport events during workspace reactivation so passive output bursts and tab switches cannot overwrite the saved viewport snapshot. Added focused regression tests for the new sync coordinator and distance-from-bottom restoration logic.
+- PR #91 merged: Harden passive terminal scroll sync — extracted scroll helpers to `utils/terminal-scroll.ts`, added `ViewportSyncCoordinator` for coalesced onWriteParsed syncs with blocking during workspace restore, fixed race condition where `scheduleSync` could cancel block-release, added `scrollToBottom` saved state sync. 10-agent review, all findings fixed.
 - PR #90 merged: Restore terminal pane inner padding — moved `p-1.5` from wrapper to containerRef so xterm text has breathing room (effect overlays were covering wrapper padding). Adjusted search bar positioning. 9-agent review, all findings fixed.
 - PR #89 merged: Preserve pane sizes when splitting — `onDragEnd` handler persists drag-resized pane percentages to the layout tree, stable child keys via `getFirstPaneId` prevent allotment from resetting sizes on split. 10-agent review, all findings fixed.
 - PR #88 merged: Passive TUI scroll jump hardening — restored `isFittingRef` gating for fit-driven viewport scroll events, skipped no-op scroll restoration when rows/cols are unchanged, and documented the xterm fit/scroll invariants after 9-agent review plus fix pass.
@@ -64,7 +63,7 @@ Board: `13106f68-3789-458a-b9d2-5eb644b7e0ee`
 - ~~PR #90: Restore terminal pane inner padding~~ (merged)
 
 ## Remaining Work
-- Create and review the PR for `fix/passive-output-scroll-jump`, then manually verify long passive-output and workspace-tab-switch scenarios in the app.
+- Manually verify long passive-output and workspace-tab-switch scenarios after PR #91 merge.
 
 ## Previous Work
 - PR #58: Translucent pane backgrounds with blur
