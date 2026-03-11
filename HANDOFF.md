@@ -56,7 +56,7 @@ Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 Board: `adbe0470-30b2-48cc-afa6-767a47912565`
 
 1. ~~PR #93: `fix/pr-badge` — Fix PR badge not showing~~ (merged)
-2. PR #2: `feature/theme-backgrounds` — Unique pane backgrounds per identity theme
+2. PR #94: `feature/theme-backgrounds` — Unique pane backgrounds per identity theme (review complete, fixing)
 3. PR #3: `feature/status-bar-polish` — Tinted backgrounds, gradient separators
 4. PR #4: `feature/flip-status-bar` — Status bar top/bottom toggle
 

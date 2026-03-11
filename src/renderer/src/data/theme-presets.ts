@@ -17,7 +17,7 @@ export type ThemePreset = Pick<
 	| 'scrollbarAccent'
 	| 'cursorColor'
 	| 'selectionColor'
-> & { name: string }
+> & { name: string; decoration?: string }
 
 /** Tango-based ANSI palette used by the Default Dark preset. */
 const DEFAULT_ANSI: AnsiColors = {
@@ -230,6 +230,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#00ff41',
 		selectionColor: '#00ff41',
+		// Digital rain — vertical glow columns at staggered heights
+		decoration:
+			'linear-gradient(180deg, rgba(0,255,65,0.14) 0%, transparent 65%) no-repeat 8% 0 / 3% 60%, linear-gradient(180deg, rgba(0,255,65,0.1) 0%, transparent 70%) no-repeat 22% 0 / 2% 45%, linear-gradient(180deg, rgba(0,255,65,0.12) 0%, transparent 60%) no-repeat 40% 0 / 3% 55%, linear-gradient(180deg, rgba(0,255,65,0.08) 0%, transparent 65%) no-repeat 58% 0 / 2% 40%, linear-gradient(180deg, rgba(0,255,65,0.13) 0%, transparent 55%) no-repeat 72% 0 / 3% 70%, linear-gradient(180deg, rgba(0,255,65,0.09) 0%, transparent 60%) no-repeat 88% 0 / 2% 50%',
 		ansiColors: {
 			black: '#0a0a0a',
 			red: '#00cc33',
@@ -262,6 +265,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#ff2a6d',
 		selectionColor: '#05d9e8',
+		// Diagonal accent blocks at opposite corners (matching SVG widget)
+		decoration:
+			'linear-gradient(135deg, transparent 60%, rgba(255,42,109,0.1) 75%, rgba(255,42,109,0.06) 100%) no-repeat, linear-gradient(315deg, transparent 70%, rgba(5,217,232,0.07) 85%, rgba(5,217,232,0.04) 100%) no-repeat',
 		ansiColors: {
 			black: '#0d0221',
 			red: '#ff2a6d',
@@ -294,6 +300,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#14f195',
 		selectionColor: '#9945ff',
+		// Soft orbs at opposite corners (matching SVG widget circles)
+		decoration:
+			'radial-gradient(circle at 82% 27%, rgba(153,69,255,0.07) 0%, transparent 40%), radial-gradient(circle at 18% 80%, rgba(20,241,149,0.05) 0%, transparent 35%)',
 		ansiColors: {
 			black: '#0c0c1d',
 			red: '#ff6b6b',
@@ -327,6 +336,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#ffb000',
 		selectionColor: '#e09000',
+		// CRT phosphor — center glow (matching SVG widget radial)
+		decoration:
+			'radial-gradient(ellipse 70% 70% at 50% 50%, rgba(255,176,0,0.06) 0%, transparent 60%)',
 		ansiColors: {
 			black: '#0c0800',
 			red: '#cc7a00',
@@ -359,6 +371,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#01cdfe',
 		selectionColor: '#7b2fff',
+		// Retro perspective grid in bottom half (matching SVG widget)
+		decoration:
+			'linear-gradient(0deg, rgba(255,113,206,0.06) 0px, rgba(255,113,206,0.06) 1px, transparent 1px) no-repeat 0 68% / 100% 1px, linear-gradient(0deg, rgba(255,113,206,0.06) 0px, rgba(255,113,206,0.06) 1px, transparent 1px) no-repeat 0 78% / 100% 1px, linear-gradient(0deg, rgba(255,113,206,0.06) 0px, rgba(255,113,206,0.06) 1px, transparent 1px) no-repeat 0 90% / 100% 1px, linear-gradient(180deg, transparent 60%, rgba(123,47,255,0.06) 100%)',
 		ansiColors: {
 			black: '#0a0015',
 			red: '#ff2d95',
@@ -391,6 +406,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#00e5b0',
 		selectionColor: '#0070a0',
+		// Bioluminescent glow (matching SVG widget radial + dots)
+		decoration:
+			'radial-gradient(ellipse 50% 50% at 30% 40%, rgba(0,200,255,0.08) 0%, transparent 50%)',
 		ansiColors: {
 			black: '#020b14',
 			red: '#1e8fa0',
@@ -424,6 +442,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#ffc040',
 		selectionColor: '#e04028',
+		// Ember glow from top center (matching SVG widget radial)
+		decoration:
+			'radial-gradient(ellipse 60% 60% at 50% 20%, rgba(232,160,64,0.08) 0%, transparent 50%)',
 		ansiColors: {
 			black: '#110808',
 			red: '#e04028',
@@ -456,6 +477,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#a0e0f8',
 		selectionColor: '#3878a0',
+		// Faint crystalline lines at corners (matching SVG widget)
+		decoration:
+			'linear-gradient(150deg, transparent 55%, rgba(72,200,224,0.04) 80%, transparent 95%) no-repeat 100% 0 / 30% 35%, linear-gradient(330deg, transparent 60%, rgba(72,200,224,0.03) 85%, transparent 100%) no-repeat 0 70% / 25% 30%',
 		ansiColors: {
 			black: '#050d18',
 			red: '#5898b8',
