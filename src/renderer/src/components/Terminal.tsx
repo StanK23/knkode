@@ -17,35 +17,16 @@ import {
 import { buildFontFamily, buildXtermTheme } from '../data/theme-presets'
 import { useStore } from '../store'
 import { hexToRgba, isValidGradient, resolveBackground } from '../utils/colors'
+import {
+	type SavedScroll,
+	createViewportSyncCoordinator,
+	readSavedScroll,
+	restoreSavedScroll,
+} from '../utils/terminal-scroll'
 import type { PaneVariant, VariantTheme } from './pane-chrome'
 
 const SEARCH_BTN =
 	'bg-transparent border-none text-content-muted cursor-pointer text-xs min-w-[28px] min-h-[28px] flex items-center justify-center hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none rounded-sm'
-
-/** Whether the terminal viewport is scrolled to the very bottom of the buffer. */
-function isTermAtBottom(term: XTerm): boolean {
-	return term.buffer.active.viewportY >= term.buffer.active.baseY
-}
-
-/** Distance-from-bottom scroll snapshot — used by savedScrollRef and fitAndPreserveScroll. */
-interface SavedScroll {
-	atBottom: boolean
-	linesFromBottom: number
-}
-
-/** Number of buffer lines between the current viewport and the bottom. */
-function getLinesFromBottom(term: XTerm): number {
-	return Math.max(0, term.buffer.active.baseY - term.buffer.active.viewportY)
-}
-
-/** Restore a previously saved scroll position (distance-from-bottom). */
-function restoreScroll(term: XTerm, saved: SavedScroll): void {
-	if (saved.atBottom) {
-		term.scrollToBottom()
-	} else {
-		term.scrollToLine(Math.max(0, term.buffer.active.baseY - saved.linesFromBottom))
-	}
-}
 
 /**
  * Proposed dimensions from xterm's fit addon, or null if valid geometry
@@ -93,12 +74,9 @@ function fitAndPreserveScroll(term: XTerm, fitAddon: FitAddon): void {
 		return
 	}
 
-	const saved: SavedScroll = {
-		atBottom: isTermAtBottom(term),
-		linesFromBottom: getLinesFromBottom(term),
-	}
+	const saved = readSavedScroll(term)
 	fitAddon.fit()
-	restoreScroll(term, saved)
+	restoreSavedScroll(term, saved)
 }
 
 /**
@@ -264,6 +242,19 @@ export function TerminalView({
 		const ws = s.workspaces.find((w) => paneId in w.panes)
 		return ws?.id === s.appState.activeWorkspaceId
 	})
+	const viewportSyncRef = useRef(
+		createViewportSyncCoordinator({
+			cancel: (id) => cancelAnimationFrame(id),
+			schedule: (cb) => requestAnimationFrame(cb),
+			sync: () => {
+				const term = termRef.current
+				if (!term || !isActiveRef.current) return
+				const saved = readSavedScroll(term)
+				savedScrollRef.current = saved
+				setIsScrolledUp(!saved.atBottom)
+			},
+		}),
+	)
 
 	const mergedTheme = useMemo(() => ({ ...theme, ...themeOverride }), [theme, themeOverride])
 
@@ -418,9 +409,10 @@ export function TerminalView({
 
 		// Reparent xterm's container into the React-managed div
 		containerRef.current.appendChild(termContainer)
-		// Not wrapped with guardedFit — the scroll listener is registered below
-		// (line ~433), so no scroll handler is active yet. This ordering is load-bearing:
-		// moving the listener registration above this fit() would silently corrupt scroll state.
+		// Not wrapped with guardedFit — the scroll and onWriteParsed listeners
+		// are registered below. No scroll handler is active yet. This ordering
+		// is load-bearing: registering listeners before fit() would silently
+		// corrupt scroll state.
 		fitAddon.fit()
 
 		termRef.current = term
@@ -428,17 +420,27 @@ export function TerminalView({
 		searchAddonRef.current = searchAddon
 
 		// Track whether user is scrolled up (for scroll-to-bottom button).
-		// term.onScroll fires synchronously during term.write() before the DOM
-		// scrollTop updates, giving stale isTermAtBottom() readings that corrupt
-		// savedScrollRef and cause panes to jump to top on workspace switch.
+		// Two listeners: viewport scroll (DOM event) and onWriteParsed (xterm).
+		// Both are gated by isScrollSuppressed() which checks isActive, isFitting,
+		// and the viewport sync coordinator's isBlocked(). The coordinator
+		// coalesces onWriteParsed syncs and blocks scroll handlers during
+		// mutations (workspace restore) to prevent stale reads.
 		const viewport = term.element?.querySelector('.xterm-viewport')
+		const isScrollSuppressed = () =>
+			!isActiveRef.current || isFittingRef.current || viewportSyncRef.current.isBlocked()
 		const handleViewportScroll = () => {
-			if (!isActiveRef.current || isFittingRef.current) return
-			const atBottom = isTermAtBottom(term)
-			setIsScrolledUp(!atBottom)
-			savedScrollRef.current = { atBottom, linesFromBottom: getLinesFromBottom(term) }
+			if (isScrollSuppressed()) return
+			const saved = readSavedScroll(term)
+			savedScrollRef.current = saved
+			setIsScrolledUp(!saved.atBottom)
 		}
 		viewport?.addEventListener('scroll', handleViewportScroll)
+		const writeParsedDisposable = term.onWriteParsed(() => {
+			if (isScrollSuppressed()) return
+			// Passive output can move the viewport without a reliable DOM scroll
+			// signal for every chunk. Re-sync once the write batch has settled.
+			viewportSyncRef.current.scheduleSync()
+		})
 
 		// Skip ResizeObserver callbacks with unchanged pixel dimensions (fires on
 		// DOM re-attach, style recalc, etc.) to avoid unnecessary rAF scheduling.
@@ -459,6 +461,7 @@ export function TerminalView({
 				try {
 					if (!containerRef.current?.clientWidth) return
 					guardedFit(term, fitAddon, isFittingRef)
+					if (isActiveRef.current) viewportSyncRef.current.scheduleSync()
 				} catch (err) {
 					console.warn('[terminal] fit()/scroll failed during resize:', err)
 				}
@@ -478,8 +481,10 @@ export function TerminalView({
 			// (onData, onPtyData, onPtyExit, onResize) remain active on the
 			// cached entry so the PTY buffer keeps accumulating while detached.
 			viewport?.removeEventListener('scroll', handleViewportScroll)
+			writeParsedDisposable.dispose()
 			wrapperEl.removeEventListener('focusin', handleFocusIn)
 			resizeObserver.disconnect()
+			viewportSyncRef.current.dispose()
 			searchAddonRef.current = null
 			// Detach termContainer from DOM — do NOT dispose the terminal.
 			// PTY data continues writing to the buffer while detached.
@@ -489,21 +494,22 @@ export function TerminalView({
 
 	// Restore terminal scroll position when workspace becomes active.
 	// Runs as useLayoutEffect (before paint) so the user never sees a flash
-	// of wrong scroll position. While inactive, handleViewportScroll is
-	// suppressed via isActiveRef so browser-induced scrollTop resets don't
-	// corrupt the saved position.
+	// of wrong scroll position. While inactive, scroll handlers are suppressed
+	// via isActiveRef. The restore itself uses runBlockedMutation so scroll
+	// events fired by scrollToLine/scrollToBottom don't overwrite the snapshot.
 	useLayoutEffect(() => {
 		if (!isWorkspaceActive) {
 			isActiveRef.current = false
 			return
 		}
+		isActiveRef.current = true
 		if (termRef.current) {
 			const term = termRef.current
-			restoreScroll(term, savedScrollRef.current)
-			isActiveRef.current = true
-			setIsScrolledUp(!isTermAtBottom(term))
+			viewportSyncRef.current.runBlockedMutation(() => {
+				restoreSavedScroll(term, savedScrollRef.current)
+			})
 		} else {
-			isActiveRef.current = true
+			viewportSyncRef.current.scheduleSync()
 		}
 	}, [isWorkspaceActive])
 
@@ -551,6 +557,7 @@ export function TerminalView({
 		if (metricsChanged) {
 			try {
 				guardedFit(termRef.current, fitAddonRef.current, isFittingRef)
+				if (isActiveRef.current) viewportSyncRef.current.scheduleSync()
 				if (isFocusedRef.current) termRef.current.focus()
 			} catch (err) {
 				console.warn('[terminal] fit()/scroll failed during theme update:', err)
@@ -614,6 +621,7 @@ export function TerminalView({
 
 	const scrollToBottom = useCallback(() => {
 		termRef.current?.scrollToBottom()
+		savedScrollRef.current = { atBottom: true, linesFromBottom: 0 }
 		setIsScrolledUp(false)
 		termRef.current?.focus()
 	}, [])
