@@ -226,7 +226,7 @@
 	   The box-shadow itself is set via inline style in Terminal.tsx.
 	   will-change promotes to GPU layer so opacity changes don't trigger re-paint. */
 	.pane-glow {
-		contain: strict;
+		contain: layout paint style;
 	}
 
 	/* CRT scanline overlay — static horizontal lines.
@@ -240,14 +240,14 @@
 			rgba(0, 0, 0, 0.25) 2px,
 			rgba(0, 0, 0, 0.25) 4px
 		);
-		contain: strict;
+		contain: layout paint style;
 	}
 
 	/* Film grain / noise texture — GPU-friendly repeating conic gradient.
 	   Opacity is set via inline style in Terminal.tsx scaled by EFFECT_MULTIPLIERS. */
 	.pane-noise {
 		background: repeating-conic-gradient(#000 0% 25%, transparent 0% 50%) 0 0 / 2px 2px;
-		contain: strict;
+		contain: layout paint style;
 	}
 
 	/* Scrollbar accent — terminal-scoped override using CSS custom property.

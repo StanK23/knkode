@@ -83,6 +83,7 @@ export function Tab({
 			tabIndex={isActive ? 0 : -1}
 			aria-selected={isActive}
 			aria-roledescription="draggable tab"
+			data-workspace-id={workspace.id}
 			draggable={!isEditing}
 			onClick={() => onActivate(workspace.id)}
 			onKeyDown={(e) => {
@@ -108,7 +109,9 @@ export function Tab({
 					else if (e.key === 'Home') target = 0
 					else if (e.key === 'End') target = count - 1
 					tabs[target]?.focus()
-					tabs[target]?.click()
+					// Dispatch activation directly instead of synthetic .click()
+					const wsId = tabs[target]?.dataset.workspaceId
+					if (wsId) onActivate(wsId)
 				}
 			}}
 			onContextMenu={handleContextMenu}

@@ -109,7 +109,7 @@ function StatusBar({
 					title={`Close pane (${shortcuts.close})`}
 					aria-label="Close pane"
 					className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
-					style={{ color: theme.foreground }}
+					style={{ color: theme.accent }}
 				>
 					✕
 				</button>

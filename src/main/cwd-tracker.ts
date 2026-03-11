@@ -75,7 +75,7 @@ function checkPrStatus(cwd: string, callback: (pr: PrInfo | null) => void): void
 				return
 			}
 			try {
-				const data = JSON.parse(stdout)
+				const data: Record<string, unknown> = JSON.parse(stdout)
 				if (
 					typeof data.number === 'number' &&
 					typeof data.url === 'string' &&
