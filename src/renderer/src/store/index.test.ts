@@ -514,7 +514,11 @@ describe('store splitPane', () => {
 
 describe('store closePane', () => {
 	it('closes a pane and collapses the branch', () => {
-		useStore.setState({ workspaces: [makeTwoPaneWs()], paneBranches: { p1: 'main', p2: 'dev' }, panePrs: { p1: { number: 1, url: 'https://x', title: 'PR' } } })
+		useStore.setState({
+			workspaces: [makeTwoPaneWs()],
+			paneBranches: { p1: 'main', p2: 'dev' },
+			panePrs: { p1: { number: 1, url: 'https://x', title: 'PR' } },
+		})
 		useStore.getState().closePane('ws-1', 'p1')
 
 		const ws = useStore.getState().workspaces[0]

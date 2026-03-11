@@ -716,7 +716,11 @@ export function TerminalView({
 			{gradientMul > 0 && effectGradient && isValidGradient(effectGradient) && (
 				<div
 					className="absolute inset-0 pointer-events-none z-[1]"
-					style={{ background: effectGradient, opacity: gradientMul, contain: 'layout paint style' }}
+					style={{
+						background: effectGradient,
+						opacity: gradientMul,
+						contain: 'layout paint style',
+					}}
 				/>
 			)}
 			{glowMul > 0 && effectGlow && (

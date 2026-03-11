@@ -29,7 +29,8 @@ createAndRegisterVariant('Nord', {
 		snippet: { label: '>_' },
 	},
 	scrollButton: {
-		className: 'bottom-3 left-1/3 right-1/3 h-7 text-[10px] tracking-wide opacity-60 hover:opacity-100',
+		className:
+			'bottom-3 left-1/3 right-1/3 h-7 text-[10px] tracking-wide opacity-60 hover:opacity-100',
 		style: (theme) => ({ color: theme.foreground, backgroundColor: 'transparent', border: 'none' }),
 		text: '↓ scroll to bottom',
 	},

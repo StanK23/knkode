@@ -291,7 +291,10 @@ interface StoreState {
 function withWorkspace(
 	state: StoreState,
 	workspaceId: string,
-	updater: (ws: Workspace, st: StoreState) => { updated: Workspace; extra?: Partial<StoreState> } | null,
+	updater: (
+		ws: Workspace,
+		st: StoreState,
+	) => { updated: Workspace; extra?: Partial<StoreState> } | null,
 ): Partial<StoreState> | StoreState {
 	const workspace = state.workspaces.find((w) => w.id === workspaceId)
 	if (!workspace) return state
@@ -399,14 +402,22 @@ export const useStore = create<StoreState>((set, get) => ({
 					panes,
 				}
 				workspaces = [...workspaces, defaultWorkspace]
-				appState = { ...appState, openWorkspaceIds: [defaultWorkspace.id], activeWorkspaceId: defaultWorkspace.id }
+				appState = {
+					...appState,
+					openWorkspaceIds: [defaultWorkspace.id],
+					activeWorkspaceId: defaultWorkspace.id,
+				}
 				await window.api.saveWorkspace(defaultWorkspace)
 				await window.api.saveAppState(appState)
 			}
 
 			// Ensure at least one tab is open
 			if (appState.openWorkspaceIds.length === 0 && workspaces.length > 0) {
-				appState = { ...appState, openWorkspaceIds: [workspaces[0].id], activeWorkspaceId: workspaces[0].id }
+				appState = {
+					...appState,
+					openWorkspaceIds: [workspaces[0].id],
+					activeWorkspaceId: workspaces[0].id,
+				}
 				await window.api.saveAppState(appState)
 			}
 
