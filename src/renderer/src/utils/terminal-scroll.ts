@@ -33,7 +33,7 @@ export function isTermAtBottom(term: ScrollTerminalLike): boolean {
 	return term.buffer.active.viewportY >= term.buffer.active.baseY
 }
 
-export function getLinesFromBottom(term: ScrollTerminalLike): number {
+function getLinesFromBottom(term: ScrollTerminalLike): number {
 	return Math.max(0, term.buffer.active.baseY - term.buffer.active.viewportY)
 }
 
