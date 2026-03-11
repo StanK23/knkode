@@ -102,6 +102,8 @@ export interface PaneTheme {
 	lineHeight?: number
 	/** Theme preset name — links to THEME_PRESETS for full identity. */
 	preset?: string
+	/** Status bar position. Defaults to 'top' */
+	statusBarPosition?: 'top' | 'bottom'
 }
 
 export interface PaneConfig {

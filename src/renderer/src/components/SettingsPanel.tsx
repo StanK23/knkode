@@ -465,6 +465,9 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const [cursorStyle, setCursorStyle] = useState(
 		workspace.theme.cursorStyle ?? DEFAULT_CURSOR_STYLE,
 	)
+	const [statusBarPosition, setStatusBarPosition] = useState<'top' | 'bottom'>(
+		workspace.theme.statusBarPosition ?? 'top',
+	)
 	const [dimLevel, setDimLevel] = useState<EffectLevel>(
 		closestLevel(workspace.theme.unfocusedDim, DIM_VALUES),
 	)
@@ -498,6 +501,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 			fontFamily: fontFamily || undefined,
 			scrollback,
 			cursorStyle,
+			statusBarPosition,
 			paneOpacity: OPACITY_VALUES[opacityLevel],
 			ansiColors: preset?.ansiColors,
 			accent: preset?.accent,
@@ -520,6 +524,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		fontFamily,
 		scrollback,
 		cursorStyle,
+		statusBarPosition,
 		opacityLevel,
 		gradientLevel,
 		glowLevel,
@@ -560,6 +565,12 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		setGlowLevel(preset?.glowLevel ?? 'off')
 		setScanlineLevel(preset?.scanlineLevel ?? 'off')
 		setNoiseLevel(preset?.noiseLevel ?? 'off')
+		if (preset) {
+			if (preset.fontFamily) setFontFamily(preset.fontFamily)
+			else setFontFamily('')
+			if (preset.fontSize) setFontSize(preset.fontSize)
+			if (preset.lineHeight) setLineHeight(preset.lineHeight)
+		}
 	}, [selectedPreset])
 
 	// Auto-persist name with debounce to avoid excessive disk writes on every keystroke.
@@ -745,6 +756,31 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					</SettingsSection>
 					{/* Layout */}
 					<LayoutPicker current={currentPreset} onSelect={handleLayoutChange} />
+					{/* Status Bar Position */}
+					<SettingsSection title="Status Bar Position" className="max-w-[400px]">
+						<div className="flex bg-sunken rounded-md p-1 border border-edge">
+							{(['top', 'bottom'] as const).map((pos) => {
+								const isActive = statusBarPosition === pos
+								return (
+									<button
+										key={pos}
+										type="button"
+										role="radio"
+										aria-checked={isActive}
+										tabIndex={isActive ? 0 : -1}
+										onClick={() => setStatusBarPosition(pos)}
+										className={`flex-1 py-1.5 px-3 rounded-sm text-xs font-medium cursor-pointer transition-all duration-200 capitalize ${
+											isActive
+												? 'bg-accent/20 text-accent shadow-sm'
+												: 'text-content-secondary hover:text-content hover:bg-elevated'
+										}`}
+									>
+										{pos}
+									</button>
+								)
+							})}
+						</div>
+					</SettingsSection>
 					{/* Snippets */}
 					<SnippetsSection />
 				</div>

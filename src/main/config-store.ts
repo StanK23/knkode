@@ -206,6 +206,9 @@ export function sanitizeTheme(raw: Record<string, unknown>): PaneTheme {
 		result.fontFamily = raw.fontFamily
 	if (typeof raw.gradient === 'string' && raw.gradient.length > 0) result.gradient = raw.gradient
 	if (typeof raw.preset === 'string' && raw.preset.length > 0) result.preset = raw.preset
+	if (raw.statusBarPosition === 'top' || raw.statusBarPosition === 'bottom') {
+		result.statusBarPosition = raw.statusBarPosition
+	}
 
 	// Optional numeric fields
 	if (typeof raw.scrollback === 'number' && Number.isFinite(raw.scrollback))
