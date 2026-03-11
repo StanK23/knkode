@@ -10,7 +10,7 @@ export interface VariantTheme {
 	statusBarPosition: 'top' | 'bottom'
 }
 
-/** Props passed to every StatusBar variant component. */
+/** Header-related props shared by all variant Frames. Extended by FrameProps. */
 export interface StatusBarProps {
 	label: string
 	cwd: string

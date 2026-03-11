@@ -1,7 +1,7 @@
 import { DefaultVariant } from './DefaultVariant'
-import type { PaneVariant, ScrollButtonProps, StatusBarProps } from './types'
+import type { FrameProps, PaneVariant, ScrollButtonProps } from './types'
 
-export type { PaneVariant, ScrollButtonProps, StatusBarProps }
+export type { FrameProps, PaneVariant, ScrollButtonProps }
 export type { VariantTheme } from './types'
 
 /** Maps preset name to variant. Populated at startup via side-effect imports in all-variants.ts. */

@@ -52,7 +52,7 @@ export interface VariantConfig {
 }
 
 /** Create and register a pane-chrome variant from a style configuration.
- *  Covers single-row StatusBar layouts — use a custom implementation
+ *  Covers single-row Frame layouts — use a custom implementation
  *  for variants with unique DOM structure (e.g. Vaporwave's 2-row layout). */
 export function createAndRegisterVariant(name: string, config: VariantConfig): PaneVariant {
 	const { statusBar: sb, scrollButton: scr } = config
