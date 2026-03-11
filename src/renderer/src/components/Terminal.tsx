@@ -413,6 +413,9 @@ export function TerminalView({
 
 		// Reparent xterm's container into the React-managed div
 		containerRef.current.appendChild(termContainer)
+		// Not wrapped with guardedFit — the scroll listener is registered below
+		// (line ~433), so no scroll handler is active yet. This ordering is load-bearing:
+		// moving the listener registration above this fit() would silently corrupt scroll state.
 		fitAddon.fit()
 
 		termRef.current = term
