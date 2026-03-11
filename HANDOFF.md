@@ -5,6 +5,7 @@
 - `dev/agent-workspace` branch preserved with all rendered view work (PRs #58-75)
 
 ## What Was Done
+- PR #93 merged: Fix PR badge not showing — PATH resolution for gh CLI in Electron (Homebrew dirs), unified retry logic (ghMissingSince/gitMissingSince), error logging with dedup. 7-agent review, all 12 findings addressed.
 - PR #92 merged: Theming engine, UI chrome, and bugfixes — v1.0.0. Full theming system (16 presets, ANSI palettes, effects), morphing pane chrome, tab bar redesign, PR/branch badges, scroll hardening. 10-agent review, all 28 findings addressed including factory refactor (-772 lines).
 - PR #91 merged: Harden passive terminal scroll sync
 - PR #90 merged: Restore terminal pane inner padding
@@ -51,8 +52,17 @@ Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 7. ~~PR #86: `feature/pane-chrome-variants` — Morphing status bar with 16 theme variants + scroll buttons. 9-agent review, all findings fixed.~~ (merged)
 8. ~~PR #87: `feature/pr-badge` — Clickable PR badge in pane status bar. 9-agent review, all findings fixed.~~ (merged)
 
+## Active Plan — Theme Polish & Status Bar Improvements
+Board: `adbe0470-30b2-48cc-afa6-767a47912565`
+
+1. ~~PR #93: `fix/pr-badge` — Fix PR badge not showing~~ (merged)
+2. PR #2: `feature/theme-backgrounds` — Unique pane backgrounds per identity theme
+3. PR #3: `feature/status-bar-polish` — Tinted backgrounds, gradient separators
+4. PR #4: `feature/flip-status-bar` — Status bar top/bottom toggle
+
 ## What's Next
-- Future: interactive branch switching dropdown + cwd click-to-navigate (new IPC features)
+- Theme backgrounds, status bar polish, flip setting (PRs 2-4 above)
+- Future: interactive branch switching dropdown + cwd click-to-navigate
 
 ## Bugfixes — Post-Theming
 Board: `13106f68-3789-458a-b9d2-5eb644b7e0ee`
