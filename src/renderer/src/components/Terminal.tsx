@@ -674,7 +674,7 @@ export function TerminalView({
 	return (
 		<div
 			ref={wrapperRef}
-			className={`relative w-full h-full p-1.5${scrollbarColor ? ' scrollbar-accent' : ''}`}
+			className={`relative w-full h-full${scrollbarColor ? ' scrollbar-accent' : ''}`}
 			style={
 				{
 					backgroundColor: wrapperBg,
@@ -748,7 +748,7 @@ export function TerminalView({
 				</search>
 			)}
 			{isScrolledUp && <variant.ScrollButton onClick={scrollToBottom} theme={variantTheme} />}
-			<div ref={containerRef} className="w-full h-full" />
+			<div ref={containerRef} className="w-full h-full p-1.5" />
 		</div>
 	)
 }
