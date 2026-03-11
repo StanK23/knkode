@@ -1,18 +1,19 @@
 # HANDOFF
 
 ## Current State
-- Branch: `dev/theming`
+- Branch: `main` (stable, v1.0.0)
 - `dev/agent-workspace` branch preserved with all rendered view work (PRs #58-75)
 
 ## What Was Done
-- PR #91 merged: Harden passive terminal scroll sync — extracted scroll helpers to `utils/terminal-scroll.ts`, added `ViewportSyncCoordinator` for coalesced onWriteParsed syncs with blocking during workspace restore, fixed race condition where `scheduleSync` could cancel block-release, added `scrollToBottom` saved state sync. 10-agent review, all findings fixed.
-- PR #90 merged: Restore terminal pane inner padding — moved `p-1.5` from wrapper to containerRef so xterm text has breathing room (effect overlays were covering wrapper padding). Adjusted search bar positioning. 9-agent review, all findings fixed.
-- PR #89 merged: Preserve pane sizes when splitting — `onDragEnd` handler persists drag-resized pane percentages to the layout tree, stable child keys via `getFirstPaneId` prevent allotment from resetting sizes on split. 10-agent review, all findings fixed.
-- PR #88 merged: Passive TUI scroll jump hardening — restored `isFittingRef` gating for fit-driven viewport scroll events, skipped no-op scroll restoration when rows/cols are unchanged, and documented the xterm fit/scroll invariants after 9-agent review plus fix pass.
-- PR #87 merged: Clickable PR badge in pane status bar — async `gh pr view` detection with 60s refresh, PrInfo IPC plumbing, shared PrBadge component across 16 variants, URL validation, OPEN-only filter. 9-agent review, all findings fixed.
-- PR #86 merged: Morphing pane status bar — 16 theme variants with unique layouts, typography, badge shapes, separators, border styles. SnippetTrigger component-as-prop pattern for per-variant styled snippet buttons. ScrollButton morphs per variant. 9-agent review, all findings fixed.
-- PR #84 merged: Tab bar redesign — colored workspace tabs (3px left accent strip + color-mix tint), flex-based dynamic sizing, pane count badges, SVG icons, roving tabindex a11y. 9-agent review, all findings fixed.
-- PR #83 merged: 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic) with full ANSI palettes, effect levels, cursor/selection colors. 5-agent review, all findings fixed.
+- PR #92 merged: Theming engine, UI chrome, and bugfixes — v1.0.0. Full theming system (16 presets, ANSI palettes, effects), morphing pane chrome, tab bar redesign, PR/branch badges, scroll hardening. 10-agent review, all 28 findings addressed including factory refactor (-772 lines).
+- PR #91 merged: Harden passive terminal scroll sync
+- PR #90 merged: Restore terminal pane inner padding
+- PR #89 merged: Preserve pane sizes when splitting
+- PR #88 merged: Passive TUI scroll jump hardening
+- PR #87 merged: Clickable PR badge in pane status bar
+- PR #86 merged: Morphing pane status bar — 16 theme variants
+- PR #84 merged: Tab bar redesign — colored workspace tabs
+- PR #83 merged: 5 new identity themes (Amber, Vaporwave, Ocean, Sunset, Arctic)
 - PR #82 merged: Rescaled dim/opacity, extracted shared constants
 - PR #81 merged: Configurable effect levels with SegmentedButton UI
 - PR #80 merged: Visual effects for identity themes — gradients, glow, scanlines
@@ -21,11 +22,7 @@
 - PR #77 merged: Theme engine — ANSI 16-color palettes, per-theme accent/glow CSS vars
 - PR #76 merged: Settings panel tabs with ARIA compliance
 - CI workflow disabled (.github/workflows/ci.yml.disabled)
-- PR #75 merged to dev/agent-workspace: Status bar layout (static + dynamic streaming bar), context gauge, token formatting, prompt caching support, isResponding turn-level tracking
-- PR #74 merged: Status bar model/tokens + inline block token badges
-- PR #73 merged: Full rendered conversation view for Claude Code agent
-- PR #71 merged: Generic agent subprocess manager
-- PR #58-69 merged: Agent workspace foundation
+- PRs #58-75 merged: Agent workspace foundation, rendered view, status bar (on dev/agent-workspace)
 
 ## Decision: Rendered View → V2 (On Hold)
 The rendered agent view (stream-json parsing, custom chat UI) works but carries ongoing maintenance burden:
@@ -62,15 +59,9 @@ Board: `13106f68-3789-458a-b9d2-5eb644b7e0ee`
 - ~~PR #89: Fix pane split resetting sizes~~ (merged)
 - ~~PR #90: Restore terminal pane inner padding~~ (merged)
 
-## PR #92 — Review Fixes Applied (All 28 findings addressed)
-- 10-agent review: 5 must-fix, 15 suggestions, 8 nitpicks — ALL addressed
-- Must-fix: IPC hex/gradient validation (S8), config sanitizeTheme (S14), removeWorkspace re-read state (S12), variant completeness check (S13), withWorkspace store helper (S3)
-- Suggestions: sync→async getGitBranch, JSDoc accuracy, effect memoization, a11y, CSS containment, tests, readonly types, pane-chrome factory
-- Nitpicks: terminal-scroll JSDoc, closePane/removeWorkspace cleanup assertions, readonly persisted types
-- S1: createAndRegisterVariant() factory — 8 variants converted (Nord, Monokai, Gruvbox, Dracula, Catppuccin, Solarized, Sunset, Arctic), -772 lines of duplication
-
 ## Remaining Work
-- Manually verify long passive-output and workspace-tab-switch scenarios after PR #91 merge.
+- Manually verify long passive-output and workspace-tab-switch scenarios
+- Future: interactive branch switching dropdown + cwd click-to-navigate (new IPC features)
 
 ## Previous Work
 - PR #58: Translucent pane backgrounds with blur
