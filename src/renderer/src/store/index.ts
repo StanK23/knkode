@@ -1076,8 +1076,13 @@ function updateSizesAtPath(node: LayoutNode, path: number[], sizes: number[]): L
 			})),
 		}
 	}
-	if (!isLayoutBranch(node)) return node
-	const [head, ...rest] = path
+	if (!isLayoutBranch(node)) {
+		console.warn('[layout] updateSizesAtPath: path traversal hit leaf before exhausting path')
+		return node
+	}
+	const head = path[0]
+	const rest = path.slice(1)
+	if (head === undefined || head < 0 || head >= node.children.length) return node
 	return {
 		...node,
 		children: node.children.map((child, i) =>
@@ -1086,10 +1091,10 @@ function updateSizesAtPath(node: LayoutNode, path: number[], sizes: number[]): L
 	}
 }
 
-/** Get the first leaf pane ID in a subtree (depth-first, left-child-first).
- *  Used as a stable React key so allotment preserves sizes when a leaf becomes a branch. */
+/** Get the first leaf pane ID in a subtree (depth-first, left-child-first). */
 function getFirstPaneId(node: LayoutNode): string {
 	if (!isLayoutBranch(node)) return node.paneId
+	if (node.children.length === 0) return 'empty'
 	return getFirstPaneId(node.children[0])
 }
 
