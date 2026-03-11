@@ -356,12 +356,15 @@ export const useStore = create<StoreState>((set, get) => ({
 
 	init: async () => {
 		try {
-			const [workspaces, appState, homeDir, snippets] = await Promise.all([
+			const [loadedWorkspaces, loadedAppState, homeDir, snippets] = await Promise.all([
 				window.api.getWorkspaces(),
 				window.api.getAppState(),
 				window.api.getHomeDir(),
 				window.api.getSnippets(),
 			])
+
+			let workspaces = loadedWorkspaces
+			let appState = loadedAppState
 
 			// If no workspaces exist, create a default one
 			if (workspaces.length === 0) {
@@ -374,17 +377,15 @@ export const useStore = create<StoreState>((set, get) => ({
 					layout,
 					panes,
 				}
-				workspaces.push(defaultWorkspace)
+				workspaces = [...workspaces, defaultWorkspace]
+				appState = { ...appState, openWorkspaceIds: [defaultWorkspace.id], activeWorkspaceId: defaultWorkspace.id }
 				await window.api.saveWorkspace(defaultWorkspace)
-				appState.openWorkspaceIds = [defaultWorkspace.id]
-				appState.activeWorkspaceId = defaultWorkspace.id
 				await window.api.saveAppState(appState)
 			}
 
 			// Ensure at least one tab is open
 			if (appState.openWorkspaceIds.length === 0 && workspaces.length > 0) {
-				appState.openWorkspaceIds = [workspaces[0].id]
-				appState.activeWorkspaceId = workspaces[0].id
+				appState = { ...appState, openWorkspaceIds: [workspaces[0].id], activeWorkspaceId: workspaces[0].id }
 				await window.api.saveAppState(appState)
 			}
 

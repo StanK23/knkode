@@ -45,22 +45,22 @@ export function isCursorStyle(v: string): v is CursorStyle {
 
 /** ANSI 16-color palette for terminal themes. All values are hex strings (#RRGGBB). */
 export interface AnsiColors {
-	black: string
-	red: string
-	green: string
-	yellow: string
-	blue: string
-	magenta: string
-	cyan: string
-	white: string
-	brightBlack: string
-	brightRed: string
-	brightGreen: string
-	brightYellow: string
-	brightBlue: string
-	brightMagenta: string
-	brightCyan: string
-	brightWhite: string
+	readonly black: string
+	readonly red: string
+	readonly green: string
+	readonly yellow: string
+	readonly blue: string
+	readonly magenta: string
+	readonly cyan: string
+	readonly white: string
+	readonly brightBlack: string
+	readonly brightRed: string
+	readonly brightGreen: string
+	readonly brightYellow: string
+	readonly brightBlue: string
+	readonly brightMagenta: string
+	readonly brightCyan: string
+	readonly brightWhite: string
 }
 
 export interface PaneTheme {
@@ -105,24 +105,24 @@ export interface PaneTheme {
 }
 
 export interface PaneConfig {
-	label: string
-	cwd: string
-	startupCommand: string | null
-	themeOverride: Partial<PaneTheme> | null
+	readonly label: string
+	readonly cwd: string
+	readonly startupCommand: string | null
+	readonly themeOverride: Partial<PaneTheme> | null
 }
 
 export type SplitDirection = 'horizontal' | 'vertical'
 export type DropPosition = 'left' | 'right' | 'top' | 'bottom'
 
 export interface LayoutLeaf {
-	paneId: string
-	size: number
+	readonly paneId: string
+	readonly size: number
 }
 
 export interface LayoutBranch {
-	direction: SplitDirection
-	size: number
-	children: LayoutNode[]
+	readonly direction: SplitDirection
+	readonly size: number
+	readonly children: readonly LayoutNode[]
 }
 
 export type LayoutNode = LayoutLeaf | LayoutBranch
@@ -138,22 +138,22 @@ export type WorkspaceLayout =
 	| { type: 'custom'; tree: LayoutNode }
 
 export interface Workspace {
-	id: string
-	name: string
-	color: string
-	theme: PaneTheme
-	layout: WorkspaceLayout
-	panes: Record<string, PaneConfig>
+	readonly id: string
+	readonly name: string
+	readonly color: string
+	readonly theme: PaneTheme
+	readonly layout: WorkspaceLayout
+	readonly panes: Record<string, PaneConfig>
 }
 
 export interface AppState {
-	openWorkspaceIds: string[]
-	activeWorkspaceId: string | null
-	windowBounds: {
-		x: number
-		y: number
-		width: number
-		height: number
+	readonly openWorkspaceIds: readonly string[]
+	readonly activeWorkspaceId: string | null
+	readonly windowBounds: {
+		readonly x: number
+		readonly y: number
+		readonly width: number
+		readonly height: number
 	}
 }
 
