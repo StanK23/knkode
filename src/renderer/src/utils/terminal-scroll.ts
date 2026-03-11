@@ -80,6 +80,8 @@ export function createViewportSyncCoordinator({
 			pendingRelease = false
 			try {
 				sync()
+			} catch (err) {
+				console.warn('[viewport-sync] sync callback threw:', err)
 			} finally {
 				if (shouldRelease) blocked = false
 			}
