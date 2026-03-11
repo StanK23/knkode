@@ -24,9 +24,9 @@ function Frame({
 	contextMenu,
 }: FrameProps) {
 	const glowColor = theme.glow ?? theme.accent
-	const c1 = theme.accent // pink
-	const c2 = '#01cdfe' // cyan
-	const c3 = '#7b2fff' // purple
+	const c1 = theme.accent
+	const c2 = '#01cdfe'
+	const c3 = '#7b2fff'
 
 	const activeOpacity = isFocused ? 1 : 0.6
 	const isBottom = theme.statusBarPosition === 'bottom'
@@ -171,7 +171,7 @@ function Frame({
 		<div className="relative flex flex-col h-full w-full bg-transparent overflow-hidden">
 			{!isBottom && header}
 
-			{/* Terminal Area */}
+			{/* Terminal Content */}
 			<div
 				className={`relative z-10 flex-1 w-full min-h-0 bg-transparent ${isBottom ? 'mb-1' : 'mt-1'}`}
 			>

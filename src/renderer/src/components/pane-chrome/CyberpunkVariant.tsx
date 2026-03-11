@@ -24,8 +24,8 @@ function Frame({
 	contextMenu,
 }: FrameProps) {
 	const glowColor = theme.glow ?? theme.accent
-	const c1 = theme.accent // neon pink
-	const c2 = theme.glow || '#05d9e8' // cyan
+	const c1 = theme.accent
+	const c2 = theme.glow || '#05d9e8'
 
 	// If not focused, we dull the colors to simulate power-saving
 	const activeC1 = isFocused ? c1 : `${c1}88`
@@ -141,7 +141,7 @@ function Frame({
 		<div className="relative flex flex-col h-full w-full bg-transparent overflow-hidden">
 			{!isBottom && header}
 
-			{/* Terminal Area (The "screen") */}
+			{/* Terminal Content */}
 			<div className="relative z-10 flex-1 w-full min-h-0 bg-transparent">{children}</div>
 
 			{isBottom && header}

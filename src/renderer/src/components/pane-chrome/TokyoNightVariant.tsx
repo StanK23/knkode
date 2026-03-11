@@ -127,7 +127,7 @@ function Frame({
 		<div className="relative flex flex-col h-full w-full bg-transparent overflow-hidden">
 			{!isBottom && header}
 
-			{/* Screen Area */}
+			{/* Terminal Content */}
 			<div className="relative z-10 flex-1 w-full min-h-0 bg-transparent">{children}</div>
 
 			{isBottom && header}

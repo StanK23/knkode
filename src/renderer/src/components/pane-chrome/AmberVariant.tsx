@@ -24,7 +24,6 @@ function Frame({
 	contextMenu,
 }: FrameProps) {
 	const fg = isFocused ? theme.accent : theme.foreground
-	const glowColor = theme.glow ?? theme.accent
 	const isBottom = theme.statusBarPosition === 'bottom'
 
 	const header = (
@@ -133,7 +132,7 @@ function Frame({
 		<div className="relative flex flex-col h-full w-full bg-transparent overflow-hidden">
 			{!isBottom && header}
 
-			{/* Screen Area */}
+			{/* Terminal Content */}
 			<div
 				className={`relative z-10 flex-1 w-full min-h-0 bg-transparent px-1 ${isBottom ? 'mb-1' : 'mt-1'}`}
 			>

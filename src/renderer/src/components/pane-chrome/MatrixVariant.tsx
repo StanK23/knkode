@@ -128,7 +128,7 @@ function Frame({
 
 	return (
 		<div className="relative flex flex-col h-full w-full bg-transparent overflow-hidden">
-			{/* Phosphor Frame Background / Scanlines (can be enhanced in CSS variables) */}
+			{/* Phosphor Frame Background / Scanlines */}
 			<div
 				className="absolute inset-0 pointer-events-none z-0"
 				style={{
@@ -139,7 +139,7 @@ function Frame({
 
 			{!isBottom && header}
 
-			{/* Screen Area */}
+			{/* Terminal Content */}
 			<div className="relative z-10 flex-1 w-full min-h-0 bg-transparent">{children}</div>
 
 			{isBottom && header}
