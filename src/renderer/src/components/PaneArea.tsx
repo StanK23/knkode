@@ -99,6 +99,7 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 			<Allotment
 				vertical={isVertical}
 				key={`${node.direction}-${node.children.length}`}
+				// onDragEnd (not onChange) — fires once per drag to avoid per-pixel state writes
 				onDragEnd={(sizes) => updateNodeSizes(workspace.id, path, sizes)}
 			>
 				{node.children.map((child, i) => (
