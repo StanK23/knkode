@@ -13,6 +13,15 @@ interface PaneEffectsProps {
 	isFocused: boolean
 }
 
+/**
+ * Visual effect overlays for a pane — gradient, glow, scanlines, noise, and
+ * preset decoration. Extracted from Terminal.tsx so effects render at the pane
+ * level (behind the Frame wrapper) and remain visible through a transparent
+ * terminal background.
+ *
+ * Z-index stacking: z-0 gradient, z-[1] decoration, z-[2] glow, z-[3] scanlines, z-[4] noise.
+ * Uses `contain: layout paint style` on each layer for GPU compositing.
+ */
 export function PaneEffects({ theme, isFocused }: PaneEffectsProps) {
 	const { wrapperBg, blurPx } = useMemo(() => {
 		const opacity = theme.paneOpacity ?? DEFAULT_PANE_OPACITY
@@ -20,7 +29,7 @@ export function PaneEffects({ theme, isFocused }: PaneEffectsProps) {
 			wrapperBg: resolveBackground(theme.background, opacity),
 			blurPx: opacity < 1 ? Math.round((1 - opacity) * 24) : 0,
 		}
-	}, [theme])
+	}, [theme.paneOpacity, theme.background])
 
 	const { gradientMul, glowMul, scanlineMul, noiseMul } = useMemo(() => {
 		const mul = (level: unknown) => EFFECT_MULTIPLIERS[isEffectLevel(level) ? level : 'off']
@@ -30,7 +39,7 @@ export function PaneEffects({ theme, isFocused }: PaneEffectsProps) {
 			scanlineMul: mul(theme.scanlineLevel),
 			noiseMul: mul(theme.noiseLevel),
 		}
-	}, [theme])
+	}, [theme.gradientLevel, theme.glowLevel, theme.scanlineLevel, theme.noiseLevel])
 
 	const effectGlow = theme.glow ?? theme.accent
 	const effectGradient =
