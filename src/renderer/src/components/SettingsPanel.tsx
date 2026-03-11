@@ -824,7 +824,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								document.getElementById(`theme-preset-${next}`)?.focus()
 							}}
 						>
-							{(THEME_PRESETS as unknown as readonly ThemePreset[]).map((preset, index) => {
+							{(THEME_PRESETS as readonly ThemePreset[]).map((preset, index) => {
 								const isActive = selectedPreset === preset.name
 								return (
 									<button
