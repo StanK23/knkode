@@ -1,7 +1,17 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { app } from 'electron'
-import { type AppState, DEFAULT_UNFOCUSED_DIM, type Snippet, type Workspace } from '../shared/types'
+import {
+	type AnsiColors,
+	type AppState,
+	type CursorStyle,
+	DEFAULT_UNFOCUSED_DIM,
+	type PaneTheme,
+	type Snippet,
+	type Workspace,
+	isCursorStyle,
+	isEffectLevel,
+} from '../shared/types'
 
 const CONFIG_DIR = path.join(app.getPath('home'), '.knkode')
 const WORKSPACES_FILE = path.join(CONFIG_DIR, 'workspaces.json')
@@ -105,8 +115,116 @@ export function migrateTheme(ws: Workspace): Workspace {
 	}
 }
 
+/** Migrate legacy boolean effect fields (animatedGlow, scanline) to EffectLevel fields,
+ *  removing the legacy fields in the process. Also adds gradientLevel: 'medium' when a
+ *  gradient string is present but no level is set. */
+export function migrateEffectLevels(ws: Workspace): Workspace {
+	const raw = ws.theme as unknown as Record<string, unknown>
+
+	const needsMigration =
+		'animatedGlow' in raw ||
+		'scanline' in raw ||
+		('gradient' in raw && typeof raw.gradient === 'string' && !('gradientLevel' in raw))
+
+	if (!needsMigration) return ws
+
+	const updates: Partial<Pick<PaneTheme, 'glowLevel' | 'scanlineLevel' | 'gradientLevel'>> = {}
+
+	if ('animatedGlow' in raw) {
+		if (raw.animatedGlow === true && !isEffectLevel(raw.glowLevel)) {
+			updates.glowLevel = 'medium'
+		}
+	}
+
+	if ('scanline' in raw) {
+		if (raw.scanline === true && !isEffectLevel(raw.scanlineLevel)) {
+			updates.scanlineLevel = 'medium'
+		}
+	}
+
+	if ('gradient' in raw && typeof raw.gradient === 'string' && !isEffectLevel(raw.gradientLevel)) {
+		updates.gradientLevel = 'medium'
+	}
+
+	console.info('[config-store] Migrated effect levels for workspace:', ws.id)
+
+	const { animatedGlow: _, scanline: _s, ...themeWithoutLegacy } = raw
+	return {
+		...ws,
+		theme: { ...themeWithoutLegacy, ...updates } as typeof ws.theme,
+	}
+}
+
+const HEX_RE = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
+const ANSI_KEYS: readonly (keyof AnsiColors)[] = [
+	'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',
+	'brightBlack', 'brightRed', 'brightGreen', 'brightYellow', 'brightBlue', 'brightMagenta', 'brightCyan', 'brightWhite',
+]
+
+/** Validate and sanitize PaneTheme fields loaded from disk.
+ *  Strips invalid values rather than rejecting the whole workspace —
+ *  config files may be hand-edited or from older versions. */
+export function sanitizeTheme(raw: Record<string, unknown>): PaneTheme {
+	const bg = typeof raw.background === 'string' && HEX_RE.test(raw.background) ? raw.background : '#1a1a2e'
+	const fg = typeof raw.foreground === 'string' && HEX_RE.test(raw.foreground) ? raw.foreground : '#e0e0e0'
+	const fontSize = typeof raw.fontSize === 'number' && Number.isFinite(raw.fontSize) && raw.fontSize > 0 ? raw.fontSize : 14
+	const unfocusedDim =
+		typeof raw.unfocusedDim === 'number' && Number.isFinite(raw.unfocusedDim) ? raw.unfocusedDim : DEFAULT_UNFOCUSED_DIM
+
+	const result: PaneTheme = { background: bg, foreground: fg, fontSize, unfocusedDim }
+
+	// Optional hex color fields
+	for (const field of ['accent', 'glow', 'cursorColor', 'selectionColor'] as const) {
+		if (typeof raw[field] === 'string' && HEX_RE.test(raw[field])) {
+			;(result as unknown as Record<string, unknown>)[field] = raw[field]
+		}
+	}
+
+	// Optional string fields (non-hex)
+	if (typeof raw.fontFamily === 'string' && raw.fontFamily.length > 0) result.fontFamily = raw.fontFamily
+	if (typeof raw.gradient === 'string' && raw.gradient.length > 0) result.gradient = raw.gradient
+	if (typeof raw.preset === 'string' && raw.preset.length > 0) result.preset = raw.preset
+
+	// Optional numeric fields
+	if (typeof raw.scrollback === 'number' && Number.isFinite(raw.scrollback)) result.scrollback = raw.scrollback
+	if (typeof raw.paneOpacity === 'number' && Number.isFinite(raw.paneOpacity)) result.paneOpacity = raw.paneOpacity
+	if (typeof raw.lineHeight === 'number' && Number.isFinite(raw.lineHeight)) result.lineHeight = raw.lineHeight
+
+	// CursorStyle
+	if (typeof raw.cursorStyle === 'string' && isCursorStyle(raw.cursorStyle)) {
+		result.cursorStyle = raw.cursorStyle as CursorStyle
+	}
+
+	// EffectLevel fields
+	for (const field of ['gradientLevel', 'glowLevel', 'scanlineLevel', 'noiseLevel', 'scrollbarAccent'] as const) {
+		if (isEffectLevel(raw[field])) {
+			;(result as unknown as Record<string, unknown>)[field] = raw[field]
+		}
+	}
+
+	// AnsiColors — validate all 16 fields are hex strings
+	if (raw.ansiColors && typeof raw.ansiColors === 'object') {
+		const ac = raw.ansiColors as Record<string, unknown>
+		const valid = ANSI_KEYS.every((k) => typeof ac[k] === 'string' && HEX_RE.test(ac[k]))
+		if (valid) result.ansiColors = raw.ansiColors as AnsiColors
+	}
+
+	return result
+}
+
+/** Apply sanitizeTheme to a workspace loaded from disk, replacing the raw theme. */
+function sanitizeWorkspaceTheme(ws: Workspace): Workspace {
+	if (!ws.theme || typeof ws.theme !== 'object') {
+		return { ...ws, theme: sanitizeTheme({}) }
+	}
+	return { ...ws, theme: sanitizeTheme(ws.theme as unknown as Record<string, unknown>) }
+}
+
 export function getWorkspaces(): Workspace[] {
-	return readJson<Workspace[]>(WORKSPACES_FILE, []).map(migrateTheme)
+	return readJson<Workspace[]>(WORKSPACES_FILE, [])
+		.map(migrateTheme)
+		.map(migrateEffectLevels)
+		.map(sanitizeWorkspaceTheme)
 }
 
 export function saveWorkspace(workspace: Workspace): void {

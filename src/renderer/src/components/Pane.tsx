@@ -2,10 +2,14 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import {
 	DEFAULT_PANE_OPACITY,
 	type DropPosition,
+	MAX_UNFOCUSED_DIM,
 	type PaneConfig,
 	type PaneTheme,
+	type PrInfo,
 } from '../../../shared/types'
+import { findPreset } from '../data/theme-presets'
 import { resolveBackground } from '../utils/colors'
+import { modKey } from '../utils/platform'
 
 type ContextPanelKind = 'cwd' | 'cmd' | 'theme' | 'move'
 type DropZone = DropPosition | 'center'
@@ -39,10 +43,11 @@ const VIEWPORT_MARGIN = 8
 import { useClickOutside } from '../hooks/useClickOutside'
 import { useInlineEdit } from '../hooks/useInlineEdit'
 import { useStore } from '../store'
-import { modKey } from '../utils/platform'
 import { isValidCwd } from '../utils/validation'
 import { FontPicker } from './FontPicker'
 import { TerminalView } from './Terminal'
+import { type VariantTheme, getVariant } from './pane-chrome'
+import { buildVariantTheme } from './pane-chrome/shared'
 
 interface ThemeInputFields {
 	background: string
@@ -62,9 +67,12 @@ function initThemeInput(override: Partial<PaneTheme> | null): ThemeInputFields {
 
 interface SnippetDropdownProps {
 	paneId: string
+	className?: string
+	style?: React.CSSProperties
+	children?: React.ReactNode
 }
 
-function SnippetDropdown({ paneId }: SnippetDropdownProps) {
+function SnippetDropdown({ paneId, className, style, children }: SnippetDropdownProps) {
 	const [open, setOpen] = useState(false)
 	const ref = useRef<HTMLDivElement>(null)
 	const menuRef = useRef<HTMLDivElement>(null)
@@ -116,9 +124,10 @@ function SnippetDropdown({ paneId }: SnippetDropdownProps) {
 				aria-label="Quick commands"
 				aria-expanded={open}
 				aria-haspopup="true"
-				className="bg-transparent border-none text-content-muted cursor-pointer px-0.5 text-[11px] leading-none hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+				className={className}
+				style={style}
 			>
-				&gt;_
+				{children ?? '>_'}
 			</button>
 			{open && (
 				<div ref={menuRef} role="menu" className="ctx-menu right-0 top-full left-auto">
@@ -146,7 +155,6 @@ function SnippetDropdown({ paneId }: SnippetDropdownProps) {
 
 interface PaneProps {
 	paneId: string
-	paneIndex: number
 	workspaceId: string
 	config: PaneConfig
 	workspaceTheme: PaneTheme
@@ -155,6 +163,10 @@ interface PaneProps {
 	onSplitVertical: (paneId: string) => void
 	onClose: (paneId: string) => void
 	canClose: boolean
+	/** Current git branch for this pane, or null if unavailable. */
+	branch: string | null
+	/** Current PR info for this pane's branch, or null if no PR. */
+	pr: PrInfo | null
 	isFocused: boolean
 	focusGeneration: number
 	onFocus: (paneId: string) => void
@@ -162,7 +174,6 @@ interface PaneProps {
 
 export function Pane({
 	paneId,
-	paneIndex,
 	workspaceId,
 	config,
 	workspaceTheme,
@@ -171,6 +182,8 @@ export function Pane({
 	onSplitVertical,
 	onClose,
 	canClose,
+	branch,
+	pr,
 	isFocused,
 	focusGeneration,
 	onFocus,
@@ -286,6 +299,40 @@ export function Pane({
 		}
 	}, [config.themeOverride, workspaceTheme])
 
+	const preset = workspaceTheme.preset ? findPreset(workspaceTheme.preset) : undefined
+	const variant = getVariant(workspaceTheme.preset)
+	const variantTheme = useMemo<VariantTheme>(
+		() =>
+			buildVariantTheme({
+				background: workspaceTheme.background,
+				foreground: workspaceTheme.foreground,
+				accent: workspaceTheme.accent,
+				glow: workspaceTheme.glow,
+				presetAccent: preset?.accent,
+				presetGlow: preset?.glow,
+			}),
+		[
+			workspaceTheme.background,
+			workspaceTheme.foreground,
+			workspaceTheme.accent,
+			workspaceTheme.glow,
+			preset,
+		],
+	)
+
+	const handleOpenExternal = useCallback((url: string) => {
+		window.api.openExternal(url).catch((err: unknown) => {
+			console.error('[pane] Failed to open URL:', url, err)
+		})
+	}, [])
+
+	const PaneSnippetTrigger = useCallback(
+		(props: { className?: string; style?: React.CSSProperties; children?: React.ReactNode }) => (
+			<SnippetDropdown paneId={paneId} {...props} />
+		),
+		[paneId],
+	)
+
 	const handleFocus = useCallback(() => onFocus(paneId), [paneId, onFocus])
 
 	const handleDragStart = useCallback(
@@ -374,59 +421,31 @@ export function Pane({
 				onDragEnd={handleDragEnd}
 				onContextMenu={handleContextMenu}
 				onMouseDown={handleFocus}
-				className={`h-header flex items-center gap-2 px-2 text-[11px] shrink-0 relative select-none transition-colors duration-200 ${
-					isFocused ? 'bg-elevated border-b border-accent' : 'bg-sunken border-b border-edge'
-				} ${isDragging ? 'opacity-40' : ''}`}
+				className={`shrink-0 relative select-none ${isDragging ? 'opacity-40' : ''}`}
 				style={isFocused ? headerStyles.focused : headerStyles.unfocused}
 			>
-				<span className="text-content-muted text-[10px] font-semibold min-w-3 text-center shrink-0">
-					{paneIndex}
-				</span>
-				{isEditing ? (
-					<input
-						{...inputProps}
-						className="bg-elevated border border-accent rounded-sm text-content text-[11px] py-px px-1 outline-none w-20"
-					/>
-				) : (
-					<span onDoubleClick={startEditing} className="text-content font-medium cursor-default">
-						{config.label}
-					</span>
-				)}
-
-				<span className="text-content-muted flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
-					{shortCwd}
-				</span>
-
-				<SnippetDropdown paneId={paneId} />
-				<button
-					type="button"
-					onClick={() => onSplitVertical(paneId)}
-					title={`Split vertical (${modKey}+D)`}
-					aria-label="Split pane vertically"
-					className="bg-transparent border-none text-content-muted cursor-pointer px-0.5 text-[11px] leading-none hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
-				>
-					┃
-				</button>
-				<button
-					type="button"
-					onClick={() => onSplitHorizontal(paneId)}
-					title={`Split horizontal (${modKey}+Shift+D)`}
-					aria-label="Split pane horizontally"
-					className="bg-transparent border-none text-content-muted cursor-pointer px-0.5 text-[11px] leading-none hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
-				>
-					━
-				</button>
-				{canClose && (
-					<button
-						type="button"
-						onClick={() => onClose(paneId)}
-						title={`Close pane (${modKey}+W)`}
-						aria-label="Close pane"
-						className="bg-transparent border-none text-danger cursor-pointer px-0.5 text-[11px] leading-none hover:brightness-125 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
-					>
-						✕
-					</button>
-				)}
+				<variant.StatusBar
+					label={config.label}
+					cwd={shortCwd}
+					branch={branch}
+					pr={pr}
+					onOpenExternal={handleOpenExternal}
+					isFocused={isFocused}
+					canClose={canClose}
+					theme={variantTheme}
+					onSplitVertical={() => onSplitVertical(paneId)}
+					onSplitHorizontal={() => onSplitHorizontal(paneId)}
+					onClose={() => onClose(paneId)}
+					onDoubleClickLabel={startEditing}
+					isEditing={isEditing}
+					editInputProps={inputProps}
+					SnippetTrigger={PaneSnippetTrigger}
+					shortcuts={{
+						splitV: `${modKey}+D`,
+						splitH: `${modKey}+Shift+D`,
+						close: `${modKey}+W`,
+					}}
+				/>
 
 				{showContext && (
 					<div
@@ -724,6 +743,8 @@ export function Pane({
 					paneId={paneId}
 					theme={workspaceTheme}
 					themeOverride={config.themeOverride}
+					variant={variant}
+					variantTheme={variantTheme}
 					focusGeneration={focusGeneration}
 					isFocused={isFocused}
 					onFocus={handleFocus}
@@ -734,7 +755,7 @@ export function Pane({
 					}`}
 					style={
 						!isFocused && workspaceTheme.unfocusedDim > 0
-							? { opacity: Math.max(0, Math.min(0.7, workspaceTheme.unfocusedDim)) }
+							? { opacity: Math.max(0, Math.min(MAX_UNFOCUSED_DIM, workspaceTheme.unfocusedDim)) }
 							: undefined
 					}
 				/>

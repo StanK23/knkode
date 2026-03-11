@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import type { Workspace } from '../../../shared/types'
 import { useClickOutside } from '../hooks/useClickOutside'
 import { WORKSPACE_COLORS, useStore } from '../store'
@@ -56,11 +56,18 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 		resetDragState()
 	}, [resetDragState])
 
-	const openTabs: Workspace[] = appState.openWorkspaceIds
-		.map((id) => workspaces.find((w) => w.id === id))
-		.filter((w): w is Workspace => w !== undefined)
+	const openTabs = useMemo(
+		() =>
+			appState.openWorkspaceIds
+				.map((id) => workspaces.find((w) => w.id === id))
+				.filter((w): w is Workspace => w !== undefined),
+		[appState.openWorkspaceIds, workspaces],
+	)
 
-	const closedWorkspaces = workspaces.filter((w) => !appState.openWorkspaceIds.includes(w.id))
+	const closedWorkspaces = useMemo(
+		() => workspaces.filter((w) => !appState.openWorkspaceIds.includes(w.id)),
+		[appState.openWorkspaceIds, workspaces],
+	)
 
 	const updateWorkspaceField = useCallback(
 		(id: string, updates: Partial<Workspace>) => {
@@ -89,8 +96,10 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 		[duplicateWorkspace],
 	)
 
-	const handleNewWorkspace = useCallback(async () => {
-		await createDefaultWorkspace()
+	const handleNewWorkspace = useCallback(() => {
+		createDefaultWorkspace().catch((err) => {
+			console.error('[tabbar] Failed to create workspace:', err)
+		})
 	}, [createDefaultWorkspace])
 
 	return (
@@ -101,7 +110,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 			{/* Tabs */}
 			<div
 				role="tablist"
-				className="no-drag flex items-end gap-px pl-traffic pt-1.5 overflow-x-auto overflow-y-hidden flex-1"
+				className="no-drag flex items-end gap-0.5 pl-traffic pt-1.5 overflow-x-auto overflow-y-hidden flex-1"
 			>
 				{openTabs.map((ws, i) => (
 					<Tab
@@ -109,6 +118,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 						workspace={ws}
 						isActive={ws.id === appState.activeWorkspaceId}
 						index={i}
+						paneCount={Object.keys(ws.panes ?? {}).length}
 						onActivate={setActiveWorkspace}
 						onClose={closeWorkspaceTab}
 						onRename={handleRename}
@@ -130,9 +140,20 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 					onClick={handleNewWorkspace}
 					title={`New workspace (${modKey}+T)`}
 					aria-label="Create new workspace"
-					className="bg-transparent border-none text-content-muted cursor-pointer text-lg leading-none min-w-[44px] px-2.5 h-tab flex items-center justify-center shrink-0 hover:text-content hover:bg-overlay rounded-sm focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none transition-colors duration-300 ease-[var(--ease-mechanical)]"
+					className="bg-transparent border-none text-content-muted cursor-pointer min-w-[44px] px-2.5 h-tab flex items-center justify-center shrink-0 hover:text-content hover:bg-overlay rounded-sm focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none transition-colors duration-300 ease-[var(--ease-mechanical)]"
 				>
-					+
+					<svg
+						width="14"
+						height="14"
+						viewBox="0 0 14 14"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="1.5"
+						strokeLinecap="round"
+						aria-hidden="true"
+					>
+						<path d="M7 2v10M2 7h10" />
+					</svg>
 				</button>
 			</div>
 
@@ -188,7 +209,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 								>
 									<span
 										aria-hidden="true"
-										className="w-2 h-2 rounded-full shrink-0"
+										className="w-2.5 h-2.5 rounded-full shrink-0"
 										style={{ background: ws.color }}
 									/>
 									{ws.name}

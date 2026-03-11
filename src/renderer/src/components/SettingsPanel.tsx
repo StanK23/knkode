@@ -2,23 +2,65 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
 	CURSOR_STYLES,
 	DEFAULT_CURSOR_STYLE,
+	DEFAULT_LINE_HEIGHT,
 	DEFAULT_PANE_OPACITY,
 	DEFAULT_SCROLLBACK,
+	EFFECT_LEVELS,
+	type EffectLevel,
 	type LayoutPreset,
+	MAX_LINE_HEIGHT,
 	MAX_SCROLLBACK,
+	MAX_UNFOCUSED_DIM,
+	MIN_LINE_HEIGHT,
+	MIN_PANE_OPACITY,
 	MIN_SCROLLBACK,
 	type PaneConfig,
 	type PaneTheme,
 	type Workspace,
 	isCursorStyle,
+	isEffectLevel,
 } from '../../../shared/types'
-import { THEME_PRESETS } from '../data/theme-presets'
+import {
+	DEFAULT_PRESET_NAME,
+	THEME_PRESETS,
+	type ThemePreset,
+	findPreset,
+} from '../data/theme-presets'
 import { applyPresetWithRemap, useStore } from '../store'
+import { hexToRgba } from '../utils/colors'
 import { isMac } from '../utils/platform'
 import { isValidCwd } from '../utils/validation'
 import { FontPicker } from './FontPicker'
 import { LayoutPicker } from './LayoutPicker'
 import { SettingsSection } from './SettingsSection'
+
+/** Numeric values for the EffectLevel-based dim and opacity controls. */
+const DIM_VALUES: Record<EffectLevel, number> = {
+	off: 0,
+	subtle: 0.3,
+	medium: 0.6,
+	intense: MAX_UNFOCUSED_DIM,
+}
+const OPACITY_VALUES: Record<EffectLevel, number> = {
+	off: 1.0,
+	subtle: 0.7,
+	medium: 0.4,
+	intense: MIN_PANE_OPACITY,
+}
+
+/** Find the closest EffectLevel key for a numeric value. */
+function closestLevel(value: number, map: Record<EffectLevel, number>): EffectLevel {
+	let best: EffectLevel = 'off'
+	let bestDist = Number.POSITIVE_INFINITY
+	for (const [level, num] of Object.entries(map)) {
+		const dist = Math.abs(value - num)
+		if (dist <= bestDist) {
+			bestDist = dist
+			best = level as EffectLevel
+		}
+	}
+	return best
+}
 
 /** Read the latest workspace from the store to avoid stale-snapshot races
  *  when multiple auto-persist effects fire in close succession. */
@@ -340,10 +382,69 @@ function SnippetsSection() {
 	)
 }
 
+interface SegmentedButtonProps<T extends string> {
+	options: readonly T[]
+	value: T
+	onChange: (value: T) => void
+	label: string
+}
+
+function SegmentedButton<T extends string>({
+	options,
+	value,
+	onChange,
+	label,
+}: SegmentedButtonProps<T>) {
+	return (
+		<div className="flex items-center gap-3">
+			<span className="text-xs text-content-secondary w-20 shrink-0">{label}</span>
+			<div
+				className="flex rounded-sm overflow-hidden border border-edge"
+				role="radiogroup"
+				aria-label={label}
+				onKeyDown={(e) => {
+					if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
+					e.preventDefault()
+					const idx = options.indexOf(value)
+					const next =
+						e.key === 'ArrowRight'
+							? options[(idx + 1) % options.length]
+							: options[(idx - 1 + options.length) % options.length]
+					onChange(next)
+					const el = e.currentTarget.querySelector(`[data-value="${next}"]`)
+					if (el instanceof HTMLElement) el.focus()
+				}}
+			>
+				{options.map((option) => (
+					<button
+						key={option}
+						type="button"
+						role="radio"
+						aria-checked={value === option}
+						tabIndex={value === option ? 0 : -1}
+						data-value={option}
+						onClick={() => onChange(option)}
+						className={`text-[11px] px-2.5 py-1 cursor-pointer border-none transition-colors ${
+							value === option
+								? 'bg-accent/20 text-accent font-medium'
+								: 'bg-transparent text-content-muted hover:text-content-secondary'
+						}`}
+					>
+						{option.charAt(0).toUpperCase() + option.slice(1)}
+					</button>
+				))}
+			</div>
+		</div>
+	)
+}
+
 interface SettingsPanelProps {
 	workspace: Workspace
 	onClose: () => void
 }
+
+const SETTINGS_TABS = ['Workspace', 'Terminal'] as const
+type SettingsTab = (typeof SETTINGS_TABS)[number]
 
 export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const updateWorkspace = useStore((s) => s.updateWorkspace)
@@ -352,51 +453,114 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 	const killPtys = useStore((s) => s.killPtys)
 	const homeDir = useStore((s) => s.homeDir)
 
+	const [activeTab, setActiveTab] = useState<SettingsTab>('Workspace')
 	const [name, setName] = useState(workspace.name)
 	const [color, setColor] = useState(workspace.color)
-	const [bg, setBg] = useState(workspace.theme.background)
-	const [fg, setFg] = useState(workspace.theme.foreground)
+	const [selectedPreset, setSelectedPreset] = useState(
+		workspace.theme.preset ?? DEFAULT_PRESET_NAME,
+	)
 	const [fontSize, setFontSize] = useState(workspace.theme.fontSize)
-	const [unfocusedDim, setUnfocusedDim] = useState(workspace.theme.unfocusedDim)
 	const [fontFamily, setFontFamily] = useState(workspace.theme.fontFamily ?? '')
 	const [scrollback, setScrollback] = useState(workspace.theme.scrollback ?? DEFAULT_SCROLLBACK)
 	const [cursorStyle, setCursorStyle] = useState(
 		workspace.theme.cursorStyle ?? DEFAULT_CURSOR_STYLE,
 	)
-	const [paneOpacity, setPaneOpacity] = useState(
-		workspace.theme.paneOpacity ?? DEFAULT_PANE_OPACITY,
+	const [dimLevel, setDimLevel] = useState<EffectLevel>(
+		closestLevel(workspace.theme.unfocusedDim, DIM_VALUES),
 	)
+	const [opacityLevel, setOpacityLevel] = useState<EffectLevel>(
+		closestLevel(workspace.theme.paneOpacity ?? DEFAULT_PANE_OPACITY, OPACITY_VALUES),
+	)
+	const [gradientLevel, setGradientLevel] = useState<EffectLevel>(
+		isEffectLevel(workspace.theme.gradientLevel) ? workspace.theme.gradientLevel : 'off',
+	)
+	const [glowLevel, setGlowLevel] = useState<EffectLevel>(
+		isEffectLevel(workspace.theme.glowLevel) ? workspace.theme.glowLevel : 'off',
+	)
+	const [scanlineLevel, setScanlineLevel] = useState<EffectLevel>(
+		isEffectLevel(workspace.theme.scanlineLevel) ? workspace.theme.scanlineLevel : 'off',
+	)
+	const [noiseLevel, setNoiseLevel] = useState<EffectLevel>(
+		isEffectLevel(workspace.theme.noiseLevel) ? workspace.theme.noiseLevel : 'off',
+	)
+	const [lineHeight, setLineHeight] = useState(workspace.theme.lineHeight ?? DEFAULT_LINE_HEIGHT)
 
 	const currentPreset = workspace.layout.type === 'preset' ? workspace.layout.preset : null
 
-	const buildThemeFromInputs = useCallback(
-		(): PaneTheme => ({
-			background: bg,
-			foreground: fg,
+	const buildThemeFromInputs = useCallback((): PaneTheme => {
+		const preset = findPreset(selectedPreset)
+		if (!preset) console.warn('[settings] unknown theme preset:', selectedPreset)
+		return {
+			background: preset?.background ?? '#1a1a2e',
+			foreground: preset?.foreground ?? '#e0e0e0',
 			fontSize,
-			unfocusedDim,
+			unfocusedDim: DIM_VALUES[dimLevel],
 			fontFamily: fontFamily || undefined,
 			scrollback,
 			cursorStyle,
-			paneOpacity,
-		}),
-		[bg, fg, fontSize, unfocusedDim, fontFamily, scrollback, cursorStyle, paneOpacity],
-	)
+			paneOpacity: OPACITY_VALUES[opacityLevel],
+			ansiColors: preset?.ansiColors,
+			accent: preset?.accent,
+			glow: preset?.glow,
+			gradient: preset?.gradient,
+			gradientLevel,
+			glowLevel,
+			scanlineLevel,
+			noiseLevel,
+			scrollbarAccent: preset?.scrollbarAccent,
+			cursorColor: preset?.cursorColor,
+			selectionColor: preset?.selectionColor,
+			lineHeight,
+			preset: selectedPreset,
+		}
+	}, [
+		selectedPreset,
+		fontSize,
+		dimLevel,
+		fontFamily,
+		scrollback,
+		cursorStyle,
+		opacityLevel,
+		gradientLevel,
+		glowLevel,
+		scanlineLevel,
+		noiseLevel,
+		lineHeight,
+	])
 
 	// Auto-persist: save full workspace with updated color/theme whenever those fields change.
-	// Reads latest workspace from store (not a ref) to avoid overwriting concurrent updates.
-	const themeMountedRef = useRef(false)
+	// Reads latest workspace from store (not the prop) to avoid overwriting concurrent updates.
+	// Uses value-comparison ref instead of useRef(false) mount guard — the boolean flag
+	// breaks under React 18 StrictMode which double-fires effects on mount.
+	const prevAutoSaveRef = useRef({ color, buildThemeFromInputs })
 	useEffect(() => {
-		if (!themeMountedRef.current) {
-			themeMountedRef.current = true
+		if (
+			prevAutoSaveRef.current.color === color &&
+			prevAutoSaveRef.current.buildThemeFromInputs === buildThemeFromInputs
+		) {
 			return
 		}
+		prevAutoSaveRef.current = { color, buildThemeFromInputs }
 		const latest = getLatestWorkspace(workspace.id)
 		if (!latest) return
 		updateWorkspace({ ...latest, color, theme: buildThemeFromInputs() }).catch((err) => {
 			console.error('[settings] auto-persist theme failed:', err)
 		})
 	}, [workspace.id, color, buildThemeFromInputs, updateWorkspace])
+
+	// Reset effect levels to preset defaults when the user switches presets.
+	// Uses value-comparison ref instead of useRef(false) mount guard — the boolean
+	// flag breaks under React 18 StrictMode which double-fires effects on mount.
+	const prevPresetRef = useRef(selectedPreset)
+	useEffect(() => {
+		if (prevPresetRef.current === selectedPreset) return
+		prevPresetRef.current = selectedPreset
+		const preset = findPreset(selectedPreset)
+		setGradientLevel(preset?.gradientLevel ?? 'off')
+		setGlowLevel(preset?.glowLevel ?? 'off')
+		setScanlineLevel(preset?.scanlineLevel ?? 'off')
+		setNoiseLevel(preset?.noiseLevel ?? 'off')
+	}, [selectedPreset])
 
 	// Auto-persist name with debounce to avoid excessive disk writes on every keystroke.
 	const nameMountedRef = useRef(false)
@@ -456,11 +620,6 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		[workspace.id, updatePaneConfig],
 	)
 
-	const handlePresetClick = useCallback((presetBg: string, presetFg: string) => {
-		setBg(presetBg)
-		setFg(presetFg)
-	}, [])
-
 	return (
 		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape key handled via document listener above
 		<div
@@ -474,7 +633,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 				role="dialog"
 				aria-modal="true"
 				aria-label="Workspace Settings"
-				className="bg-canvas/80 backdrop-blur-2xl border border-edge/50 rounded-md w-[600px] max-w-[calc(100vw-2rem)] max-h-[85vh] flex flex-col shadow-panel animate-panel-in"
+				className="bg-canvas/80 backdrop-blur-2xl border border-edge/50 rounded-md w-[600px] max-w-[calc(100vw-2rem)] h-[85vh] flex flex-col shadow-panel animate-panel-in"
 				onClick={(e) => e.stopPropagation()}
 			>
 				<div className="flex items-center justify-between px-6 py-4 border-b border-edge/50">
@@ -489,119 +648,186 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					</button>
 				</div>
 
-				<div className="px-6 py-6 overflow-y-auto overflow-x-hidden flex flex-col gap-8">
+				{/* Tab bar — WAI-ARIA tabs pattern with arrow-key navigation */}
+				<div className="flex px-6 border-b border-edge/50" role="tablist" aria-label="Settings">
+					{SETTINGS_TABS.map((tab) => (
+						<button
+							key={tab}
+							id={`settings-tab-${tab}`}
+							type="button"
+							role="tab"
+							aria-selected={activeTab === tab}
+							aria-controls={`settings-tabpanel-${tab}`}
+							tabIndex={activeTab === tab ? 0 : -1}
+							onClick={() => setActiveTab(tab)}
+							onKeyDown={(e) => {
+								const idx = SETTINGS_TABS.indexOf(tab)
+								if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+									e.preventDefault()
+									const next =
+										e.key === 'ArrowRight'
+											? SETTINGS_TABS[(idx + 1) % SETTINGS_TABS.length]
+											: SETTINGS_TABS[(idx - 1 + SETTINGS_TABS.length) % SETTINGS_TABS.length]
+									setActiveTab(next)
+									document.getElementById(`settings-tab-${next}`)?.focus()
+								}
+							}}
+							className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors cursor-pointer bg-transparent ${
+								activeTab === tab
+									? 'border-accent text-content'
+									: 'border-transparent text-content-muted hover:text-content-secondary'
+							}`}
+						>
+							{tab}
+						</button>
+					))}
+				</div>
+
+				{/* Workspace tab panel */}
+				<div
+					id="settings-tabpanel-Workspace"
+					role="tabpanel"
+					aria-labelledby="settings-tab-Workspace"
+					hidden={activeTab !== 'Workspace'}
+					className="flex-1 min-h-0 px-6 py-6 overflow-y-auto overflow-x-hidden flex flex-col gap-8"
+				>
 					{/* General */}
 					<SettingsSection label="General">
-						<label className="flex items-center gap-3">
-							<span className="text-xs text-content-secondary w-16 shrink-0">Name</span>
-							<input
-								value={name}
-								onChange={(e) => setName(e.target.value)}
-								maxLength={128}
-								className="settings-input flex-1 min-w-0"
-							/>
-						</label>
-						<label className="flex items-center gap-3">
-							<span className="text-xs text-content-secondary w-16 shrink-0">Color</span>
-							<input
-								type="color"
-								value={color}
-								onChange={(e) => setColor(e.target.value)}
-								className="color-swatch"
-							/>
-						</label>
-					</SettingsSection>
-					{/* Panes */}
-					<SettingsSection label="Panes" gap={8}>
-						{Object.entries(workspace.panes).map(([paneId, pane]) => (
-							<div key={paneId} className="flex gap-1.5">
+							<label className="flex items-center gap-3">
+								<span className="text-xs text-content-secondary w-16 shrink-0">Name</span>
 								<input
-									value={pane.label}
-									onChange={(e) => handlePaneUpdate(paneId, { label: e.target.value })}
-									className="settings-input w-24 shrink-0"
-									placeholder="Label"
-									aria-label={`Pane ${pane.label} label`}
+									value={name}
+									onChange={(e) => setName(e.target.value)}
+									maxLength={128}
+									className="settings-input flex-1 min-w-0"
 								/>
-								<CwdInput
-									value={pane.cwd}
-									homeDir={homeDir}
-									onChange={(cwd) => handlePaneUpdate(paneId, { cwd })}
-									aria-label={`Pane ${pane.label} working directory`}
-								/>
+							</label>
+							<label className="flex items-center gap-3">
+								<span className="text-xs text-content-secondary w-16 shrink-0">Color</span>
 								<input
-									value={pane.startupCommand || ''}
-									onChange={(e) =>
-										handlePaneUpdate(paneId, {
-											startupCommand: e.target.value || null,
-										})
-									}
-									className="settings-input flex-[2] min-w-0"
-									placeholder="Startup command"
-									aria-label={`Pane ${pane.label} startup command`}
+									type="color"
+									value={color}
+									onChange={(e) => setColor(e.target.value)}
+									className="color-swatch"
 								/>
-							</div>
-						))}
-					</SettingsSection>
-					{/* Terminal */}
-					<SettingsSection label="Terminal" gap={16}>
-						{/* Theme preset grid — each name is rendered in its own theme colors as a live preview */}
-						<div className="grid grid-cols-4 gap-1.5">
-							{THEME_PRESETS.map((preset) => {
-								const isActive = bg === preset.background && fg === preset.foreground
-								return (
-									<button
-										type="button"
-										key={preset.name}
-										onClick={() => handlePresetClick(preset.background, preset.foreground)}
-										aria-pressed={isActive}
-										className={`py-1.5 px-1 rounded-md cursor-pointer border text-center focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
-											isActive
-												? 'border-accent ring-1 ring-accent'
-												: 'border-transparent hover:border-content-muted'
-										}`}
-										title={preset.name}
-										aria-label={preset.name}
-										style={{ background: preset.background, color: preset.foreground }}
-									>
-										<span className="text-[11px] font-medium leading-tight block truncate">
-											{preset.name}
-										</span>
-									</button>
-								)
-							})}
-						</div>
-
-						<div className="flex flex-col gap-3">
-							{/* Custom colors */}
-							<div className="flex items-center gap-4">
-								<label className="flex items-center gap-2">
-									<span className="text-xs text-content-secondary shrink-0">Background</span>
+							</label>
+						</SettingsSection>
+						{/* Panes */}
+						<SettingsSection label="Panes" gap={8}>
+							{Object.entries(workspace.panes).map(([paneId, pane]) => (
+								<div key={paneId} className="flex gap-1.5">
 									<input
-										type="color"
-										value={bg}
-										onChange={(e) => setBg(e.target.value)}
-										className="color-swatch"
+										value={pane.label}
+										onChange={(e) => handlePaneUpdate(paneId, { label: e.target.value })}
+										className="settings-input w-24 shrink-0"
+										placeholder="Label"
+										aria-label={`Pane ${pane.label} label`}
 									/>
-								</label>
-								<label className="flex items-center gap-2">
-									<span className="text-xs text-content-secondary shrink-0">Foreground</span>
+									<CwdInput
+										value={pane.cwd}
+										homeDir={homeDir}
+										onChange={(cwd) => handlePaneUpdate(paneId, { cwd })}
+										aria-label={`Pane ${pane.label} working directory`}
+									/>
 									<input
-										type="color"
-										value={fg}
-										onChange={(e) => setFg(e.target.value)}
-										className="color-swatch"
+										value={pane.startupCommand || ''}
+										onChange={(e) =>
+											handlePaneUpdate(paneId, {
+												startupCommand: e.target.value || null,
+											})
+										}
+										className="settings-input flex-[2] min-w-0"
+										placeholder="Startup command"
+										aria-label={`Pane ${pane.label} startup command`}
 									/>
-								</label>
-							</div>
-
-							{/* Font settings */}
-							<div className="flex items-center gap-3">
-								<span className="text-xs text-content-secondary w-20 shrink-0">Font</span>
-								<div className="flex-1 min-w-0">
-									<FontPicker value={fontFamily} onChange={setFontFamily} />
 								</div>
-							</div>
+							))}
+						</SettingsSection>
+						{/* Layout */}
+						<LayoutPicker current={currentPreset} onSelect={handleLayoutChange} />
+					{/* Snippets */}
+					<SnippetsSection />
+				</div>
 
+				{/* Terminal tab panel */}
+				<div
+					id="settings-tabpanel-Terminal"
+					role="tabpanel"
+					aria-labelledby="settings-tab-Terminal"
+					hidden={activeTab !== 'Terminal'}
+					className="flex-1 min-h-0 px-6 py-6 overflow-y-auto overflow-x-hidden flex flex-col gap-8"
+				>
+					{/* Theme */}
+					<SettingsSection label="Theme" gap={16}>
+							<div
+								className="grid grid-cols-4 gap-1.5"
+								role="radiogroup"
+								aria-label="Theme presets"
+								onKeyDown={(e) => {
+									if (
+										e.key !== 'ArrowRight' &&
+										e.key !== 'ArrowLeft' &&
+										e.key !== 'ArrowDown' &&
+										e.key !== 'ArrowUp'
+									)
+										return
+									e.preventDefault()
+									const idx = THEME_PRESETS.findIndex((p) => p.name === selectedPreset)
+									const cols = 4
+									let next = idx
+									if (e.key === 'ArrowRight') next = (idx + 1) % THEME_PRESETS.length
+									else if (e.key === 'ArrowLeft')
+										next = (idx - 1 + THEME_PRESETS.length) % THEME_PRESETS.length
+									else if (e.key === 'ArrowDown')
+										next = Math.min(idx + cols, THEME_PRESETS.length - 1)
+									else if (e.key === 'ArrowUp') next = Math.max(idx - cols, 0)
+									setSelectedPreset(THEME_PRESETS[next].name)
+									document.getElementById(`theme-preset-${next}`)?.focus()
+								}}
+							>
+								{(THEME_PRESETS as readonly ThemePreset[]).map((preset, index) => {
+									const isActive = selectedPreset === preset.name
+									return (
+										<button
+											type="button"
+											id={`theme-preset-${index}`}
+											key={preset.name}
+											onClick={() => setSelectedPreset(preset.name)}
+											role="radio"
+											aria-checked={isActive}
+											tabIndex={isActive ? 0 : -1}
+											className={`py-1.5 px-1 rounded-md cursor-pointer border text-center focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
+												isActive
+													? 'border-accent ring-1 ring-accent'
+													: 'border-transparent hover:border-content-muted'
+											}`}
+											title={preset.name}
+											aria-label={preset.name}
+											style={{
+												background: preset.background,
+												color: preset.foreground,
+												boxShadow:
+													isActive && preset.glow
+														? `0 0 8px ${hexToRgba(preset.glow, 0.25)}`
+														: undefined,
+											}}
+										>
+											<span className="text-[11px] font-medium leading-tight block truncate">
+												{preset.name}
+											</span>
+										</button>
+									)
+								})}
+							</div>
+						</SettingsSection>
+
+						{/* Font */}
+						<SettingsSection label="Font" gap={12}>
+							<FontPicker value={fontFamily} onChange={setFontFamily} />
+						</SettingsSection>
+
+						{/* Display */}
+						<SettingsSection label="Display" gap={8}>
 							<div className="flex items-center gap-3">
 								<span className="text-xs text-content-secondary w-20 shrink-0">Size</span>
 								<div className="flex items-center gap-2">
@@ -627,38 +853,34 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								</div>
 							</div>
 
-							{/* Behavior */}
-							<label className="flex items-center gap-3">
-								<span className="text-xs text-content-secondary w-20 shrink-0">Dim unfocused</span>
-								<input
-									type="range"
-									min={0}
-									max={0.7}
-									step={0.05}
-									value={unfocusedDim}
-									onChange={(e) => setUnfocusedDim(Number(e.target.value))}
-									className="w-32"
-								/>
-								<span className="text-[11px] text-content-muted w-7">
-									{Math.round(unfocusedDim * 100)}%
-								</span>
-							</label>
-
-							<label className="flex items-center gap-3">
-								<span className="text-xs text-content-secondary w-20 shrink-0">Opacity</span>
-								<input
-									type="range"
-									min={0.1}
-									max={1}
-									step={0.05}
-									value={paneOpacity}
-									onChange={(e) => setPaneOpacity(Number(e.target.value))}
-									className="w-32"
-								/>
-								<span className="text-[11px] text-content-muted w-7">
-									{Math.round(paneOpacity * 100)}%
-								</span>
-							</label>
+							<div className="flex items-center gap-3">
+								<span className="text-xs text-content-secondary w-20 shrink-0">Line height</span>
+								<div className="flex items-center gap-2">
+									<button
+										type="button"
+										onClick={() =>
+											setLineHeight((h) => Math.max(MIN_LINE_HEIGHT, +(h - 0.1).toFixed(1)))
+										}
+										aria-label="Decrease line height"
+										className="stepper-btn"
+									>
+										-
+									</button>
+									<span className="text-xs text-content tabular-nums w-5 text-center">
+										{lineHeight.toFixed(1)}
+									</span>
+									<button
+										type="button"
+										onClick={() =>
+											setLineHeight((h) => Math.min(MAX_LINE_HEIGHT, +(h + 0.1).toFixed(1)))
+										}
+										aria-label="Increase line height"
+										className="stepper-btn"
+									>
+										+
+									</button>
+								</div>
+							</div>
 
 							<label className="flex items-center gap-3">
 								<span className="text-xs text-content-secondary w-20 shrink-0">Cursor</span>
@@ -694,12 +916,44 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								/>
 								<span className="text-[11px] text-content-muted">lines</span>
 							</label>
-						</div>
-					</SettingsSection>
-					{/* Layout */}
-					<LayoutPicker current={currentPreset} onSelect={handleLayoutChange} />
-					{/* Snippets */}
-					<SnippetsSection />
+
+							<SegmentedButton
+								options={EFFECT_LEVELS}
+								value={dimLevel}
+								onChange={setDimLevel}
+								label="Dim unfocused"
+							/>
+							<SegmentedButton
+								options={EFFECT_LEVELS}
+								value={opacityLevel}
+								onChange={setOpacityLevel}
+								label="Opacity"
+							/>
+							<SegmentedButton
+								options={EFFECT_LEVELS}
+								value={gradientLevel}
+								onChange={setGradientLevel}
+								label="Gradient"
+							/>
+							<SegmentedButton
+								options={EFFECT_LEVELS}
+								value={glowLevel}
+								onChange={setGlowLevel}
+								label="Glow"
+							/>
+							<SegmentedButton
+								options={EFFECT_LEVELS}
+								value={scanlineLevel}
+								onChange={setScanlineLevel}
+								label="Scanlines"
+							/>
+							<SegmentedButton
+								options={EFFECT_LEVELS}
+								value={noiseLevel}
+								onChange={setNoiseLevel}
+								label="Noise"
+							/>
+						</SettingsSection>
 				</div>
 
 				<div className="flex items-center gap-2 px-6 py-3 border-t border-edge/50">

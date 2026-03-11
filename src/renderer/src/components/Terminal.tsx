@@ -1,4 +1,4 @@
-import { FitAddon } from '@xterm/addon-fit'
+import { FitAddon, type ITerminalDimensions } from '@xterm/addon-fit'
 import { SearchAddon } from '@xterm/addon-search'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { WebglAddon } from '@xterm/addon-webgl'
@@ -7,58 +7,93 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import '@xterm/xterm/css/xterm.css'
 import {
 	DEFAULT_CURSOR_STYLE,
+	DEFAULT_LINE_HEIGHT,
 	DEFAULT_PANE_OPACITY,
 	DEFAULT_SCROLLBACK,
+	EFFECT_MULTIPLIERS,
 	type PaneTheme,
+	isEffectLevel,
 } from '../../../shared/types'
 import { buildFontFamily, buildXtermTheme } from '../data/theme-presets'
 import { useStore } from '../store'
-import { resolveBackground } from '../utils/colors'
+import { hexToRgba, isValidGradient, resolveBackground } from '../utils/colors'
+import {
+	type SavedScroll,
+	createViewportSyncCoordinator,
+	readSavedScroll,
+	restoreSavedScroll,
+} from '../utils/terminal-scroll'
+import type { PaneVariant, VariantTheme } from './pane-chrome'
 
 const SEARCH_BTN =
 	'bg-transparent border-none text-content-muted cursor-pointer text-xs min-w-[28px] min-h-[28px] flex items-center justify-center hover:text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none rounded-sm'
 
-/** Whether the terminal viewport is scrolled to the very bottom of the buffer. */
-function isTermAtBottom(term: XTerm): boolean {
-	return term.buffer.active.viewportY >= term.buffer.active.baseY
-}
-
-/** Distance-from-bottom scroll snapshot — used by savedScrollRef and fitAndPreserveScroll. */
-interface SavedScroll {
-	atBottom: boolean
-	linesFromBottom: number
-}
-
-/** Number of buffer lines between the current viewport and the bottom. */
-function getLinesFromBottom(term: XTerm): number {
-	return Math.max(0, term.buffer.active.baseY - term.buffer.active.viewportY)
+/**
+ * Proposed dimensions from xterm's fit addon, or null if valid geometry
+ * cannot be computed (missing container, detached element, or degenerate sizing).
+ * May throw if the addon is disposed — callers must handle exceptions.
+ */
+function getProposedDimensions(fitAddon: FitAddon): ITerminalDimensions | null {
+	const dims = fitAddon.proposeDimensions()
+	// NaN check: proposeDimensions computes cols/rows from CSS measurements
+	// that can produce NaN when the container has zero width (e.g. display:none).
+	// TypeScript types say `number` but the runtime value can be NaN.
+	if (!dims || Number.isNaN(dims.cols) || Number.isNaN(dims.rows)) return null
+	if (dims.cols <= 0 || dims.rows <= 0) return null
+	return dims
 }
 
 /**
- * Call fitAddon.fit() and restore the user's scroll position afterward.
+ * Fit the terminal to its container and restore scroll position afterward.
+ *
+ * Early-returns without calling fit() when:
+ * - Geometry cannot be computed (null from getProposedDimensions)
+ * - Proposed dimensions match current cols/rows — avoids the scroll
+ *   snapshot/restore overhead on no-op fits (xterm's own fit() has its own
+ *   internal dimension guard, but this skips scroll preservation too)
+ *
  * Skips scroll management for the alternate screen buffer (TUIs like vim,
  * htop) — the alternate buffer has no scrollback, so viewportY/baseY are
  * always 0 and scroll restoration is meaningless.
+ *
  * For the normal buffer, preserves exact distance from bottom instead of a
  * ratio. When the terminal narrows, long lines re-wrap into more rows,
  * inflating baseY disproportionately and causing a ratio to overshoot.
  */
 function fitAndPreserveScroll(term: XTerm, fitAddon: FitAddon): void {
+	const dims = getProposedDimensions(fitAddon)
+	if (!dims) {
+		console.warn('[terminal] fitAndPreserveScroll: could not compute dimensions, skipping fit')
+		return
+	}
+	if (dims.cols === term.cols && dims.rows === term.rows) return
+
 	const isAlternateBuffer = term.buffer.active.type === 'alternate'
 	if (isAlternateBuffer) {
 		fitAddon.fit()
 		return
 	}
 
-	const atBottom = isTermAtBottom(term)
-	const saved = getLinesFromBottom(term)
-
+	const saved = readSavedScroll(term)
 	fitAddon.fit()
+	restoreSavedScroll(term, saved)
+}
 
-	if (atBottom) {
-		term.scrollToBottom()
-	} else {
-		term.scrollToLine(Math.max(0, term.buffer.active.baseY - saved))
+/**
+ * Wrap fitAndPreserveScroll with the isFittingRef guard.
+ * Centralizes the try/finally lifecycle so the guard cannot drift between call sites.
+ *
+ * Timing note: in the ResizeObserver path this runs inside requestAnimationFrame,
+ * so scroll events firing between the observer callback and the rAF are not
+ * suppressed. This is acceptable because corruption-causing scroll events come
+ * from fit() itself, which runs inside the guarded block.
+ */
+function guardedFit(term: XTerm, fitAddon: FitAddon, isFittingRef: React.RefObject<boolean>): void {
+	isFittingRef.current = true
+	try {
+		fitAndPreserveScroll(term, fitAddon)
+	} finally {
+		isFittingRef.current = false
 	}
 }
 
@@ -157,6 +192,8 @@ interface TerminalProps {
 	paneId: string
 	theme: PaneTheme
 	themeOverride: Partial<PaneTheme> | null
+	variant: PaneVariant
+	variantTheme: VariantTheme
 	focusGeneration: number
 	isFocused: boolean
 	onFocus: () => void
@@ -166,6 +203,8 @@ export function TerminalView({
 	paneId,
 	theme,
 	themeOverride,
+	variant,
+	variantTheme,
 	focusGeneration,
 	isFocused,
 	onFocus,
@@ -181,6 +220,11 @@ export function TerminalView({
 	// Ref allows the theme-update effect to re-focus without adding isFocused to its deps
 	const isFocusedRef = useRef(isFocused)
 	isFocusedRef.current = isFocused
+
+	// Suppresses handleViewportScroll during fit() to prevent corrupting savedScrollRef.
+	// Works because fit() dispatches scroll events synchronously — if xterm ever changes
+	// to async dispatch (microtask, rAF), this guard would silently break.
+	const isFittingRef = useRef<boolean>(false)
 
 	const [isScrolledUp, setIsScrolledUp] = useState(false)
 	const [showSearch, setShowSearch] = useState(false)
@@ -198,6 +242,19 @@ export function TerminalView({
 		const ws = s.workspaces.find((w) => paneId in w.panes)
 		return ws?.id === s.appState.activeWorkspaceId
 	})
+	const viewportSyncRef = useRef(
+		createViewportSyncCoordinator({
+			cancel: (id) => cancelAnimationFrame(id),
+			schedule: (cb) => requestAnimationFrame(cb),
+			sync: () => {
+				const term = termRef.current
+				if (!term || !isActiveRef.current) return
+				const saved = readSavedScroll(term)
+				savedScrollRef.current = saved
+				setIsScrolledUp(!saved.atBottom)
+			},
+		}),
+	)
 
 	const mergedTheme = useMemo(() => ({ ...theme, ...themeOverride }), [theme, themeOverride])
 
@@ -224,6 +281,7 @@ export function TerminalView({
 				cursorStyle: t.cursorStyle ?? DEFAULT_CURSOR_STYLE,
 				allowProposedApi: true,
 				scrollback: t.scrollback ?? DEFAULT_SCROLLBACK,
+				lineHeight: t.lineHeight ?? DEFAULT_LINE_HEIGHT,
 				allowTransparency: opacity < 1,
 			})
 
@@ -243,7 +301,8 @@ export function TerminalView({
 
 			// Detached container — xterm renders into this. Created via
 			// document.createElement (not JSX) so inline styles are used
-			// instead of Tailwind classes.
+			// instead of Tailwind classes. Sizes to containerRef's content
+			// box (inside its p-1.5 padding) via width/height: 100%.
 			const termContainer = document.createElement('div')
 			termContainer.style.width = '100%'
 			termContainer.style.height = '100%'
@@ -350,27 +409,48 @@ export function TerminalView({
 
 		// Reparent xterm's container into the React-managed div
 		containerRef.current.appendChild(termContainer)
-		fitAddon.fit()
+		// Not wrapped with guardedFit — the scroll and onWriteParsed listeners
+		// are registered below. No scroll handler is active yet. This ordering
+		// is load-bearing: registering listeners before fit() would silently
+		// corrupt scroll state.
+		try {
+			fitAddon.fit()
+		} catch (err) {
+			console.warn('[terminal] initial fit() failed:', err)
+		}
 
 		termRef.current = term
 		fitAddonRef.current = fitAddon
 		searchAddonRef.current = searchAddon
 
 		// Track whether user is scrolled up (for scroll-to-bottom button).
-		// term.onScroll fires synchronously during term.write() before the DOM
-		// scrollTop updates, giving stale isTermAtBottom() readings that corrupt
-		// savedScrollRef and cause panes to jump to top on workspace switch.
+		// Two listeners: viewport scroll (DOM event) and onWriteParsed (xterm).
+		// Both are gated by isScrollSuppressed() which checks isActive, isFitting,
+		// and the viewport sync coordinator's isBlocked(). The coordinator
+		// coalesces onWriteParsed syncs and blocks scroll handlers during
+		// mutations (workspace restore) to prevent stale reads.
 		const viewport = term.element?.querySelector('.xterm-viewport')
+		const isScrollSuppressed = () =>
+			!isActiveRef.current || isFittingRef.current || viewportSyncRef.current.isBlocked()
 		const handleViewportScroll = () => {
-			if (!isActiveRef.current) return
-			const atBottom = isTermAtBottom(term)
-			setIsScrolledUp(!atBottom)
-			savedScrollRef.current = { atBottom, linesFromBottom: getLinesFromBottom(term) }
+			if (isScrollSuppressed()) return
+			const saved = readSavedScroll(term)
+			savedScrollRef.current = saved
+			setIsScrolledUp(!saved.atBottom)
 		}
 		viewport?.addEventListener('scroll', handleViewportScroll)
+		const writeParsedDisposable = term.onWriteParsed(() => {
+			if (isScrollSuppressed()) return
+			// Passive output can move the viewport without a reliable DOM scroll
+			// signal for every chunk. Re-sync once the write batch has settled.
+			viewportSyncRef.current.scheduleSync()
+		})
 
-		// Skip ResizeObserver callbacks with unchanged dimensions (fires on
-		// DOM re-attach, style recalc, etc.) to avoid unnecessary fit/scroll cycles.
+		// Skip ResizeObserver callbacks with unchanged pixel dimensions (fires on
+		// DOM re-attach, style recalc, etc.) to avoid unnecessary rAF scheduling.
+		// fitAndPreserveScroll has a second guard on cols/rows — intentional double-gating:
+		// this layer skips unchanged pixels, that layer skips when pixel changes don't
+		// translate to different col/row counts.
 		let lastWidth = 0
 		let lastHeight = 0
 		const resizeObserver = new ResizeObserver((entries) => {
@@ -384,7 +464,8 @@ export function TerminalView({
 			requestAnimationFrame(() => {
 				try {
 					if (!containerRef.current?.clientWidth) return
-					fitAndPreserveScroll(term, fitAddon)
+					guardedFit(term, fitAddon, isFittingRef)
+					if (isActiveRef.current) viewportSyncRef.current.scheduleSync()
 				} catch (err) {
 					console.warn('[terminal] fit()/scroll failed during resize:', err)
 				}
@@ -404,8 +485,10 @@ export function TerminalView({
 			// (onData, onPtyData, onPtyExit, onResize) remain active on the
 			// cached entry so the PTY buffer keeps accumulating while detached.
 			viewport?.removeEventListener('scroll', handleViewportScroll)
+			writeParsedDisposable.dispose()
 			wrapperEl.removeEventListener('focusin', handleFocusIn)
 			resizeObserver.disconnect()
+			viewportSyncRef.current.dispose()
 			searchAddonRef.current = null
 			// Detach termContainer from DOM — do NOT dispose the terminal.
 			// PTY data continues writing to the buffer while detached.
@@ -415,26 +498,22 @@ export function TerminalView({
 
 	// Restore terminal scroll position when workspace becomes active.
 	// Runs as useLayoutEffect (before paint) so the user never sees a flash
-	// of wrong scroll position. While inactive, handleViewportScroll is
-	// suppressed via isActiveRef so browser-induced scrollTop resets don't
-	// corrupt the saved position.
+	// of wrong scroll position. While inactive, scroll handlers are suppressed
+	// via isActiveRef. The restore itself uses runBlockedMutation so scroll
+	// events fired by scrollToLine/scrollToBottom don't overwrite the snapshot.
 	useLayoutEffect(() => {
 		if (!isWorkspaceActive) {
 			isActiveRef.current = false
 			return
 		}
+		isActiveRef.current = true
 		if (termRef.current) {
 			const term = termRef.current
-			const { atBottom, linesFromBottom: saved } = savedScrollRef.current
-			if (atBottom) {
-				term.scrollToBottom()
-			} else {
-				term.scrollToLine(Math.max(0, term.buffer.active.baseY - saved))
-			}
-			isActiveRef.current = true
-			setIsScrolledUp(!isTermAtBottom(term))
+			viewportSyncRef.current.runBlockedMutation(() => {
+				restoreSavedScroll(term, savedScrollRef.current)
+			})
 		} else {
-			isActiveRef.current = true
+			viewportSyncRef.current.scheduleSync()
 		}
 	}, [isWorkspaceActive])
 
@@ -460,14 +539,17 @@ export function TerminalView({
 		termRef.current.options.theme = buildXtermTheme(mergedTheme, opacity)
 		termRef.current.options.cursorStyle = mergedTheme.cursorStyle ?? DEFAULT_CURSOR_STYLE
 		termRef.current.options.scrollback = mergedTheme.scrollback ?? DEFAULT_SCROLLBACK
+		const newLineHeight = mergedTheme.lineHeight ?? DEFAULT_LINE_HEIGHT
 		const newFontFamily = buildFontFamily(mergedTheme.fontFamily)
 		const metricsChanged =
 			termRef.current.options.fontSize !== mergedTheme.fontSize ||
-			termRef.current.options.fontFamily !== newFontFamily
+			termRef.current.options.fontFamily !== newFontFamily ||
+			termRef.current.options.lineHeight !== newLineHeight
 		termRef.current.options.fontSize = mergedTheme.fontSize
 		termRef.current.options.fontFamily = newFontFamily
+		termRef.current.options.lineHeight = newLineHeight
 		// Toggle WebGL based on opacity — WebGL doesn't support transparent backgrounds.
-		// See also: cache-miss (line ~275) and cache-hit (line ~348) guards.
+		// See also: the tryLoadWebgl guards in the cache-miss and cache-hit branches of the mount effect.
 		const cached = terminalCache.get(paneId)
 		if (cached) {
 			if (opacity < 1 && cached.webglAddon) {
@@ -478,7 +560,8 @@ export function TerminalView({
 		}
 		if (metricsChanged) {
 			try {
-				fitAndPreserveScroll(termRef.current, fitAddonRef.current)
+				guardedFit(termRef.current, fitAddonRef.current, isFittingRef)
+				if (isActiveRef.current) viewportSyncRef.current.scheduleSync()
 				if (isFocusedRef.current) termRef.current.focus()
 			} catch (err) {
 				console.warn('[terminal] fit()/scroll failed during theme update:', err)
@@ -542,6 +625,7 @@ export function TerminalView({
 
 	const scrollToBottom = useCallback(() => {
 		termRef.current?.scrollToBottom()
+		savedScrollRef.current = { atBottom: true, linesFromBottom: 0 }
 		setIsScrolledUp(false)
 		termRef.current?.focus()
 	}, [])
@@ -567,19 +651,84 @@ export function TerminalView({
 		[handleSearchNav, closeSearch],
 	)
 
-	const wrapperBg = useMemo(() => {
+	const { wrapperBg, blurPx } = useMemo(() => {
 		const opacity = mergedTheme.paneOpacity ?? DEFAULT_PANE_OPACITY
-		return resolveBackground(mergedTheme.background, opacity)
+		return {
+			wrapperBg: resolveBackground(mergedTheme.background, opacity),
+			blurPx: opacity < 1 ? Math.round((1 - opacity) * 24) : 0,
+		}
 	}, [mergedTheme])
+
+	// Pre-compute effect multipliers with runtime validation for deserialized config values
+	const { gradientMul, glowMul, scanlineMul, noiseMul, scrollbarMul } = useMemo(() => {
+		const mul = (level: unknown) => EFFECT_MULTIPLIERS[isEffectLevel(level) ? level : 'off']
+		return {
+			gradientMul: mul(mergedTheme.gradientLevel),
+			glowMul: mul(mergedTheme.glowLevel),
+			scanlineMul: mul(mergedTheme.scanlineLevel),
+			noiseMul: mul(mergedTheme.noiseLevel),
+			scrollbarMul: mul(mergedTheme.scrollbarAccent),
+		}
+	}, [mergedTheme])
+
+	// Fallback: use accent color for glow/gradient when the preset doesn't define them.
+	// This lets effect controls work on ALL themes, not just identity themes.
+	const effectGlow = mergedTheme.glow ?? mergedTheme.accent
+	const effectGradient =
+		mergedTheme.gradient ??
+		(effectGlow
+			? `linear-gradient(180deg, ${hexToRgba(effectGlow, 0.25)} 0%, transparent 50%)`
+			: null)
+
+	// Glow box-shadow alpha values — scaled by the multiplier
+	const glowInnerAlpha = 0.5 * glowMul
+	const glowOuterAlpha = 0.7 * glowMul
+
+	// Scrollbar accent — set CSS custom property on wrapper
+	const scrollbarColor =
+		scrollbarMul > 0 && effectGlow ? hexToRgba(effectGlow, 0.4 + 0.6 * scrollbarMul) : undefined
 
 	return (
 		<div
 			ref={wrapperRef}
-			className="relative w-full h-full p-1.5"
-			style={{ backgroundColor: wrapperBg }}
+			className={`relative w-full h-full${scrollbarColor ? ' scrollbar-accent' : ''}`}
+			style={
+				{
+					backgroundColor: wrapperBg,
+					backdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
+					WebkitBackdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
+					'--scrollbar-accent-color': scrollbarColor,
+				} as React.CSSProperties
+			}
 		>
+			{gradientMul > 0 && effectGradient && isValidGradient(effectGradient) && (
+				<div
+					className="absolute inset-0 pointer-events-none z-[1]"
+					style={{ background: effectGradient, opacity: gradientMul, contain: 'layout paint style' }}
+				/>
+			)}
+			{glowMul > 0 && effectGlow && (
+				<div
+					className="pane-glow absolute inset-0 pointer-events-none z-[2] rounded-sm"
+					style={{
+						boxShadow: `inset 0 0 18px ${hexToRgba(effectGlow, glowInnerAlpha)}, 0 0 12px ${hexToRgba(effectGlow, glowOuterAlpha)}`,
+					}}
+				/>
+			)}
+			{scanlineMul > 0 && (
+				<div
+					className="pane-scanline absolute inset-0 pointer-events-none z-[3]"
+					style={{ opacity: scanlineMul }}
+				/>
+			)}
+			{noiseMul > 0 && (
+				<div
+					className="pane-noise absolute inset-0 pointer-events-none z-[5]"
+					style={{ opacity: noiseMul * 0.5 }}
+				/>
+			)}
 			{showSearch && (
-				<search className="absolute top-1 right-2 z-10 flex items-center gap-1 bg-elevated border border-edge rounded-sm px-2 py-1 shadow-panel">
+				<search className="absolute top-2.5 right-3.5 z-10 flex items-center gap-1 bg-elevated border border-edge rounded-sm px-2 py-1 shadow-panel">
 					<input
 						ref={searchInputRef}
 						value={searchQuery}
@@ -615,25 +764,10 @@ export function TerminalView({
 					</button>
 				</search>
 			)}
-			{/* Inline style required: colors must match the terminal's runtime theme,
-			    which varies per pane and cannot be expressed as Tailwind classes. */}
-			{isScrolledUp && (
-				<button
-					type="button"
-					onClick={scrollToBottom}
-					aria-label="Scroll to bottom"
-					className="absolute bottom-3 left-3 right-3 z-10 h-9 rounded-sm flex items-center justify-center gap-1.5 text-xs cursor-pointer whitespace-nowrap overflow-hidden hover:brightness-110 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
-					style={{
-						backgroundColor: `${mergedTheme.background}e6`,
-						color: mergedTheme.foreground,
-						border: `1px solid ${mergedTheme.foreground}22`,
-						boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-					}}
-				>
-					Scroll to bottom &#x25BC;
-				</button>
-			)}
-			<div ref={containerRef} className="w-full h-full" />
+			{isScrolledUp && <variant.ScrollButton onClick={scrollToBottom} theme={variantTheme} />}
+			{/* p-1.5 must be here (not wrapper) — effect overlays use absolute inset-0
+			    on wrapper and would cover wrapper padding, making text appear flush. */}
+			<div ref={containerRef} className="w-full h-full p-1.5" />
 		</div>
 	)
 }

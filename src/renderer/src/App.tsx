@@ -3,6 +3,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { PaneArea } from './components/PaneArea'
 import { SettingsPanel } from './components/SettingsPanel'
 import { TabBar } from './components/TabBar'
+import { findPreset } from './data/theme-presets'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useStore } from './store'
 import { generateThemeVariables } from './utils/colors'
@@ -15,12 +16,14 @@ export function App() {
 	const workspaces = useStore((s) => s.workspaces)
 	const appState = useStore((s) => s.appState)
 	const updatePaneCwd = useStore((s) => s.updatePaneCwd)
+	const updatePaneBranch = useStore((s) => s.updatePaneBranch)
+	const updatePanePr = useStore((s) => s.updatePanePr)
 	const visitedWorkspaceIds = useStore((s) => s.visitedWorkspaceIds)
 
 	const [showSettings, setShowSettings] = useState(false)
 	const closeSettings = useCallback(() => {
 		setShowSettings(false)
-		// Restore terminal focus after the settings panel unmounts
+		// Re-focus the terminal pane when the settings panel closes
 		const { focusedPaneId, setFocusedPane } = useStore.getState()
 		if (focusedPaneId) setFocusedPane(focusedPaneId)
 	}, [])
@@ -49,16 +52,39 @@ export function App() {
 		return unsubscribe
 	}, [updatePaneCwd])
 
+	// Listen for git branch changes from the main process
+	useEffect(() => {
+		const unsubscribe = window.api.onPtyBranchChanged((paneId, branch) => {
+			const ws = useStore.getState().workspaces.find((w) => paneId in w.panes)
+			if (ws) updatePaneBranch(paneId, branch)
+		})
+		return unsubscribe
+	}, [updatePaneBranch])
+
+	// Listen for PR status changes from the main process
+	useEffect(() => {
+		const unsubscribe = window.api.onPtyPrChanged((paneId, pr) => {
+			const ws = useStore.getState().workspaces.find((w) => paneId in w.panes)
+			if (ws) updatePanePr(paneId, pr)
+		})
+		return unsubscribe
+	}, [updatePanePr])
+
 	// Must be above early returns to satisfy React's rules of hooks
 	const themeStyles = useMemo(() => {
 		if (!activeWorkspace?.theme) return undefined
 		try {
-			return generateThemeVariables(
-				activeWorkspace.theme.background,
-				activeWorkspace.theme.foreground,
-				activeWorkspace.theme.fontFamily,
-				activeWorkspace.theme.fontSize,
-			)
+			const t = activeWorkspace.theme
+			const preset = t.preset ? findPreset(t.preset) : undefined
+			if (t.preset && !preset) console.warn('[App] unknown theme preset:', t.preset)
+			return generateThemeVariables({
+				bg: t.background,
+				fg: t.foreground,
+				fontFamily: t.fontFamily,
+				fontSize: t.fontSize,
+				accent: t.accent ?? preset?.accent,
+				glow: t.glow ?? preset?.glow,
+			})
 		} catch (err) {
 			console.error('[App] theme generation failed:', err)
 			return undefined

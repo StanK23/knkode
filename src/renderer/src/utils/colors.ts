@@ -6,6 +6,18 @@ export function isValidHex(hex: string): boolean {
 	return /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.test(hex)
 }
 
+/** Test whether a string is a safe CSS gradient (no injection vectors). */
+export function isValidGradient(value: string): boolean {
+	return (
+		/^(linear|radial|conic)-gradient\(/.test(value) &&
+		!value.includes(';') &&
+		!value.includes('{') &&
+		!value.includes('url(') &&
+		!value.includes('expression(') &&
+		!value.includes('var(')
+	)
+}
+
 /** Parse a hex color string (#RGB or #RRGGBB) into an RGB tuple. Returns [0,0,0] on malformed input. */
 export function hexToRgb(hex: string): [number, number, number] {
 	const match = hex.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i)
@@ -89,6 +101,7 @@ export type ThemeVariables = {
 	'--color-edge': string
 	'--color-accent': string
 	'--color-danger': string
+	'--theme-glow': string
 	'--font-family-ui': string
 	'--font-size-ui': string
 } & React.CSSProperties
@@ -97,18 +110,24 @@ const MIN_UI_FONT_SIZE = 11
 const MAX_UI_FONT_SIZE = 15
 const DEFAULT_UI_FONT_SIZE = 13
 
+export interface ThemeVarOptions {
+	bg?: string
+	fg?: string
+	fontFamily?: string
+	fontSize?: number
+	accent?: string
+	glow?: string
+}
+
 /**
- * Derive a full set of CSS custom properties from a background/foreground color pair
- * and typography settings.
+ * Derive a full set of CSS custom properties from theme colors and typography.
  * Auto-detects dark vs light mode from the background luminance.
+ * Accepts per-theme accent and glow colors — falls back to defaults when omitted.
  * Returns an object suitable for React inline `style` — keys are CSS variable names.
  */
-export function generateThemeVariables(
-	bg?: string,
-	fg?: string,
-	fontFamily?: string,
-	fontSize?: number,
-): ThemeVariables {
+export function generateThemeVariables(opts: ThemeVarOptions): ThemeVariables {
+	const { bg, fg, fontFamily, fontSize, accent: accentOverride, glow } = opts
+
 	// Safe fallbacks for missing or malformed colors to prevent app crashes
 	const safeBg = bg && isValidHex(bg) ? bg : '#1a1a2e'
 	const safeFg = fg && isValidHex(fg) ? fg : '#e0e0e0'
@@ -119,7 +138,7 @@ export function generateThemeVariables(
 	const depthColor = dark ? '#ffffff' : '#000000'
 	const recessColor = dark ? '#000000' : '#e8e8e8'
 
-	// Surface levels: canvas < sunken < elevated < overlay
+	// Surface levels by elevation: sunken < canvas < elevated < overlay
 	const elevated = mixColors(safeBg, depthColor, 0.95)
 	const sunken = mixColors(safeBg, recessColor, 0.92)
 	const overlay = mixColors(safeBg, depthColor, 0.9)
@@ -133,9 +152,17 @@ export function generateThemeVariables(
 	// Border: 85% background + 15% foreground tint
 	const edge = mixColors(safeBg, safeFg, 0.85)
 
-	// Accent and danger are fixed — not derived from bg/fg
-	const accent = dark ? '#6c63ff' : '#4d46e5'
+	// Per-theme accent or sensible default
+	let accent: string
+	if (accentOverride && isValidHex(accentOverride)) {
+		accent = accentOverride
+	} else {
+		accent = dark ? '#6c63ff' : '#4d46e5'
+	}
 	const danger = '#e74c3c'
+
+	// Glow: box-shadow effect for themed components.
+	const glowValue = glow && isValidHex(glow) ? `0 0 12px ${hexToRgba(glow, 0.4)}` : 'none'
 
 	// Typography: 1px smaller than terminal font size, clamped to 11-15px range
 	const uiFontSize =
@@ -156,6 +183,7 @@ export function generateThemeVariables(
 		'--color-edge': edge,
 		'--color-accent': accent,
 		'--color-danger': danger,
+		'--theme-glow': glowValue,
 		// Sanitize fontFamily — only allow known fonts to prevent CSS injection from tampered config.
 		// CSS variable fallback — intentionally different from buildFontFamily() in theme-presets.ts
 		// which uses literal font names for xterm.js (no CSS variable support in canvas).

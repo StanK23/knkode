@@ -7,6 +7,7 @@ import type {
 	LayoutPreset,
 	PaneConfig,
 	PaneTheme,
+	PrInfo,
 	Snippet,
 	SplitDirection,
 	Workspace,
@@ -178,6 +179,20 @@ function addToVisited(visited: string[], id: string): string[] {
 	return visited.includes(id) ? visited : [...visited, id]
 }
 
+/** Remove pane-scoped ephemeral state (branches, PRs) for a set of pane IDs. */
+function cleanPaneEphemeral(
+	state: { paneBranches: Record<string, string | null>; panePrs: Record<string, PrInfo | null> },
+	paneIds: string[],
+): { paneBranches: Record<string, string | null>; panePrs: Record<string, PrInfo | null> } {
+	const paneBranches = { ...state.paneBranches }
+	const panePrs = { ...state.panePrs }
+	for (const pid of paneIds) {
+		delete paneBranches[pid]
+		delete panePrs[pid]
+	}
+	return { paneBranches, panePrs }
+}
+
 const WORKSPACE_COLORS = [
 	'#6c63ff',
 	'#e74c3c',
@@ -208,6 +223,10 @@ interface StoreState {
 	 *  Prevents double-creation on Allotment remount.
 	 *  IMPORTANT: Always create a new Set on mutation — Zustand uses reference equality. */
 	activePtyIds: Set<string>
+	/** Current git branch per pane. Ephemeral runtime state — not persisted to disk. */
+	paneBranches: Record<string, string | null>
+	/** Current PR info per pane. Ephemeral runtime state — not persisted to disk. */
+	panePrs: Record<string, PrInfo | null>
 
 	// Actions
 	setFocusedPane: (paneId: string | null) => void
@@ -247,6 +266,16 @@ interface StoreState {
 	) => void
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void
+	/** Update git branch for a pane. No workspaceId needed — branch state is a flat
+	 *  ephemeral map (not persisted inside workspace objects like cwd). */
+	updatePaneBranch: (paneId: string, branch: string | null) => void
+	/** Update PR info for a pane. No workspaceId needed — PR state is a flat
+	 *  ephemeral map (not persisted inside workspace objects). */
+	updatePanePr: (paneId: string, pr: PrInfo | null) => void
+	/** Persist allotment-reported pixel sizes as percentages at a given tree path.
+	 *  `path` is an array of child indices from the root to the target branch node.
+	 *  An empty array `[]` targets the root node itself. */
+	updateNodeSizes: (workspaceId: string, path: number[], pixelSizes: number[]) => void
 	saveState: () => Promise<void>
 	addSnippet: (name: string, command: string) => void
 	updateSnippet: (id: string, updates: Pick<Snippet, 'name' | 'command'>) => void
@@ -254,6 +283,27 @@ interface StoreState {
 	/** Move the snippet at fromIndex to toIndex (splice-remove then insert). */
 	reorderSnippets: (fromIndex: number, toIndex: number) => void
 	runSnippet: (snippetId: string, paneId: string) => void
+}
+
+/** Find a workspace, apply a transformation, persist, and return the merged state.
+ *  The updater receives the found workspace and current state.
+ *  Return null from the updater to skip the update. */
+function withWorkspace(
+	state: StoreState,
+	workspaceId: string,
+	updater: (ws: Workspace, st: StoreState) => { updated: Workspace; extra?: Partial<StoreState> } | null,
+): Partial<StoreState> | StoreState {
+	const workspace = state.workspaces.find((w) => w.id === workspaceId)
+	if (!workspace) return state
+	const result = updater(workspace, state)
+	if (!result) return state
+	window.api.saveWorkspace(result.updated).catch((err) => {
+		console.error('[store] Failed to save workspace:', err)
+	})
+	return {
+		workspaces: state.workspaces.map((w) => (w.id === workspaceId ? result.updated : w)),
+		...result.extra,
+	}
 }
 
 function persistSnippets(snippets: Snippet[]): void {
@@ -277,6 +327,8 @@ export const useStore = create<StoreState>((set, get) => ({
 	focusGeneration: 0,
 	visitedWorkspaceIds: [],
 	activePtyIds: new Set(),
+	paneBranches: {},
+	panePrs: {},
 
 	setFocusedPane: (paneId) =>
 		set((state) => ({ focusedPaneId: paneId, focusGeneration: state.focusGeneration + 1 })),
@@ -325,12 +377,15 @@ export const useStore = create<StoreState>((set, get) => ({
 
 	init: async () => {
 		try {
-			const [workspaces, appState, homeDir, snippets] = await Promise.all([
+			const [loadedWorkspaces, loadedAppState, homeDir, snippets] = await Promise.all([
 				window.api.getWorkspaces(),
 				window.api.getAppState(),
 				window.api.getHomeDir(),
 				window.api.getSnippets(),
 			])
+
+			let workspaces = loadedWorkspaces
+			let appState = loadedAppState
 
 			// If no workspaces exist, create a default one
 			if (workspaces.length === 0) {
@@ -343,17 +398,15 @@ export const useStore = create<StoreState>((set, get) => ({
 					layout,
 					panes,
 				}
-				workspaces.push(defaultWorkspace)
+				workspaces = [...workspaces, defaultWorkspace]
+				appState = { ...appState, openWorkspaceIds: [defaultWorkspace.id], activeWorkspaceId: defaultWorkspace.id }
 				await window.api.saveWorkspace(defaultWorkspace)
-				appState.openWorkspaceIds = [defaultWorkspace.id]
-				appState.activeWorkspaceId = defaultWorkspace.id
 				await window.api.saveAppState(appState)
 			}
 
 			// Ensure at least one tab is open
 			if (appState.openWorkspaceIds.length === 0 && workspaces.length > 0) {
-				appState.openWorkspaceIds = [workspaces[0].id]
-				appState.activeWorkspaceId = workspaces[0].id
+				appState = { ...appState, openWorkspaceIds: [workspaces[0].id], activeWorkspaceId: workspaces[0].id }
 				await window.api.saveAppState(appState)
 			}
 
@@ -416,10 +469,13 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 
 	updateWorkspace: async (workspace) => {
-		await window.api.saveWorkspace(workspace)
+		// Update store first (optimistic) so UI reflects changes instantly,
+		// then persist to disk. Prevents race where closing settings before
+		// IPC save completes would lose the change.
 		set((state) => ({
 			workspaces: state.workspaces.map((w) => (w.id === workspace.id ? workspace : w)),
 		}))
+		await window.api.saveWorkspace(workspace)
 	},
 
 	duplicateWorkspace: async (id) => {
@@ -472,30 +528,35 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 
 	removeWorkspace: async (id) => {
-		const state = get()
-		const workspace = state.workspaces.find((w) => w.id === id)
+		// Capture workspace for PTY cleanup before any state changes
+		const workspace = get().workspaces.find((w) => w.id === id)
 		// Kill PTYs before state update to avoid orphaned processes
 		if (workspace) {
 			get().killPtys(Object.keys(workspace.panes))
 		}
 		await window.api.deleteWorkspace(id)
-		// Re-read state after awaits to avoid stale references
-		const current = get()
-		const newOpen = current.appState.openWorkspaceIds.filter((wid) => wid !== id)
+		// Re-read state after first await — other actions may have changed store
+		const afterDelete = get()
+		const freshWorkspace = afterDelete.workspaces.find((w) => w.id === id)
+		const paneIds = freshWorkspace ? Object.keys(freshWorkspace.panes) : []
+		const newOpen = afterDelete.appState.openWorkspaceIds.filter((wid) => wid !== id)
 		const newActive =
-			current.appState.activeWorkspaceId === id
+			afterDelete.appState.activeWorkspaceId === id
 				? (newOpen[0] ?? null)
-				: current.appState.activeWorkspaceId
+				: afterDelete.appState.activeWorkspaceId
 		const newAppState = {
-			...current.appState,
+			...afterDelete.appState,
 			openWorkspaceIds: newOpen,
 			activeWorkspaceId: newActive,
 		}
 		await window.api.saveAppState(newAppState)
+		// Re-read state after second await for final set
+		const latest = get()
 		set({
-			workspaces: get().workspaces.filter((w) => w.id !== id),
+			workspaces: latest.workspaces.filter((w) => w.id !== id),
 			appState: newAppState,
-			visitedWorkspaceIds: get().visitedWorkspaceIds.filter((wid) => wid !== id),
+			visitedWorkspaceIds: latest.visitedWorkspaceIds.filter((wid) => wid !== id),
+			...cleanPaneEphemeral(latest, paneIds),
 		})
 	},
 
@@ -564,7 +625,12 @@ export const useStore = create<StoreState>((set, get) => ({
 			if (newActive && !newVisited.includes(newActive)) {
 				newVisited.push(newActive)
 			}
-			return { appState: newAppState, visitedWorkspaceIds: newVisited }
+			const paneIds = workspace ? Object.keys(workspace.panes) : []
+			return {
+				appState: newAppState,
+				visitedWorkspaceIds: newVisited,
+				...cleanPaneEphemeral(state, paneIds),
+			}
 		})
 	},
 
@@ -592,41 +658,34 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 
 	splitPane: (workspaceId, paneId, direction) => {
-		set((state) => {
-			const workspace = state.workspaces.find((w) => w.id === workspaceId)
-			if (!workspace?.panes[paneId]) return state
-
-			const newPaneId = crypto.randomUUID()
-			const newPane: PaneConfig = {
-				label: 'terminal',
-				cwd: workspace.panes[paneId].cwd,
-				startupCommand: null,
-				themeOverride: null,
-			}
-
-			const newTree = replaceLeafInTree(workspace.layout.tree, paneId, (leaf) => ({
-				direction,
-				size: leaf.size,
-				children: [
-					{ paneId, size: 50 },
-					{ paneId: newPaneId, size: 50 },
-				],
-			}))
-
-			const updated = {
-				...workspace,
-				layout: { type: 'custom' as const, tree: newTree },
-				panes: { ...workspace.panes, [newPaneId]: newPane },
-			}
-			window.api.saveWorkspace(updated).catch((err) => {
-				console.error('[store] Failed to save workspace:', err)
-			})
-			return {
-				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
-				focusedPaneId: newPaneId,
-				focusGeneration: state.focusGeneration + 1,
-			}
-		})
+		set((state) =>
+			withWorkspace(state, workspaceId, (workspace, st) => {
+				if (!workspace.panes[paneId]) return null
+				const newPaneId = crypto.randomUUID()
+				const newPane: PaneConfig = {
+					label: 'terminal',
+					cwd: workspace.panes[paneId].cwd,
+					startupCommand: null,
+					themeOverride: null,
+				}
+				const newTree = replaceLeafInTree(workspace.layout.tree, paneId, (leaf) => ({
+					direction,
+					size: leaf.size,
+					children: [
+						{ paneId, size: 50 },
+						{ paneId: newPaneId, size: 50 },
+					],
+				}))
+				return {
+					updated: {
+						...workspace,
+						layout: { type: 'custom' as const, tree: newTree },
+						panes: { ...workspace.panes, [newPaneId]: newPane },
+					},
+					extra: { focusedPaneId: newPaneId, focusGeneration: st.focusGeneration + 1 },
+				}
+			}),
+		)
 	},
 
 	closePane: (workspaceId, paneId) => {
@@ -635,28 +694,25 @@ export const useStore = create<StoreState>((set, get) => ({
 		if (!ws || Object.keys(ws.panes).length <= 1) return
 		get().killPtys([paneId])
 
-		set((state) => {
-			const workspace = state.workspaces.find((w) => w.id === workspaceId)
-			if (!workspace) return state
-			if (Object.keys(workspace.panes).length <= 1) return state
-
-			const newTree = removeLeafFromTree(workspace.layout.tree, paneId)
-			if (!newTree) return state
-
-			const { [paneId]: _, ...remainingPanes } = workspace.panes
-			const updated = {
-				...workspace,
-				layout: { type: 'custom' as const, tree: newTree },
-				panes: remainingPanes,
-			}
-			window.api.saveWorkspace(updated).catch((err) => {
-				console.error('[store] Failed to save workspace:', err)
-			})
-			return {
-				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
-				focusedPaneId: state.focusedPaneId === paneId ? null : state.focusedPaneId,
-			}
-		})
+		set((state) =>
+			withWorkspace(state, workspaceId, (workspace, st) => {
+				if (Object.keys(workspace.panes).length <= 1) return null
+				const newTree = removeLeafFromTree(workspace.layout.tree, paneId)
+				if (!newTree) return null
+				const { [paneId]: _, ...remainingPanes } = workspace.panes
+				return {
+					updated: {
+						...workspace,
+						layout: { type: 'custom' as const, tree: newTree },
+						panes: remainingPanes,
+					},
+					extra: {
+						focusedPaneId: st.focusedPaneId === paneId ? null : st.focusedPaneId,
+						...cleanPaneEphemeral(st, [paneId]),
+					},
+				}
+			}),
+		)
 	},
 
 	movePaneToWorkspace: (fromWsId, paneId, toWsId) => {
@@ -775,123 +831,118 @@ export const useStore = create<StoreState>((set, get) => ({
 
 	swapPanes: (workspaceId, paneIdA, paneIdB) => {
 		if (paneIdA === paneIdB) return
-		set((state) => {
-			const workspace = state.workspaces.find((w) => w.id === workspaceId)
-			if (!workspace) {
-				console.error('[store] swapPanes: workspace not found', { workspaceId })
-				return state
-			}
-			if (!workspace.panes[paneIdA] || !workspace.panes[paneIdB]) {
-				console.error('[store] swapPanes: pane not found', { paneIdA, paneIdB, workspaceId })
-				return state
-			}
-			const swappedTree = remapLayoutTree(workspace.layout.tree, (id) =>
-				id === paneIdA ? paneIdB : id === paneIdB ? paneIdA : id,
-			)
-			const updated = {
-				...workspace,
-				layout: { type: 'custom' as const, tree: swappedTree },
-			}
-			window.api.saveWorkspace(updated).catch((err) => {
-				console.error('[store] Failed to save workspace:', err)
-			})
-			return {
-				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
-			}
-		})
+		set((state) =>
+			withWorkspace(state, workspaceId, (workspace) => {
+				if (!workspace.panes[paneIdA] || !workspace.panes[paneIdB]) {
+					console.error('[store] swapPanes: pane not found', { paneIdA, paneIdB, workspaceId })
+					return null
+				}
+				const swappedTree = remapLayoutTree(workspace.layout.tree, (id) =>
+					id === paneIdA ? paneIdB : id === paneIdB ? paneIdA : id,
+				)
+				return {
+					updated: { ...workspace, layout: { type: 'custom' as const, tree: swappedTree } },
+				}
+			}),
+		)
 	},
 
 	movePaneToPosition: (workspaceId, sourcePaneId, targetPaneId, position) => {
 		if (sourcePaneId === targetPaneId) return
-		set((state) => {
-			const workspace = state.workspaces.find((w) => w.id === workspaceId)
-			if (!workspace?.panes[sourcePaneId] || !workspace.panes[targetPaneId]) {
-				console.error('[store] movePaneToPosition: pane not found', {
-					sourcePaneId,
-					targetPaneId,
-					workspaceId,
-				})
-				return state
-			}
-
-			// 1. Remove source leaf from tree
-			const treeWithoutSource = removeLeafFromTree(workspace.layout.tree, sourcePaneId)
-			if (!treeWithoutSource) {
-				console.error('[store] movePaneToPosition: removeLeafFromTree returned null', {
-					sourcePaneId,
-					workspaceId,
-				})
-				return state
-			}
-
-			// 2. Find target leaf and replace it with a new branch containing
-			// source and target in position-dependent order
-			const direction: SplitDirection =
-				position === 'left' || position === 'right' ? 'horizontal' : 'vertical'
-			const sourceFirst = position === 'left' || position === 'top'
-
-			const newTree = replaceLeafInTree(treeWithoutSource, targetPaneId, (leaf) => {
-				const sourceLeaf: LayoutLeaf = { paneId: sourcePaneId, size: 50 }
-				const targetLeaf: LayoutLeaf = { paneId: targetPaneId, size: 50 }
-				return {
-					direction,
-					size: leaf.size,
-					children: sourceFirst ? [sourceLeaf, targetLeaf] : [targetLeaf, sourceLeaf],
+		set((state) =>
+			withWorkspace(state, workspaceId, (workspace, st) => {
+				if (!workspace.panes[sourcePaneId] || !workspace.panes[targetPaneId]) {
+					console.error('[store] movePaneToPosition: pane not found', {
+						sourcePaneId,
+						targetPaneId,
+						workspaceId,
+					})
+					return null
 				}
-			})
-			const updated = {
-				...workspace,
-				layout: { type: 'custom' as const, tree: newTree },
-			}
-			window.api.saveWorkspace(updated).catch((err) => {
-				console.error('[store] Failed to save workspace:', err)
-			})
-			return {
-				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
-				focusedPaneId: sourcePaneId,
-				focusGeneration: state.focusGeneration + 1,
-			}
-		})
+				const treeWithoutSource = removeLeafFromTree(workspace.layout.tree, sourcePaneId)
+				if (!treeWithoutSource) {
+					console.error('[store] movePaneToPosition: removeLeafFromTree returned null', {
+						sourcePaneId,
+						workspaceId,
+					})
+					return null
+				}
+				const direction: SplitDirection =
+					position === 'left' || position === 'right' ? 'horizontal' : 'vertical'
+				const sourceFirst = position === 'left' || position === 'top'
+				const newTree = replaceLeafInTree(treeWithoutSource, targetPaneId, (leaf) => {
+					const sourceLeaf: LayoutLeaf = { paneId: sourcePaneId, size: 50 }
+					const targetLeaf: LayoutLeaf = { paneId: targetPaneId, size: 50 }
+					return {
+						direction,
+						size: leaf.size,
+						children: sourceFirst ? [sourceLeaf, targetLeaf] : [targetLeaf, sourceLeaf],
+					}
+				})
+				return {
+					updated: { ...workspace, layout: { type: 'custom' as const, tree: newTree } },
+					extra: { focusedPaneId: sourcePaneId, focusGeneration: st.focusGeneration + 1 },
+				}
+			}),
+		)
 	},
 
 	updatePaneConfig: (workspaceId, paneId, updates) => {
-		set((state) => {
-			const workspace = state.workspaces.find((w) => w.id === workspaceId)
-			if (!workspace || !workspace.panes[paneId]) return state
-			const updated = {
-				...workspace,
-				panes: {
-					...workspace.panes,
-					[paneId]: { ...workspace.panes[paneId], ...updates },
-				},
-			}
-			window.api.saveWorkspace(updated).catch((err) => {
-				console.error('[store] Failed to save workspace:', err)
-			})
-			return {
-				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
-			}
-		})
+		set((state) =>
+			withWorkspace(state, workspaceId, (workspace) => {
+				if (!workspace.panes[paneId]) return null
+				return {
+					updated: {
+						...workspace,
+						panes: { ...workspace.panes, [paneId]: { ...workspace.panes[paneId], ...updates } },
+					},
+				}
+			}),
+		)
 	},
 
 	updatePaneCwd: (workspaceId, paneId, cwd) => {
+		set((state) =>
+			withWorkspace(state, workspaceId, (workspace) => {
+				if (!workspace.panes[paneId]) return null
+				return {
+					updated: {
+						...workspace,
+						panes: { ...workspace.panes, [paneId]: { ...workspace.panes[paneId], cwd } },
+					},
+				}
+			}),
+		)
+	},
+
+	updatePaneBranch: (paneId, branch) => {
 		set((state) => {
-			const workspace = state.workspaces.find((w) => w.id === workspaceId)
-			if (!workspace || !workspace.panes[paneId]) return state
-			const updated = {
-				...workspace,
-				panes: {
-					...workspace.panes,
-					[paneId]: { ...workspace.panes[paneId], cwd },
-				},
-			}
-			window.api.saveWorkspace(updated).catch((err) => {
-				console.error('[store] Failed to save workspace:', err)
-			})
-			return {
-				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
-			}
+			if (state.paneBranches[paneId] === branch) return state
+			return { paneBranches: { ...state.paneBranches, [paneId]: branch } }
 		})
+	},
+
+	updatePanePr: (paneId, pr) => {
+		set((state) => {
+			// PR number is the stable identity; title/url changes within a poll cycle are negligible
+			if (state.panePrs[paneId]?.number === pr?.number) return state
+			return { panePrs: { ...state.panePrs, [paneId]: pr } }
+		})
+	},
+
+	updateNodeSizes: (workspaceId, path, pixelSizes) => {
+		const total = pixelSizes.reduce((a, b) => a + b, 0)
+		if (!Number.isFinite(total) || total <= 0) return
+		const percentages = pixelSizes.map((s) => (s / total) * 100)
+		set((state) =>
+			withWorkspace(state, workspaceId, (workspace) => {
+				const newTree = updateSizesAtPath(workspace.layout.tree, path, percentages)
+				if (newTree === workspace.layout.tree) return null
+				return {
+					updated: { ...workspace, layout: { type: 'custom' as const, tree: newTree } },
+				}
+			}),
+		)
 	},
 
 	saveState: async () => {
@@ -919,7 +970,12 @@ export const useStore = create<StoreState>((set, get) => ({
 
 	reorderSnippets: (fromIndex, toIndex) => {
 		const snippets = [...get().snippets]
-		if (fromIndex < 0 || fromIndex >= snippets.length || toIndex < 0 || toIndex >= snippets.length) {
+		if (
+			fromIndex < 0 ||
+			fromIndex >= snippets.length ||
+			toIndex < 0 ||
+			toIndex >= snippets.length
+		) {
 			console.warn('[store] reorderSnippets: index out of range', {
 				fromIndex,
 				toIndex,
@@ -962,12 +1018,12 @@ function removeLeafFromTree(node: LayoutNode, targetPaneId: string): LayoutNode 
 	return { ...node, children: remaining }
 }
 
-/** Find a leaf by pane ID and replace it using the given function.
- *  The replacer receives the matched leaf and returns its replacement node. */
+/** Find a node by pane ID and replace it using the given function.
+ *  The replacer receives the matched node and returns its replacement. */
 function replaceLeafInTree(
 	node: LayoutNode,
 	targetPaneId: string,
-	replacer: (leaf: LayoutNode) => LayoutNode,
+	replacer: (matched: LayoutNode) => LayoutNode,
 ): LayoutNode {
 	if (isLayoutBranch(node)) {
 		return {
@@ -976,6 +1032,50 @@ function replaceLeafInTree(
 		}
 	}
 	return node.paneId === targetPaneId ? replacer(node) : node
+}
+
+/** Immutably update child sizes at a given tree path.
+ *  `path` is an array of child indices leading to the target branch node.
+ *  An empty path means the root node itself is the target. */
+function updateSizesAtPath(node: LayoutNode, path: number[], sizes: number[]): LayoutNode {
+	if (path.length === 0) {
+		if (!isLayoutBranch(node)) return node
+		if (sizes.length !== node.children.length) {
+			console.warn('[layout] updateSizesAtPath: sizes/children length mismatch', {
+				sizes: sizes.length,
+				children: node.children.length,
+			})
+		}
+		return {
+			...node,
+			children: node.children.map((child, i) => ({
+				...child,
+				size: sizes[i] ?? child.size,
+			})),
+		}
+	}
+	if (!isLayoutBranch(node)) {
+		console.warn('[layout] updateSizesAtPath: path traversal hit leaf before exhausting path')
+		return node
+	}
+	const head = path[0]
+	const rest = path.slice(1)
+	if (head === undefined || head < 0 || head >= node.children.length) return node
+	return {
+		...node,
+		children: node.children.map((child, i) =>
+			i === head ? updateSizesAtPath(child, rest, sizes) : child,
+		),
+	}
+}
+
+/** Get the first leaf pane ID in a subtree (depth-first, left-child-first).
+ *  Returns 'empty' for branches with no children (corrupted state guard). */
+function getFirstPaneId(node: LayoutNode): string {
+	if (!isLayoutBranch(node)) return node.paneId
+	const first = node.children[0]
+	if (!first) return 'empty'
+	return getFirstPaneId(first)
 }
 
 /** Get pane IDs in depth-first, left-child-first order
@@ -1044,4 +1144,10 @@ function applyPresetWithRemap(
 	}
 }
 
-export { WORKSPACE_COLORS, applyPresetWithRemap, createLayoutFromPreset, getPaneIdsInOrder }
+export {
+	WORKSPACE_COLORS,
+	applyPresetWithRemap,
+	createLayoutFromPreset,
+	getFirstPaneId,
+	getPaneIdsInOrder,
+}
