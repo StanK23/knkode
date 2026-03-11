@@ -12,6 +12,7 @@ let intervalId: ReturnType<typeof setInterval> | null = null
 // null = available, timestamp = missing since (retried after GH_RETRY_INTERVAL_MS)
 let gitMissingSince: number | null = null
 let ghMissingSince: number | null = null
+const ghLoggedErrors = new Set<string>() // dedup non-trivial gh stderr warnings
 
 // Avoid hammering the gh CLI; PRs change infrequently
 const PR_REFRESH_INTERVAL_MS = 60_000
@@ -30,7 +31,8 @@ function execEnv(): NodeJS.ProcessEnv {
 	const segments = new Set(p.split(':'))
 	const extras = ['/opt/homebrew/bin', '/usr/local/bin', '/home/linuxbrew/.linuxbrew/bin']
 	const missing = extras.filter((d) => !segments.has(d))
-	cachedEnv = missing.length === 0 ? process.env : { ...process.env, PATH: `${p}:${missing.join(':')}` }
+	cachedEnv =
+		missing.length === 0 ? process.env : { ...process.env, PATH: `${p}:${missing.join(':')}` }
 	return cachedEnv
 }
 
@@ -102,10 +104,11 @@ function checkPrStatus(cwd: string, callback: (pr: PrInfo | null) => void): void
 				} else if ('killed' in err && err.killed) {
 					console.warn('[cwd-tracker] gh pr view timed out for', cwd)
 				} else {
-					// Log non-trivial failures once per CWD (auth issues, network errors, etc.)
-					// Exit code 1 with "no pull requests found" is expected — don't spam for that
-					const msg = stderr?.trim() ?? ''
-					if (msg && !msg.includes('no pull requests found')) {
+					// Exit code 1 with "no pull requests found" is expected — skip those.
+					// Deduplicate other warnings (auth, network) to avoid spamming every poll cycle.
+					const msg = stderr.trim()
+					if (msg && !msg.includes('no pull requests found') && !ghLoggedErrors.has(msg)) {
+						ghLoggedErrors.add(msg)
 						console.warn('[cwd-tracker] gh pr view failed:', msg.slice(0, 200))
 					}
 				}
@@ -124,17 +127,16 @@ function checkPrStatus(cwd: string, callback: (pr: PrInfo | null) => void): void
 					try {
 						const parsed = new URL(data.url)
 						if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+							console.warn('[cwd-tracker] gh pr URL has unexpected protocol:', parsed.protocol)
 							callback(null)
 							return
 						}
 					} catch {
+						console.warn('[cwd-tracker] gh pr URL is malformed:', String(data.url).slice(0, 100))
 						callback(null)
 						return
 					}
-					const title =
-						typeof data.title === 'string' && data.title.length > 256
-							? `${data.title.slice(0, 253)}...`
-							: data.title
+					const title = data.title.length > 256 ? `${data.title.slice(0, 253)}...` : data.title
 					callback({ number: data.number, url: data.url, title })
 				} else {
 					callback(null)
@@ -238,4 +240,7 @@ export function stopCwdTracking(): void {
 	trackedBranches.clear()
 	trackedPrs.clear()
 	prLastChecked.clear()
+	ghLoggedErrors.clear()
+	gitMissingSince = null
+	ghMissingSince = null
 }
