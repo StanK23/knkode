@@ -52,6 +52,16 @@ export function restoreSavedScroll(term: ScrollTerminalLike, saved: SavedScroll)
 	}
 }
 
+/**
+ * Coordinates scroll-state syncing to avoid stale reads during mutations.
+ *
+ * `scheduleSync()` coalesces rapid-fire sync requests (e.g. from onWriteParsed)
+ * into a single scheduled callback. `runBlockedMutation()` sets a blocking flag
+ * that suppresses viewport scroll handlers until one frame after the mutation
+ * settles, preventing scroll events fired by the mutation itself from corrupting
+ * saved state. The blocking flag accumulates — a `scheduleSync()` that replaces
+ * a pending block-release callback still releases the block when it fires.
+ */
 export function createViewportSyncCoordinator({
 	cancel,
 	schedule,

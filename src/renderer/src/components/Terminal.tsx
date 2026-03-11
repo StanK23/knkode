@@ -409,9 +409,10 @@ export function TerminalView({
 
 		// Reparent xterm's container into the React-managed div
 		containerRef.current.appendChild(termContainer)
-		// Not wrapped with guardedFit — the scroll listener is registered below
-		// (line ~433), so no scroll handler is active yet. This ordering is load-bearing:
-		// moving the listener registration above this fit() would silently corrupt scroll state.
+		// Not wrapped with guardedFit — the scroll and onWriteParsed listeners
+		// are registered below. No scroll handler is active yet. This ordering
+		// is load-bearing: registering listeners before fit() would silently
+		// corrupt scroll state.
 		fitAddon.fit()
 
 		termRef.current = term
@@ -419,9 +420,11 @@ export function TerminalView({
 		searchAddonRef.current = searchAddon
 
 		// Track whether user is scrolled up (for scroll-to-bottom button).
-		// term.onScroll fires synchronously during term.write() before the DOM
-		// scrollTop updates, giving stale isTermAtBottom() readings that corrupt
-		// savedScrollRef and cause panes to jump to top on workspace switch.
+		// Two listeners: viewport scroll (DOM event) and onWriteParsed (xterm).
+		// Both are gated by isScrollSuppressed() which checks isActive, isFitting,
+		// and the viewport sync coordinator's isBlocked(). The coordinator
+		// coalesces onWriteParsed syncs and blocks scroll handlers during
+		// mutations (workspace restore) to prevent stale reads.
 		const viewport = term.element?.querySelector('.xterm-viewport')
 		const isScrollSuppressed = () =>
 			!isActiveRef.current || isFittingRef.current || viewportSyncRef.current.isBlocked()
@@ -491,9 +494,9 @@ export function TerminalView({
 
 	// Restore terminal scroll position when workspace becomes active.
 	// Runs as useLayoutEffect (before paint) so the user never sees a flash
-	// of wrong scroll position. While inactive, handleViewportScroll is
-	// suppressed via isActiveRef so browser-induced scrollTop resets don't
-	// corrupt the saved position.
+	// of wrong scroll position. While inactive, scroll handlers are suppressed
+	// via isActiveRef. The restore itself uses runBlockedMutation so scroll
+	// events fired by scrollToLine/scrollToBottom don't overwrite the snapshot.
 	useLayoutEffect(() => {
 		if (!isWorkspaceActive) {
 			isActiveRef.current = false
