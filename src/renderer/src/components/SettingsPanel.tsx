@@ -757,8 +757,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					{/* Layout */}
 					<LayoutPicker current={currentPreset} onSelect={handleLayoutChange} />
 					{/* Status Bar Position */}
-					<SettingsSection title="Status Bar Position" className="max-w-[400px]">
-						<div className="flex bg-sunken rounded-md p-1 border border-edge">
+					<SettingsSection label="Status Bar Position">						<div className="flex bg-sunken rounded-md p-1 border border-edge">
 							{(['top', 'bottom'] as const).map((pos) => {
 								const isActive = statusBarPosition === pos
 								return (
@@ -821,7 +820,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								document.getElementById(`theme-preset-${next}`)?.focus()
 							}}
 						>
-							{(THEME_PRESETS as readonly ThemePreset[]).map((preset, index) => {
+							{(THEME_PRESETS as unknown as readonly ThemePreset[]).map((preset, index) => {
 								const isActive = selectedPreset === preset.name
 								return (
 									<button
