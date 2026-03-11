@@ -6,6 +6,7 @@
 - Active plan: TUI Scroll Jump Bug (knktx board: 610ca3a2-3c03-493f-a533-e5c67d231da5)
 
 ## What Was Done
+- PR #90 merged: Restore terminal pane inner padding — moved `p-1.5` from wrapper to containerRef so xterm text has breathing room (effect overlays were covering wrapper padding). Adjusted search bar positioning. 9-agent review, all findings fixed.
 - PR #89 merged: Preserve pane sizes when splitting — `onDragEnd` handler persists drag-resized pane percentages to the layout tree, stable child keys via `getFirstPaneId` prevent allotment from resetting sizes on split. 10-agent review, all findings fixed.
 - PR #88 merged: Passive TUI scroll jump hardening — restored `isFittingRef` gating for fit-driven viewport scroll events, skipped no-op scroll restoration when rows/cols are unchanged, and documented the xterm fit/scroll invariants after 9-agent review plus fix pass.
 - PR #87 merged: Clickable PR badge in pane status bar — async `gh pr view` detection with 60s refresh, PrInfo IPC plumbing, shared PrBadge component across 16 variants, URL validation, OPEN-only filter. 9-agent review, all findings fixed.
@@ -59,7 +60,7 @@ Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 ## Bugfixes — Post-Theming
 Board: `13106f68-3789-458a-b9d2-5eb644b7e0ee`
 - ~~PR #89: Fix pane split resetting sizes~~ (merged)
-- Restore terminal pane inner padding (card `cd64405f`, inbox)
+- ~~PR #90: Restore terminal pane inner padding~~ (merged)
 
 ## Remaining Work
 - Monitor PR #88 behavior in Claude/Gemini TUIs and add targeted regression coverage for the passive scroll-jump path when we next touch terminal tests.
