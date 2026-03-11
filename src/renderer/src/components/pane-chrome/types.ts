@@ -1,13 +1,13 @@
 import type { RefObject } from 'react'
 import type { PrInfo } from '../../../../shared/types'
 
-/** Runtime theme colors available to every variant. */
+/** Runtime theme colors available to every variant. Constructed by buildVariantTheme(). */
 export interface VariantTheme {
 	background: string
 	foreground: string
 	accent: string
 	glow?: string
-	statusBarPosition?: 'top' | 'bottom'
+	statusBarPosition: 'top' | 'bottom'
 }
 
 /** Props passed to every StatusBar variant component. */

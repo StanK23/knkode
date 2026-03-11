@@ -17,9 +17,11 @@ export type ThemePreset = Pick<
 	| 'scrollbarAccent'
 	| 'cursorColor'
 	| 'selectionColor'
-	| 'fontFamily'
-	| 'statusBarPosition'
-> & Partial<Pick<PaneTheme, 'fontSize' | 'lineHeight'>> & { name: string; decoration?: string }
+> &
+	Partial<Pick<PaneTheme, 'fontFamily' | 'fontSize' | 'lineHeight' | 'statusBarPosition'>> & {
+		name: string
+		decoration?: string
+	}
 
 /** Tango-based ANSI palette used by the Default Dark preset. */
 const DEFAULT_ANSI: AnsiColors = {
