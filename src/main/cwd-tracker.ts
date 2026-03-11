@@ -10,10 +10,25 @@ const trackedPrs = new Map<string, PrInfo | null>() // paneId -> last observed P
 const prLastChecked = new Map<string, number>() // paneId -> timestamp of last PR check
 let intervalId: ReturnType<typeof setInterval> | null = null
 let gitMissing = false // Log ENOENT only once to avoid spamming
-let ghMissing = false // Log ENOENT only once for gh CLI
+let ghMissing = false // Set when gh CLI not found — retried periodically
+let ghMissingAt = 0 // Timestamp when ghMissing was set
 
 // Avoid hammering the gh CLI; PRs change infrequently
 const PR_REFRESH_INTERVAL_MS = 60_000
+// Retry finding gh CLI after this interval (covers late-install, PATH changes)
+const GH_RETRY_INTERVAL_MS = 5 * 60_000
+
+/** Extra PATH entries for macOS/Linux where Homebrew or user-local binaries live.
+ *  Electron launched from Dock/Spotlight inherits a minimal system PATH that
+ *  excludes /opt/homebrew/bin and ~/.local/bin — git works via the Xcode CLT
+ *  shim at /usr/bin/git, but gh and other Homebrew tools are invisible. */
+function execEnv(): NodeJS.ProcessEnv {
+	const p = process.env.PATH ?? ''
+	const extras = ['/opt/homebrew/bin', '/usr/local/bin', '/home/linuxbrew/.linuxbrew/bin']
+	const missing = extras.filter((d) => !p.includes(d))
+	if (missing.length === 0) return process.env
+	return { ...process.env, PATH: `${p}:${missing.join(':')}` }
+}
 
 /** Run `git rev-parse --abbrev-ref HEAD` asynchronously in a directory.
  *  Calls back with the branch name or null on any failure. */
@@ -25,7 +40,7 @@ function getGitBranch(cwd: string, callback: (branch: string | null) => void): v
 	execFile(
 		'git',
 		['rev-parse', '--abbrev-ref', 'HEAD'],
-		{ cwd, timeout: 2000 },
+		{ cwd, timeout: 2000, env: execEnv() },
 		(err, stdout) => {
 			if (err) {
 				if (!gitMissing && 'code' in err && err.code === 'ENOENT') {
@@ -56,20 +71,37 @@ function getGitBranch(cwd: string, callback: (branch: string | null) => void): v
  *  Calls back with PrInfo or null (null on any error, including no open PR on current branch). */
 function checkPrStatus(cwd: string, callback: (pr: PrInfo | null) => void): void {
 	if (ghMissing) {
-		callback(null)
-		return
+		// Periodically retry — gh may be installed after app launch
+		if (Date.now() - ghMissingAt < GH_RETRY_INTERVAL_MS) {
+			callback(null)
+			return
+		}
+		ghMissing = false
+		console.info('[cwd-tracker] Retrying gh CLI detection…')
 	}
 	execFile(
 		'gh',
 		['pr', 'view', '--json', 'number,url,title,state'],
-		{ cwd, timeout: 10_000 },
-		(err, stdout) => {
+		{ cwd, timeout: 10_000, env: execEnv() },
+		(err, stdout, stderr) => {
 			if (err) {
-				if (!ghMissing && 'code' in err && err.code === 'ENOENT') {
-					ghMissing = true
-					console.warn('[cwd-tracker] gh CLI not found — PR detection disabled')
+				if ('code' in err && err.code === 'ENOENT') {
+					if (!ghMissing) {
+						ghMissing = true
+						ghMissingAt = Date.now()
+						console.warn(
+							'[cwd-tracker] gh CLI not found — PR detection disabled (will retry in 5m)',
+						)
+					}
 				} else if ('killed' in err && err.killed) {
 					console.warn('[cwd-tracker] gh pr view timed out for', cwd)
+				} else {
+					// Log non-trivial failures once per CWD (auth issues, network errors, etc.)
+					// Exit code 1 with "no pull requests found" is expected — don't spam for that
+					const msg = stderr?.trim() ?? ''
+					if (msg && !msg.includes('no pull requests found')) {
+						console.warn('[cwd-tracker] gh pr view failed:', msg.slice(0, 200))
+					}
 				}
 				callback(null)
 				return
