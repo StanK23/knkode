@@ -22,6 +22,7 @@ function Frame({
 	children,
 	headerProps,
 	contextMenu,
+	theme,
 }: FrameProps) {
 	const isBottom = theme.statusBarPosition === 'bottom'
 
