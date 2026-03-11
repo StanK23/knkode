@@ -6,6 +6,7 @@
 - Active plan: TUI Scroll Jump Bug (knktx board: 610ca3a2-3c03-493f-a533-e5c67d231da5)
 
 ## What Was Done
+- PR #89 merged: Preserve pane sizes when splitting — `onDragEnd` handler persists drag-resized pane percentages to the layout tree, stable child keys via `getFirstPaneId` prevent allotment from resetting sizes on split. 10-agent review, all findings fixed.
 - PR #88 merged: Passive TUI scroll jump hardening — restored `isFittingRef` gating for fit-driven viewport scroll events, skipped no-op scroll restoration when rows/cols are unchanged, and documented the xterm fit/scroll invariants after 9-agent review plus fix pass.
 - PR #87 merged: Clickable PR badge in pane status bar — async `gh pr view` detection with 60s refresh, PrInfo IPC plumbing, shared PrBadge component across 16 variants, URL validation, OPEN-only filter. 9-agent review, all findings fixed.
 - PR #86 merged: Morphing pane status bar — 16 theme variants with unique layouts, typography, badge shapes, separators, border styles. SnippetTrigger component-as-prop pattern for per-variant styled snippet buttons. ScrollButton morphs per variant. 9-agent review, all findings fixed.
@@ -54,6 +55,11 @@ Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 
 ## What's Next
 - Future: interactive branch switching dropdown + cwd click-to-navigate (new IPC features)
+
+## Bugfixes — Post-Theming
+Board: `13106f68-3789-458a-b9d2-5eb644b7e0ee`
+- ~~PR #89: Fix pane split resetting sizes~~ (merged)
+- Restore terminal pane inner padding (card `cd64405f`, inbox)
 
 ## Remaining Work
 - Monitor PR #88 behavior in Claude/Gemini TUIs and add targeted regression coverage for the passive scroll-jump path when we next touch terminal tests.
