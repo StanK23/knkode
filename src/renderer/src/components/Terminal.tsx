@@ -93,6 +93,28 @@ function fitAndPreserveScroll(term: XTerm, fitAddon: FitAddon): void {
 	}
 }
 
+/**
+ * Wrap fitAndPreserveScroll with the isFittingRef guard.
+ * Centralizes the try/finally lifecycle so the guard cannot drift between call sites.
+ *
+ * Timing note: in the ResizeObserver path this runs inside requestAnimationFrame,
+ * so scroll events firing between the observer callback and the rAF are not
+ * suppressed. This is acceptable because corruption-causing scroll events come
+ * from fit() itself, which runs inside the guarded block.
+ */
+function guardedFit(
+	term: XTerm,
+	fitAddon: FitAddon,
+	isFittingRef: React.RefObject<boolean>,
+): void {
+	isFittingRef.current = true
+	try {
+		fitAndPreserveScroll(term, fitAddon)
+	} finally {
+		isFittingRef.current = false
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Module-level cache (keyed by paneId) — survives React unmount/remount
 // (e.g. pane split). Per-instance state (xterm, addons, PTY listeners) lives
@@ -217,10 +239,10 @@ export function TerminalView({
 	const isFocusedRef = useRef(isFocused)
 	isFocusedRef.current = isFocused
 
-	// Suppresses handleViewportScroll during fitAndPreserveScroll. fit() can
-	// emit intermediate viewport scroll events that do not represent user
-	// intent and can corrupt the saved scroll snapshot.
-	const isFittingRef = useRef(false)
+	// Suppresses handleViewportScroll during fit() to prevent corrupting savedScrollRef.
+	// Works because fit() dispatches scroll events synchronously — if xterm ever changes
+	// to async dispatch (microtask, rAF), this guard would silently break.
+	const isFittingRef = useRef<boolean>(false)
 
 	const [isScrolledUp, setIsScrolledUp] = useState(false)
 	const [showSearch, setShowSearch] = useState(false)
@@ -425,12 +447,9 @@ export function TerminalView({
 			requestAnimationFrame(() => {
 				try {
 					if (!containerRef.current?.clientWidth) return
-					isFittingRef.current = true
-					fitAndPreserveScroll(term, fitAddon)
+					guardedFit(term, fitAddon, isFittingRef)
 				} catch (err) {
 					console.warn('[terminal] fit()/scroll failed during resize:', err)
-				} finally {
-					isFittingRef.current = false
 				}
 			})
 		})
@@ -525,13 +544,10 @@ export function TerminalView({
 		}
 		if (metricsChanged) {
 			try {
-				isFittingRef.current = true
-				fitAndPreserveScroll(termRef.current, fitAddonRef.current)
+				guardedFit(termRef.current, fitAddonRef.current, isFittingRef)
 				if (isFocusedRef.current) termRef.current.focus()
 			} catch (err) {
 				console.warn('[terminal] fit()/scroll failed during theme update:', err)
-			} finally {
-				isFittingRef.current = false
 			}
 		}
 		// paneId needed because the effect reads from terminalCache by paneId
