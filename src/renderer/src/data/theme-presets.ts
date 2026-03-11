@@ -485,6 +485,9 @@ export const THEME_PRESETS = [
 	},
 ] as const satisfies readonly ThemePreset[]
 
+/** Union of all theme preset names. Used for compile-time variant completeness checks. */
+export type ThemePresetName = (typeof THEME_PRESETS)[number]['name']
+
 export const TERMINAL_FONTS = [
 	'JetBrains Mono',
 	'Fira Code',
