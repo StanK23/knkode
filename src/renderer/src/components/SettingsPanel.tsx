@@ -565,11 +565,14 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 		setGlowLevel(preset?.glowLevel ?? 'off')
 		setScanlineLevel(preset?.scanlineLevel ?? 'off')
 		setNoiseLevel(preset?.noiseLevel ?? 'off')
+		setStatusBarPosition(preset?.statusBarPosition ?? 'top')
 		if (preset) {
 			if (preset.fontFamily) setFontFamily(preset.fontFamily)
 			else setFontFamily('')
 			if (preset.fontSize) setFontSize(preset.fontSize)
+			else setFontSize(14)
 			if (preset.lineHeight) setLineHeight(preset.lineHeight)
+			else setLineHeight(DEFAULT_LINE_HEIGHT)
 		}
 	}, [selectedPreset])
 
@@ -757,7 +760,8 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					{/* Layout */}
 					<LayoutPicker current={currentPreset} onSelect={handleLayoutChange} />
 					{/* Status Bar Position */}
-					<SettingsSection label="Status Bar Position">						<div className="flex bg-sunken rounded-md p-1 border border-edge">
+					<SettingsSection label="Status Bar Position">
+						<div className="flex bg-sunken rounded-md p-1 border border-edge">
 							{(['top', 'bottom'] as const).map((pos) => {
 								const isActive = statusBarPosition === pos
 								return (
