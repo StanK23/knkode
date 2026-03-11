@@ -16,18 +16,22 @@ let ghMissingAt = 0 // Timestamp when ghMissing was set
 // Avoid hammering the gh CLI; PRs change infrequently
 const PR_REFRESH_INTERVAL_MS = 60_000
 // Retry finding gh CLI after this interval (covers late-install, PATH changes)
-const GH_RETRY_INTERVAL_MS = 5 * 60_000
+const GH_RETRY_INTERVAL_MS = 300_000
 
-/** Extra PATH entries for macOS/Linux where Homebrew or user-local binaries live.
+/** Augmented env for subprocess calls. Computed lazily on first use.
  *  Electron launched from Dock/Spotlight inherits a minimal system PATH that
- *  excludes /opt/homebrew/bin and ~/.local/bin — git works via the Xcode CLT
- *  shim at /usr/bin/git, but gh and other Homebrew tools are invisible. */
+ *  excludes common Homebrew and Linuxbrew directories — git works via the Xcode
+ *  CLT shim at /usr/bin/git, but gh and other Homebrew tools are invisible.
+ *  Appended to the end so system PATH entries take priority over Homebrew. */
+let cachedEnv: NodeJS.ProcessEnv | null = null
 function execEnv(): NodeJS.ProcessEnv {
+	if (cachedEnv) return cachedEnv
 	const p = process.env.PATH ?? ''
+	const segments = new Set(p.split(':'))
 	const extras = ['/opt/homebrew/bin', '/usr/local/bin', '/home/linuxbrew/.linuxbrew/bin']
-	const missing = extras.filter((d) => !p.includes(d))
-	if (missing.length === 0) return process.env
-	return { ...process.env, PATH: `${p}:${missing.join(':')}` }
+	const missing = extras.filter((d) => !segments.has(d))
+	cachedEnv = missing.length === 0 ? process.env : { ...process.env, PATH: `${p}:${missing.join(':')}` }
+	return cachedEnv
 }
 
 /** Run `git rev-parse --abbrev-ref HEAD` asynchronously in a directory.
