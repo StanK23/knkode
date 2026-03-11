@@ -57,7 +57,7 @@ export interface VariantConfig {
 export function createAndRegisterVariant(name: string, config: VariantConfig): PaneVariant {
 	const { statusBar: sb, scrollButton: scr } = config
 
-	function StatusBar({
+	function Frame({
 		label,
 		cwd,
 		branch,
@@ -74,111 +74,132 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 		editInputProps,
 		SnippetTrigger,
 		shortcuts,
-	}: StatusBarProps) {
+		children,
+		headerProps,
+		contextMenu,
+	}: import('./types').FrameProps) {
 		const hasSep = sb.separator != null
 		const sepClass = sb.separatorOpacity ?? 'opacity-30'
 		const sepStyle = sb.separatorStyle?.(theme)
 		const Sep = hasSep
-			? () => <span className={sepClass} style={sepStyle}>{sb.separator}</span>
+			? () => (
+					<span className={sepClass} style={sepStyle}>
+						{sb.separator}
+					</span>
+				)
 			: () => null
 		const actionCls = `bg-transparent border-none cursor-pointer leading-none transition-opacity ${FOCUS_VIS} ${sb.action.className}`
 		const actionStyle = sb.action.style(theme)
 
 		return (
-			<div
-				className={`flex items-center shrink-0 select-none transition-colors duration-200 ${sb.className}`}
-				style={{ height: sb.height, ...sb.style(theme, isFocused) }}
-			>
-				{isEditing ? (
-					<input
-						{...editInputProps}
-						className={`bg-transparent outline-none ${sb.editInput.className}`}
-						style={sb.editInput.style(theme)}
-					/>
-				) : (
-					<span
-						onDoubleClick={onDoubleClickLabel}
-						className={`cursor-default shrink-0 ${sb.label?.className ?? 'font-medium'}`}
-						style={sb.label?.style?.(theme, isFocused)}
-					>
-						{label}
-					</span>
-				)}
-
-				{(sb.showSeparatorAfterLabel ?? true) && <Sep />}
-
-				<span className={`flex-1 overflow-hidden text-ellipsis whitespace-nowrap ${sb.cwd.className}`} style={sb.cwd.style?.(theme)}>
-					{sb.cwd.icon === 'folder' ? (
-						sb.cwd.iconStyle
-							? <span style={sb.cwd.iconStyle(theme)}><FolderIcon className={sb.cwd.iconClassName} /></span>
-							: <FolderIcon className={sb.cwd.iconClassName} />
-					) : sb.cwd.icon ? (
-						<><span style={sb.cwd.iconStyle?.(theme)}>{sb.cwd.icon}</span>{' '}</>
+			<>
+				<div
+					{...headerProps}
+					className={`${headerProps.className || ''} flex items-center shrink-0 select-none transition-colors duration-200 ${sb.className}`}
+					style={{ ...headerProps.style, height: sb.height, ...sb.style(theme, isFocused) }}
+				>
+					{isEditing ? (
+						<input
+							{...editInputProps}
+							className={`bg-transparent outline-none ${sb.editInput.className}`}
+							style={sb.editInput.style(theme)}
+						/>
 					) : (
-						sb.cwd.prefix ? <>{sb.cwd.prefix}</> : null
+						<span
+							onDoubleClick={onDoubleClickLabel}
+							className={`cursor-default shrink-0 ${sb.label?.className ?? 'font-medium'}`}
+							style={sb.label?.style?.(theme, isFocused)}
+						>
+							{label}
+						</span>
 					)}
-					{cwd}
-				</span>
 
-				{branch && (
-					<output
-						aria-label={`Git branch: ${branch}`}
-						className={`min-w-0 overflow-hidden text-ellipsis whitespace-nowrap ${sb.branch.className}`}
-						title={branch}
-						style={sb.branch.style(theme)}
+					{(sb.showSeparatorAfterLabel ?? true) && <Sep />}
+
+					<span
+						className={`flex-1 overflow-hidden text-ellipsis whitespace-nowrap ${sb.cwd.className}`}
+						style={sb.cwd.style?.(theme)}
 					>
-						{sb.branch.format ? sb.branch.format(branch) : branch}
-					</output>
-				)}
+						{sb.cwd.icon === 'folder' ? (
+							sb.cwd.iconStyle ? (
+								<span style={sb.cwd.iconStyle(theme)}>
+									<FolderIcon className={sb.cwd.iconClassName} />
+								</span>
+							) : (
+								<FolderIcon className={sb.cwd.iconClassName} />
+							)
+						) : sb.cwd.icon ? (
+							<>
+								<span style={sb.cwd.iconStyle?.(theme)}>{sb.cwd.icon}</span>{' '}
+							</>
+						) : sb.cwd.prefix ? (
+							<>{sb.cwd.prefix}</>
+						) : null}
+						{cwd}
+					</span>
 
-				{pr && (
-					<PrBadge
-						pr={pr}
-						onOpenExternal={onOpenExternal}
-						className={`transition-all ${sb.pr.className}`}
-						style={sb.pr.style(theme)}
-					/>
-				)}
+					{branch && (
+						<output
+							aria-label={`Git branch: ${branch}`}
+							className={`min-w-0 overflow-hidden text-ellipsis whitespace-nowrap ${sb.branch.className}`}
+							title={branch}
+							style={sb.branch.style(theme)}
+						>
+							{sb.branch.format ? sb.branch.format(branch) : branch}
+						</output>
+					)}
 
-				<Sep />
+					{pr && (
+						<PrBadge
+							pr={pr}
+							onOpenExternal={onOpenExternal}
+							className={`transition-all ${sb.pr.className}`}
+							style={sb.pr.style(theme)}
+						/>
+					)}
 
-				<SnippetTrigger className={actionCls} style={actionStyle}>
-					{sb.snippet.label}
-				</SnippetTrigger>
+					<Sep />
 
-				<button
-					type="button"
-					onClick={onSplitVertical}
-					title={`Split vertical (${shortcuts.splitV})`}
-					aria-label="Split pane vertically"
-					className={actionCls}
-					style={actionStyle}
-				>
-					┃
-				</button>
-				<button
-					type="button"
-					onClick={onSplitHorizontal}
-					title={`Split horizontal (${shortcuts.splitH})`}
-					aria-label="Split pane horizontally"
-					className={actionCls}
-					style={actionStyle}
-				>
-					━
-				</button>
-				{canClose && (
+					<SnippetTrigger className={actionCls} style={actionStyle}>
+						{sb.snippet.label}
+					</SnippetTrigger>
+
 					<button
 						type="button"
-						onClick={onClose}
-						title={`Close pane (${shortcuts.close})`}
-						aria-label="Close pane"
+						onClick={onSplitVertical}
+						title={`Split vertical (${shortcuts.splitV})`}
+						aria-label="Split pane vertically"
 						className={actionCls}
 						style={actionStyle}
 					>
-						✕
+						┃
 					</button>
-				)}
-			</div>
+					<button
+						type="button"
+						onClick={onSplitHorizontal}
+						title={`Split horizontal (${shortcuts.splitH})`}
+						aria-label="Split pane horizontally"
+						className={actionCls}
+						style={actionStyle}
+					>
+						━
+					</button>
+					{canClose && (
+						<button
+							type="button"
+							onClick={onClose}
+							title={`Close pane (${shortcuts.close})`}
+							aria-label="Close pane"
+							className={actionCls}
+							style={actionStyle}
+						>
+							✕
+						</button>
+					)}
+					{contextMenu}
+				</div>
+				{children}
+			</>
 		)
 	}
 
@@ -196,7 +217,7 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 		)
 	}
 
-	const variant: PaneVariant = { StatusBar, ScrollButton }
+	const variant: PaneVariant = { Frame, ScrollButton }
 	registerVariant(name, variant)
 	return variant
 }
