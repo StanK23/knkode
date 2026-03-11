@@ -1,4 +1,4 @@
-import { type ITerminalDimensions, FitAddon } from '@xterm/addon-fit'
+import { FitAddon, type ITerminalDimensions } from '@xterm/addon-fit'
 import { SearchAddon } from '@xterm/addon-search'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { WebglAddon } from '@xterm/addon-webgl'
@@ -93,7 +93,10 @@ function fitAndPreserveScroll(term: XTerm, fitAddon: FitAddon): void {
 		return
 	}
 
-	const saved: SavedScroll = { atBottom: isTermAtBottom(term), linesFromBottom: getLinesFromBottom(term) }
+	const saved: SavedScroll = {
+		atBottom: isTermAtBottom(term),
+		linesFromBottom: getLinesFromBottom(term),
+	}
 	fitAddon.fit()
 	restoreScroll(term, saved)
 }
@@ -107,11 +110,7 @@ function fitAndPreserveScroll(term: XTerm, fitAddon: FitAddon): void {
  * suppressed. This is acceptable because corruption-causing scroll events come
  * from fit() itself, which runs inside the guarded block.
  */
-function guardedFit(
-	term: XTerm,
-	fitAddon: FitAddon,
-	isFittingRef: React.RefObject<boolean>,
-): void {
+function guardedFit(term: XTerm, fitAddon: FitAddon, isFittingRef: React.RefObject<boolean>): void {
 	isFittingRef.current = true
 	try {
 		fitAndPreserveScroll(term, fitAddon)
