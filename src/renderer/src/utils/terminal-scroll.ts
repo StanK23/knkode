@@ -60,15 +60,19 @@ export function createViewportSyncCoordinator({
 }: ViewportSyncCoordinatorOptions): ViewportSyncCoordinator {
 	let blocked = false
 	let pendingId: number | null = null
+	let pendingRelease = false
 
 	const queueSync = (releaseBlock: boolean) => {
 		if (pendingId !== null) cancel(pendingId)
+		pendingRelease = pendingRelease || releaseBlock
 		pendingId = schedule(() => {
 			pendingId = null
+			const shouldRelease = pendingRelease
+			pendingRelease = false
 			try {
 				sync()
 			} finally {
-				if (releaseBlock) blocked = false
+				if (shouldRelease) blocked = false
 			}
 		})
 	}
@@ -77,6 +81,7 @@ export function createViewportSyncCoordinator({
 		dispose: () => {
 			if (pendingId !== null) cancel(pendingId)
 			pendingId = null
+			pendingRelease = false
 			blocked = false
 		},
 		isBlocked: () => blocked,
