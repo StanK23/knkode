@@ -256,7 +256,22 @@ export function TerminalView({
 		}),
 	)
 
-	const mergedTheme = useMemo(() => ({ ...theme, ...themeOverride }), [theme, themeOverride])
+	const mergedTheme = useMemo(() => {
+		const base = { ...theme, ...themeOverride }
+		const preset = base.preset ? findPreset(base.preset) : undefined
+		if (!preset) return base
+		return {
+			...base,
+			fontFamily: base.fontFamily || preset.fontFamily,
+			fontSize: base.fontSize ?? preset.fontSize,
+			lineHeight: base.lineHeight ?? preset.lineHeight,
+			gradientLevel: base.gradientLevel ?? preset.gradientLevel,
+			glowLevel: base.glowLevel ?? preset.glowLevel,
+			scanlineLevel: base.scanlineLevel ?? preset.scanlineLevel,
+			noiseLevel: base.noiseLevel ?? preset.noiseLevel,
+			scrollbarAccent: base.scrollbarAccent ?? preset.scrollbarAccent,
+		}
+	}, [theme, themeOverride])
 
 	// Keep themeRef in sync for the mount effect's initial render
 	themeRef.current = mergedTheme

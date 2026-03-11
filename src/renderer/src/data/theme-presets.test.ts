@@ -190,7 +190,7 @@ describe('THEME_PRESETS data integrity', () => {
 	})
 
 	it('every preset with glow has valid hex glow', () => {
-		for (const preset of THEME_PRESETS) {
+		for (const preset of THEME_PRESETS as unknown as readonly ThemePreset[]) {
 			if (preset.glow) {
 				expect(isValidHex(preset.glow), `${preset.name}.glow = "${preset.glow}"`).toBe(true)
 			}
@@ -198,7 +198,7 @@ describe('THEME_PRESETS data integrity', () => {
 	})
 
 	it('every preset effect level is a valid EffectLevel', () => {
-		for (const preset of THEME_PRESETS as readonly ThemePreset[]) {
+		for (const preset of THEME_PRESETS as unknown as readonly ThemePreset[]) {
 			for (const key of [
 				'gradientLevel',
 				'glowLevel',
