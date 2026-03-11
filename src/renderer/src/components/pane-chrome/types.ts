@@ -41,14 +41,21 @@ export interface StatusBarProps {
 	shortcuts: { splitV: string; splitH: string; close: string }
 }
 
+/** Props passed to every Frame variant component. */
+export interface FrameProps extends StatusBarProps {
+	children: React.ReactNode
+	headerProps: React.HTMLAttributes<HTMLDivElement>
+	contextMenu: React.ReactNode
+}
+
 /** Props passed to every ScrollButton variant component. */
 export interface ScrollButtonProps {
 	onClick: () => void
 	theme: VariantTheme
 }
 
-/** A complete pane chrome variant — one StatusBar + one ScrollButton. */
+/** A complete pane chrome variant — one Frame + one ScrollButton. */
 export interface PaneVariant {
-	StatusBar: React.FC<StatusBarProps>
+	Frame: React.FC<FrameProps>
 	ScrollButton: React.FC<ScrollButtonProps>
 }
