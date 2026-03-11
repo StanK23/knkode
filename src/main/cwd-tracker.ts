@@ -9,9 +9,9 @@ const trackedBranches = new Map<string, string | null>() // paneId -> last obser
 const trackedPrs = new Map<string, PrInfo | null>() // paneId -> last observed PR info
 const prLastChecked = new Map<string, number>() // paneId -> timestamp of last PR check
 let intervalId: ReturnType<typeof setInterval> | null = null
-let gitMissing = false // Log ENOENT only once to avoid spamming
-let ghMissing = false // Set when gh CLI not found — retried periodically
-let ghMissingAt = 0 // Timestamp when ghMissing was set
+// null = available, timestamp = missing since (retried after GH_RETRY_INTERVAL_MS)
+let gitMissingSince: number | null = null
+let ghMissingSince: number | null = null
 
 // Avoid hammering the gh CLI; PRs change infrequently
 const PR_REFRESH_INTERVAL_MS = 60_000
@@ -37,9 +37,13 @@ function execEnv(): NodeJS.ProcessEnv {
 /** Run `git rev-parse --abbrev-ref HEAD` asynchronously in a directory.
  *  Calls back with the branch name or null on any failure. */
 function getGitBranch(cwd: string, callback: (branch: string | null) => void): void {
-	if (gitMissing) {
-		callback(null)
-		return
+	if (gitMissingSince != null) {
+		if (Date.now() - gitMissingSince < GH_RETRY_INTERVAL_MS) {
+			callback(null)
+			return
+		}
+		gitMissingSince = null
+		console.info('[cwd-tracker] Retrying git CLI detection…')
 	}
 	execFile(
 		'git',
@@ -47,9 +51,11 @@ function getGitBranch(cwd: string, callback: (branch: string | null) => void): v
 		{ cwd, timeout: 2000, env: execEnv() },
 		(err, stdout) => {
 			if (err) {
-				if (!gitMissing && 'code' in err && err.code === 'ENOENT') {
-					gitMissing = true
-					console.warn('[cwd-tracker] git not found — branch detection disabled')
+				if ('code' in err && err.code === 'ENOENT') {
+					if (gitMissingSince == null) {
+						gitMissingSince = Date.now()
+						console.warn('[cwd-tracker] git not found — branch detection disabled (will retry)')
+					}
 				} else if ('killed' in err && err.killed) {
 					console.warn('[cwd-tracker] git rev-parse timed out for', cwd)
 				} else if (
@@ -74,13 +80,12 @@ function getGitBranch(cwd: string, callback: (branch: string | null) => void): v
 /** Run `gh pr view --json number,url,title,state` asynchronously in a directory.
  *  Calls back with PrInfo or null (null on any error, including no open PR on current branch). */
 function checkPrStatus(cwd: string, callback: (pr: PrInfo | null) => void): void {
-	if (ghMissing) {
-		// Periodically retry — gh may be installed after app launch
-		if (Date.now() - ghMissingAt < GH_RETRY_INTERVAL_MS) {
+	if (ghMissingSince != null) {
+		if (Date.now() - ghMissingSince < GH_RETRY_INTERVAL_MS) {
 			callback(null)
 			return
 		}
-		ghMissing = false
+		ghMissingSince = null
 		console.info('[cwd-tracker] Retrying gh CLI detection…')
 	}
 	execFile(
@@ -90,12 +95,9 @@ function checkPrStatus(cwd: string, callback: (pr: PrInfo | null) => void): void
 		(err, stdout, stderr) => {
 			if (err) {
 				if ('code' in err && err.code === 'ENOENT') {
-					if (!ghMissing) {
-						ghMissing = true
-						ghMissingAt = Date.now()
-						console.warn(
-							'[cwd-tracker] gh CLI not found — PR detection disabled (will retry in 5m)',
-						)
+					if (ghMissingSince == null) {
+						ghMissingSince = Date.now()
+						console.warn('[cwd-tracker] gh CLI not found — PR detection disabled (will retry)')
 					}
 				} else if ('killed' in err && err.killed) {
 					console.warn('[cwd-tracker] gh pr view timed out for', cwd)
