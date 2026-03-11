@@ -6,7 +6,7 @@ import {
 	type PaneTheme,
 	type PrInfo,
 } from '../../../shared/types'
-import { findPreset } from '../data/theme-presets'
+import { findPreset, mergeThemeWithPreset } from '../data/theme-presets'
 import { modKey } from '../utils/platform'
 
 type ContextPanelKind = 'cwd' | 'cmd' | 'theme' | 'move'
@@ -297,22 +297,10 @@ export function Pane({
 		],
 	)
 
-	const mergedTheme = useMemo(() => {
-		const base = { ...workspaceTheme, ...config.themeOverride }
-		const presetTheme = base.preset ? findPreset(base.preset) : undefined
-		if (!presetTheme) return base
-		return {
-			...base,
-			fontFamily: base.fontFamily || presetTheme.fontFamily,
-			fontSize: base.fontSize ?? presetTheme.fontSize,
-			lineHeight: base.lineHeight ?? presetTheme.lineHeight,
-			gradientLevel: base.gradientLevel ?? presetTheme.gradientLevel,
-			glowLevel: base.glowLevel ?? presetTheme.glowLevel,
-			scanlineLevel: base.scanlineLevel ?? presetTheme.scanlineLevel,
-			noiseLevel: base.noiseLevel ?? presetTheme.noiseLevel,
-			scrollbarAccent: base.scrollbarAccent ?? presetTheme.scrollbarAccent,
-		}
-	}, [workspaceTheme, config.themeOverride])
+	const mergedTheme = useMemo(
+		() => mergeThemeWithPreset(workspaceTheme, config.themeOverride),
+		[workspaceTheme, config.themeOverride],
+	)
 
 	const handleOpenExternal = useCallback((url: string) => {
 		window.api.openExternal(url).catch((err: unknown) => {

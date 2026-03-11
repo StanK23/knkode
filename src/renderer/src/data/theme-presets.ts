@@ -563,6 +563,28 @@ export function buildFontFamily(family?: string): string {
 	return DEFAULT_FONT_FAMILY
 }
 
+/** Merge a workspace theme + optional per-pane override with preset fallbacks.
+ *  Used by both Pane.tsx (for PaneEffects) and Terminal.tsx (for xterm options). */
+export function mergeThemeWithPreset(
+	theme: PaneTheme,
+	override?: Partial<PaneTheme> | null,
+): PaneTheme {
+	const base = { ...theme, ...override }
+	const preset = base.preset ? findPreset(base.preset) : undefined
+	if (!preset) return base
+	return {
+		...base,
+		fontFamily: base.fontFamily || preset.fontFamily,
+		fontSize: base.fontSize ?? preset.fontSize,
+		lineHeight: base.lineHeight ?? preset.lineHeight,
+		gradientLevel: base.gradientLevel ?? preset.gradientLevel,
+		glowLevel: base.glowLevel ?? preset.glowLevel,
+		scanlineLevel: base.scanlineLevel ?? preset.scanlineLevel,
+		noiseLevel: base.noiseLevel ?? preset.noiseLevel,
+		scrollbarAccent: base.scrollbarAccent ?? preset.scrollbarAccent,
+	}
+}
+
 /** Build xterm.js theme options from a PaneTheme's color fields.
  *  When opacity < 1, the background is converted to an rgba value for translucency.
  *  ANSI colors are validated before passing to xterm — invalid values are skipped. */
