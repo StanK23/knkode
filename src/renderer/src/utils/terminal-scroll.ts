@@ -29,6 +29,7 @@ export interface ViewportSyncCoordinator {
 	scheduleSync: () => void
 }
 
+/** Returns true when the terminal viewport is scrolled to (or past) the last line of output. */
 export function isTermAtBottom(term: ScrollTerminalLike): boolean {
 	return term.buffer.active.viewportY >= term.buffer.active.baseY
 }
@@ -37,6 +38,8 @@ function getLinesFromBottom(term: ScrollTerminalLike): number {
 	return Math.max(0, term.buffer.active.baseY - term.buffer.active.viewportY)
 }
 
+/** Capture the terminal's current scroll position as a portable snapshot.
+ *  The snapshot stores distance-from-bottom so it survives buffer growth. */
 export function readSavedScroll(term: ScrollTerminalLike): SavedScroll {
 	return {
 		atBottom: isTermAtBottom(term),
@@ -44,6 +47,9 @@ export function readSavedScroll(term: ScrollTerminalLike): SavedScroll {
 	}
 }
 
+/** Restore a previously captured scroll position.
+ *  If the snapshot was at-bottom, scrolls to the latest output; otherwise
+ *  re-applies the saved distance-from-bottom against the current buffer. */
 export function restoreSavedScroll(term: ScrollTerminalLike, saved: SavedScroll): void {
 	if (saved.atBottom) {
 		term.scrollToBottom()
