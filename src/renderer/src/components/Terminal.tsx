@@ -310,7 +310,8 @@ export function TerminalView({
 
 			// Detached container — xterm renders into this. Created via
 			// document.createElement (not JSX) so inline styles are used
-			// instead of Tailwind classes.
+			// instead of Tailwind classes. Sizes to containerRef's content
+			// box (inside its p-1.5 padding) via width/height: 100%.
 			const termContainer = document.createElement('div')
 			termContainer.style.width = '100%'
 			termContainer.style.height = '100%'
@@ -674,7 +675,7 @@ export function TerminalView({
 	return (
 		<div
 			ref={wrapperRef}
-			className={`relative w-full h-full p-1.5${scrollbarColor ? ' scrollbar-accent' : ''}`}
+			className={`relative w-full h-full${scrollbarColor ? ' scrollbar-accent' : ''}`}
 			style={
 				{
 					backgroundColor: wrapperBg,
@@ -711,7 +712,7 @@ export function TerminalView({
 				/>
 			)}
 			{showSearch && (
-				<search className="absolute top-1 right-2 z-10 flex items-center gap-1 bg-elevated border border-edge rounded-sm px-2 py-1 shadow-panel">
+				<search className="absolute top-2.5 right-3.5 z-10 flex items-center gap-1 bg-elevated border border-edge rounded-sm px-2 py-1 shadow-panel">
 					<input
 						ref={searchInputRef}
 						value={searchQuery}
@@ -748,7 +749,9 @@ export function TerminalView({
 				</search>
 			)}
 			{isScrolledUp && <variant.ScrollButton onClick={scrollToBottom} theme={variantTheme} />}
-			<div ref={containerRef} className="w-full h-full" />
+			{/* p-1.5 must be here (not wrapper) — effect overlays use absolute inset-0
+			    on wrapper and would cover wrapper padding, making text appear flush. */}
+			<div ref={containerRef} className="w-full h-full p-1.5" />
 		</div>
 	)
 }
