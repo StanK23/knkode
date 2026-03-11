@@ -1,4 +1,4 @@
-import { FitAddon } from '@xterm/addon-fit'
+import { FitAddon, type ITerminalDimensions } from '@xterm/addon-fit'
 import { SearchAddon } from '@xterm/addon-search'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { WebglAddon } from '@xterm/addon-webgl'
@@ -38,31 +38,84 @@ function getLinesFromBottom(term: XTerm): number {
 	return Math.max(0, term.buffer.active.baseY - term.buffer.active.viewportY)
 }
 
+/** Restore a previously saved scroll position (distance-from-bottom). */
+function restoreScroll(term: XTerm, saved: SavedScroll): void {
+	if (saved.atBottom) {
+		term.scrollToBottom()
+	} else {
+		term.scrollToLine(Math.max(0, term.buffer.active.baseY - saved.linesFromBottom))
+	}
+}
+
 /**
- * Call fitAddon.fit() and restore the user's scroll position afterward.
+ * Proposed dimensions from xterm's fit addon, or null if valid geometry
+ * cannot be computed (missing container, detached element, or degenerate sizing).
+ * May throw if the addon is disposed — callers must handle exceptions.
+ */
+function getProposedDimensions(fitAddon: FitAddon): ITerminalDimensions | null {
+	const dims = fitAddon.proposeDimensions()
+	// NaN check: proposeDimensions computes cols/rows from CSS measurements
+	// that can produce NaN when the container has zero width (e.g. display:none).
+	// TypeScript types say `number` but the runtime value can be NaN.
+	if (!dims || Number.isNaN(dims.cols) || Number.isNaN(dims.rows)) return null
+	if (dims.cols <= 0 || dims.rows <= 0) return null
+	return dims
+}
+
+/**
+ * Fit the terminal to its container and restore scroll position afterward.
+ *
+ * Early-returns without calling fit() when:
+ * - Geometry cannot be computed (null from getProposedDimensions)
+ * - Proposed dimensions match current cols/rows — avoids the scroll
+ *   snapshot/restore overhead on no-op fits (xterm's own fit() has its own
+ *   internal dimension guard, but this skips scroll preservation too)
+ *
  * Skips scroll management for the alternate screen buffer (TUIs like vim,
  * htop) — the alternate buffer has no scrollback, so viewportY/baseY are
  * always 0 and scroll restoration is meaningless.
+ *
  * For the normal buffer, preserves exact distance from bottom instead of a
  * ratio. When the terminal narrows, long lines re-wrap into more rows,
  * inflating baseY disproportionately and causing a ratio to overshoot.
  */
 function fitAndPreserveScroll(term: XTerm, fitAddon: FitAddon): void {
+	const dims = getProposedDimensions(fitAddon)
+	if (!dims) {
+		console.warn('[terminal] fitAndPreserveScroll: could not compute dimensions, skipping fit')
+		return
+	}
+	if (dims.cols === term.cols && dims.rows === term.rows) return
+
 	const isAlternateBuffer = term.buffer.active.type === 'alternate'
 	if (isAlternateBuffer) {
 		fitAddon.fit()
 		return
 	}
 
-	const atBottom = isTermAtBottom(term)
-	const saved = getLinesFromBottom(term)
-
+	const saved: SavedScroll = {
+		atBottom: isTermAtBottom(term),
+		linesFromBottom: getLinesFromBottom(term),
+	}
 	fitAddon.fit()
+	restoreScroll(term, saved)
+}
 
-	if (atBottom) {
-		term.scrollToBottom()
-	} else {
-		term.scrollToLine(Math.max(0, term.buffer.active.baseY - saved))
+/**
+ * Wrap fitAndPreserveScroll with the isFittingRef guard.
+ * Centralizes the try/finally lifecycle so the guard cannot drift between call sites.
+ *
+ * Timing note: in the ResizeObserver path this runs inside requestAnimationFrame,
+ * so scroll events firing between the observer callback and the rAF are not
+ * suppressed. This is acceptable because corruption-causing scroll events come
+ * from fit() itself, which runs inside the guarded block.
+ */
+function guardedFit(term: XTerm, fitAddon: FitAddon, isFittingRef: React.RefObject<boolean>): void {
+	isFittingRef.current = true
+	try {
+		fitAndPreserveScroll(term, fitAddon)
+	} finally {
+		isFittingRef.current = false
 	}
 }
 
@@ -189,6 +242,11 @@ export function TerminalView({
 	// Ref allows the theme-update effect to re-focus without adding isFocused to its deps
 	const isFocusedRef = useRef(isFocused)
 	isFocusedRef.current = isFocused
+
+	// Suppresses handleViewportScroll during fit() to prevent corrupting savedScrollRef.
+	// Works because fit() dispatches scroll events synchronously — if xterm ever changes
+	// to async dispatch (microtask, rAF), this guard would silently break.
+	const isFittingRef = useRef<boolean>(false)
 
 	const [isScrolledUp, setIsScrolledUp] = useState(false)
 	const [showSearch, setShowSearch] = useState(false)
@@ -359,6 +417,9 @@ export function TerminalView({
 
 		// Reparent xterm's container into the React-managed div
 		containerRef.current.appendChild(termContainer)
+		// Not wrapped with guardedFit — the scroll listener is registered below
+		// (line ~433), so no scroll handler is active yet. This ordering is load-bearing:
+		// moving the listener registration above this fit() would silently corrupt scroll state.
 		fitAddon.fit()
 
 		termRef.current = term
@@ -371,15 +432,18 @@ export function TerminalView({
 		// savedScrollRef and cause panes to jump to top on workspace switch.
 		const viewport = term.element?.querySelector('.xterm-viewport')
 		const handleViewportScroll = () => {
-			if (!isActiveRef.current) return
+			if (!isActiveRef.current || isFittingRef.current) return
 			const atBottom = isTermAtBottom(term)
 			setIsScrolledUp(!atBottom)
 			savedScrollRef.current = { atBottom, linesFromBottom: getLinesFromBottom(term) }
 		}
 		viewport?.addEventListener('scroll', handleViewportScroll)
 
-		// Skip ResizeObserver callbacks with unchanged dimensions (fires on
-		// DOM re-attach, style recalc, etc.) to avoid unnecessary fit/scroll cycles.
+		// Skip ResizeObserver callbacks with unchanged pixel dimensions (fires on
+		// DOM re-attach, style recalc, etc.) to avoid unnecessary rAF scheduling.
+		// fitAndPreserveScroll has a second guard on cols/rows — intentional double-gating:
+		// this layer skips unchanged pixels, that layer skips when pixel changes don't
+		// translate to different col/row counts.
 		let lastWidth = 0
 		let lastHeight = 0
 		const resizeObserver = new ResizeObserver((entries) => {
@@ -393,7 +457,7 @@ export function TerminalView({
 			requestAnimationFrame(() => {
 				try {
 					if (!containerRef.current?.clientWidth) return
-					fitAndPreserveScroll(term, fitAddon)
+					guardedFit(term, fitAddon, isFittingRef)
 				} catch (err) {
 					console.warn('[terminal] fit()/scroll failed during resize:', err)
 				}
@@ -434,12 +498,7 @@ export function TerminalView({
 		}
 		if (termRef.current) {
 			const term = termRef.current
-			const { atBottom, linesFromBottom: saved } = savedScrollRef.current
-			if (atBottom) {
-				term.scrollToBottom()
-			} else {
-				term.scrollToLine(Math.max(0, term.buffer.active.baseY - saved))
-			}
+			restoreScroll(term, savedScrollRef.current)
 			isActiveRef.current = true
 			setIsScrolledUp(!isTermAtBottom(term))
 		} else {
@@ -479,7 +538,7 @@ export function TerminalView({
 		termRef.current.options.fontFamily = newFontFamily
 		termRef.current.options.lineHeight = newLineHeight
 		// Toggle WebGL based on opacity — WebGL doesn't support transparent backgrounds.
-		// See also: cache-miss (line ~275) and cache-hit (line ~348) guards.
+		// See also: the tryLoadWebgl guards in the cache-miss and cache-hit branches of the mount effect.
 		const cached = terminalCache.get(paneId)
 		if (cached) {
 			if (opacity < 1 && cached.webglAddon) {
@@ -490,7 +549,7 @@ export function TerminalView({
 		}
 		if (metricsChanged) {
 			try {
-				fitAndPreserveScroll(termRef.current, fitAddonRef.current)
+				guardedFit(termRef.current, fitAddonRef.current, isFittingRef)
 				if (isFocusedRef.current) termRef.current.focus()
 			} catch (err) {
 				console.warn('[terminal] fit()/scroll failed during theme update:', err)

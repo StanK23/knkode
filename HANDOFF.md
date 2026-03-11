@@ -1,11 +1,13 @@
 # HANDOFF
 
 ## Current State
-- Branch: `dev/theming` (theming rework base)
+- Branch: `codex/fix-tui-scroll-jump` (targets `dev/theming`)
 - `dev/agent-workspace` branch preserved with all rendered view work (PRs #58-75)
-- Active plan: Theming Rework Phase 2 (knktx board: 6acd4876-8e7a-47e4-859f-0bc67d7c432f)
+- Active plan: TUI Scroll Jump Bug (knktx board: 610ca3a2-3c03-493f-a533-e5c67d231da5)
 
 ## What Was Done
+- Done on `codex/fix-tui-scroll-jump`: re-introduced `isFittingRef` gating in `Terminal.tsx` so fit-induced viewport scroll events do not corrupt saved scroll state during resize/theme-driven fits.
+- Done on `codex/fix-tui-scroll-jump`: skip `fitAndPreserveScroll()` when the fit addon reports unchanged rows/cols, avoiding no-op scroll restoration on incidental layout churn.
 - PR #87 merged: Clickable PR badge in pane status bar — async `gh pr view` detection with 60s refresh, PrInfo IPC plumbing, shared PrBadge component across 16 variants, URL validation, OPEN-only filter. 9-agent review, all findings fixed.
 - PR #86 merged: Morphing pane status bar — 16 theme variants with unique layouts, typography, badge shapes, separators, border styles. SnippetTrigger component-as-prop pattern for per-variant styled snippet buttons. ScrollButton morphs per variant. 9-agent review, all findings fixed.
 - PR #84 merged: Tab bar redesign — colored workspace tabs (3px left accent strip + color-mix tint), flex-based dynamic sizing, pane count badges, SVG icons, roving tabindex a11y. 9-agent review, all findings fixed.
@@ -51,11 +53,20 @@ Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 7. ~~PR #86: `feature/pane-chrome-variants` — Morphing status bar with 16 theme variants + scroll buttons. 9-agent review, all findings fixed.~~ (merged)
 8. ~~PR #87: `feature/pr-badge` — Clickable PR badge in pane status bar. 9-agent review, all findings fixed.~~ (merged)
 
+## Active Reviews
+
+### PR #88 — fix: harden passive terminal scroll preservation
+- State: `docs/reviews/PR-88/_state.json`
+- Agents: 9/9 completed
+- Phase: done — all 18 findings addressed (8 commits)
+- Findings: 4 must-fix, 9 suggestions, 5 nitpicks — all fixed
+
 ## What's Next
+- Address PR #88 review findings, then merge to `dev/theming`
 - Future: interactive branch switching dropdown + cwd click-to-navigate (new IPC features)
 
 ## Remaining Work
-- Fix TUI scroll-jumping-to-top bug
+- Validate `codex/fix-tui-scroll-jump` against Claude/Gemini TUI behavior, then merge to `dev/theming`
 
 ## Previous Work
 - PR #58: Translucent pane backgrounds with blur
