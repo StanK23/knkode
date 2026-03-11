@@ -267,7 +267,8 @@ export function Pane({
 		clamp()
 		window.addEventListener('resize', clamp)
 		return () => window.removeEventListener('resize', clamp)
-	}, [showContext, contextPos.x, contextPos.y])
+		// biome-ignore lint/correctness/useExhaustiveDependencies: contextPanel intentionally triggers re-clamp on sub-panel toggle
+	}, [showContext, contextPos.x, contextPos.y, contextPanel])
 
 	const shortCwd = config.cwd.replace(/^\/Users\/[^/]+/, '~')
 
