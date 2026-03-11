@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import 'allotment/dist/style.css'
 import type { LayoutNode, PaneConfig, Workspace } from '../../../shared/types'
 import { isLayoutBranch } from '../../../shared/types'
-import { useStore } from '../store'
+import { getFirstPaneId, useStore } from '../store'
 import { Pane } from './Pane'
 import { disposeTerminal } from './Terminal'
 
@@ -15,6 +15,7 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 	const splitPane = useStore((s) => s.splitPane)
 	const closePane = useStore((s) => s.closePane)
 	const updatePaneConfig = useStore((s) => s.updatePaneConfig)
+	const updateNodeSizes = useStore((s) => s.updateNodeSizes)
 	const focusedPaneId = useStore((s) => s.focusedPaneId)
 	const focusGeneration = useStore((s) => s.focusGeneration)
 	const setFocusedPane = useStore((s) => s.setFocusedPane)
@@ -65,7 +66,7 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 		[workspace.id, closePane],
 	)
 
-	const renderNode = (node: LayoutNode): React.ReactNode => {
+	const renderNode = (node: LayoutNode, path: number[] = []): React.ReactNode => {
 		if (!isLayoutBranch(node)) {
 			const config = workspace.panes[node.paneId]
 			if (!config) return null
@@ -95,13 +96,14 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 		const isVertical = node.direction === 'vertical'
 
 		return (
-			<Allotment vertical={isVertical} key={`${node.direction}-${node.children.length}`}>
+			<Allotment
+				vertical={isVertical}
+				key={`${node.direction}-${node.children.length}`}
+				onDragEnd={(sizes) => updateNodeSizes(workspace.id, path, sizes)}
+			>
 				{node.children.map((child, i) => (
-					<Allotment.Pane
-						key={isLayoutBranch(child) ? `branch-${i}` : child.paneId}
-						preferredSize={`${child.size}%`}
-					>
-						{renderNode(child)}
+					<Allotment.Pane key={getFirstPaneId(child)} preferredSize={`${child.size}%`}>
+						{renderNode(child, [...path, i])}
 					</Allotment.Pane>
 				))}
 			</Allotment>
