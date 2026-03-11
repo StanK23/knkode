@@ -423,19 +423,17 @@ export function TerminalView({
 		// scrollTop updates, giving stale isTermAtBottom() readings that corrupt
 		// savedScrollRef and cause panes to jump to top on workspace switch.
 		const viewport = term.element?.querySelector('.xterm-viewport')
+		const isScrollSuppressed = () =>
+			!isActiveRef.current || isFittingRef.current || viewportSyncRef.current.isBlocked()
 		const handleViewportScroll = () => {
-			if (!isActiveRef.current || isFittingRef.current || viewportSyncRef.current.isBlocked()) {
-				return
-			}
+			if (isScrollSuppressed()) return
 			const saved = readSavedScroll(term)
 			savedScrollRef.current = saved
 			setIsScrolledUp(!saved.atBottom)
 		}
 		viewport?.addEventListener('scroll', handleViewportScroll)
 		const writeParsedDisposable = term.onWriteParsed(() => {
-			if (!isActiveRef.current || isFittingRef.current || viewportSyncRef.current.isBlocked()) {
-				return
-			}
+			if (isScrollSuppressed()) return
 			// Passive output can move the viewport without a reliable DOM scroll
 			// signal for every chunk. Re-sync once the write batch has settled.
 			viewportSyncRef.current.scheduleSync()
