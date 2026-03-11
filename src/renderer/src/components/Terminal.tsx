@@ -20,7 +20,6 @@ import { hexToRgba, isValidGradient, resolveBackground } from '../utils/colors'
 import {
 	type SavedScroll,
 	createViewportSyncCoordinator,
-	isTermAtBottom,
 	readSavedScroll,
 	restoreSavedScroll,
 } from '../utils/terminal-scroll'
