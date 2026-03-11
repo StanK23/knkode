@@ -31,7 +31,7 @@ describe('readSavedScroll', () => {
 	it('captures distance from the bottom of the buffer', () => {
 		expect(
 			readSavedScroll({
-				buffer: { active: { baseY: 120, type: 'normal', viewportY: 90 } },
+				buffer: { active: { baseY: 120, viewportY: 90 } },
 				scrollToBottom: () => {},
 				scrollToLine: () => {},
 			}),
@@ -44,7 +44,7 @@ describe('readSavedScroll', () => {
 	it('treats viewport at baseY as bottom', () => {
 		expect(
 			readSavedScroll({
-				buffer: { active: { baseY: 48, type: 'normal', viewportY: 48 } },
+				buffer: { active: { baseY: 48, viewportY: 48 } },
 				scrollToBottom: () => {},
 				scrollToLine: () => {},
 			}),
@@ -60,7 +60,7 @@ describe('restoreSavedScroll', () => {
 		let scrolledToBottom = false
 		restoreSavedScroll(
 			{
-				buffer: { active: { baseY: 80, type: 'normal', viewportY: 40 } },
+				buffer: { active: { baseY: 80, viewportY: 40 } },
 				scrollToBottom: () => {
 					scrolledToBottom = true
 				},
@@ -77,7 +77,7 @@ describe('restoreSavedScroll', () => {
 		let restoredLine: number | null = null
 		restoreSavedScroll(
 			{
-				buffer: { active: { baseY: 150, type: 'normal', viewportY: 20 } },
+				buffer: { active: { baseY: 150, viewportY: 20 } },
 				scrollToBottom: () => {
 					throw new Error('should not scroll to bottom when restoring a scrolled-up viewport')
 				},

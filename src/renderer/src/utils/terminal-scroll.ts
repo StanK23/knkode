@@ -6,7 +6,6 @@ export interface SavedScroll {
 interface BufferLike {
 	active: {
 		baseY: number
-		type: 'alternate' | 'normal'
 		viewportY: number
 	}
 }
