@@ -72,7 +72,7 @@ function StatusBar({
 				{'>_'}
 			</SnippetTrigger>
 
-			<div className="flex items-center gap-0.5 opacity-0 hover:opacity-60 focus-within:opacity-60 transition-opacity duration-300">
+			<div className="flex items-center gap-0.5 opacity-0 hover:opacity-60 focus-within:opacity-60 has-[:focus-visible]:opacity-60 transition-opacity duration-300">
 				<button
 					type="button"
 					onClick={onSplitVertical}

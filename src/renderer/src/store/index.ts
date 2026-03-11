@@ -1101,8 +1101,9 @@ function updateSizesAtPath(node: LayoutNode, path: number[], sizes: number[]): L
  *  Returns 'empty' for branches with no children (corrupted state guard). */
 function getFirstPaneId(node: LayoutNode): string {
 	if (!isLayoutBranch(node)) return node.paneId
-	if (node.children.length === 0) return 'empty'
-	return getFirstPaneId(node.children[0])
+	const first = node.children[0]
+	if (!first) return 'empty'
+	return getFirstPaneId(first)
 }
 
 /** Get pane IDs in depth-first, left-child-first order

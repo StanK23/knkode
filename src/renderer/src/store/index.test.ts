@@ -1050,6 +1050,65 @@ describe('getFirstPaneId', () => {
 	})
 })
 
+describe('store updatePaneBranch', () => {
+	it('sets branch for a pane', () => {
+		useStore.setState({ paneBranches: {} })
+		useStore.getState().updatePaneBranch('p1', 'main')
+		expect(useStore.getState().paneBranches.p1).toBe('main')
+	})
+
+	it('deduplicates identical branch updates', () => {
+		useStore.setState({ paneBranches: { p1: 'main' } })
+		const before = useStore.getState().paneBranches
+		useStore.getState().updatePaneBranch('p1', 'main')
+		expect(useStore.getState().paneBranches).toBe(before)
+	})
+
+	it('updates when branch changes', () => {
+		useStore.setState({ paneBranches: { p1: 'main' } })
+		useStore.getState().updatePaneBranch('p1', 'dev')
+		expect(useStore.getState().paneBranches.p1).toBe('dev')
+	})
+
+	it('clears branch with null', () => {
+		useStore.setState({ paneBranches: { p1: 'main' } })
+		useStore.getState().updatePaneBranch('p1', null)
+		expect(useStore.getState().paneBranches.p1).toBeNull()
+	})
+})
+
+describe('store updatePanePr', () => {
+	it('sets PR info for a pane', () => {
+		useStore.setState({ panePrs: {} })
+		const pr = { number: 42, url: 'https://github.com/test/pr/42', title: 'Fix bug' }
+		useStore.getState().updatePanePr('p1', pr)
+		expect(useStore.getState().panePrs.p1).toEqual(pr)
+	})
+
+	it('deduplicates by PR number', () => {
+		const pr = { number: 42, url: 'https://github.com/test/pr/42', title: 'Fix bug' }
+		useStore.setState({ panePrs: { p1: pr } })
+		const before = useStore.getState().panePrs
+		useStore.getState().updatePanePr('p1', { ...pr, title: 'Updated title' })
+		expect(useStore.getState().panePrs).toBe(before)
+	})
+
+	it('updates when PR number changes', () => {
+		const pr1 = { number: 42, url: 'https://github.com/test/pr/42', title: 'PR 42' }
+		const pr2 = { number: 43, url: 'https://github.com/test/pr/43', title: 'PR 43' }
+		useStore.setState({ panePrs: { p1: pr1 } })
+		useStore.getState().updatePanePr('p1', pr2)
+		expect(useStore.getState().panePrs.p1).toEqual(pr2)
+	})
+
+	it('clears PR with null', () => {
+		const pr = { number: 42, url: 'https://github.com/test/pr/42', title: 'Fix bug' }
+		useStore.setState({ panePrs: { p1: pr } })
+		useStore.getState().updatePanePr('p1', null)
+		expect(useStore.getState().panePrs.p1).toBeNull()
+	})
+})
+
 describe('store updateNodeSizes', () => {
 	it('updates root node child sizes from pixel values', () => {
 		useStore.setState({ workspaces: [makeTwoPaneWs()] })

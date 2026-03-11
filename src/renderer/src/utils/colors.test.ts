@@ -4,6 +4,7 @@ import {
 	hexToRgb,
 	hexToRgba,
 	isDark,
+	isValidGradient,
 	isValidHex,
 	mixColors,
 	resolveBackground,
@@ -25,6 +26,29 @@ describe('isValidHex', () => {
 		expect(isValidHex('#12345')).toBe(false)
 		expect(isValidHex('#1234567')).toBe(false)
 		expect(isValidHex('not-a-color')).toBe(false)
+	})
+})
+
+describe('isValidGradient', () => {
+	it('accepts valid CSS gradients', () => {
+		expect(isValidGradient('linear-gradient(180deg, #ff0000 0%, transparent 50%)')).toBe(true)
+		expect(isValidGradient('radial-gradient(circle, #000 0%, #fff 100%)')).toBe(true)
+		expect(isValidGradient('conic-gradient(from 0deg, red, blue)')).toBe(true)
+	})
+
+	it('rejects strings without gradient prefix', () => {
+		expect(isValidGradient('red')).toBe(false)
+		expect(isValidGradient('#ff0000')).toBe(false)
+		expect(isValidGradient('')).toBe(false)
+		expect(isValidGradient('gradient(red, blue)')).toBe(false)
+	})
+
+	it('rejects CSS injection vectors', () => {
+		expect(isValidGradient('linear-gradient(red); body { display: none }')).toBe(false)
+		expect(isValidGradient('linear-gradient(red) { color: red }')).toBe(false)
+		expect(isValidGradient('linear-gradient(url(evil.png))')).toBe(false)
+		expect(isValidGradient('linear-gradient(expression(alert(1)))')).toBe(false)
+		expect(isValidGradient('linear-gradient(var(--evil))')).toBe(false)
 	})
 })
 

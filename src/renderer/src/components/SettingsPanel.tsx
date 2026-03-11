@@ -691,9 +691,8 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					hidden={activeTab !== 'Workspace'}
 					className="flex-1 min-h-0 px-6 py-6 overflow-y-auto overflow-x-hidden flex flex-col gap-8"
 				>
-					<>
-						{/* General */}
-						<SettingsSection label="General">
+					{/* General */}
+					<SettingsSection label="General">
 							<label className="flex items-center gap-3">
 								<span className="text-xs text-content-secondary w-16 shrink-0">Name</span>
 								<input
@@ -746,9 +745,8 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 						</SettingsSection>
 						{/* Layout */}
 						<LayoutPicker current={currentPreset} onSelect={handleLayoutChange} />
-						{/* Snippets */}
-						<SnippetsSection />
-					</>
+					{/* Snippets */}
+					<SnippetsSection />
 				</div>
 
 				{/* Terminal tab panel */}
@@ -759,9 +757,8 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 					hidden={activeTab !== 'Terminal'}
 					className="flex-1 min-h-0 px-6 py-6 overflow-y-auto overflow-x-hidden flex flex-col gap-8"
 				>
-					<>
-						{/* Theme */}
-						<SettingsSection label="Theme" gap={16}>
+					{/* Theme */}
+					<SettingsSection label="Theme" gap={16}>
 							<div
 								className="grid grid-cols-4 gap-1.5"
 								role="radiogroup"
@@ -957,7 +954,6 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 								label="Noise"
 							/>
 						</SettingsSection>
-					</>
 				</div>
 
 				<div className="flex items-center gap-2 px-6 py-3 border-t border-edge/50">

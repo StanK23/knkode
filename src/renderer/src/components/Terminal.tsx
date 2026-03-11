@@ -413,7 +413,11 @@ export function TerminalView({
 		// are registered below. No scroll handler is active yet. This ordering
 		// is load-bearing: registering listeners before fit() would silently
 		// corrupt scroll state.
-		fitAddon.fit()
+		try {
+			fitAddon.fit()
+		} catch (err) {
+			console.warn('[terminal] initial fit() failed:', err)
+		}
 
 		termRef.current = term
 		fitAddonRef.current = fitAddon
@@ -656,12 +660,16 @@ export function TerminalView({
 	}, [mergedTheme])
 
 	// Pre-compute effect multipliers with runtime validation for deserialized config values
-	const mul = (level: unknown) => EFFECT_MULTIPLIERS[isEffectLevel(level) ? level : 'off']
-	const gradientMul = mul(mergedTheme.gradientLevel)
-	const glowMul = mul(mergedTheme.glowLevel)
-	const scanlineMul = mul(mergedTheme.scanlineLevel)
-	const noiseMul = mul(mergedTheme.noiseLevel)
-	const scrollbarMul = mul(mergedTheme.scrollbarAccent)
+	const { gradientMul, glowMul, scanlineMul, noiseMul, scrollbarMul } = useMemo(() => {
+		const mul = (level: unknown) => EFFECT_MULTIPLIERS[isEffectLevel(level) ? level : 'off']
+		return {
+			gradientMul: mul(mergedTheme.gradientLevel),
+			glowMul: mul(mergedTheme.glowLevel),
+			scanlineMul: mul(mergedTheme.scanlineLevel),
+			noiseMul: mul(mergedTheme.noiseLevel),
+			scrollbarMul: mul(mergedTheme.scrollbarAccent),
+		}
+	}, [mergedTheme])
 
 	// Fallback: use accent color for glow/gradient when the preset doesn't define them.
 	// This lets effect controls work on ALL themes, not just identity themes.

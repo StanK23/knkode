@@ -264,6 +264,11 @@
 		.settings-input {
 			transition: none;
 		}
+		.pane-glow,
+		.pane-scanline,
+		.pane-noise {
+			display: none;
+		}
 	}
 }
 
