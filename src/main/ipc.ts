@@ -16,6 +16,8 @@ import { trackPane, untrackPane } from './cwd-tracker'
 import { createPty, killPty, resizePty, writePty } from './pty-manager'
 
 const MAX_PANE_ID_LENGTH = 128
+const HEX_COLOR_RE = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
+const GRADIENT_PREFIX_RE = /^(linear|radial|conic)-gradient\(/
 
 function assertString(value: unknown, name: string): asserts value is string {
 	if (typeof value !== 'string') throw new Error(`Invalid ${name}: expected string`)
@@ -66,6 +68,35 @@ function assertWorkspace(value: unknown): asserts value is Workspace {
 	for (const field of ['gradientLevel', 'glowLevel', 'scanlineLevel', 'noiseLevel', 'scrollbarAccent'] as const) {
 		if (theme[field] !== undefined && !isEffectLevel(theme[field])) {
 			throw new Error(`Invalid workspace: ${field} must be a valid EffectLevel`)
+		}
+	}
+	// Validate workspace color (required hex)
+	if (!HEX_COLOR_RE.test(obj.color as string)) {
+		throw new Error('Invalid workspace: color must be a valid hex color (#RGB or #RRGGBB)')
+	}
+	// Validate required theme color strings
+	for (const field of ['background', 'foreground'] as const) {
+		if (typeof theme[field] !== 'string' || !HEX_COLOR_RE.test(theme[field])) {
+			throw new Error(`Invalid workspace: theme.${field} must be a valid hex color`)
+		}
+	}
+	// Validate optional theme color strings
+	for (const field of ['accent', 'glow', 'cursorColor', 'selectionColor'] as const) {
+		if (theme[field] !== undefined && (typeof theme[field] !== 'string' || !HEX_COLOR_RE.test(theme[field]))) {
+			throw new Error(`Invalid workspace: theme.${field} must be a valid hex color`)
+		}
+	}
+	// Validate gradient (CSS injection defense)
+	if (theme.gradient !== undefined) {
+		if (
+			typeof theme.gradient !== 'string' ||
+			!GRADIENT_PREFIX_RE.test(theme.gradient) ||
+			theme.gradient.includes(';') ||
+			theme.gradient.includes('{') ||
+			theme.gradient.includes('url(') ||
+			theme.gradient.includes('expression(')
+		) {
+			throw new Error('Invalid workspace: theme.gradient must be a valid CSS gradient')
 		}
 	}
 	if (!obj.layout || typeof obj.layout !== 'object')
