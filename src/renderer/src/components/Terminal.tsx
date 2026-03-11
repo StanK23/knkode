@@ -14,7 +14,12 @@ import {
 	type PaneTheme,
 	isEffectLevel,
 } from '../../../shared/types'
-import { buildFontFamily, buildXtermTheme, findPreset, mergeThemeWithPreset } from '../data/theme-presets'
+import {
+	buildFontFamily,
+	buildXtermTheme,
+	findPreset,
+	mergeThemeWithPreset,
+} from '../data/theme-presets'
 import { useStore } from '../store'
 import { hexToRgba } from '../utils/colors'
 import {

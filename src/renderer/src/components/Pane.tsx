@@ -248,6 +248,7 @@ export function Pane({
 		return () => document.removeEventListener('keydown', handler)
 	}, [showContext, closeContext])
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: contextPanel intentionally triggers re-clamp on sub-panel toggle
 	useLayoutEffect(() => {
 		const el = contextRef.current
 		if (!showContext || !el) return
@@ -267,7 +268,6 @@ export function Pane({
 		clamp()
 		window.addEventListener('resize', clamp)
 		return () => window.removeEventListener('resize', clamp)
-		// biome-ignore lint/correctness/useExhaustiveDependencies: contextPanel intentionally triggers re-clamp on sub-panel toggle
 	}, [showContext, contextPos.x, contextPos.y, contextPanel])
 
 	const shortCwd = config.cwd.replace(/^\/Users\/[^/]+/, '~')
