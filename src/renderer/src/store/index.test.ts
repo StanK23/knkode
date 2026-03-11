@@ -283,7 +283,7 @@ describe('store workspace CRUD', () => {
 		expect(mockApi.saveWorkspace).toHaveBeenCalledWith(updated)
 	})
 
-	it('removes a workspace', async () => {
+	it('removes a workspace and cleans ephemeral state', async () => {
 		const ws = makeWorkspace()
 		useStore.setState({
 			workspaces: [ws],
@@ -292,6 +292,8 @@ describe('store workspace CRUD', () => {
 				activeWorkspaceId: 'ws-1',
 				windowBounds: TEST_BOUNDS,
 			},
+			paneBranches: { p1: 'main' },
+			panePrs: { p1: { number: 42, url: 'https://x', title: 'PR' } },
 		})
 
 		await useStore.getState().removeWorkspace('ws-1')
@@ -299,6 +301,9 @@ describe('store workspace CRUD', () => {
 		expect(useStore.getState().workspaces).toHaveLength(0)
 		expect(useStore.getState().appState.openWorkspaceIds).toHaveLength(0)
 		expect(mockApi.deleteWorkspace).toHaveBeenCalledWith('ws-1')
+		// cleanPaneEphemeral should remove pane branch/PR data
+		expect(useStore.getState().paneBranches.p1).toBeUndefined()
+		expect(useStore.getState().panePrs.p1).toBeUndefined()
 	})
 
 	it('propagates error when saveWorkspace rejects', async () => {
@@ -509,7 +514,7 @@ describe('store splitPane', () => {
 
 describe('store closePane', () => {
 	it('closes a pane and collapses the branch', () => {
-		useStore.setState({ workspaces: [makeTwoPaneWs()] })
+		useStore.setState({ workspaces: [makeTwoPaneWs()], paneBranches: { p1: 'main', p2: 'dev' }, panePrs: { p1: { number: 1, url: 'https://x', title: 'PR' } } })
 		useStore.getState().closePane('ws-1', 'p1')
 
 		const ws = useStore.getState().workspaces[0]
@@ -517,6 +522,12 @@ describe('store closePane', () => {
 		expect(ws.panes.p2).toBeDefined()
 		// Branch should collapse to leaf
 		expect(isLayoutBranch(ws.layout.tree)).toBe(false)
+		// cleanPaneEphemeral should remove closed pane's branch/PR data
+		const state = useStore.getState()
+		expect(state.paneBranches.p1).toBeUndefined()
+		expect(state.panePrs.p1).toBeUndefined()
+		// Surviving pane's ephemeral data should be preserved
+		expect(state.paneBranches.p2).toBe('dev')
 	})
 
 	it('does not close the last pane', () => {
