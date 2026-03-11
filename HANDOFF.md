@@ -53,7 +53,16 @@ Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 7. ~~PR #86: `feature/pane-chrome-variants` — Morphing status bar with 16 theme variants + scroll buttons. 9-agent review, all findings fixed.~~ (merged)
 8. ~~PR #87: `feature/pr-badge` — Clickable PR badge in pane status bar. 9-agent review, all findings fixed.~~ (merged)
 
+## Active Reviews
+
+### PR #88 — fix: harden passive terminal scroll preservation
+- State: `docs/reviews/PR-88/_state.json`
+- Agents: 9/9 completed
+- Phase: done (compiled)
+- Findings: 4 must-fix, 9 suggestions, 5 nitpicks
+
 ## What's Next
+- Address PR #88 review findings, then merge to `dev/theming`
 - Future: interactive branch switching dropdown + cwd click-to-navigate (new IPC features)
 
 ## Remaining Work
