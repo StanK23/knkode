@@ -62,10 +62,12 @@ Board: `13106f68-3789-458a-b9d2-5eb644b7e0ee`
 - ~~PR #89: Fix pane split resetting sizes~~ (merged)
 - ~~PR #90: Restore terminal pane inner padding~~ (merged)
 
-## PR #92 — Review Fixes Applied
-- 10-agent review: 5 must-fix, 15 suggestions, 8 nitpicks
-- All must-fix items resolved, key suggestions and nitpicks addressed
-- Fixed: IPC validation gaps, sync→async getGitBranch, JSDoc accuracy, effect memoization, a11y, CSS containment, tests (isValidGradient, updatePaneBranch, updatePanePr)
+## PR #92 — Review Fixes Applied (All 28 findings addressed)
+- 10-agent review: 5 must-fix, 15 suggestions, 8 nitpicks — ALL addressed
+- Must-fix: IPC hex/gradient validation (S8), config sanitizeTheme (S14), removeWorkspace re-read state (S12), variant completeness check (S13), withWorkspace store helper (S3)
+- Suggestions: sync→async getGitBranch, JSDoc accuracy, effect memoization, a11y, CSS containment, tests, readonly types, pane-chrome factory
+- Nitpicks: terminal-scroll JSDoc, closePane/removeWorkspace cleanup assertions, readonly persisted types
+- S1: createAndRegisterVariant() factory — 8 variants converted (Nord, Monokai, Gruvbox, Dracula, Catppuccin, Solarized, Sunset, Arctic), -772 lines of duplication
 
 ## Remaining Work
 - Manually verify long passive-output and workspace-tab-switch scenarios after PR #91 merge.
