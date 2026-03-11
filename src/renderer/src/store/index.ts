@@ -285,6 +285,27 @@ interface StoreState {
 	runSnippet: (snippetId: string, paneId: string) => void
 }
 
+/** Find a workspace, apply a transformation, persist, and return the merged state.
+ *  The updater receives the found workspace and current state.
+ *  Return null from the updater to skip the update. */
+function withWorkspace(
+	state: StoreState,
+	workspaceId: string,
+	updater: (ws: Workspace, st: StoreState) => { updated: Workspace; extra?: Partial<StoreState> } | null,
+): Partial<StoreState> | StoreState {
+	const workspace = state.workspaces.find((w) => w.id === workspaceId)
+	if (!workspace) return state
+	const result = updater(workspace, state)
+	if (!result) return state
+	window.api.saveWorkspace(result.updated).catch((err) => {
+		console.error('[store] Failed to save workspace:', err)
+	})
+	return {
+		workspaces: state.workspaces.map((w) => (w.id === workspaceId ? result.updated : w)),
+		...result.extra,
+	}
+}
+
 function persistSnippets(snippets: Snippet[]): void {
 	window.api.saveSnippets(snippets).catch((err) => {
 		console.error('[store] Failed to save snippets:', err)
@@ -637,41 +658,34 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 
 	splitPane: (workspaceId, paneId, direction) => {
-		set((state) => {
-			const workspace = state.workspaces.find((w) => w.id === workspaceId)
-			if (!workspace?.panes[paneId]) return state
-
-			const newPaneId = crypto.randomUUID()
-			const newPane: PaneConfig = {
-				label: 'terminal',
-				cwd: workspace.panes[paneId].cwd,
-				startupCommand: null,
-				themeOverride: null,
-			}
-
-			const newTree = replaceLeafInTree(workspace.layout.tree, paneId, (leaf) => ({
-				direction,
-				size: leaf.size,
-				children: [
-					{ paneId, size: 50 },
-					{ paneId: newPaneId, size: 50 },
-				],
-			}))
-
-			const updated = {
-				...workspace,
-				layout: { type: 'custom' as const, tree: newTree },
-				panes: { ...workspace.panes, [newPaneId]: newPane },
-			}
-			window.api.saveWorkspace(updated).catch((err) => {
-				console.error('[store] Failed to save workspace:', err)
-			})
-			return {
-				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
-				focusedPaneId: newPaneId,
-				focusGeneration: state.focusGeneration + 1,
-			}
-		})
+		set((state) =>
+			withWorkspace(state, workspaceId, (workspace, st) => {
+				if (!workspace.panes[paneId]) return null
+				const newPaneId = crypto.randomUUID()
+				const newPane: PaneConfig = {
+					label: 'terminal',
+					cwd: workspace.panes[paneId].cwd,
+					startupCommand: null,
+					themeOverride: null,
+				}
+				const newTree = replaceLeafInTree(workspace.layout.tree, paneId, (leaf) => ({
+					direction,
+					size: leaf.size,
+					children: [
+						{ paneId, size: 50 },
+						{ paneId: newPaneId, size: 50 },
+					],
+				}))
+				return {
+					updated: {
+						...workspace,
+						layout: { type: 'custom' as const, tree: newTree },
+						panes: { ...workspace.panes, [newPaneId]: newPane },
+					},
+					extra: { focusedPaneId: newPaneId, focusGeneration: st.focusGeneration + 1 },
+				}
+			}),
+		)
 	},
 
 	closePane: (workspaceId, paneId) => {
@@ -680,29 +694,25 @@ export const useStore = create<StoreState>((set, get) => ({
 		if (!ws || Object.keys(ws.panes).length <= 1) return
 		get().killPtys([paneId])
 
-		set((state) => {
-			const workspace = state.workspaces.find((w) => w.id === workspaceId)
-			if (!workspace) return state
-			if (Object.keys(workspace.panes).length <= 1) return state
-
-			const newTree = removeLeafFromTree(workspace.layout.tree, paneId)
-			if (!newTree) return state
-
-			const { [paneId]: _, ...remainingPanes } = workspace.panes
-			const updated = {
-				...workspace,
-				layout: { type: 'custom' as const, tree: newTree },
-				panes: remainingPanes,
-			}
-			window.api.saveWorkspace(updated).catch((err) => {
-				console.error('[store] Failed to save workspace:', err)
-			})
-			return {
-				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
-				focusedPaneId: state.focusedPaneId === paneId ? null : state.focusedPaneId,
-				...cleanPaneEphemeral(state, [paneId]),
-			}
-		})
+		set((state) =>
+			withWorkspace(state, workspaceId, (workspace, st) => {
+				if (Object.keys(workspace.panes).length <= 1) return null
+				const newTree = removeLeafFromTree(workspace.layout.tree, paneId)
+				if (!newTree) return null
+				const { [paneId]: _, ...remainingPanes } = workspace.panes
+				return {
+					updated: {
+						...workspace,
+						layout: { type: 'custom' as const, tree: newTree },
+						panes: remainingPanes,
+					},
+					extra: {
+						focusedPaneId: st.focusedPaneId === paneId ? null : st.focusedPaneId,
+						...cleanPaneEphemeral(st, [paneId]),
+					},
+				}
+			}),
+		)
 	},
 
 	movePaneToWorkspace: (fromWsId, paneId, toWsId) => {
@@ -821,123 +831,88 @@ export const useStore = create<StoreState>((set, get) => ({
 
 	swapPanes: (workspaceId, paneIdA, paneIdB) => {
 		if (paneIdA === paneIdB) return
-		set((state) => {
-			const workspace = state.workspaces.find((w) => w.id === workspaceId)
-			if (!workspace) {
-				console.error('[store] swapPanes: workspace not found', { workspaceId })
-				return state
-			}
-			if (!workspace.panes[paneIdA] || !workspace.panes[paneIdB]) {
-				console.error('[store] swapPanes: pane not found', { paneIdA, paneIdB, workspaceId })
-				return state
-			}
-			const swappedTree = remapLayoutTree(workspace.layout.tree, (id) =>
-				id === paneIdA ? paneIdB : id === paneIdB ? paneIdA : id,
-			)
-			const updated = {
-				...workspace,
-				layout: { type: 'custom' as const, tree: swappedTree },
-			}
-			window.api.saveWorkspace(updated).catch((err) => {
-				console.error('[store] Failed to save workspace:', err)
-			})
-			return {
-				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
-			}
-		})
+		set((state) =>
+			withWorkspace(state, workspaceId, (workspace) => {
+				if (!workspace.panes[paneIdA] || !workspace.panes[paneIdB]) {
+					console.error('[store] swapPanes: pane not found', { paneIdA, paneIdB, workspaceId })
+					return null
+				}
+				const swappedTree = remapLayoutTree(workspace.layout.tree, (id) =>
+					id === paneIdA ? paneIdB : id === paneIdB ? paneIdA : id,
+				)
+				return {
+					updated: { ...workspace, layout: { type: 'custom' as const, tree: swappedTree } },
+				}
+			}),
+		)
 	},
 
 	movePaneToPosition: (workspaceId, sourcePaneId, targetPaneId, position) => {
 		if (sourcePaneId === targetPaneId) return
-		set((state) => {
-			const workspace = state.workspaces.find((w) => w.id === workspaceId)
-			if (!workspace?.panes[sourcePaneId] || !workspace.panes[targetPaneId]) {
-				console.error('[store] movePaneToPosition: pane not found', {
-					sourcePaneId,
-					targetPaneId,
-					workspaceId,
-				})
-				return state
-			}
-
-			// 1. Remove source leaf from tree
-			const treeWithoutSource = removeLeafFromTree(workspace.layout.tree, sourcePaneId)
-			if (!treeWithoutSource) {
-				console.error('[store] movePaneToPosition: removeLeafFromTree returned null', {
-					sourcePaneId,
-					workspaceId,
-				})
-				return state
-			}
-
-			// 2. Find target leaf and replace it with a new branch containing
-			// source and target in position-dependent order
-			const direction: SplitDirection =
-				position === 'left' || position === 'right' ? 'horizontal' : 'vertical'
-			const sourceFirst = position === 'left' || position === 'top'
-
-			const newTree = replaceLeafInTree(treeWithoutSource, targetPaneId, (leaf) => {
-				const sourceLeaf: LayoutLeaf = { paneId: sourcePaneId, size: 50 }
-				const targetLeaf: LayoutLeaf = { paneId: targetPaneId, size: 50 }
-				return {
-					direction,
-					size: leaf.size,
-					children: sourceFirst ? [sourceLeaf, targetLeaf] : [targetLeaf, sourceLeaf],
+		set((state) =>
+			withWorkspace(state, workspaceId, (workspace, st) => {
+				if (!workspace.panes[sourcePaneId] || !workspace.panes[targetPaneId]) {
+					console.error('[store] movePaneToPosition: pane not found', {
+						sourcePaneId,
+						targetPaneId,
+						workspaceId,
+					})
+					return null
 				}
-			})
-			const updated = {
-				...workspace,
-				layout: { type: 'custom' as const, tree: newTree },
-			}
-			window.api.saveWorkspace(updated).catch((err) => {
-				console.error('[store] Failed to save workspace:', err)
-			})
-			return {
-				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
-				focusedPaneId: sourcePaneId,
-				focusGeneration: state.focusGeneration + 1,
-			}
-		})
+				const treeWithoutSource = removeLeafFromTree(workspace.layout.tree, sourcePaneId)
+				if (!treeWithoutSource) {
+					console.error('[store] movePaneToPosition: removeLeafFromTree returned null', {
+						sourcePaneId,
+						workspaceId,
+					})
+					return null
+				}
+				const direction: SplitDirection =
+					position === 'left' || position === 'right' ? 'horizontal' : 'vertical'
+				const sourceFirst = position === 'left' || position === 'top'
+				const newTree = replaceLeafInTree(treeWithoutSource, targetPaneId, (leaf) => {
+					const sourceLeaf: LayoutLeaf = { paneId: sourcePaneId, size: 50 }
+					const targetLeaf: LayoutLeaf = { paneId: targetPaneId, size: 50 }
+					return {
+						direction,
+						size: leaf.size,
+						children: sourceFirst ? [sourceLeaf, targetLeaf] : [targetLeaf, sourceLeaf],
+					}
+				})
+				return {
+					updated: { ...workspace, layout: { type: 'custom' as const, tree: newTree } },
+					extra: { focusedPaneId: sourcePaneId, focusGeneration: st.focusGeneration + 1 },
+				}
+			}),
+		)
 	},
 
 	updatePaneConfig: (workspaceId, paneId, updates) => {
-		set((state) => {
-			const workspace = state.workspaces.find((w) => w.id === workspaceId)
-			if (!workspace || !workspace.panes[paneId]) return state
-			const updated = {
-				...workspace,
-				panes: {
-					...workspace.panes,
-					[paneId]: { ...workspace.panes[paneId], ...updates },
-				},
-			}
-			window.api.saveWorkspace(updated).catch((err) => {
-				console.error('[store] Failed to save workspace:', err)
-			})
-			return {
-				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
-			}
-		})
+		set((state) =>
+			withWorkspace(state, workspaceId, (workspace) => {
+				if (!workspace.panes[paneId]) return null
+				return {
+					updated: {
+						...workspace,
+						panes: { ...workspace.panes, [paneId]: { ...workspace.panes[paneId], ...updates } },
+					},
+				}
+			}),
+		)
 	},
 
 	updatePaneCwd: (workspaceId, paneId, cwd) => {
-		set((state) => {
-			const workspace = state.workspaces.find((w) => w.id === workspaceId)
-			if (!workspace || !workspace.panes[paneId]) return state
-			const updated = {
-				...workspace,
-				panes: {
-					...workspace.panes,
-					[paneId]: { ...workspace.panes[paneId], cwd },
-				},
-			}
-			window.api.saveWorkspace(updated).catch((err) => {
-				console.error('[store] Failed to save workspace:', err)
-			})
-			return {
-				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
-			}
-		})
+		set((state) =>
+			withWorkspace(state, workspaceId, (workspace) => {
+				if (!workspace.panes[paneId]) return null
+				return {
+					updated: {
+						...workspace,
+						panes: { ...workspace.panes, [paneId]: { ...workspace.panes[paneId], cwd } },
+					},
+				}
+			}),
+		)
 	},
 
 	updatePaneBranch: (paneId, branch) => {
@@ -959,22 +934,15 @@ export const useStore = create<StoreState>((set, get) => ({
 		const total = pixelSizes.reduce((a, b) => a + b, 0)
 		if (!Number.isFinite(total) || total <= 0) return
 		const percentages = pixelSizes.map((s) => (s / total) * 100)
-		set((state) => {
-			const workspace = state.workspaces.find((w) => w.id === workspaceId)
-			if (!workspace) return state
-			const newTree = updateSizesAtPath(workspace.layout.tree, path, percentages)
-			if (newTree === workspace.layout.tree) return state
-			const updated = {
-				...workspace,
-				layout: { type: 'custom' as const, tree: newTree },
-			}
-			window.api.saveWorkspace(updated).catch((err) => {
-				console.error('[store] Failed to save workspace:', err)
-			})
-			return {
-				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
-			}
-		})
+		set((state) =>
+			withWorkspace(state, workspaceId, (workspace) => {
+				const newTree = updateSizesAtPath(workspace.layout.tree, path, percentages)
+				if (newTree === workspace.layout.tree) return null
+				return {
+					updated: { ...workspace, layout: { type: 'custom' as const, tree: newTree } },
+				}
+			}),
+		)
 	},
 
 	saveState: async () => {
