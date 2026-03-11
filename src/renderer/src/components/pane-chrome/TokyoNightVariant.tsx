@@ -124,10 +124,7 @@ function Frame({
 	)
 
 	return (
-		<div
-			className="relative flex flex-col h-full w-full bg-transparent overflow-hidden"
-			style={{ padding: '0px' }}
-		>
+		<div className="relative flex flex-col h-full w-full bg-transparent overflow-hidden">
 			{!isBottom && header}
 
 			{/* Screen Area */}

@@ -137,39 +137,17 @@ function Frame({
 	)
 
 	return (
-		<div
-			className="relative flex flex-col h-full w-full bg-transparent overflow-hidden"
-			style={{ padding: '12px' }}
-		>
-			{/* Watery Depth Background Layer */}
-			<div
-				className="absolute inset-0 pointer-events-none z-0"
-				style={{
-					background: `radial-gradient(ellipse at 50% 120%, ${c1}22 0%, transparent 60%)`,
-					opacity: isFocused ? 1 : 0.4,
-				}}
-			/>
+		<div className="relative flex flex-col h-full w-full bg-transparent overflow-hidden">
+			{!isBottom && header}
 
-			{/* Floating Glass Container */}
+			{/* Screen Area */}
 			<div
-				className="relative z-10 flex flex-col h-full w-full rounded-xl overflow-hidden shadow-2xl"
-				style={{
-					border: `1px solid ${c1}33`,
-					backdropFilter: 'blur(8px)',
-					backgroundColor: 'rgba(2, 11, 20, 0.4)',
-				}}
+				className={`relative z-10 flex-1 w-full min-h-0 bg-transparent px-2 ${isBottom ? 'mb-1' : 'mt-1'}`}
 			>
-				{!isBottom && header}
-
-				{/* Screen Area */}
-				<div
-					className={`relative z-10 flex-1 w-full min-h-0 bg-transparent px-2 ${isBottom ? 'mb-1' : 'mt-1'}`}
-				>
-					{children}
-				</div>
-
-				{isBottom && header}
+				{children}
 			</div>
+
+			{isBottom && header}
 		</div>
 	)
 }

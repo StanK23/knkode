@@ -130,20 +130,7 @@ function Frame({
 	)
 
 	return (
-		<div
-			className="relative flex flex-col h-full w-full bg-transparent overflow-hidden"
-			style={{ padding: '8px' }}
-		>
-			{/* Amber CRT Curved Bezel effect */}
-			<div
-				className="absolute inset-0 pointer-events-none z-0"
-				style={{
-					boxShadow: `inset 0 0 40px #000, inset 0 0 10px ${isFocused ? `${glowColor}33` : '#000'}`,
-					border: `4px solid ${isFocused ? `${glowColor}44` : '#332200'}`,
-					borderRadius: '8px',
-				}}
-			/>
-
+		<div className="relative flex flex-col h-full w-full bg-transparent overflow-hidden">
 			{!isBottom && header}
 
 			{/* Screen Area */}

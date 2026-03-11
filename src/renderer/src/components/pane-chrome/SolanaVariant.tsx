@@ -144,22 +144,7 @@ function Frame({
 	)
 
 	return (
-		<div
-			className="relative flex flex-col h-full w-full bg-transparent overflow-hidden"
-			style={{ padding: '8px' }}
-		>
-			{/* Ambient Orbs */}
-			<div className="absolute inset-0 pointer-events-none z-0">
-				<div
-					className="absolute -top-10 -right-10 w-40 h-40 rounded-full blur-[40px]"
-					style={{ backgroundColor: c1, opacity: isFocused ? 0.15 : 0.05 }}
-				/>
-				<div
-					className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full blur-[40px]"
-					style={{ backgroundColor: c2, opacity: isFocused ? 0.1 : 0.03 }}
-				/>
-			</div>
-
+		<div className="relative flex flex-col h-full w-full bg-transparent overflow-hidden">
 			{!isBottom && header}
 
 			<div className={`relative z-10 flex-1 w-full min-h-0 ${isBottom ? 'mb-1' : 'mt-1'}`}>

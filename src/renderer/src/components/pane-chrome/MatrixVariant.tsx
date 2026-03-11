@@ -127,10 +127,7 @@ function Frame({
 	)
 
 	return (
-		<div
-			className="relative flex flex-col h-full w-full bg-transparent overflow-hidden"
-			style={{ padding: '4px' }}
-		>
+		<div className="relative flex flex-col h-full w-full bg-transparent overflow-hidden">
 			{/* Phosphor Frame Background / Scanlines (can be enhanced in CSS variables) */}
 			<div
 				className="absolute inset-0 pointer-events-none z-0"
@@ -143,7 +140,7 @@ function Frame({
 			{!isBottom && header}
 
 			{/* Screen Area */}
-			<div className="relative z-10 flex-1 w-full min-h-0 bg-black">{children}</div>
+			<div className="relative z-10 flex-1 w-full min-h-0 bg-transparent">{children}</div>
 
 			{isBottom && header}
 		</div>

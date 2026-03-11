@@ -168,29 +168,12 @@ function Frame({
 	)
 
 	return (
-		<div
-			className="relative flex flex-col h-full w-full bg-transparent overflow-hidden"
-			style={{ padding: '8px' }}
-		>
-			{/* Perspective Grid Background */}
-			<div
-				className="absolute inset-0 pointer-events-none z-0"
-				style={{
-					opacity: isFocused ? 0.3 : 0.1,
-					background: `linear-gradient(0deg, ${c1}33 0px, ${c1}33 1px, transparent 1px) 0 68% / 100% 1px no-repeat,
-								 linear-gradient(0deg, ${c1}33 0px, ${c1}33 1px, transparent 1px) 0 78% / 100% 1px no-repeat,
-								 linear-gradient(0deg, ${c1}33 0px, ${c1}33 1px, transparent 1px) 0 90% / 100% 1px no-repeat`,
-					boxShadow: `inset 0 0 40px ${c3}88`,
-					border: `2px solid ${c1}44`,
-					borderRadius: '4px',
-				}}
-			/>
-
+		<div className="relative flex flex-col h-full w-full bg-transparent overflow-hidden">
 			{!isBottom && header}
 
 			{/* Terminal Area */}
 			<div
-				className={`relative z-10 flex-1 w-full min-h-0 bg-black/80 backdrop-blur-md border border-[#ff71ce]/20 ${isBottom ? 'mb-1 rounded-t-sm' : 'mt-1 rounded-b-sm'}`}
+				className={`relative z-10 flex-1 w-full min-h-0 bg-transparent ${isBottom ? 'mb-1' : 'mt-1'}`}
 			>
 				{children}
 			</div>

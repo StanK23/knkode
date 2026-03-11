@@ -33,168 +33,118 @@ function Frame({
 
 	const isBottom = theme.statusBarPosition === 'bottom'
 
-	return (
+	const header = (
 		<div
-			className="relative flex flex-col h-full w-full bg-transparent overflow-hidden"
-			style={{ padding: isBottom ? '8px 12px 24px 12px' : '24px 12px 8px 12px' }}
+			{...headerProps}
+			className={`${headerProps.className || ''} w-full h-7 flex items-center gap-2 px-4 text-[9px] font-mono font-bold uppercase tracking-widest shrink-0 select-none transition-all duration-300 z-20`}
+			style={{
+				...headerProps.style,
+				color: theme.foreground,
+				borderTop: isBottom ? `1px solid ${activeC1}88` : 'none',
+				borderBottom: isBottom ? 'none' : `1px solid ${activeC1}88`,
+				background: `linear-gradient(90deg, ${activeC1}22 0%, ${activeC2}11 100%)`,
+				boxShadow: isFocused ? `0 ${isBottom ? '-1px' : '1px'} 8px ${glowColor}44` : 'none',
+			}}
 		>
-			{/* SVG Vector Overlays */}
-			<svg
-				aria-hidden="true"
-				className="absolute inset-0 pointer-events-none z-0"
-				width="100%"
-				height="100%"
-				preserveAspectRatio="none"
+			{isEditing ? (
+				<input
+					{...editInputProps}
+					className="bg-transparent border font-bold uppercase tracking-wider text-[10px] py-px px-1 outline-none w-20"
+					style={{ borderColor: activeC1, color: activeC1 }}
+				/>
+			) : (
+				<span
+					onDoubleClick={onDoubleClickLabel}
+					className="cursor-default shrink-0"
+					style={{ color: activeC1, textShadow: isFocused ? `0 0 4px ${activeC1}` : 'none' }}
+				>
+					{label}
+				</span>
+			)}
+
+			<span className="opacity-30">/</span>
+
+			<span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap opacity-60 text-[9px]">
+				{'// '}
+				{cwd}
+			</span>
+
+			{branch && (
+				<output
+					aria-label={`Git branch: ${branch}`}
+					className="min-w-0 text-[9px] font-bold px-3 py-px overflow-hidden text-ellipsis whitespace-nowrap"
+					title={branch}
+					style={{
+						color: theme.background,
+						backgroundColor: activeC1,
+						clipPath: 'polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%)',
+						textShadow: isFocused ? `0 0 2px ${theme.background}` : 'none',
+					}}
+				>
+					{branch}
+				</output>
+			)}
+
+			{pr && (
+				<PrBadge
+					pr={pr}
+					onOpenExternal={onOpenExternal}
+					className="bg-transparent text-[9px] font-bold uppercase tracking-widest px-1 leading-none opacity-50 hover:opacity-100 transition-opacity"
+					style={{ color: activeC1, textShadow: isFocused ? `0 0 4px ${glowColor}88` : 'none' }}
+				/>
+			)}
+
+			<SnippetTrigger
+				className={`bg-transparent border-none cursor-pointer px-1 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
+				style={{ color: activeC2 }}
 			>
-				<defs>
-					<linearGradient id={`cy-grad-${label}`} x1="0" y1="0" x2="1" y2="1">
-						<stop offset="0%" stopColor={c1} stopOpacity={isFocused ? 0.15 : 0.05} />
-						<stop offset="100%" stopColor={c2} stopOpacity={isFocused ? 0.08 : 0.02} />
-					</linearGradient>
-					<clipPath id={`cy-clip-${label}`}>
-						<polygon points="12,0 100%,0 100%,calc(100% - 12px) calc(100% - 12px),100% 0,100% 0,12px" />
-					</clipPath>
-				</defs>
-				<rect width="100%" height="100%" fill={`url(#cy-grad-${label})`} />
-				{/* Diagonal accents */}
-				<line
-					x1="calc(100% - 60px)"
-					y1="0"
-					x2="100%"
-					y2="60"
-					stroke={c1}
-					strokeOpacity={isFocused ? 0.15 : 0.05}
-					strokeWidth="24"
-				/>
-				<line
-					x1="0"
-					y1="calc(100% - 50px)"
-					x2="50"
-					y2="100%"
-					stroke={c2}
-					strokeOpacity={isFocused ? 0.1 : 0.03}
-					strokeWidth="16"
-				/>
-				{/* Outer Border with chamfered corners */}
-				<path
-					d="M 0 12 L 12 0 L 100% 0 L 100% calc(100% - 12px) L calc(100% - 12px) 100% L 0 100% Z"
-					fill="none"
-					stroke={c1}
-					strokeOpacity={isFocused ? 0.3 : 0.1}
-					strokeWidth="1"
-				/>
-			</svg>
+				{'>_'}
+			</SnippetTrigger>
+
+			<button
+				type="button"
+				onClick={onSplitVertical}
+				title={`Split vertical (${shortcuts.splitV})`}
+				aria-label="Split pane vertically"
+				className={`bg-transparent border-none cursor-pointer px-1 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
+				style={{ color: activeC2 }}
+			>
+				┃
+			</button>
+			<button
+				type="button"
+				onClick={onSplitHorizontal}
+				title={`Split horizontal (${shortcuts.splitH})`}
+				aria-label="Split pane horizontally"
+				className={`bg-transparent border-none cursor-pointer px-1 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
+				style={{ color: activeC2 }}
+			>
+				━
+			</button>
+			{canClose && (
+				<button
+					type="button"
+					onClick={onClose}
+					title={`Close pane (${shortcuts.close})`}
+					aria-label="Close pane"
+					className={`bg-transparent border-none cursor-pointer px-1 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
+					style={{ color: activeC1 }}
+				>
+					✕
+				</button>
+			)}
+			{contextMenu}
+		</div>
+	)
+
+	return (
+		<div className="relative flex flex-col h-full w-full bg-transparent overflow-hidden">
+			{!isBottom && header}
 
 			{/* Terminal Area (The "screen") */}
-			<div
-				className="relative z-10 flex-1 w-full min-h-0 bg-black/60 shadow-inner border border-white/5"
-				style={{ boxShadow: isFocused ? `inset 0 0 20px ${c1}33` : 'none' }}
-			>
-				{children}
-			</div>
+			<div className="relative z-10 flex-1 w-full min-h-0 bg-transparent">{children}</div>
 
-			{/* Custom Cyberpunk Status Bar */}
-			<div
-				{...headerProps}
-				className={`${headerProps.className || ''} absolute ${isBottom ? 'bottom-0' : 'top-0'} left-0 w-full h-7 flex items-center gap-2 px-4 text-[9px] font-mono font-bold uppercase tracking-widest shrink-0 select-none transition-all duration-300 z-20`}
-				style={{
-					...headerProps.style,
-					color: theme.foreground,
-					borderTop: isBottom ? `1px solid ${activeC1}88` : 'none',
-					borderBottom: isBottom ? 'none' : `1px solid ${activeC1}88`,
-					background: `linear-gradient(90deg, ${activeC1}22 0%, ${activeC2}11 100%)`,
-					boxShadow: isFocused ? `0 ${isBottom ? '-1px' : '1px'} 8px ${glowColor}44` : 'none',
-				}}
-			>
-				{isEditing ? (
-					<input
-						{...editInputProps}
-						className="bg-transparent border font-bold uppercase tracking-wider text-[10px] py-px px-1 outline-none w-20"
-						style={{ borderColor: activeC1, color: activeC1 }}
-					/>
-				) : (
-					<span
-						onDoubleClick={onDoubleClickLabel}
-						className="cursor-default shrink-0"
-						style={{ color: activeC1, textShadow: isFocused ? `0 0 4px ${activeC1}` : 'none' }}
-					>
-						{label}
-					</span>
-				)}
-
-				<span className="opacity-30">/</span>
-
-				<span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap opacity-60 text-[9px]">
-					{'// '}
-					{cwd}
-				</span>
-
-				{branch && (
-					<output
-						aria-label={`Git branch: ${branch}`}
-						className="min-w-0 text-[9px] font-bold px-3 py-px overflow-hidden text-ellipsis whitespace-nowrap"
-						title={branch}
-						style={{
-							color: theme.background,
-							backgroundColor: activeC1,
-							clipPath: 'polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%)',
-							textShadow: isFocused ? `0 0 2px ${theme.background}` : 'none',
-						}}
-					>
-						{branch}
-					</output>
-				)}
-
-				{pr && (
-					<PrBadge
-						pr={pr}
-						onOpenExternal={onOpenExternal}
-						className="bg-transparent text-[9px] font-bold uppercase tracking-widest px-1 leading-none opacity-50 hover:opacity-100 transition-opacity"
-						style={{ color: activeC1, textShadow: isFocused ? `0 0 4px ${glowColor}88` : 'none' }}
-					/>
-				)}
-
-				<SnippetTrigger
-					className={`bg-transparent border-none cursor-pointer px-1 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
-					style={{ color: activeC2 }}
-				>
-					{'>_'}
-				</SnippetTrigger>
-
-				<button
-					type="button"
-					onClick={onSplitVertical}
-					title={`Split vertical (${shortcuts.splitV})`}
-					aria-label="Split pane vertically"
-					className={`bg-transparent border-none cursor-pointer px-1 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
-					style={{ color: activeC2 }}
-				>
-					┃
-				</button>
-				<button
-					type="button"
-					onClick={onSplitHorizontal}
-					title={`Split horizontal (${shortcuts.splitH})`}
-					aria-label="Split pane horizontally"
-					className={`bg-transparent border-none cursor-pointer px-1 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
-					style={{ color: activeC2 }}
-				>
-					━
-				</button>
-				{canClose && (
-					<button
-						type="button"
-						onClick={onClose}
-						title={`Close pane (${shortcuts.close})`}
-						aria-label="Close pane"
-						className={`bg-transparent border-none cursor-pointer px-1 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
-						style={{ color: activeC1 }}
-					>
-						✕
-					</button>
-				)}
-				{contextMenu}
-			</div>
+			{isBottom && header}
 		</div>
 	)
 }
