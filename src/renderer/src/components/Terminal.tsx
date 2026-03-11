@@ -536,7 +536,7 @@ export function TerminalView({
 		termRef.current.options.fontFamily = newFontFamily
 		termRef.current.options.lineHeight = newLineHeight
 		// Toggle WebGL based on opacity — WebGL doesn't support transparent backgrounds.
-		// See also: cache-miss (line ~275) and cache-hit (line ~348) guards.
+		// See also: the tryLoadWebgl guards in the cache-miss and cache-hit branches of the mount effect.
 		const cached = terminalCache.get(paneId)
 		if (cached) {
 			if (opacity < 1 && cached.webglAddon) {
