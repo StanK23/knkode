@@ -1,6 +1,6 @@
 import { registerVariant } from '.'
 import { FOCUS_VIS, FolderIcon, PrBadge } from './shared'
-import type { PaneVariant, ScrollButtonProps, StatusBarProps, VariantTheme } from './types'
+import type { FrameProps, PaneVariant, ScrollButtonProps, VariantTheme } from './types'
 
 type StyleFn = (theme: VariantTheme, isFocused: boolean) => React.CSSProperties
 type ThemeFn = (theme: VariantTheme) => React.CSSProperties
@@ -77,7 +77,7 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 		children,
 		headerProps,
 		contextMenu,
-	}: import('./types').FrameProps) {
+	}: FrameProps) {
 		const hasSep = sb.separator != null
 		const sepClass = sb.separatorOpacity ?? 'opacity-30'
 		const sepStyle = sb.separatorStyle?.(theme)

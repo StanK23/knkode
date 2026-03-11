@@ -16,7 +16,7 @@ import {
 } from '../../../shared/types'
 import { buildFontFamily, buildXtermTheme, findPreset } from '../data/theme-presets'
 import { useStore } from '../store'
-import { hexToRgba, isValidGradient, resolveBackground } from '../utils/colors'
+import { hexToRgba } from '../utils/colors'
 import {
 	type SavedScroll,
 	createViewportSyncCoordinator,

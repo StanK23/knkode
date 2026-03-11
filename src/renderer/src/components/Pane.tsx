@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
-	DEFAULT_PANE_OPACITY,
 	type DropPosition,
 	MAX_UNFOCUSED_DIM,
 	type PaneConfig,
@@ -8,7 +7,6 @@ import {
 	type PrInfo,
 } from '../../../shared/types'
 import { findPreset } from '../data/theme-presets'
-import { resolveBackground } from '../utils/colors'
 import { modKey } from '../utils/platform'
 
 type ContextPanelKind = 'cwd' | 'cmd' | 'theme' | 'move'
@@ -45,6 +43,7 @@ import { useInlineEdit } from '../hooks/useInlineEdit'
 import { useStore } from '../store'
 import { isValidCwd } from '../utils/validation'
 import { FontPicker } from './FontPicker'
+import { PaneEffects } from './PaneEffects'
 import { TerminalView } from './Terminal'
 import { type VariantTheme, getVariant } from './pane-chrome'
 import { buildVariantTheme } from './pane-chrome/shared'
@@ -171,8 +170,6 @@ interface PaneProps {
 	focusGeneration: number
 	onFocus: (paneId: string) => void
 }
-
-import { PaneEffects } from './PaneEffects'
 
 export function Pane({
 	paneId,
