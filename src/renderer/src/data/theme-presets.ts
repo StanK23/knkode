@@ -17,7 +17,7 @@ export type ThemePreset = Pick<
 	| 'scrollbarAccent'
 	| 'cursorColor'
 	| 'selectionColor'
-> & { name: string }
+> & { name: string; decoration?: string }
 
 /** Tango-based ANSI palette used by the Default Dark preset. */
 const DEFAULT_ANSI: AnsiColors = {
@@ -230,6 +230,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#00ff41',
 		selectionColor: '#00ff41',
+		// Digital rain columns — repeating thin vertical lines with fade
+		decoration:
+			'repeating-linear-gradient(90deg, rgba(0,255,65,0.03) 0px, rgba(0,255,65,0.03) 1px, transparent 1px, transparent 24px), linear-gradient(180deg, rgba(0,255,65,0.06) 0%, transparent 70%)',
 		ansiColors: {
 			black: '#0a0a0a',
 			red: '#00cc33',
@@ -262,6 +265,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#ff2a6d',
 		selectionColor: '#05d9e8',
+		// Diagonal geometry — angled stripes with neon tint
+		decoration:
+			'repeating-linear-gradient(135deg, rgba(255,42,109,0.04) 0px, rgba(255,42,109,0.04) 2px, transparent 2px, transparent 30px), repeating-linear-gradient(45deg, rgba(5,217,232,0.03) 0px, rgba(5,217,232,0.03) 1px, transparent 1px, transparent 40px)',
 		ansiColors: {
 			black: '#0d0221',
 			red: '#ff2a6d',
@@ -294,6 +300,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#14f195',
 		selectionColor: '#9945ff',
+		// Gradient orbs — large radial blobs at corners
+		decoration:
+			'radial-gradient(ellipse 60% 50% at 10% 90%, rgba(153,69,255,0.06) 0%, transparent 70%), radial-gradient(ellipse 50% 60% at 90% 10%, rgba(20,241,149,0.05) 0%, transparent 70%)',
 		ansiColors: {
 			black: '#0c0c1d',
 			red: '#ff6b6b',
@@ -327,6 +336,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#ffb000',
 		selectionColor: '#e09000',
+		// CRT phosphor burn — vignette with warm center glow
+		decoration:
+			'radial-gradient(ellipse 80% 70% at 50% 50%, rgba(255,176,0,0.04) 0%, transparent 60%), radial-gradient(ellipse 120% 120% at 50% 50%, transparent 40%, rgba(0,0,0,0.15) 100%)',
 		ansiColors: {
 			black: '#0c0800',
 			red: '#cc7a00',
@@ -359,6 +371,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#01cdfe',
 		selectionColor: '#7b2fff',
+		// Retro grid — horizontal and vertical lines receding to horizon
+		decoration:
+			'repeating-linear-gradient(0deg, rgba(255,45,149,0.03) 0px, rgba(255,45,149,0.03) 1px, transparent 1px, transparent 48px), repeating-linear-gradient(90deg, rgba(1,205,254,0.03) 0px, rgba(1,205,254,0.03) 1px, transparent 1px, transparent 48px), linear-gradient(180deg, transparent 50%, rgba(123,47,255,0.05) 100%)',
 		ansiColors: {
 			black: '#0a0015',
 			red: '#ff2d95',
@@ -391,6 +406,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#00e5b0',
 		selectionColor: '#0070a0',
+		// Bioluminescent dots — scattered radial highlights at varying depths
+		decoration:
+			'radial-gradient(circle 2px at 15% 25%, rgba(0,229,176,0.08) 0%, transparent 100%), radial-gradient(circle 3px at 75% 15%, rgba(0,200,255,0.06) 0%, transparent 100%), radial-gradient(circle 2px at 45% 70%, rgba(0,229,176,0.07) 0%, transparent 100%), radial-gradient(circle 4px at 85% 80%, rgba(0,200,255,0.05) 0%, transparent 100%), radial-gradient(circle 2px at 25% 90%, rgba(0,229,176,0.06) 0%, transparent 100%), linear-gradient(180deg, transparent 60%, rgba(0,200,255,0.03) 100%)',
 		ansiColors: {
 			black: '#020b14',
 			red: '#1e8fa0',
@@ -424,6 +442,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#ffc040',
 		selectionColor: '#e04028',
+		// Ember glow — warm radial hotspots with smolder edges
+		decoration:
+			'radial-gradient(ellipse 40% 30% at 20% 80%, rgba(224,64,40,0.06) 0%, transparent 70%), radial-gradient(ellipse 50% 40% at 80% 60%, rgba(255,192,64,0.05) 0%, transparent 70%), radial-gradient(ellipse 30% 40% at 50% 95%, rgba(224,64,40,0.04) 0%, transparent 60%)',
 		ansiColors: {
 			black: '#110808',
 			red: '#e04028',
@@ -456,6 +477,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#a0e0f8',
 		selectionColor: '#3878a0',
+		// Crystalline lines — fine diagonal ice fractures
+		decoration:
+			'repeating-linear-gradient(120deg, rgba(112,232,204,0.03) 0px, rgba(112,232,204,0.03) 1px, transparent 1px, transparent 60px), repeating-linear-gradient(60deg, rgba(72,200,224,0.02) 0px, rgba(72,200,224,0.02) 1px, transparent 1px, transparent 80px), radial-gradient(ellipse 80% 50% at 50% 0%, rgba(160,224,248,0.04) 0%, transparent 50%)',
 		ansiColors: {
 			black: '#050d18',
 			red: '#5898b8',
