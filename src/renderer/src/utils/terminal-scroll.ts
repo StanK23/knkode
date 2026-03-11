@@ -1,6 +1,6 @@
 export interface SavedScroll {
-	atBottom: boolean
-	linesFromBottom: number
+	readonly atBottom: boolean
+	readonly linesFromBottom: number
 }
 
 interface BufferLike {
