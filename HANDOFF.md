@@ -62,6 +62,13 @@ Board: `13106f68-3789-458a-b9d2-5eb644b7e0ee`
 - ~~PR #89: Fix pane split resetting sizes~~ (merged)
 - ~~PR #90: Restore terminal pane inner padding~~ (merged)
 
+## Active Reviews
+
+### PR #92 — feat: theming engine, UI chrome, and bugfixes — v1.0.0
+- State: `docs/reviews/PR-92/_state.json`
+- Agents: 10/10 completed
+- Phase: done — compiled report ready, awaiting fix pass
+
 ## Remaining Work
 - Manually verify long passive-output and workspace-tab-switch scenarios after PR #91 merge.
 
