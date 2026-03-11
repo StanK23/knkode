@@ -103,10 +103,19 @@ function assertWorkspace(value: unknown): asserts value is Workspace {
 			theme.gradient.includes(';') ||
 			theme.gradient.includes('{') ||
 			theme.gradient.includes('url(') ||
-			theme.gradient.includes('expression(')
+			theme.gradient.includes('expression(') ||
+			theme.gradient.includes('var(')
 		) {
 			throw new Error('Invalid workspace: theme.gradient must be a valid CSS gradient')
 		}
+	}
+	// Validate statusBarPosition
+	if (
+		theme.statusBarPosition !== undefined &&
+		theme.statusBarPosition !== 'top' &&
+		theme.statusBarPosition !== 'bottom'
+	) {
+		throw new Error('Invalid workspace: statusBarPosition must be "top" or "bottom"')
 	}
 	if (!obj.layout || typeof obj.layout !== 'object')
 		throw new Error('Invalid workspace: missing or invalid layout')

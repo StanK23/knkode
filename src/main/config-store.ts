@@ -96,7 +96,7 @@ export function migrateTheme(ws: Workspace): Workspace {
 		}
 	}
 
-	const raw = ws.theme as Record<string, unknown>
+	const raw = ws.theme as unknown as Record<string, unknown>
 	if ('unfocusedDim' in raw) return ws
 
 	// Convert legacy opacity (0.3-1.0) to unfocusedDim (0-0.7)
@@ -202,7 +202,9 @@ export function sanitizeTheme(raw: Record<string, unknown>): PaneTheme {
 	}
 
 	// Optional string fields (non-hex)
-	if (typeof raw.fontFamily === 'string' && raw.fontFamily.length > 0)
+	// fontFamily is validated at consumption time by buildFontFamily (against TERMINAL_FONTS),
+	// but we strip obviously invalid values at the disk-load boundary as defense-in-depth.
+	if (typeof raw.fontFamily === 'string' && raw.fontFamily.length > 0 && raw.fontFamily.length < 128 && !/[;{}]/.test(raw.fontFamily))
 		result.fontFamily = raw.fontFamily
 	if (typeof raw.gradient === 'string' && raw.gradient.length > 0) result.gradient = raw.gradient
 	if (typeof raw.preset === 'string' && raw.preset.length > 0) result.preset = raw.preset

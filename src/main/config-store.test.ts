@@ -15,7 +15,7 @@ function makeWorkspace(theme: Record<string, unknown>): Workspace {
 		id: 'test-ws',
 		name: 'Test',
 		color: '#6c63ff',
-		theme: theme as PaneTheme,
+		theme: theme as unknown as PaneTheme,
 		layout: { type: 'preset', preset: 'single', tree: { paneId: 'p1', size: 100 } },
 		panes: { p1: { label: 'terminal', cwd: '/tmp', startupCommand: null, themeOverride: null } },
 	}
