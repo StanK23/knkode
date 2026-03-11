@@ -81,7 +81,10 @@ function getProposedDimensions(fitAddon: FitAddon): ITerminalDimensions | null {
  */
 function fitAndPreserveScroll(term: XTerm, fitAddon: FitAddon): void {
 	const dims = getProposedDimensions(fitAddon)
-	if (!dims) return
+	if (!dims) {
+		console.warn('[terminal] fitAndPreserveScroll: could not compute dimensions, skipping fit')
+		return
+	}
 	if (dims.cols === term.cols && dims.rows === term.rows) return
 
 	const isAlternateBuffer = term.buffer.active.type === 'alternate'
