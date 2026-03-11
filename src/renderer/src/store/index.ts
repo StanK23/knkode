@@ -506,32 +506,35 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 
 	removeWorkspace: async (id) => {
-		const state = get()
-		const workspace = state.workspaces.find((w) => w.id === id)
+		// Capture workspace for PTY cleanup before any state changes
+		const workspace = get().workspaces.find((w) => w.id === id)
 		// Kill PTYs before state update to avoid orphaned processes
 		if (workspace) {
 			get().killPtys(Object.keys(workspace.panes))
 		}
 		await window.api.deleteWorkspace(id)
-		// Re-read state after awaits to avoid stale references
-		const current = get()
-		const newOpen = current.appState.openWorkspaceIds.filter((wid) => wid !== id)
+		// Re-read state after first await — other actions may have changed store
+		const afterDelete = get()
+		const freshWorkspace = afterDelete.workspaces.find((w) => w.id === id)
+		const paneIds = freshWorkspace ? Object.keys(freshWorkspace.panes) : []
+		const newOpen = afterDelete.appState.openWorkspaceIds.filter((wid) => wid !== id)
 		const newActive =
-			current.appState.activeWorkspaceId === id
+			afterDelete.appState.activeWorkspaceId === id
 				? (newOpen[0] ?? null)
-				: current.appState.activeWorkspaceId
+				: afterDelete.appState.activeWorkspaceId
 		const newAppState = {
-			...current.appState,
+			...afterDelete.appState,
 			openWorkspaceIds: newOpen,
 			activeWorkspaceId: newActive,
 		}
 		await window.api.saveAppState(newAppState)
-		const paneIds = workspace ? Object.keys(workspace.panes) : []
+		// Re-read state after second await for final set
+		const latest = get()
 		set({
-			workspaces: get().workspaces.filter((w) => w.id !== id),
+			workspaces: latest.workspaces.filter((w) => w.id !== id),
 			appState: newAppState,
-			visitedWorkspaceIds: get().visitedWorkspaceIds.filter((wid) => wid !== id),
-			...cleanPaneEphemeral(get(), paneIds),
+			visitedWorkspaceIds: latest.visitedWorkspaceIds.filter((wid) => wid !== id),
+			...cleanPaneEphemeral(latest, paneIds),
 		})
 	},
 
