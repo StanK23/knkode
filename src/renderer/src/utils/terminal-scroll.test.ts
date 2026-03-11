@@ -139,4 +139,78 @@ describe('createViewportSyncCoordinator', () => {
 		expect(calls).toEqual(['mutate', 'sync'])
 		expect(coordinator.isBlocked()).toBe(false)
 	})
+
+	it('preserves block-release when scheduleSync replaces a pending release callback', () => {
+		const scheduler = createScheduler()
+		let syncCount = 0
+		const coordinator = createViewportSyncCoordinator({
+			cancel: scheduler.cancel,
+			schedule: scheduler.schedule,
+			sync: () => {
+				syncCount++
+			},
+		})
+
+		// runBlockedMutation queues a release callback
+		coordinator.runBlockedMutation(() => {})
+		expect(coordinator.isBlocked()).toBe(true)
+
+		// scheduleSync replaces the pending callback — must NOT lose the release
+		coordinator.scheduleSync()
+		expect(scheduler.pendingCount()).toBe(1)
+
+		scheduler.flush()
+		expect(syncCount).toBe(1)
+		expect(coordinator.isBlocked()).toBe(false)
+	})
+
+	it('dispose cancels pending callbacks and resets blocked state', () => {
+		const scheduler = createScheduler()
+		let syncCount = 0
+		const coordinator = createViewportSyncCoordinator({
+			cancel: scheduler.cancel,
+			schedule: scheduler.schedule,
+			sync: () => {
+				syncCount++
+			},
+		})
+
+		coordinator.runBlockedMutation(() => {})
+		expect(coordinator.isBlocked()).toBe(true)
+		expect(scheduler.pendingCount()).toBe(1)
+
+		coordinator.dispose()
+		expect(coordinator.isBlocked()).toBe(false)
+		expect(scheduler.pendingCount()).toBe(0)
+
+		// Flushing after dispose should not fire the cancelled callback
+		scheduler.flush()
+		expect(syncCount).toBe(0)
+	})
+
+	it('releases block even when mutation throws', () => {
+		const scheduler = createScheduler()
+		let syncCount = 0
+		const coordinator = createViewportSyncCoordinator({
+			cancel: scheduler.cancel,
+			schedule: scheduler.schedule,
+			sync: () => {
+				syncCount++
+			},
+		})
+
+		expect(() =>
+			coordinator.runBlockedMutation(() => {
+				throw new Error('mutation failed')
+			}),
+		).toThrow('mutation failed')
+
+		// Block should still be set (released on next frame, not synchronously)
+		expect(coordinator.isBlocked()).toBe(true)
+		expect(scheduler.pendingCount()).toBe(1)
+
+		scheduler.flush()
+		expect(syncCount).toBe(1)
+		expect(coordinator.isBlocked()).toBe(false)
+	})
 })
