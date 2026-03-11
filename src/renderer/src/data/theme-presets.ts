@@ -17,6 +17,9 @@ export type ThemePreset = Pick<
 	| 'scrollbarAccent'
 	| 'cursorColor'
 	| 'selectionColor'
+	| 'fontFamily'
+	| 'fontSize'
+	| 'lineHeight'
 > & { name: string; decoration?: string }
 
 /** Tango-based ANSI palette used by the Default Dark preset. */
@@ -65,6 +68,7 @@ export const THEME_PRESETS = [
 		name: 'Default Dark',
 		background: '#1a1a2e',
 		foreground: '#e0e0e0',
+		fontFamily: 'cascadia-code',
 		accent: '#6c63ff',
 		ansiColors: DEFAULT_ANSI,
 	},
@@ -72,6 +76,7 @@ export const THEME_PRESETS = [
 		name: 'Dracula',
 		background: '#282a36',
 		foreground: '#f8f8f2',
+		fontFamily: 'fira-code',
 		accent: '#bd93f9',
 		glow: '#bd93f9',
 		ansiColors: {
@@ -97,6 +102,7 @@ export const THEME_PRESETS = [
 		name: 'Tokyo Night',
 		background: '#1a1b26',
 		foreground: '#a9b1d6',
+		fontFamily: 'fira-code',
 		accent: '#7aa2f7',
 		glow: '#7aa2f7',
 		ansiColors: {
@@ -122,6 +128,7 @@ export const THEME_PRESETS = [
 		name: 'Nord',
 		background: '#2e3440',
 		foreground: '#d8dee9',
+		fontFamily: 'victor-mono',
 		accent: '#88c0d0',
 		ansiColors: {
 			black: '#3b4252',
@@ -146,6 +153,7 @@ export const THEME_PRESETS = [
 		name: 'Catppuccin',
 		background: '#1e1e2e',
 		foreground: '#cdd6f4',
+		fontFamily: 'jetbrains-mono',
 		accent: '#cba6f7',
 		glow: '#cba6f7',
 		ansiColors: {
@@ -171,6 +179,7 @@ export const THEME_PRESETS = [
 		name: 'Gruvbox',
 		background: '#282828',
 		foreground: '#ebdbb2',
+		fontFamily: 'ibm-plex-mono',
 		accent: '#fe8019',
 		ansiColors: {
 			black: '#282828',
@@ -195,6 +204,7 @@ export const THEME_PRESETS = [
 		name: 'Monokai',
 		background: '#272822',
 		foreground: '#f8f8f2',
+		fontFamily: 'source-code-pro',
 		accent: '#a6e22e',
 		ansiColors: {
 			black: '#272822',
@@ -220,6 +230,7 @@ export const THEME_PRESETS = [
 		name: 'Matrix',
 		background: '#0a0a0a',
 		foreground: '#00ff41',
+		fontFamily: 'ibm-plex-mono',
 		accent: '#00ff41',
 		glow: '#00ff41',
 		gradient: 'linear-gradient(180deg, rgba(0, 255, 65, 0.3) 0%, transparent 40%)',
@@ -230,9 +241,8 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#00ff41',
 		selectionColor: '#00ff41',
-		// Digital rain — vertical glow columns at staggered heights
-		decoration:
-			'linear-gradient(180deg, rgba(0,255,65,0.14) 0%, transparent 65%) no-repeat 8% 0 / 3% 60%, linear-gradient(180deg, rgba(0,255,65,0.1) 0%, transparent 70%) no-repeat 22% 0 / 2% 45%, linear-gradient(180deg, rgba(0,255,65,0.12) 0%, transparent 60%) no-repeat 40% 0 / 3% 55%, linear-gradient(180deg, rgba(0,255,65,0.08) 0%, transparent 65%) no-repeat 58% 0 / 2% 40%, linear-gradient(180deg, rgba(0,255,65,0.13) 0%, transparent 55%) no-repeat 72% 0 / 3% 70%, linear-gradient(180deg, rgba(0,255,65,0.09) 0%, transparent 60%) no-repeat 88% 0 / 2% 50%',
+		// Digital rain — SVG data URI phosphor matrix characters
+		decoration: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='0' y='10' font-family='monospace' font-size='10' fill='%2300ff41' fill-opacity='0.1'%3E1 0 1%3C/text%3E%3Ctext x='15' y='25' font-family='monospace' font-size='10' fill='%2300ff41' fill-opacity='0.05'%3E0 1 0%3C/text%3E%3Ctext x='5' y='40' font-family='monospace' font-size='10' fill='%2300ff41' fill-opacity='0.15'%3E1 1 1%3C/text%3E%3C/svg%3E")`,
 		ansiColors: {
 			black: '#0a0a0a',
 			red: '#00cc33',
@@ -256,11 +266,13 @@ export const THEME_PRESETS = [
 		name: 'Cyberpunk',
 		background: '#0d0221',
 		foreground: '#f0e6ff',
+		fontFamily: 'fira-code',
 		accent: '#ff2a6d',
 		glow: '#ff2a6d',
 		gradient: 'linear-gradient(135deg, rgba(255, 42, 109, 0.3) 0%, rgba(5, 217, 232, 0.2) 100%)',
 		gradientLevel: 'medium',
 		glowLevel: 'medium',
+		statusBarPosition: 'bottom',
 
 		scrollbarAccent: 'medium',
 		cursorColor: '#ff2a6d',
@@ -291,6 +303,7 @@ export const THEME_PRESETS = [
 		name: 'Solana',
 		background: '#0c0c1d',
 		foreground: '#e0e0f0',
+		fontFamily: 'roboto-mono',
 		accent: '#9945ff',
 		glow: '#14f195',
 		gradient: 'linear-gradient(160deg, rgba(153, 69, 255, 0.3) 0%, rgba(20, 241, 149, 0.2) 100%)',
@@ -326,6 +339,7 @@ export const THEME_PRESETS = [
 		name: 'Amber',
 		background: '#0c0800',
 		foreground: '#ffb000',
+		fontFamily: 'ibm-plex-mono',
 		accent: '#ffb000',
 		glow: '#ffb000',
 		gradient: 'linear-gradient(180deg, rgba(255, 176, 0, 0.25) 0%, transparent 40%)',
@@ -362,12 +376,14 @@ export const THEME_PRESETS = [
 		name: 'Vaporwave',
 		background: '#0a0015',
 		foreground: '#f0d0ff',
+		fontFamily: 'ubuntu-mono',
 		accent: '#ff2d95',
 		glow: '#ff71ce',
 		gradient:
 			'linear-gradient(135deg, rgba(255, 45, 149, 0.3) 0%, rgba(1, 205, 254, 0.2) 50%, rgba(123, 47, 255, 0.25) 100%)',
 		gradientLevel: 'medium',
 		glowLevel: 'intense',
+		statusBarPosition: 'bottom',
 		scrollbarAccent: 'medium',
 		cursorColor: '#01cdfe',
 		selectionColor: '#7b2fff',
@@ -397,6 +413,7 @@ export const THEME_PRESETS = [
 		name: 'Ocean',
 		background: '#020b14',
 		foreground: '#a0d8e8',
+		fontFamily: 'jetbrains-mono',
 		accent: '#00c8ff',
 		glow: '#00e5b0',
 		gradient:
@@ -432,6 +449,7 @@ export const THEME_PRESETS = [
 		name: 'Sunset',
 		background: '#110808',
 		foreground: '#f0d0a0',
+		fontFamily: 'hack',
 		accent: '#e8a040',
 		glow: '#e04028',
 		gradient:
@@ -504,6 +522,7 @@ export const THEME_PRESETS = [
 		name: 'Solarized Light',
 		background: '#fdf6e3',
 		foreground: '#586e75',
+		fontFamily: 'inconsolata',
 		accent: '#268bd2',
 		ansiColors: SOLARIZED_ANSI,
 	},
