@@ -621,6 +621,7 @@ export function TerminalView({
 
 	const scrollToBottom = useCallback(() => {
 		termRef.current?.scrollToBottom()
+		savedScrollRef.current = { atBottom: true, linesFromBottom: 0 }
 		setIsScrolledUp(false)
 		termRef.current?.focus()
 	}, [])
