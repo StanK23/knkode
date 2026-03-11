@@ -272,6 +272,10 @@ interface StoreState {
 	/** Update PR info for a pane. No workspaceId needed — PR state is a flat
 	 *  ephemeral map (not persisted inside workspace objects). */
 	updatePanePr: (paneId: string, pr: PrInfo | null) => void
+	/** Persist allotment-reported pixel sizes as percentages at a given tree path.
+	 *  `path` is an array of child indices from the root to the target branch node.
+	 *  An empty array `[]` targets the root node itself. */
+	updateNodeSizes: (workspaceId: string, path: number[], pixelSizes: number[]) => void
 	saveState: () => Promise<void>
 	addSnippet: (name: string, command: string) => void
 	updateSnippet: (id: string, updates: Pick<Snippet, 'name' | 'command'>) => void
@@ -947,6 +951,28 @@ export const useStore = create<StoreState>((set, get) => ({
 		})
 	},
 
+	updateNodeSizes: (workspaceId, path, pixelSizes) => {
+		const total = pixelSizes.reduce((a, b) => a + b, 0)
+		if (!Number.isFinite(total) || total <= 0) return
+		const percentages = pixelSizes.map((s) => (s / total) * 100)
+		set((state) => {
+			const workspace = state.workspaces.find((w) => w.id === workspaceId)
+			if (!workspace) return state
+			const newTree = updateSizesAtPath(workspace.layout.tree, path, percentages)
+			if (newTree === workspace.layout.tree) return state
+			const updated = {
+				...workspace,
+				layout: { type: 'custom' as const, tree: newTree },
+			}
+			window.api.saveWorkspace(updated).catch((err) => {
+				console.error('[store] Failed to save workspace:', err)
+			})
+			return {
+				workspaces: state.workspaces.map((w) => (w.id === workspaceId ? updated : w)),
+			}
+		})
+	},
+
 	saveState: async () => {
 		await window.api.saveAppState(get().appState)
 	},
@@ -1036,6 +1062,49 @@ function replaceLeafInTree(
 	return node.paneId === targetPaneId ? replacer(node) : node
 }
 
+/** Immutably update child sizes at a given tree path.
+ *  `path` is an array of child indices leading to the target branch node.
+ *  An empty path means the root node itself is the target. */
+function updateSizesAtPath(node: LayoutNode, path: number[], sizes: number[]): LayoutNode {
+	if (path.length === 0) {
+		if (!isLayoutBranch(node)) return node
+		if (sizes.length !== node.children.length) {
+			console.warn('[layout] updateSizesAtPath: sizes/children length mismatch', {
+				sizes: sizes.length,
+				children: node.children.length,
+			})
+		}
+		return {
+			...node,
+			children: node.children.map((child, i) => ({
+				...child,
+				size: sizes[i] ?? child.size,
+			})),
+		}
+	}
+	if (!isLayoutBranch(node)) {
+		console.warn('[layout] updateSizesAtPath: path traversal hit leaf before exhausting path')
+		return node
+	}
+	const head = path[0]
+	const rest = path.slice(1)
+	if (head === undefined || head < 0 || head >= node.children.length) return node
+	return {
+		...node,
+		children: node.children.map((child, i) =>
+			i === head ? updateSizesAtPath(child, rest, sizes) : child,
+		),
+	}
+}
+
+/** Get the first leaf pane ID in a subtree (depth-first, left-child-first).
+ *  Returns 'empty' for branches with no children (corrupted state guard). */
+function getFirstPaneId(node: LayoutNode): string {
+	if (!isLayoutBranch(node)) return node.paneId
+	if (node.children.length === 0) return 'empty'
+	return getFirstPaneId(node.children[0])
+}
+
 /** Get pane IDs in depth-first, left-child-first order
  *  (left-to-right for horizontal splits, top-to-bottom for vertical). */
 function getPaneIdsInOrder(node: LayoutNode): string[] {
@@ -1102,4 +1171,10 @@ function applyPresetWithRemap(
 	}
 }
 
-export { WORKSPACE_COLORS, applyPresetWithRemap, createLayoutFromPreset, getPaneIdsInOrder }
+export {
+	WORKSPACE_COLORS,
+	applyPresetWithRemap,
+	createLayoutFromPreset,
+	getFirstPaneId,
+	getPaneIdsInOrder,
+}

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AppState, PaneTheme, Workspace } from '../../../shared/types'
 import { DEFAULT_UNFOCUSED_DIM, isLayoutBranch } from '../../../shared/types'
-import { createLayoutFromPreset, getPaneIdsInOrder, useStore } from './index'
+import { createLayoutFromPreset, getFirstPaneId, getPaneIdsInOrder, useStore } from './index'
 
 const TEST_THEME: PaneTheme = {
 	background: '#000',
@@ -43,6 +43,8 @@ vi.stubGlobal('crypto', {
 	randomUUID: () => `uuid-${++uuidCounter}`,
 })
 
+const TEST_PANE_CONFIG = { label: 'term', cwd: '/home', startupCommand: null, themeOverride: null }
+
 function makeWorkspace(overrides?: Partial<Workspace>): Workspace {
 	return {
 		id: 'ws-1',
@@ -50,9 +52,29 @@ function makeWorkspace(overrides?: Partial<Workspace>): Workspace {
 		color: '#fff',
 		theme: TEST_THEME,
 		layout: { type: 'preset', preset: 'single', tree: { paneId: 'p1', size: 100 } },
-		panes: { p1: { label: 'term', cwd: '/home', startupCommand: null, themeOverride: null } },
+		panes: { p1: TEST_PANE_CONFIG },
 		...overrides,
 	}
+}
+
+function makeTwoPaneWs(): Workspace {
+	return makeWorkspace({
+		layout: {
+			type: 'custom',
+			tree: {
+				direction: 'horizontal',
+				size: 100,
+				children: [
+					{ paneId: 'p1', size: 50 },
+					{ paneId: 'p2', size: 50 },
+				],
+			},
+		},
+		panes: {
+			p1: { ...TEST_PANE_CONFIG, label: 'left', cwd: '/' },
+			p2: { ...TEST_PANE_CONFIG, label: 'right', cwd: '/' },
+		},
+	})
 }
 
 function resetStore() {
@@ -486,25 +508,6 @@ describe('store splitPane', () => {
 })
 
 describe('store closePane', () => {
-	const makeTwoPaneWs = () =>
-		makeWorkspace({
-			layout: {
-				type: 'custom',
-				tree: {
-					direction: 'horizontal',
-					size: 100,
-					children: [
-						{ paneId: 'p1', size: 50 },
-						{ paneId: 'p2', size: 50 },
-					],
-				},
-			},
-			panes: {
-				p1: { label: 'left', cwd: '/', startupCommand: null, themeOverride: null },
-				p2: { label: 'right', cwd: '/', startupCommand: null, themeOverride: null },
-			},
-		})
-
 	it('closes a pane and collapses the branch', () => {
 		useStore.setState({ workspaces: [makeTwoPaneWs()] })
 		useStore.getState().closePane('ws-1', 'p1')
@@ -919,25 +922,6 @@ describe('store PTY lifecycle', () => {
 	})
 
 	describe('closePane PTY cleanup', () => {
-		const makeTwoPaneWs = () =>
-			makeWorkspace({
-				layout: {
-					type: 'custom',
-					tree: {
-						direction: 'horizontal',
-						size: 100,
-						children: [
-							{ paneId: 'p1', size: 50 },
-							{ paneId: 'p2', size: 50 },
-						],
-					},
-				},
-				panes: {
-					p1: { label: 'left', cwd: '/', startupCommand: null, themeOverride: null },
-					p2: { label: 'right', cwd: '/', startupCommand: null, themeOverride: null },
-				},
-			})
-
 		it('calls killPty when closing a pane', () => {
 			useStore.setState({
 				workspaces: [makeTwoPaneWs()],
@@ -1024,5 +1008,138 @@ describe('store PTY lifecycle', () => {
 			expect(mockApi.killPty).toHaveBeenCalledWith('p2')
 			expect(useStore.getState().activePtyIds.size).toBe(0)
 		})
+	})
+})
+
+describe('getFirstPaneId', () => {
+	it('returns paneId for a leaf node', () => {
+		expect(getFirstPaneId({ paneId: 'p1', size: 100 })).toBe('p1')
+	})
+
+	it('returns first leaf paneId for a branch node', () => {
+		expect(
+			getFirstPaneId({
+				direction: 'horizontal',
+				size: 100,
+				children: [
+					{ paneId: 'p1', size: 50 },
+					{ paneId: 'p2', size: 50 },
+				],
+			}),
+		).toBe('p1')
+	})
+
+	it('recurses into nested branches', () => {
+		expect(
+			getFirstPaneId({
+				direction: 'horizontal',
+				size: 100,
+				children: [
+					{
+						direction: 'vertical',
+						size: 50,
+						children: [
+							{ paneId: 'deep', size: 50 },
+							{ paneId: 'p2', size: 50 },
+						],
+					},
+					{ paneId: 'p3', size: 50 },
+				],
+			}),
+		).toBe('deep')
+	})
+})
+
+describe('store updateNodeSizes', () => {
+	it('updates root node child sizes from pixel values', () => {
+		useStore.setState({ workspaces: [makeTwoPaneWs()] })
+		// Simulate allotment reporting 800px / 200px (80% / 20% of 1000px total)
+		useStore.getState().updateNodeSizes('ws-1', [], [800, 200])
+
+		const tree = useStore.getState().workspaces[0].layout.tree
+		if (!isLayoutBranch(tree)) throw new Error('expected branch')
+		expect(tree.children[0].size).toBeCloseTo(80)
+		expect(tree.children[1].size).toBeCloseTo(20)
+		expect(mockApi.saveWorkspace).toHaveBeenCalled()
+	})
+
+	it('updates nested node sizes via path', () => {
+		useStore.setState({
+			workspaces: [
+				makeWorkspace({
+					layout: {
+						type: 'custom',
+						tree: {
+							direction: 'horizontal',
+							size: 100,
+							children: [
+								{ paneId: 'p1', size: 60 },
+								{
+									direction: 'vertical',
+									size: 40,
+									children: [
+										{ paneId: 'p2', size: 50 },
+										{ paneId: 'p3', size: 50 },
+									],
+								},
+							],
+						},
+					},
+					panes: {
+						p1: TEST_PANE_CONFIG,
+						p2: TEST_PANE_CONFIG,
+						p3: TEST_PANE_CONFIG,
+					},
+				}),
+			],
+		})
+
+		// Update the nested vertical branch at path [1] — 70/30 split
+		useStore.getState().updateNodeSizes('ws-1', [1], [700, 300])
+
+		const tree = useStore.getState().workspaces[0].layout.tree
+		if (!isLayoutBranch(tree)) throw new Error('expected branch')
+		// Root children sizes should be unchanged
+		expect(tree.children[0].size).toBe(60)
+		expect(tree.children[1].size).toBe(40)
+		// Nested branch children should be updated
+		const nested = tree.children[1]
+		if (!isLayoutBranch(nested)) throw new Error('expected nested branch')
+		expect(nested.children[0].size).toBeCloseTo(70)
+		expect(nested.children[1].size).toBeCloseTo(30)
+	})
+
+	it('no-ops for zero total pixel size', () => {
+		useStore.setState({ workspaces: [makeTwoPaneWs()] })
+		useStore.getState().updateNodeSizes('ws-1', [], [0, 0])
+
+		const tree = useStore.getState().workspaces[0].layout.tree
+		if (!isLayoutBranch(tree)) throw new Error('expected branch')
+		expect(tree.children[0].size).toBe(50)
+		expect(tree.children[1].size).toBe(50)
+	})
+
+	it('no-ops for non-existent workspace', () => {
+		useStore.setState({ workspaces: [makeTwoPaneWs()] })
+		useStore.getState().updateNodeSizes('nonexistent', [], [800, 200])
+
+		const tree = useStore.getState().workspaces[0].layout.tree
+		if (!isLayoutBranch(tree)) throw new Error('expected branch')
+		expect(tree.children[0].size).toBe(50)
+	})
+
+	// Core regression test for the pane-split-resets-sizes bug — do not remove
+	it('persists sizes after split preserves sibling ratios', () => {
+		useStore.setState({ workspaces: [makeTwoPaneWs()] })
+		// User drags to 80/20
+		useStore.getState().updateNodeSizes('ws-1', [], [800, 200])
+		// Now split p2
+		useStore.getState().splitPane('ws-1', 'p2', 'vertical')
+
+		const tree = useStore.getState().workspaces[0].layout.tree
+		if (!isLayoutBranch(tree)) throw new Error('expected branch')
+		// p1 should still be ~80%, the branch replacing p2 should be ~20%
+		expect(tree.children[0].size).toBeCloseTo(80)
+		expect(tree.children[1].size).toBeCloseTo(20)
 	})
 })
