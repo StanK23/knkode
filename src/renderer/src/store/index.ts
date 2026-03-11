@@ -953,7 +953,7 @@ export const useStore = create<StoreState>((set, get) => ({
 
 	updateNodeSizes: (workspaceId, path, pixelSizes) => {
 		const total = pixelSizes.reduce((a, b) => a + b, 0)
-		if (total === 0) return
+		if (!Number.isFinite(total) || total <= 0) return
 		const percentages = pixelSizes.map((s) => (s / total) * 100)
 		set((state) => {
 			const workspace = state.workspaces.find((w) => w.id === workspaceId)
@@ -1068,6 +1068,12 @@ function replaceLeafInTree(
 function updateSizesAtPath(node: LayoutNode, path: number[], sizes: number[]): LayoutNode {
 	if (path.length === 0) {
 		if (!isLayoutBranch(node)) return node
+		if (sizes.length !== node.children.length) {
+			console.warn('[layout] updateSizesAtPath: sizes/children length mismatch', {
+				sizes: sizes.length,
+				children: node.children.length,
+			})
+		}
 		return {
 			...node,
 			children: node.children.map((child, i) => ({
@@ -1091,7 +1097,8 @@ function updateSizesAtPath(node: LayoutNode, path: number[], sizes: number[]): L
 	}
 }
 
-/** Get the first leaf pane ID in a subtree (depth-first, left-child-first). */
+/** Get the first leaf pane ID in a subtree (depth-first, left-child-first).
+ *  Returns 'empty' for branches with no children (corrupted state guard). */
 function getFirstPaneId(node: LayoutNode): string {
 	if (!isLayoutBranch(node)) return node.paneId
 	if (node.children.length === 0) return 'empty'
