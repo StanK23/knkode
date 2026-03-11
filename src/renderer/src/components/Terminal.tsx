@@ -435,8 +435,11 @@ export function TerminalView({
 		}
 		viewport?.addEventListener('scroll', handleViewportScroll)
 
-		// Skip ResizeObserver callbacks with unchanged dimensions (fires on
-		// DOM re-attach, style recalc, etc.) to avoid unnecessary fit/scroll cycles.
+		// Skip ResizeObserver callbacks with unchanged pixel dimensions (fires on
+		// DOM re-attach, style recalc, etc.) to avoid unnecessary rAF scheduling.
+		// fitAndPreserveScroll has a second guard on cols/rows — intentional double-gating:
+		// this layer skips unchanged pixels, that layer skips when pixel changes don't
+		// translate to different col/row counts.
 		let lastWidth = 0
 		let lastHeight = 0
 		const resizeObserver = new ResizeObserver((entries) => {
