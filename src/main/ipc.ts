@@ -63,7 +63,7 @@ function assertWorkspace(value: unknown): asserts value is Workspace {
 			throw new Error('Invalid workspace: paneOpacity must be a finite number in [0, 1]')
 		}
 	}
-	for (const field of ['gradientLevel', 'glowLevel', 'scanlineLevel'] as const) {
+	for (const field of ['gradientLevel', 'glowLevel', 'scanlineLevel', 'noiseLevel', 'scrollbarAccent'] as const) {
 		if (theme[field] !== undefined && !isEffectLevel(theme[field])) {
 			throw new Error(`Invalid workspace: ${field} must be a valid EffectLevel`)
 		}
