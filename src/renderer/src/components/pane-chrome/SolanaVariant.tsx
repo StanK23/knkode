@@ -1,8 +1,8 @@
 import { registerVariant } from '.'
 import { FOCUS_VIS, FolderIcon, PrBadge } from './shared'
-import type { PaneVariant, ScrollButtonProps, StatusBarProps } from './types'
+import type { FrameProps, PaneVariant, ScrollButtonProps } from './types'
 
-function StatusBar({
+function Frame({
 	label,
 	cwd,
 	branch,
@@ -19,110 +19,145 @@ function StatusBar({
 	editInputProps,
 	SnippetTrigger,
 	shortcuts,
-}: StatusBarProps) {
+	children,
+	headerProps,
+	contextMenu,
+}: FrameProps) {
 	const glowColor = theme.glow ?? theme.accent
+	const c1 = theme.accent
+	const c2 = glowColor
+
 	return (
 		<div
-			className="flex items-center gap-2 px-3 text-[11px] font-medium shrink-0 select-none transition-all duration-200"
-			style={{
-				height: 30,
-				color: theme.foreground,
-				borderBottom: '2px solid transparent',
-				borderImage: isFocused
-					? `linear-gradient(90deg, ${theme.accent}, ${glowColor}) 1`
-					: `linear-gradient(90deg, ${theme.accent}33, ${glowColor}33) 1`,
-			}}
+			className="relative flex flex-col h-full w-full bg-[#0c0c1d] overflow-hidden"
+			style={{ padding: '8px' }}
 		>
-			{isEditing ? (
-				<input
-					{...editInputProps}
-					className="bg-transparent border rounded-sm text-[11px] py-px px-1 outline-none w-20"
-					style={{ borderColor: theme.accent, color: theme.foreground }}
+			{/* Ambient Orbs */}
+			<div className="absolute inset-0 pointer-events-none z-0">
+				<div
+					className="absolute -top-10 -right-10 w-40 h-40 rounded-full blur-[40px]"
+					style={{ backgroundColor: c1, opacity: isFocused ? 0.15 : 0.05 }}
 				/>
-			) : (
-				<span onDoubleClick={onDoubleClickLabel} className="cursor-default shrink-0 font-semibold">
-					{label}
-				</span>
-			)}
-
-			<span className="opacity-30">·</span>
-
-			<span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap opacity-60 flex items-center gap-1">
-				<span style={{ color: theme.accent }}>
-					<FolderIcon />
-				</span>
-				{cwd}
-			</span>
-
-			{branch && (
-				<output
-					aria-label={`Git branch: ${branch}`}
-					className="min-w-0 text-[10px] font-medium px-2 py-px rounded-full overflow-hidden text-ellipsis whitespace-nowrap"
-					title={branch}
-					style={{
-						background: `linear-gradient(135deg, ${theme.accent}33, ${glowColor}33)`,
-						color: theme.foreground,
-						border: `1px solid ${theme.accent}44`,
-					}}
-				>
-					{branch}
-				</output>
-			)}
-
-			{pr && (
-				<PrBadge
-					pr={pr}
-					onOpenExternal={onOpenExternal}
-					className="text-[10px] font-medium px-2 py-px rounded-full hover:brightness-110 transition-all"
-					style={{
-						background: `linear-gradient(135deg, ${theme.accent}33, ${glowColor}33)`,
-						color: theme.foreground,
-						border: `1px solid ${theme.accent}44`,
-					}}
+				<div
+					className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full blur-[40px]"
+					style={{ backgroundColor: c2, opacity: isFocused ? 0.1 : 0.03 }}
 				/>
-			)}
+			</div>
 
-			<span className="opacity-30">·</span>
+			{/* Solana Header */}
+			<div
+				{...headerProps}
+				className={`${headerProps.className || ''} relative z-20 flex items-center gap-2 px-3 text-[11px] font-medium shrink-0 select-none transition-all duration-200`}
+				style={{
+					...headerProps.style,
+					height: 30,
+					color: theme.foreground,
+					borderBottom: '2px solid transparent',
+					borderImage: isFocused
+						? `linear-gradient(90deg, ${c1}, ${c2}) 1`
+						: `linear-gradient(90deg, ${c1}33, ${c2}33) 1`,
+				}}
+			>
+				{isEditing ? (
+					<input
+						{...editInputProps}
+						className="bg-transparent border rounded-sm text-[11px] py-px px-1 outline-none w-20"
+						style={{ borderColor: theme.accent, color: theme.foreground }}
+					/>
+				) : (
+					<span
+						onDoubleClick={onDoubleClickLabel}
+						className="cursor-default shrink-0 font-semibold"
+						style={{ textShadow: isFocused ? `0 0 8px ${c1}66` : 'none' }}
+					>
+						{label}
+					</span>
+				)}
 
-			<SnippetTrigger
-				className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
-				style={{ color: theme.accent }}
-			>
-				{'>_'}
-			</SnippetTrigger>
+				<span className="opacity-30">·</span>
 
-			<button
-				type="button"
-				onClick={onSplitVertical}
-				title={`Split vertical (${shortcuts.splitV})`}
-				aria-label="Split pane vertically"
-				className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
-				style={{ color: theme.accent }}
-			>
-				┃
-			</button>
-			<button
-				type="button"
-				onClick={onSplitHorizontal}
-				title={`Split horizontal (${shortcuts.splitH})`}
-				aria-label="Split pane horizontally"
-				className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
-				style={{ color: theme.accent }}
-			>
-				━
-			</button>
-			{canClose && (
-				<button
-					type="button"
-					onClick={onClose}
-					title={`Close pane (${shortcuts.close})`}
-					aria-label="Close pane"
+				<span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap opacity-60 flex items-center gap-1">
+					<span style={{ color: theme.accent }}>
+						<FolderIcon />
+					</span>
+					{cwd}
+				</span>
+
+				{branch && (
+					<output
+						aria-label={`Git branch: ${branch}`}
+						className="min-w-0 text-[10px] font-medium px-2 py-px rounded-full overflow-hidden text-ellipsis whitespace-nowrap"
+						title={branch}
+						style={{
+							background: `linear-gradient(135deg, ${c1}33, ${c2}33)`,
+							color: theme.foreground,
+							border: `1px solid ${c1}44`,
+							boxShadow: isFocused ? `0 0 6px ${c2}33` : 'none',
+						}}
+					>
+						{branch}
+					</output>
+				)}
+
+				{pr && (
+					<PrBadge
+						pr={pr}
+						onOpenExternal={onOpenExternal}
+						className="text-[10px] font-medium px-2 py-px rounded-full hover:brightness-110 transition-all"
+						style={{
+							background: `linear-gradient(135deg, ${c1}33, ${c2}33)`,
+							color: theme.foreground,
+							border: `1px solid ${c1}44`,
+							boxShadow: isFocused ? `0 0 6px ${c2}33` : 'none',
+						}}
+					/>
+				)}
+
+				<span className="opacity-30">·</span>
+
+				<SnippetTrigger
 					className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
 					style={{ color: theme.accent }}
 				>
-					✕
+					{'>_'}
+				</SnippetTrigger>
+
+				<button
+					type="button"
+					onClick={onSplitVertical}
+					title={`Split vertical (${shortcuts.splitV})`}
+					aria-label="Split pane vertically"
+					className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
+					style={{ color: theme.accent }}
+				>
+					┃
 				</button>
-			)}
+				<button
+					type="button"
+					onClick={onSplitHorizontal}
+					title={`Split horizontal (${shortcuts.splitH})`}
+					aria-label="Split pane horizontally"
+					className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
+					style={{ color: theme.accent }}
+				>
+					━
+				</button>
+				{canClose && (
+					<button
+						type="button"
+						onClick={onClose}
+						title={`Close pane (${shortcuts.close})`}
+						aria-label="Close pane"
+						className={`bg-transparent border-none cursor-pointer text-[11px] px-0.5 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
+						style={{ color: theme.accent }}
+					>
+						✕
+					</button>
+				)}
+				{contextMenu}
+			</div>
+
+			<div className="relative z-10 flex-1 w-full min-h-0 pt-1">{children}</div>
 		</div>
 	)
 }
@@ -134,7 +169,7 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 			type="button"
 			onClick={onClick}
 			aria-label="Scroll to bottom"
-			className={`absolute bottom-3 left-1/4 right-1/4 z-10 h-8 rounded-full flex items-center justify-center text-xs cursor-pointer hover:brightness-110 ${FOCUS_VIS}`}
+			className={`absolute bottom-6 left-1/4 right-1/4 z-30 h-8 rounded-full flex items-center justify-center text-xs cursor-pointer hover:brightness-110 ${FOCUS_VIS}`}
 			style={{
 				color: theme.foreground,
 				border: `1px solid ${theme.accent}66`,
@@ -147,5 +182,5 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 	)
 }
 
-const SolanaVariant: PaneVariant = { StatusBar, ScrollButton }
+const SolanaVariant: PaneVariant = { Frame, ScrollButton }
 registerVariant('Solana', SolanaVariant)
