@@ -14,7 +14,7 @@ import {
 	type PaneTheme,
 	isEffectLevel,
 } from '../../../shared/types'
-import { buildFontFamily, buildXtermTheme } from '../data/theme-presets'
+import { buildFontFamily, buildXtermTheme, findPreset } from '../data/theme-presets'
 import { useStore } from '../store'
 import { hexToRgba, isValidGradient, resolveBackground } from '../utils/colors'
 import {
@@ -688,6 +688,12 @@ export function TerminalView({
 	const scrollbarColor =
 		scrollbarMul > 0 && effectGlow ? hexToRgba(effectGlow, 0.4 + 0.6 * scrollbarMul) : undefined
 
+	// Per-preset background decoration (digital rain, retro grid, etc.)
+	const presetDecoration = useMemo(
+		() => (mergedTheme.preset ? findPreset(mergedTheme.preset)?.decoration : undefined),
+		[mergedTheme.preset],
+	)
+
 	return (
 		<div
 			ref={wrapperRef}
@@ -701,6 +707,12 @@ export function TerminalView({
 				} as React.CSSProperties
 			}
 		>
+			{presetDecoration && (
+				<div
+					className="absolute inset-0 pointer-events-none z-0"
+					style={{ background: presetDecoration, contain: 'layout paint style' }}
+				/>
+			)}
 			{gradientMul > 0 && effectGradient && isValidGradient(effectGradient) && (
 				<div
 					className="absolute inset-0 pointer-events-none z-[1]"
