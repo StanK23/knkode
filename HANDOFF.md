@@ -58,8 +58,8 @@ Plan: `docs/plans/2026-03-09-configurable-effects-plan.md`
 ### PR #88 — fix: harden passive terminal scroll preservation
 - State: `docs/reviews/PR-88/_state.json`
 - Agents: 9/9 completed
-- Phase: done (compiled)
-- Findings: 4 must-fix, 9 suggestions, 5 nitpicks
+- Phase: done — all 18 findings addressed (8 commits)
+- Findings: 4 must-fix, 9 suggestions, 5 nitpicks — all fixed
 
 ## What's Next
 - Address PR #88 review findings, then merge to `dev/theming`
