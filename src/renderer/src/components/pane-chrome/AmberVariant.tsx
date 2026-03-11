@@ -1,8 +1,8 @@
 import { registerVariant } from '.'
 import { FOCUS_VIS, PrBadge } from './shared'
-import type { PaneVariant, ScrollButtonProps, StatusBarProps } from './types'
+import type { FrameProps, PaneVariant, ScrollButtonProps } from './types'
 
-function StatusBar({
+function Frame({
 	label,
 	cwd,
 	branch,
@@ -19,99 +19,126 @@ function StatusBar({
 	editInputProps,
 	SnippetTrigger,
 	shortcuts,
-}: StatusBarProps) {
+	children,
+	headerProps,
+	contextMenu,
+}: FrameProps) {
 	const fg = isFocused ? theme.accent : theme.foreground
+	const glowColor = theme.glow ?? theme.accent
+
 	return (
 		<div
-			className="flex items-center gap-0 px-2 text-[10px] font-mono uppercase shrink-0 select-none transition-colors duration-200"
-			style={{
-				height: 24,
-				color: fg,
-				borderBottom: `1px dotted ${theme.accent}66`,
-				textShadow: isFocused ? `0 0 4px ${theme.accent}44` : 'none',
-			}}
+			className="relative flex flex-col h-full w-full bg-[#0c0800] overflow-hidden"
+			style={{ padding: '8px' }}
 		>
-			{isEditing ? (
-				<input
-					{...editInputProps}
-					className="bg-transparent border font-mono uppercase text-[10px] py-px px-1 outline-none w-20"
-					style={{ borderColor: theme.accent, color: fg }}
-				/>
-			) : (
-				<span onDoubleClick={onDoubleClickLabel} className="cursor-default shrink-0">
-					{label}
+			{/* Amber CRT Curved Bezel effect */}
+			<div
+				className="absolute inset-0 pointer-events-none z-0"
+				style={{
+					boxShadow: `inset 0 0 40px #000, inset 0 0 10px ${isFocused ? `${glowColor}33` : '#000'}`,
+					border: `4px solid ${isFocused ? `${glowColor}44` : '#332200'}`,
+					borderRadius: '8px',
+				}}
+			/>
+
+			{/* Custom Amber Header */}
+			<div
+				{...headerProps}
+				className={`${headerProps.className || ''} flex items-center gap-0 px-3 pt-1 text-[10px] font-mono uppercase shrink-0 select-none transition-colors duration-200 z-20`}
+				style={{
+					...headerProps.style,
+					height: 28,
+					color: fg,
+					borderBottom: `2px dashed ${isFocused ? `${theme.accent}88` : `${theme.accent}33`}`,
+					textShadow: isFocused ? `0 0 8px ${theme.accent}66` : 'none',
+				}}
+			>
+				{isEditing ? (
+					<input
+						{...editInputProps}
+						className="bg-transparent border font-mono uppercase text-[10px] py-px px-1 outline-none w-20"
+						style={{ borderColor: theme.accent, color: fg }}
+					/>
+				) : (
+					<span onDoubleClick={onDoubleClickLabel} className="cursor-default shrink-0 font-bold">
+						{label}
+					</span>
+				)}
+
+				<span className="mx-2 opacity-40">│</span>
+
+				<span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap opacity-70">
+					CWD: {cwd.toUpperCase()}
 				</span>
-			)}
 
-			<span className="mx-1 opacity-40">│</span>
+				{branch && (
+					<output
+						aria-label={`Git branch: ${branch}`}
+						className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap opacity-80 font-bold"
+						title={branch}
+					>
+						<span className="mx-2 opacity-40">│</span>
+						BR: {branch.toUpperCase()}
+					</output>
+				)}
 
-			<span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap opacity-70">
-				CWD: {cwd.toUpperCase()}
-			</span>
+				{pr && (
+					<PrBadge
+						pr={pr}
+						onOpenExternal={onOpenExternal}
+						className="bg-transparent px-1 leading-none opacity-60 hover:opacity-100"
+						style={{ color: fg }}
+					>
+						[PR#{pr.number}]
+					</PrBadge>
+				)}
 
-			{branch && (
-				<output
-					aria-label={`Git branch: ${branch}`}
-					className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap opacity-80"
-					title={branch}
-				>
-					<span className="mx-1 opacity-40">│</span>
-					BR: {branch.toUpperCase()}
-				</output>
-			)}
+				<span className="mx-2 opacity-40">│</span>
 
-			{pr && (
-				<PrBadge
-					pr={pr}
-					onOpenExternal={onOpenExternal}
-					className="bg-transparent px-0.5 leading-none opacity-60 hover:opacity-100"
+				<SnippetTrigger
+					className={`bg-transparent border-none cursor-pointer px-1 leading-none opacity-60 hover:opacity-100 ${FOCUS_VIS}`}
 					style={{ color: fg }}
 				>
-					[PR#{pr.number}]
-				</PrBadge>
-			)}
+					[CMD]
+				</SnippetTrigger>
 
-			<span className="mx-1 opacity-40">│</span>
-
-			<SnippetTrigger
-				className={`bg-transparent border-none cursor-pointer px-0.5 leading-none opacity-60 hover:opacity-100 ${FOCUS_VIS}`}
-				style={{ color: fg }}
-			>
-				[CMD]
-			</SnippetTrigger>
-
-			<button
-				type="button"
-				onClick={onSplitVertical}
-				title={`Split vertical (${shortcuts.splitV})`}
-				aria-label="Split pane vertically"
-				className={`bg-transparent border-none cursor-pointer px-0.5 leading-none opacity-60 hover:opacity-100 ${FOCUS_VIS}`}
-				style={{ color: fg }}
-			>
-				[SPLIT-V]
-			</button>
-			<button
-				type="button"
-				onClick={onSplitHorizontal}
-				title={`Split horizontal (${shortcuts.splitH})`}
-				aria-label="Split pane horizontally"
-				className={`bg-transparent border-none cursor-pointer px-0.5 leading-none opacity-60 hover:opacity-100 ${FOCUS_VIS}`}
-				style={{ color: fg }}
-			>
-				[SPLIT-H]
-			</button>
-			{canClose && (
 				<button
 					type="button"
-					onClick={onClose}
-					title={`Close pane (${shortcuts.close})`}
-					aria-label="Close pane"
-					className={`bg-transparent border-none cursor-pointer px-0.5 leading-none opacity-60 hover:opacity-100 ${FOCUS_VIS}`}
+					onClick={onSplitVertical}
+					title={`Split vertical (${shortcuts.splitV})`}
+					aria-label="Split pane vertically"
+					className={`bg-transparent border-none cursor-pointer px-1 leading-none opacity-60 hover:opacity-100 ${FOCUS_VIS}`}
 					style={{ color: fg }}
 				>
-					[CLOSE]
+					[SPLIT-V]
 				</button>
-			)}
+				<button
+					type="button"
+					onClick={onSplitHorizontal}
+					title={`Split horizontal (${shortcuts.splitH})`}
+					aria-label="Split pane horizontally"
+					className={`bg-transparent border-none cursor-pointer px-1 leading-none opacity-60 hover:opacity-100 ${FOCUS_VIS}`}
+					style={{ color: fg }}
+				>
+					[SPLIT-H]
+				</button>
+				{canClose && (
+					<button
+						type="button"
+						onClick={onClose}
+						title={`Close pane (${shortcuts.close})`}
+						aria-label="Close pane"
+						className={`bg-transparent border-none cursor-pointer px-1 leading-none opacity-60 hover:opacity-100 ${FOCUS_VIS}`}
+						style={{ color: fg }}
+					>
+						[CLOSE]
+					</button>
+				)}
+				{contextMenu}
+			</div>
+
+			{/* Screen Area */}
+			<div className="relative z-10 flex-1 w-full min-h-0 bg-transparent px-1 mt-1">{children}</div>
 		</div>
 	)
 }
@@ -122,7 +149,7 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 			type="button"
 			onClick={onClick}
 			aria-label="Scroll to bottom"
-			className={`absolute bottom-2 left-2 right-2 z-10 h-7 flex items-center justify-center text-[10px] font-mono uppercase tracking-widest cursor-pointer hover:brightness-125 ${FOCUS_VIS}`}
+			className={`absolute bottom-6 left-6 right-6 z-30 h-7 flex items-center justify-center text-[10px] font-mono uppercase tracking-widest cursor-pointer hover:brightness-125 ${FOCUS_VIS}`}
 			style={{
 				backgroundColor: `${theme.background}dd`,
 				color: theme.accent,
@@ -135,5 +162,5 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 	)
 }
 
-const AmberVariant: PaneVariant = { StatusBar, ScrollButton }
+const AmberVariant: PaneVariant = { Frame, ScrollButton }
 registerVariant('Amber', AmberVariant)
