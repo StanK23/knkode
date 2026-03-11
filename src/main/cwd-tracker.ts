@@ -1,4 +1,4 @@
-import { execFile, execFileSync } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import type { PrInfo } from '../shared/types'
 import { IPC } from '../shared/types'
 import { safeSend } from './main-window'
@@ -15,24 +15,41 @@ let ghMissing = false // Log ENOENT only once for gh CLI
 // Avoid hammering the gh CLI; PRs change infrequently
 const PR_REFRESH_INTERVAL_MS = 60_000
 
-/** Run `git rev-parse --abbrev-ref HEAD` in a directory.
- *  Returns null on any failure (not a git repo, git not installed, timeout, etc.). */
-function getGitBranch(cwd: string): string | null {
-	try {
-		const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
-			cwd,
-			encoding: 'utf8',
-			timeout: 2000,
-			stdio: ['ignore', 'pipe', 'ignore'],
-		}).trim()
-		return branch || null
-	} catch (err: unknown) {
-		if (!gitMissing && err instanceof Error && 'code' in err && err.code === 'ENOENT') {
-			gitMissing = true
-			console.warn('[cwd-tracker] git not found — branch detection disabled')
-		}
-		return null
+/** Run `git rev-parse --abbrev-ref HEAD` asynchronously in a directory.
+ *  Calls back with the branch name or null on any failure. */
+function getGitBranch(cwd: string, callback: (branch: string | null) => void): void {
+	if (gitMissing) {
+		callback(null)
+		return
 	}
+	execFile(
+		'git',
+		['rev-parse', '--abbrev-ref', 'HEAD'],
+		{ cwd, timeout: 2000 },
+		(err, stdout) => {
+			if (err) {
+				if (!gitMissing && 'code' in err && err.code === 'ENOENT') {
+					gitMissing = true
+					console.warn('[cwd-tracker] git not found — branch detection disabled')
+				} else if ('killed' in err && err.killed) {
+					console.warn('[cwd-tracker] git rev-parse timed out for', cwd)
+				} else if (
+					!('code' in err && err.code === 'ENOENT') &&
+					!(err instanceof Error && err.message.includes('not a git repository'))
+				) {
+					console.warn(
+						'[cwd-tracker] git rev-parse failed for',
+						cwd,
+						err instanceof Error ? err.message : err,
+					)
+				}
+				callback(null)
+				return
+			}
+			const branch = stdout.trim()
+			callback(branch || null)
+		},
+	)
 }
 
 /** Run `gh pr view --json number,url,title,state` asynchronously in a directory.
@@ -117,7 +134,12 @@ export function startCwdTracking(): void {
 
 	// 3s balances UI responsiveness against lsof + git + gh subprocess cost per pane
 	intervalId = setInterval(() => {
-		for (const [paneId, lastCwd] of trackedPanes) {
+		// Snapshot keys to avoid issues with Map mutation during iteration
+		const paneIds = [...trackedPanes.keys()]
+		for (const paneId of paneIds) {
+			const lastCwd = trackedPanes.get(paneId)
+			if (lastCwd === undefined) continue // untracked between snapshot and iteration
+
 			try {
 				const currentCwd = getPtyCwd(paneId)
 				if (currentCwd && currentCwd !== lastCwd) {
@@ -126,37 +148,39 @@ export function startCwdTracking(): void {
 				}
 
 				const cwd = currentCwd ?? lastCwd
-				const currentBranch = getGitBranch(cwd)
-				const lastBranch = trackedBranches.get(paneId) ?? null
-				const branchChanged = currentBranch !== lastBranch
-				if (branchChanged) {
-					trackedBranches.set(paneId, currentBranch)
-					safeSend(IPC.PTY_BRANCH_CHANGED, paneId, currentBranch)
-				}
-
-				// PR detection — async, fires event when result arrives
-				if (currentBranch && shouldCheckPr(paneId, branchChanged)) {
+				getGitBranch(cwd, (currentBranch) => {
+					if (!trackedPanes.has(paneId)) return // pane closed during async check
+					const lastBranch = trackedBranches.get(paneId) ?? null
+					const branchChanged = currentBranch !== lastBranch
 					if (branchChanged) {
-						// Clear stale PR from previous branch immediately
-						const hadPr = trackedPrs.get(paneId) !== null
-						trackedPrs.set(paneId, null)
-						if (hadPr) safeSend(IPC.PTY_PR_CHANGED, paneId, null)
+						trackedBranches.set(paneId, currentBranch)
+						safeSend(IPC.PTY_BRANCH_CHANGED, paneId, currentBranch)
 					}
-					prLastChecked.set(paneId, Date.now())
-					checkPrStatus(cwd, (pr) => {
-						if (!trackedPanes.has(paneId)) return // pane closed during async check
-						const current = trackedPrs.get(paneId)
-						const changed = pr?.number !== current?.number
-						if (changed) {
-							trackedPrs.set(paneId, pr)
-							safeSend(IPC.PTY_PR_CHANGED, paneId, pr)
+
+					// PR detection — async, fires event when result arrives
+					if (currentBranch && shouldCheckPr(paneId, branchChanged)) {
+						if (branchChanged) {
+							// Clear stale PR from previous branch immediately
+							const hadPr = trackedPrs.get(paneId) !== null
+							trackedPrs.set(paneId, null)
+							if (hadPr) safeSend(IPC.PTY_PR_CHANGED, paneId, null)
 						}
-					})
-				} else if (!currentBranch && trackedPrs.get(paneId) !== null) {
-					// No branch = no PR
-					trackedPrs.set(paneId, null)
-					safeSend(IPC.PTY_PR_CHANGED, paneId, null)
-				}
+						prLastChecked.set(paneId, Date.now())
+						checkPrStatus(cwd, (pr) => {
+							if (!trackedPanes.has(paneId)) return // pane closed during async check
+							const current = trackedPrs.get(paneId)
+							const changed = pr?.number !== current?.number
+							if (changed) {
+								trackedPrs.set(paneId, pr)
+								safeSend(IPC.PTY_PR_CHANGED, paneId, pr)
+							}
+						})
+					} else if (!currentBranch && trackedPrs.get(paneId) !== null) {
+						// No branch = no PR
+						trackedPrs.set(paneId, null)
+						safeSend(IPC.PTY_PR_CHANGED, paneId, null)
+					}
+				})
 			} catch (err) {
 				console.warn(
 					`[cwd-tracker] Failed to poll pane ${paneId}:`,
