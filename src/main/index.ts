@@ -68,6 +68,13 @@ function createWindow(): void {
 		app.dock.setIcon(appIcon)
 	}
 
+	// Windows + backgroundMaterial: 'acrylic' can gray out the maximize button
+	// even with maximizable: true in the constructor. Force it after creation.
+	if (isWindows) {
+		win.setMaximizable(true)
+		win.setResizable(true)
+	}
+
 	// Windows + backgroundMaterial: 'acrylic' can lose keyboard focus to the
 	// native frame after minimize/restore, alt-menu, or taskbar interactions.
 	// Force web contents focus when the window regains focus.
