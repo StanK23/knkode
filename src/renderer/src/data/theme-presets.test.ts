@@ -427,6 +427,7 @@ describe('identity theme properties', () => {
 			'Catppuccin',
 			'Gruvbox',
 			'Monokai',
+			'Everforest',
 		]
 		for (const name of community) {
 			const preset = requirePreset(name)

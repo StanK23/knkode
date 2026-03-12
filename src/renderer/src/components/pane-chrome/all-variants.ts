@@ -9,6 +9,7 @@ import './CatppuccinVariant'
 import './CyberpunkVariant'
 import './DefaultDarkVariant'
 import './DraculaVariant'
+import './EverforestVariant'
 import './GruvboxVariant'
 import './MatrixVariant'
 import './MonokaiVariant'
@@ -31,6 +32,7 @@ const _VARIANT_COMPLETENESS: Record<ThemePresetName, true> = {
 	Catppuccin: true,
 	Gruvbox: true,
 	Monokai: true,
+	Everforest: true,
 	Matrix: true,
 	Cyberpunk: true,
 	Solana: true,
