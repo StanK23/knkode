@@ -7,14 +7,15 @@ import { type RefObject, useEffect } from 'react'
  * important for consumers rendered alongside elements that stop propagation
  * (e.g. terminal canvases). All current consumers (Pane, Tab, TabBar) use
  * `ref.current.contains()` which works identically in either phase.
- * Note: if a future consumer renders a portal outside the ref tree, the
- * capture-phase listener will trigger onClose before the portal handles
- * the event — consider making the phase configurable if that becomes an issue.
+ *
+ * Portal-aware: pass `portalRef` for menus rendered via `createPortal` outside
+ * the ref tree — clicks inside the portal will not trigger `onClose`.
  */
 export function useClickOutside(
 	ref: RefObject<HTMLElement | null>,
 	onClose: () => void,
 	active: boolean,
+	portalRef?: RefObject<HTMLElement | null>,
 ): void {
 	useEffect(() => {
 		if (!active) return
@@ -25,6 +26,7 @@ export function useClickOutside(
 				return
 			}
 			if (el && !el.contains(e.target)) {
+				if (portalRef?.current?.contains(e.target)) return
 				onClose()
 			}
 		}
@@ -32,5 +34,5 @@ export function useClickOutside(
 		// via stopPropagation in the bubble phase (e.g. xterm's canvas).
 		document.addEventListener('mousedown', handler, true)
 		return () => document.removeEventListener('mousedown', handler, true)
-	}, [ref, onClose, active])
+	}, [ref, onClose, active, portalRef])
 }

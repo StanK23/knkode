@@ -89,7 +89,7 @@ function SnippetDropdown({
 	const runSnippet = useStore((s) => s.runSnippet)
 	const setFocusedPane = useStore((s) => s.setFocusedPane)
 
-	useClickOutside(ref, () => setOpen(false), open)
+	useClickOutside(ref, () => setOpen(false), open, menuRef)
 
 	// Position the portal menu relative to the trigger button
 	useLayoutEffect(() => {
