@@ -73,8 +73,12 @@ function createWindow(): void {
 	// Force web contents focus when the window regains focus.
 	if (isWindows) {
 		win.on('focus', () => {
-			if (!win.isDestroyed() && !win.webContents.isDestroyed()) {
-				win.webContents.focus()
+			try {
+				if (!win.isDestroyed() && !win.webContents.isDestroyed()) {
+					win.webContents.focus()
+				}
+			} catch (err) {
+				console.warn('[main] webContents.focus() failed:', err)
 			}
 		})
 	}
