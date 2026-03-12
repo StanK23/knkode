@@ -124,6 +124,7 @@ interface CachedTerminal {
 	webglRecoveries: number
 	removeDataListener: () => void
 	removeExitListener: () => void
+	removeOsc4Handler: () => void
 	// Safe to mutate from onData/onPtyExit because both run on the same JS
 	// event loop — no concurrent access is possible.
 	ptyExited: boolean
@@ -191,6 +192,7 @@ export function disposeTerminal(paneId: string): void {
 	try {
 		cached.removeDataListener()
 		cached.removeExitListener()
+		cached.removeOsc4Handler()
 		cached.webglAddon?.dispose()
 		cached.term.dispose()
 	} catch (err) {
@@ -331,6 +333,13 @@ export function TerminalView({
 			termContainer.style.height = '100%'
 			term.open(termContainer)
 
+			// Block OSC 4 (Change Color Number) sequences from shell prompt tools
+			// (e.g. Oh My Posh) that override the theme's ANSI palette on each new
+			// prompt. This is a blanket block — it also suppresses color queries
+			// (OSC 4;N;?) and legitimate palette changes from other programs (e.g.
+			// Vim). Acceptable since theme colors via options.theme are authoritative.
+			const osc4Disposable = term.parser.registerOscHandler(4, (_data) => true)
+
 			// Entry is built with no-op listener placeholders, then the real
 			// listeners are assigned below. The entry is NOT stored in the cache
 			// until all fields are fully initialized (see terminalCache.set at
@@ -345,6 +354,7 @@ export function TerminalView({
 				webglRecoveries: 0,
 				removeDataListener: () => {},
 				removeExitListener: () => {},
+				removeOsc4Handler: () => osc4Disposable.dispose(),
 				ptyExited: false,
 			}
 

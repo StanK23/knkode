@@ -1,10 +1,11 @@
 # HANDOFF
 
 ## Current State
-- Branch: `main`
-- Working on: Release Bugfixes v1 (board: "Release Bugfixes — v1")
+- Branch: `fix/force-ansi-colors` — PR #101 ready for merge
+- Board: "Release Bugfixes — v1" — all 4 PRs complete
 
 ## Recently Completed
+- **PR #101** (open) — Block OSC 4 palette overrides from shell prompt tools (Oh My Posh fix)
 - **PR #100** (merged) — Restore keyboard focus on Windows (webContents.focus + xterm re-focus on window focus)
 - **PR #99** (merged) — Hide native menu bar + enable maximize button on Windows
 - **PR #98** (merged) — Portal context menu + snippet dropdown to escape pane stacking context
@@ -12,4 +13,4 @@
 - Hotfix: portal menus inherit theme CSS variables (`#portal-root` inside themed container)
 
 ## What's Next
-- PR 4: `fix/force-ansi-colors` — Force theme ANSI colors against Oh My Posh overrides
+- Merge PR #101, then release bugfix board is complete
