@@ -152,6 +152,9 @@ export function App() {
 						</p>
 					</div>
 				)}
+				{/* Portal root for menus that need to escape pane stacking/overflow
+				    but still inherit theme CSS variables */}
+				<div id="portal-root" />
 			</div>
 		</ErrorBoundary>
 	)

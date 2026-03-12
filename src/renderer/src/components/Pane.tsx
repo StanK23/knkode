@@ -183,7 +183,7 @@ function SnippetDropdown({
 							</button>
 						))}
 					</div>,
-					document.body,
+					document.getElementById('portal-root') ?? document.body,
 				)}
 		</div>
 	)
@@ -805,7 +805,7 @@ export function Pane({
 							</button>
 						)}
 					</div>,
-					document.body,
+					document.getElementById('portal-root') ?? document.body,
 				)}
 		</div>
 	)
