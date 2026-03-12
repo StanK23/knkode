@@ -14,15 +14,13 @@ interface PaneEffectsProps {
 }
 
 /**
- * Visual effect overlays for a pane — gradient, glow, scanlines, noise, and
- * preset decoration. Extracted from Terminal.tsx so effects render at the pane
- * level (behind the Frame wrapper) and remain visible through a transparent
- * terminal background.
+ * Background effects for a pane — gradient, decoration, glow, and the
+ * translucent background. Renders at z-0, behind the Frame + terminal content.
  *
- * Z-index stacking: z-0 gradient, z-[1] decoration, z-[2] glow, z-[3] scanlines, z-[4] noise.
+ * Z-index stacking: z-0 gradient, z-[1] decoration, z-[2] glow.
  * Uses `contain: layout paint style` on each layer for GPU compositing.
  */
-export function PaneEffects({ theme, isFocused }: PaneEffectsProps) {
+export function PaneBackgroundEffects({ theme, isFocused }: PaneEffectsProps) {
 	const { wrapperBg, blurPx } = useMemo(() => {
 		const opacity = theme.paneOpacity ?? DEFAULT_PANE_OPACITY
 		return {
@@ -31,15 +29,13 @@ export function PaneEffects({ theme, isFocused }: PaneEffectsProps) {
 		}
 	}, [theme.paneOpacity, theme.background])
 
-	const { gradientMul, glowMul, scanlineMul, noiseMul } = useMemo(() => {
+	const { gradientMul, glowMul } = useMemo(() => {
 		const mul = (level: unknown) => EFFECT_MULTIPLIERS[isEffectLevel(level) ? level : 'off']
 		return {
 			gradientMul: mul(theme.gradientLevel),
 			glowMul: mul(theme.glowLevel),
-			scanlineMul: mul(theme.scanlineLevel),
-			noiseMul: mul(theme.noiseLevel),
 		}
-	}, [theme.gradientLevel, theme.glowLevel, theme.scanlineLevel, theme.noiseLevel])
+	}, [theme.gradientLevel, theme.glowLevel])
 
 	const effectGlow = theme.glow ?? theme.accent
 	const effectGradient =
@@ -90,16 +86,38 @@ export function PaneEffects({ theme, isFocused }: PaneEffectsProps) {
 					}}
 				/>
 			)}
+		</div>
+	)
+}
+
+/**
+ * Foreground overlay effects — scanlines and noise. Renders at z-20, on top of
+ * the Frame + terminal content, so these effects visually affect the text.
+ * Fully pointer-events-none so the terminal remains interactive.
+ */
+export function PaneOverlayEffects({ theme }: { theme: PaneTheme }) {
+	const { scanlineMul, noiseMul } = useMemo(() => {
+		const mul = (level: unknown) => EFFECT_MULTIPLIERS[isEffectLevel(level) ? level : 'off']
+		return {
+			scanlineMul: mul(theme.scanlineLevel),
+			noiseMul: mul(theme.noiseLevel),
+		}
+	}, [theme.scanlineLevel, theme.noiseLevel])
+
+	if (scanlineMul === 0 && noiseMul === 0) return null
+
+	return (
+		<div className="absolute inset-0 pointer-events-none z-30 overflow-hidden rounded-sm">
 			{scanlineMul > 0 && (
 				<div
-					className="pane-scanline absolute inset-0 pointer-events-none z-[3]"
-					style={{ opacity: scanlineMul }}
+					className="pane-scanline absolute inset-0 pointer-events-none"
+					style={{ opacity: scanlineMul, contain: 'layout paint style' }}
 				/>
 			)}
 			{noiseMul > 0 && (
 				<div
-					className="pane-noise absolute inset-0 pointer-events-none z-[4]"
-					style={{ opacity: noiseMul * 0.5 }}
+					className="pane-noise absolute inset-0 pointer-events-none"
+					style={{ opacity: noiseMul * 0.5, contain: 'layout paint style' }}
 				/>
 			)}
 		</div>
