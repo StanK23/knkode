@@ -362,8 +362,20 @@ export function TerminalView({
 			if (opacity >= 1) tryLoadWebgl(entry)
 
 			term.attachCustomKeyEventHandler((ev) => {
-				if (ev.type !== 'keydown') return true
 				const isMac_ = navigator.userAgent.includes('Macintosh')
+
+				// Shift+Enter must block both keydown and keyup to prevent xterm
+				// from processing the keyup as a regular Enter (CR).
+				if (ev.key === 'Enter' && ev.shiftKey) {
+					if (ev.type === 'keydown') {
+						window.api.writePty(paneId, '\n').catch((err) => {
+							console.error(`[terminal] writePty failed for pane ${paneId}:`, err)
+						})
+					}
+					return false
+				}
+
+				if (ev.type !== 'keydown') return true
 
 				// Copy: Cmd+C (macOS) or Ctrl+C with selection (Windows/Linux).
 				// On macOS, Cmd+C is always copy (never SIGINT). On Windows/Linux,
@@ -405,16 +417,6 @@ export function TerminalView({
 						.catch((err) => {
 							console.error('[terminal] clipboard read failed:', err)
 						})
-					return false
-				}
-
-				// Shift+Enter → send LF (\n) instead of xterm's default CR (\r).
-				// Programs that distinguish the two (e.g. Claude Code CLI) can treat
-				// LF as "newline" and CR as "submit".
-				if (ev.key === 'Enter' && ev.shiftKey) {
-					window.api.writePty(paneId, '\n').catch((err) => {
-						console.error(`[terminal] writePty failed for pane ${paneId}:`, err)
-					})
 					return false
 				}
 
