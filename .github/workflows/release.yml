@@ -69,8 +69,17 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: artifacts/*
-          generate_release_notes: true
+      - uses: actions/checkout@v4
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if gh release view "$TAG" &>/dev/null; then
+            # Release exists (retag) — replace artifacts, keep description
+            gh release upload "$TAG" artifacts/* --clobber
+          else
+            # New tag — create draft release with auto-generated notes
+            gh release create "$TAG" artifacts/* --draft --generate-notes
+          fi
