@@ -377,29 +377,23 @@ export function TerminalView({
 
 				if (ev.type !== 'keydown') return true
 
-				// Copy: Cmd+C (macOS) or Ctrl+C with selection (Windows/Linux).
-				// On macOS, Cmd+C is always copy (never SIGINT). On Windows/Linux,
-				// Ctrl+C copies when text is selected, sends SIGINT otherwise.
-				// Ctrl+Shift+C always copies on all platforms.
+				// Copy: return false to prevent xterm from sending SIGINT (\x03).
+				// Electron's default Edit > Copy menu accelerator handles the actual
+				// clipboard write via webContents.copy() → xterm's copy event handler.
+				// We must NOT write to the clipboard ourselves — Electron's accelerator
+				// operates outside the DOM event system and cannot be prevented, so any
+				// manual write would result in a double copy.
 				if (ev.key.toLowerCase() === 'c' && (ev.metaKey || ev.ctrlKey)) {
-					if (isMac_ && ev.metaKey) {
-						if (term.hasSelection()) {
-							ev.preventDefault()
-							navigator.clipboard.writeText(term.getSelection()).catch((err) => {
-								console.error('[terminal] clipboard write failed:', err)
-							})
-							term.clearSelection()
-						}
-						return false
-					}
-					if (ev.ctrlKey && (ev.shiftKey || term.hasSelection())) {
-						if (term.hasSelection()) {
-							ev.preventDefault()
-							navigator.clipboard.writeText(term.getSelection()).catch((err) => {
-								console.error('[terminal] clipboard write failed:', err)
-							})
-							term.clearSelection()
-						}
+					// macOS: Cmd+C is always copy, never SIGINT
+					if (isMac_ && ev.metaKey) return false
+					// Ctrl+C with selection: copy instead of SIGINT
+					if (ev.ctrlKey && !ev.shiftKey && term.hasSelection()) return false
+					// Ctrl+Shift+C: no Electron accelerator for this — manual copy
+					if (ev.ctrlKey && ev.shiftKey && term.hasSelection()) {
+						navigator.clipboard.writeText(term.getSelection()).catch((err) => {
+							console.error('[terminal] clipboard write failed:', err)
+						})
+						term.clearSelection()
 						return false
 					}
 				}
