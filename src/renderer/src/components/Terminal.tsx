@@ -361,18 +361,63 @@ export function TerminalView({
 			// WebGL renderer doesn't support transparent backgrounds — skip when translucent
 			if (opacity >= 1) tryLoadWebgl(entry)
 
-			// Shift+Enter → send LF (\n) instead of xterm's default CR (\r).
-			// Programs that distinguish the two (e.g. Claude Code CLI) can treat
-			// LF as "newline" and CR as "submit".
 			term.attachCustomKeyEventHandler((ev) => {
-				if (ev.key === 'Enter' && ev.shiftKey) {
-					if (ev.type === 'keydown') {
-						window.api.writePty(paneId, '\n').catch((err) => {
-							console.error(`[terminal] writePty failed for pane ${paneId}:`, err)
-						})
+				if (ev.type !== 'keydown') return true
+				const isMac_ = navigator.userAgent.includes('Macintosh')
+
+				// Copy: Cmd+C (macOS) or Ctrl+C with selection (Windows/Linux).
+				// On macOS, Cmd+C is always copy (never SIGINT). On Windows/Linux,
+				// Ctrl+C copies when text is selected, sends SIGINT otherwise.
+				// Ctrl+Shift+C always copies on all platforms.
+				if (ev.key.toLowerCase() === 'c' && (ev.metaKey || ev.ctrlKey)) {
+					if (isMac_ && ev.metaKey) {
+						if (term.hasSelection()) {
+							navigator.clipboard.writeText(term.getSelection()).catch((err) => {
+								console.error('[terminal] clipboard write failed:', err)
+							})
+							term.clearSelection()
+						}
+						return false
 					}
+					if (ev.ctrlKey && (ev.shiftKey || term.hasSelection())) {
+						if (term.hasSelection()) {
+							navigator.clipboard.writeText(term.getSelection()).catch((err) => {
+								console.error('[terminal] clipboard write failed:', err)
+							})
+							term.clearSelection()
+						}
+						return false
+					}
+				}
+
+				// Paste: Ctrl+Shift+V (Windows/Linux terminal convention).
+				// macOS uses Cmd+V which Electron handles natively.
+				if (ev.key.toLowerCase() === 'v' && ev.ctrlKey && ev.shiftKey && !isMac_) {
+					navigator.clipboard
+						.readText()
+						.then((text) => {
+							if (text) {
+								window.api.writePty(paneId, text).catch((err) => {
+									console.error(`[terminal] paste writePty failed for pane ${paneId}:`, err)
+								})
+							}
+						})
+						.catch((err) => {
+							console.error('[terminal] clipboard read failed:', err)
+						})
 					return false
 				}
+
+				// Shift+Enter → send LF (\n) instead of xterm's default CR (\r).
+				// Programs that distinguish the two (e.g. Claude Code CLI) can treat
+				// LF as "newline" and CR as "submit".
+				if (ev.key === 'Enter' && ev.shiftKey) {
+					window.api.writePty(paneId, '\n').catch((err) => {
+						console.error(`[terminal] writePty failed for pane ${paneId}:`, err)
+					})
+					return false
+				}
+
 				return true
 			})
 
