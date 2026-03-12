@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { BrowserWindow, app, nativeImage, shell } from 'electron'
+import { BrowserWindow, Menu, app, nativeImage, shell } from 'electron'
 import { getAppState, saveAppState } from './config-store'
 import { startCwdTracking, stopCwdTracking } from './cwd-tracker'
 import { registerIpcHandlers } from './ipc'
@@ -15,6 +15,79 @@ const APP_ICON_PATH = app.isPackaged
 	: path.join(__dirname, '../../resources/icon.png')
 
 const isMac = process.platform === 'darwin'
+
+// Custom application menu — removes the Paste keyboard accelerator to prevent
+// double-paste. Electron's default Edit > Paste (CmdOrCtrl+V) fires
+// webContents.paste() PLUS the browser fires its own paste event on the same
+// keystroke. xterm.js handles the paste event internally, so we only need the
+// browser path. The Paste menu item is kept for mouse access but without an
+// accelerator.
+function buildAppMenu(): void {
+	const template: Electron.MenuItemConstructorOptions[] = []
+
+	if (isMac) {
+		template.push({
+			label: app.name,
+			submenu: [
+				{ role: 'about' },
+				{ type: 'separator' },
+				{ role: 'services' },
+				{ type: 'separator' },
+				{ role: 'hide' },
+				{ role: 'hideOthers' },
+				{ role: 'unhide' },
+				{ type: 'separator' },
+				{ role: 'quit' },
+			],
+		})
+	}
+
+	template.push({
+		label: 'Edit',
+		submenu: [
+			{ role: 'undo' },
+			{ role: 'redo' },
+			{ type: 'separator' },
+			{ role: 'cut' },
+			{ role: 'copy' },
+			{
+				label: 'Paste',
+				click: (_menuItem, win) => (win as BrowserWindow | undefined)?.webContents.paste(),
+			},
+			{ type: 'separator' },
+			{ role: 'selectAll' },
+		],
+	})
+
+	template.push({
+		label: 'View',
+		submenu: [
+			{ role: 'reload' },
+			{ role: 'forceReload' },
+			{ role: 'toggleDevTools' },
+			{ type: 'separator' },
+			{ role: 'resetZoom' },
+			{ role: 'zoomIn' },
+			{ role: 'zoomOut' },
+			{ type: 'separator' },
+			{ role: 'togglefullscreen' },
+		],
+	})
+
+	template.push({
+		label: 'Window',
+		submenu: isMac
+			? [
+					{ role: 'minimize' as const },
+					{ role: 'zoom' as const },
+					{ type: 'separator' as const },
+					{ role: 'front' as const },
+				]
+			: [{ role: 'minimize' as const }, { role: 'close' as const }],
+	})
+
+	Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+}
 
 function createWindow(): void {
 	const { windowBounds } = getAppState()
@@ -149,6 +222,7 @@ function cleanup(): void {
 app
 	.whenReady()
 	.then(() => {
+		buildAppMenu()
 		registerIpcHandlers()
 		createWindow()
 		startCwdTracking()

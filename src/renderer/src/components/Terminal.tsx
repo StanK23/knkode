@@ -398,11 +398,12 @@ export function TerminalView({
 					}
 				}
 
-				// Paste: Ctrl+V / Cmd+V — prevent browser default to avoid double-paste
-				// with Electron's Edit > Paste menu accelerator. preventDefault stops
-				// the browser from firing its own paste event; Electron's accelerator
-				// (outside the DOM event system) handles the single clipboard write.
-				// Ctrl+Shift+V: no Electron accelerator — manual paste via clipboard API.
+				// Paste: return false so xterm doesn't send raw Ctrl+V (0x16) to PTY.
+				// Do NOT call preventDefault — let the browser fire its native paste
+				// event, which xterm's built-in paste handler picks up (single write).
+				// Electron's Edit > Paste menu has no keyboard accelerator (removed in
+				// buildAppMenu) so there is no second paste path.
+				// Ctrl+Shift+V: no browser shortcut — manual paste via clipboard API.
 				if (ev.key.toLowerCase() === 'v' && (ev.ctrlKey || (isMac_ && ev.metaKey))) {
 					if (ev.shiftKey && ev.ctrlKey) {
 						navigator.clipboard
@@ -419,7 +420,6 @@ export function TerminalView({
 							})
 						return false
 					}
-					ev.preventDefault()
 					return false
 				}
 
