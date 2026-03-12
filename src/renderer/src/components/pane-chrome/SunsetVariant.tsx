@@ -3,13 +3,12 @@ import { createAndRegisterVariant } from './createVariant'
 createAndRegisterVariant('Sunset', {
 	statusBar: {
 		height: 30,
-		className: 'gap-2 px-3 text-[11px] font-medium',
+		className: 'gap-2 px-3 py-1 text-[11px] font-medium',
 		style: (theme, isFocused) => ({
 			color: theme.foreground,
-			backgroundImage: isFocused
-				? `linear-gradient(180deg, ${theme.glow ?? theme.accent}11 0%, transparent 100%)`
-				: 'none',
-			boxShadow: isFocused ? `inset 0 1px 0 ${theme.glow ?? theme.accent}33` : 'none',
+			backgroundColor: '#110808',
+			borderTop: `1px solid ${theme.accent}${isFocused ? '44' : '22'}`,
+			boxShadow: isFocused ? `inset 0 1px 0 ${theme.glow ?? theme.accent}22` : 'none',
 		}),
 		separator: '│',
 		separatorOpacity: 'opacity-20',
