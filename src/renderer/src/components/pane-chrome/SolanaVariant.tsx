@@ -31,11 +31,12 @@ function Frame({
 	const header = (
 		<div
 			{...headerProps}
-			className={`${headerProps.className || ''} relative z-20 flex items-center gap-2 px-3 text-[11px] font-medium shrink-0 select-none transition-all duration-200`}
+			className={`${headerProps.className || ''} relative z-20 flex items-center gap-2 px-3 py-1 text-[11px] font-medium shrink-0 select-none transition-all duration-200`}
 			style={{
 				...headerProps.style,
 				height: 30,
 				color: theme.foreground,
+				backgroundColor: '#0c0c1d',
 				borderTop: isBottom ? '2px solid transparent' : 'none',
 				borderBottom: isBottom ? 'none' : '2px solid transparent',
 				borderImage: isFocused
