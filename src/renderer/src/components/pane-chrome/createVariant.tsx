@@ -1,5 +1,5 @@
 import { registerVariant } from '.'
-import { FOCUS_VIS, FolderIcon, PrBadge } from './shared'
+import { FOCUS_VIS, FolderIcon, LeafIcon, PrBadge } from './shared'
 import type { FrameProps, PaneVariant, ScrollButtonProps, VariantTheme } from './types'
 
 type StyleFn = (theme: VariantTheme, isFocused: boolean) => React.CSSProperties
@@ -26,8 +26,8 @@ export interface VariantConfig {
 			className: string
 			/** Text prefix before path (e.g. '~ '). Mutually exclusive with icon. */
 			prefix?: string
-			/** Icon before path. 'folder' renders FolderIcon; any other string renders as text. */
-			icon?: string | 'folder'
+			/** Icon before path. 'folder' renders FolderIcon, 'leaf' renders LeafIcon; any other string renders as text. */
+			icon?: string | 'folder' | 'leaf'
 			/** Class for the icon element (e.g. 'opacity-60'). */
 			iconClassName?: string
 			/** Inline style wrapper around the icon. */
@@ -120,14 +120,14 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 					className={`flex-1 overflow-hidden text-ellipsis whitespace-nowrap ${sb.cwd.className}`}
 					style={sb.cwd.style?.(theme)}
 				>
-					{sb.cwd.icon === 'folder' ? (
-						sb.cwd.iconStyle ? (
-							<span style={sb.cwd.iconStyle(theme)}>
+					{sb.cwd.icon === 'folder' || sb.cwd.icon === 'leaf' ? (
+						<span className="inline-flex items-center mr-1" style={sb.cwd.iconStyle?.(theme)}>
+							{sb.cwd.icon === 'folder' ? (
 								<FolderIcon className={sb.cwd.iconClassName} />
-							</span>
-						) : (
-							<FolderIcon className={sb.cwd.iconClassName} />
-						)
+							) : (
+								<LeafIcon className={sb.cwd.iconClassName} />
+							)}
+						</span>
 					) : sb.cwd.icon ? (
 						<>
 							<span style={sb.cwd.iconStyle?.(theme)}>{sb.cwd.icon}</span>{' '}

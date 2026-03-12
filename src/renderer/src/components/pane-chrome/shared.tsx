@@ -44,6 +44,20 @@ export function FolderIcon({ className }: { className?: string }) {
 	)
 }
 
+/** Leaf icon SVG used for Everforest cwd. */
+export function LeafIcon({ className }: { className?: string }) {
+	return (
+		<svg
+			viewBox="0 0 16 16"
+			fill="currentColor"
+			aria-hidden="true"
+			className={`w-3 h-3 shrink-0 ${className ?? ''}`}
+		>
+			<path d="M6.5 1.75a.75.75 0 0 1 1.5 0v1.5a5.25 5.25 0 0 1-4.778 5.231A3.5 3.5 0 0 0 7 12.5h1.25a.75.75 0 0 1 0 1.5H7a5 5 0 0 1-4.975-4.525A6.75 6.75 0 0 1 6.5 3.25ZM14.25 2a.75.75 0 0 0-.75.75v.5A5.25 5.25 0 0 1 8.25 8.5H7.5a.75.75 0 0 0 0 1.5h.75a6.75 6.75 0 0 0 6.75-6.75v-.5a.75.75 0 0 0-.75-.75Z" />
+		</svg>
+	)
+}
+
 /** Git branch icon SVG. */
 export function GitIcon({ className }: { className?: string }) {
 	return (
