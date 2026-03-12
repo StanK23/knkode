@@ -1,8 +1,8 @@
 # HANDOFF
 
 ## Current State
-- Branch: `main`
-- Working on: Release Bugfixes v1 (board: "Release Bugfixes — v1")
+- Branch: `fix/force-ansi-colors`
+- Working on: PR 4 — Block OSC 4 palette overrides from shell prompt tools
 
 ## Recently Completed
 - **PR #100** (merged) — Restore keyboard focus on Windows (webContents.focus + xterm re-focus on window focus)
@@ -12,4 +12,4 @@
 - Hotfix: portal menus inherit theme CSS variables (`#portal-root` inside themed container)
 
 ## What's Next
-- PR 4: `fix/force-ansi-colors` — Force theme ANSI colors against Oh My Posh overrides
+- PR review for `fix/force-ansi-colors`, then merge
