@@ -1,13 +1,13 @@
 # HANDOFF
 
 ## Current State
-- Branch: `fix/windows-spacebar`
+- Branch: `main`
 - Working on: Release Bugfixes v1 (board: "Release Bugfixes — v1")
-- PR 3: Fix keyboard input (spacebar) on Windows
 
 ## Recently Completed
+- **PR #100** (merged) — Restore keyboard focus on Windows (webContents.focus + xterm re-focus on window focus)
 - **PR #99** (merged) — Hide native menu bar + enable maximize button on Windows
-- **PR #98** (merged) — Portal context menu + snippet dropdown to escape pane stacking context; xterm viewport-anchor scroll preservation
+- **PR #98** (merged) — Portal context menu + snippet dropdown to escape pane stacking context
 - Hotfix: snippet dropdown portal click-outside race (`useClickOutside` portalRef param)
 - Hotfix: portal menus inherit theme CSS variables (`#portal-root` inside themed container)
 
