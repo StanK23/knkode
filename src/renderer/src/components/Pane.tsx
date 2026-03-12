@@ -43,7 +43,7 @@ import { useInlineEdit } from '../hooks/useInlineEdit'
 import { useStore } from '../store'
 import { isValidCwd } from '../utils/validation'
 import { FontPicker } from './FontPicker'
-import { PaneEffects } from './PaneEffects'
+import { PaneBackgroundEffects, PaneOverlayEffects } from './PaneEffects'
 import { TerminalView } from './Terminal'
 import { type VariantTheme, getVariant } from './pane-chrome'
 import { buildVariantTheme } from './pane-chrome/shared'
@@ -396,7 +396,7 @@ export function Pane({
 			onDragLeave={handlePaneDragLeave}
 			onDrop={handlePaneDrop}
 		>
-			<PaneEffects theme={mergedTheme} isFocused={isFocused} />
+			<PaneBackgroundEffects theme={mergedTheme} isFocused={isFocused} />
 
 			<div className="relative z-10 flex flex-col h-full w-full pointer-events-auto">
 				<variant.Frame
@@ -748,10 +748,12 @@ export function Pane({
 				</variant.Frame>
 			</div>
 
+			<PaneOverlayEffects theme={mergedTheme} />
+
 			{/* Drop zone overlay — shows where the dragged pane will land
 			    (swap for center, split for edges) */}
 			{dropZone && (
-				<div className="absolute pointer-events-none z-20" style={ZONE_STYLES[dropZone]} />
+				<div className="absolute pointer-events-none z-40" style={ZONE_STYLES[dropZone]} />
 			)}
 		</div>
 	)
