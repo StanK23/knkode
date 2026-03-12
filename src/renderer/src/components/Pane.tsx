@@ -16,6 +16,11 @@ interface PaneDragPayload {
 	workspaceId: string
 }
 const PANE_DRAG_MIME = 'application/x-knkode-pane'
+const MOUSE_BUTTON_RIGHT = 2
+const DROPDOWN_DIRECTION: Record<'top' | 'bottom', string> = {
+	top: 'top-full',
+	bottom: 'bottom-full',
+}
 const ZONE_STYLES: Record<DropZone, React.CSSProperties> = {
 	center: { inset: 0, backgroundColor: 'var(--color-accent)', opacity: 0.12 },
 	left: { inset: 0, right: '50%', backgroundColor: 'var(--color-accent)', opacity: 0.18 },
@@ -139,7 +144,7 @@ function SnippetDropdown({
 				<div
 					ref={menuRef}
 					role="menu"
-					className={`ctx-menu right-0 left-auto ${statusBarPosition === 'bottom' ? 'bottom-full' : 'top-full'}`}
+					className={`ctx-menu right-0 left-auto ${DROPDOWN_DIRECTION[statusBarPosition]}`}
 				>
 					{snippets.map((snippet) => (
 						<button
@@ -211,7 +216,7 @@ export function Pane({
 	const dragCounterRef = useRef(0)
 	const dropZoneRef = useRef<DropZone | null>(null)
 	const outerRef = useRef<HTMLDivElement>(null)
-	const lastMouseButtonRef = useRef(0)
+	const lastMouseButtonRef = useRef(0) // MouseEvent.button: 0=left, 1=middle, 2=right
 
 	const movePaneToWorkspace = useStore((s) => s.movePaneToWorkspace)
 	const swapPanes = useStore((s) => s.swapPanes)
@@ -283,6 +288,7 @@ export function Pane({
 	}, [showContext, contextPos.x, contextPos.y, contextPanel])
 
 	const shortCwd = config.cwd.replace(/^\/Users\/[^/]+/, '~')
+	const statusBarPosition = workspaceTheme.statusBarPosition ?? 'top'
 
 	const preset = workspaceTheme.preset ? findPreset(workspaceTheme.preset) : undefined
 	const variant = getVariant(workspaceTheme.preset)
@@ -320,7 +326,6 @@ export function Pane({
 		})
 	}, [])
 
-	const statusBarPosition = workspaceTheme.statusBarPosition ?? 'top'
 	const PaneSnippetTrigger = useCallback(
 		(props: { className?: string; style?: React.CSSProperties; children?: React.ReactNode }) => (
 			<SnippetDropdown paneId={paneId} statusBarPosition={statusBarPosition} {...props} />
@@ -330,10 +335,18 @@ export function Pane({
 
 	const handleFocus = useCallback(() => onFocus(paneId), [paneId, onFocus])
 
+	const handleHeaderMouseDown = useCallback(
+		(e: React.MouseEvent<HTMLDivElement>) => {
+			lastMouseButtonRef.current = e.button
+			onFocus(paneId)
+		},
+		[paneId, onFocus],
+	)
+
 	const handleDragStart = useCallback(
 		(e: React.DragEvent) => {
-			// Prevent drag initiation from right-click to avoid interfering with context menu
-			if (lastMouseButtonRef.current === 2) {
+			// Right-click should open context menu, not start drag
+			if (lastMouseButtonRef.current === MOUSE_BUTTON_RIGHT) {
 				e.preventDefault()
 				return
 			}
@@ -349,6 +362,7 @@ export function Pane({
 	const handleDragEnd = useCallback(() => {
 		setIsDragging(false)
 		dragCounterRef.current = 0
+		lastMouseButtonRef.current = 0
 	}, [])
 	const handlePaneDragOver = useCallback((e: React.DragEvent) => {
 		if (!e.dataTransfer.types.includes(PANE_DRAG_MIME)) return
@@ -408,7 +422,7 @@ export function Pane({
 		<div
 			ref={outerRef}
 			className="flex flex-col h-full w-full relative overflow-hidden"
-			onMouseDown={handleFocus}
+			onMouseDown={handleFocus} /* also fires for header clicks (intentional — idempotent) */
 			onDragOver={handlePaneDragOver}
 			onDragEnter={handlePaneDragEnter}
 			onDragLeave={handlePaneDragLeave}
@@ -444,10 +458,7 @@ export function Pane({
 						onDragStart: handleDragStart,
 						onDragEnd: handleDragEnd,
 						onContextMenu: handleContextMenu,
-						onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => {
-							lastMouseButtonRef.current = e.button
-							handleFocus()
-						},
+						onMouseDown: handleHeaderMouseDown,
 						className: `shrink-0 relative select-none ${isDragging ? 'opacity-40' : ''}`,
 					}}
 					contextMenu={
