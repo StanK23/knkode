@@ -406,6 +406,7 @@ export function TerminalView({
 				// Ctrl+Shift+V: no browser shortcut — manual paste via clipboard API.
 				if (ev.key.toLowerCase() === 'v' && (ev.ctrlKey || (isMac_ && ev.metaKey))) {
 					if (ev.shiftKey && ev.ctrlKey) {
+						ev.preventDefault()
 						navigator.clipboard
 							.readText()
 							.then((text) => {
