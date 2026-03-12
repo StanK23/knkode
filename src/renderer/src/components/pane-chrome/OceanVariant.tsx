@@ -1,8 +1,8 @@
 import { registerVariant } from '.'
 import { FOCUS_VIS, PrBadge } from './shared'
-import type { PaneVariant, ScrollButtonProps, StatusBarProps } from './types'
+import type { FrameProps, PaneVariant, ScrollButtonProps } from './types'
 
-function StatusBar({
+function Frame({
 	label,
 	cwd,
 	branch,
@@ -19,15 +19,28 @@ function StatusBar({
 	editInputProps,
 	SnippetTrigger,
 	shortcuts,
-}: StatusBarProps) {
+	children,
+	headerProps,
+	contextMenu,
+}: FrameProps) {
 	const glowColor = theme.glow ?? theme.accent
-	return (
+	const c1 = theme.accent
+	const isBottom = theme.statusBarPosition === 'bottom'
+
+	const header = (
 		<div
-			className="flex items-center gap-2 px-3 text-[11px] font-light shrink-0 select-none transition-all duration-300"
+			{...headerProps}
+			className={`${headerProps.className || ''} flex items-center gap-2 px-4 text-[11px] font-light shrink-0 select-none transition-all duration-300 z-20`}
 			style={{
-				height: 28,
+				...headerProps.style,
+				height: 36,
 				color: theme.foreground,
-				boxShadow: isFocused ? `0 2px 8px ${glowColor}22` : '0 1px 3px rgba(0,0,0,0.2)',
+				background: isBottom
+					? `linear-gradient(0deg, ${c1}11 0%, transparent 100%)`
+					: `linear-gradient(180deg, ${c1}11 0%, transparent 100%)`,
+				borderTop: isBottom ? `1px solid ${c1}22` : 'none',
+				borderBottom: isBottom ? 'none' : `1px solid ${c1}22`,
+				boxShadow: isFocused ? `0 ${isBottom ? '-' : ''}4px 12px ${glowColor}11` : 'none',
 			}}
 		>
 			{isEditing ? (
@@ -119,6 +132,22 @@ function StatusBar({
 					</button>
 				)}
 			</div>
+			{contextMenu}
+		</div>
+	)
+
+	return (
+		<div className="relative flex flex-col h-full w-full bg-transparent overflow-hidden">
+			{!isBottom && header}
+
+			{/* Terminal Content */}
+			<div
+				className={`relative z-10 flex-1 w-full min-h-0 bg-transparent px-2 ${isBottom ? 'mb-1' : 'mt-1'}`}
+			>
+				{children}
+			</div>
+
+			{isBottom && header}
 		</div>
 	)
 }
@@ -130,7 +159,7 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 			type="button"
 			onClick={onClick}
 			aria-label="Scroll to bottom"
-			className={`absolute bottom-3 right-3 z-10 w-9 h-9 rounded-full flex items-center justify-center text-sm cursor-pointer hover:brightness-110 ${FOCUS_VIS}`}
+			className={`absolute bottom-6 right-6 z-30 w-9 h-9 rounded-full flex items-center justify-center text-sm cursor-pointer hover:brightness-110 ${FOCUS_VIS}`}
 			style={{
 				backgroundColor: `${theme.accent}22`,
 				color: theme.accent,
@@ -143,5 +172,5 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 	)
 }
 
-const OceanVariant: PaneVariant = { StatusBar, ScrollButton }
+const OceanVariant: PaneVariant = { Frame, ScrollButton }
 registerVariant('Ocean', OceanVariant)

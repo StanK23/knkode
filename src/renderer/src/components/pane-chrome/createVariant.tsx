@@ -1,6 +1,6 @@
 import { registerVariant } from '.'
 import { FOCUS_VIS, FolderIcon, PrBadge } from './shared'
-import type { PaneVariant, ScrollButtonProps, StatusBarProps, VariantTheme } from './types'
+import type { FrameProps, PaneVariant, ScrollButtonProps, VariantTheme } from './types'
 
 type StyleFn = (theme: VariantTheme, isFocused: boolean) => React.CSSProperties
 type ThemeFn = (theme: VariantTheme) => React.CSSProperties
@@ -52,12 +52,12 @@ export interface VariantConfig {
 }
 
 /** Create and register a pane-chrome variant from a style configuration.
- *  Covers single-row StatusBar layouts — use a custom implementation
+ *  Covers single-row Frame layouts — use a custom implementation
  *  for variants with unique DOM structure (e.g. Vaporwave's 2-row layout). */
 export function createAndRegisterVariant(name: string, config: VariantConfig): PaneVariant {
 	const { statusBar: sb, scrollButton: scr } = config
 
-	function StatusBar({
+	function Frame({
 		label,
 		cwd,
 		branch,
@@ -74,20 +74,29 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 		editInputProps,
 		SnippetTrigger,
 		shortcuts,
-	}: StatusBarProps) {
+		children,
+		headerProps,
+		contextMenu,
+	}: FrameProps) {
 		const hasSep = sb.separator != null
 		const sepClass = sb.separatorOpacity ?? 'opacity-30'
 		const sepStyle = sb.separatorStyle?.(theme)
 		const Sep = hasSep
-			? () => <span className={sepClass} style={sepStyle}>{sb.separator}</span>
+			? () => (
+					<span className={sepClass} style={sepStyle}>
+						{sb.separator}
+					</span>
+				)
 			: () => null
 		const actionCls = `bg-transparent border-none cursor-pointer leading-none transition-opacity ${FOCUS_VIS} ${sb.action.className}`
 		const actionStyle = sb.action.style(theme)
+		const isBottom = theme.statusBarPosition === 'bottom'
 
-		return (
+		const header = (
 			<div
-				className={`flex items-center shrink-0 select-none transition-colors duration-200 ${sb.className}`}
-				style={{ height: sb.height, ...sb.style(theme, isFocused) }}
+				{...headerProps}
+				className={`${headerProps.className || ''} flex items-center shrink-0 select-none transition-colors duration-200 ${sb.className}`}
+				style={{ ...headerProps.style, height: sb.height, ...sb.style(theme, isFocused) }}
 			>
 				{isEditing ? (
 					<input
@@ -107,16 +116,25 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 
 				{(sb.showSeparatorAfterLabel ?? true) && <Sep />}
 
-				<span className={`flex-1 overflow-hidden text-ellipsis whitespace-nowrap ${sb.cwd.className}`} style={sb.cwd.style?.(theme)}>
+				<span
+					className={`flex-1 overflow-hidden text-ellipsis whitespace-nowrap ${sb.cwd.className}`}
+					style={sb.cwd.style?.(theme)}
+				>
 					{sb.cwd.icon === 'folder' ? (
-						sb.cwd.iconStyle
-							? <span style={sb.cwd.iconStyle(theme)}><FolderIcon className={sb.cwd.iconClassName} /></span>
-							: <FolderIcon className={sb.cwd.iconClassName} />
+						sb.cwd.iconStyle ? (
+							<span style={sb.cwd.iconStyle(theme)}>
+								<FolderIcon className={sb.cwd.iconClassName} />
+							</span>
+						) : (
+							<FolderIcon className={sb.cwd.iconClassName} />
+						)
 					) : sb.cwd.icon ? (
-						<><span style={sb.cwd.iconStyle?.(theme)}>{sb.cwd.icon}</span>{' '}</>
-					) : (
-						sb.cwd.prefix ? <>{sb.cwd.prefix}</> : null
-					)}
+						<>
+							<span style={sb.cwd.iconStyle?.(theme)}>{sb.cwd.icon}</span>{' '}
+						</>
+					) : sb.cwd.prefix ? (
+						<>{sb.cwd.prefix}</>
+					) : null}
 					{cwd}
 				</span>
 
@@ -178,7 +196,16 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 						✕
 					</button>
 				)}
+				{contextMenu}
 			</div>
+		)
+
+		return (
+			<>
+				{!isBottom && header}
+				{children}
+				{isBottom && header}
+			</>
 		)
 	}
 
@@ -196,7 +223,7 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 		)
 	}
 
-	const variant: PaneVariant = { StatusBar, ScrollButton }
+	const variant: PaneVariant = { Frame, ScrollButton }
 	registerVariant(name, variant)
 	return variant
 }

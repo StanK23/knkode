@@ -22,11 +22,19 @@ createAndRegisterVariant('Gruvbox', {
 		},
 		branch: {
 			className: 'text-[10px] font-medium px-2 py-px',
-			style: (theme) => ({ backgroundColor: `${theme.accent}18`, color: theme.foreground, borderRadius: 2 }),
+			style: (theme) => ({
+				backgroundColor: `${theme.accent}18`,
+				color: theme.foreground,
+				borderRadius: 2,
+			}),
 		},
 		pr: {
 			className: 'text-[10px] font-medium px-2 py-px hover:brightness-110',
-			style: (theme) => ({ backgroundColor: `${theme.accent}18`, color: theme.foreground, borderRadius: 2 }),
+			style: (theme) => ({
+				backgroundColor: `${theme.accent}18`,
+				color: theme.foreground,
+				borderRadius: 2,
+			}),
 		},
 		action: {
 			className: 'text-[11px] px-0.5 opacity-50 hover:opacity-100',

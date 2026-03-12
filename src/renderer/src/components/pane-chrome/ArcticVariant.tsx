@@ -22,11 +22,20 @@ createAndRegisterVariant('Arctic', {
 		},
 		branch: {
 			className: 'text-[10px] tracking-wider font-light px-2 py-px',
-			style: (theme) => ({ border: `1px solid ${theme.accent}44`, color: theme.foreground, borderRadius: 0 }),
+			style: (theme) => ({
+				border: `1px solid ${theme.accent}44`,
+				color: theme.foreground,
+				borderRadius: 0,
+			}),
 		},
 		pr: {
 			className: 'text-[10px] tracking-wider font-light px-2 py-px opacity-40 hover:opacity-100',
-			style: (theme) => ({ border: `1px solid ${theme.accent}44`, color: theme.foreground, borderRadius: 0, backgroundColor: 'transparent' }),
+			style: (theme) => ({
+				border: `1px solid ${theme.accent}44`,
+				color: theme.foreground,
+				borderRadius: 0,
+				backgroundColor: 'transparent',
+			}),
 		},
 		action: {
 			className: 'px-0.5 opacity-40 hover:opacity-100',
@@ -35,7 +44,8 @@ createAndRegisterVariant('Arctic', {
 		snippet: { label: '>_' },
 	},
 	scrollButton: {
-		className: 'bottom-3 left-3 right-3 h-7 text-[10px] tracking-widest font-light uppercase hover:brightness-110',
+		className:
+			'bottom-3 left-3 right-3 h-7 text-[10px] tracking-widest font-light uppercase hover:brightness-110',
 		style: (theme) => ({
 			backgroundColor: `${theme.background}dd`,
 			color: theme.accent,

@@ -1,8 +1,8 @@
 import { registerVariant } from '.'
 import { FOCUS_VIS, PrBadge } from './shared'
-import type { PaneVariant, ScrollButtonProps, StatusBarProps } from './types'
+import type { FrameProps, PaneVariant, ScrollButtonProps } from './types'
 
-function StatusBar({
+function Frame({
 	label,
 	cwd,
 	branch,
@@ -19,29 +19,44 @@ function StatusBar({
 	editInputProps,
 	SnippetTrigger,
 	shortcuts,
-}: StatusBarProps) {
+	children,
+	headerProps,
+	contextMenu,
+}: FrameProps) {
 	const glowColor = theme.glow ?? theme.accent
-	return (
+	const c1 = theme.accent
+	const c2 = theme.glow || '#05d9e8'
+
+	// If not focused, we dull the colors to simulate power-saving
+	const activeC1 = isFocused ? c1 : `${c1}88`
+	const activeC2 = isFocused ? c2 : `${c2}88`
+
+	const isBottom = theme.statusBarPosition === 'bottom'
+
+	const header = (
 		<div
-			className="flex items-center gap-2 px-3 text-[10px] font-bold uppercase tracking-widest shrink-0 select-none transition-all duration-300"
+			{...headerProps}
+			className={`${headerProps.className || ''} w-full h-7 flex items-center gap-2 px-4 text-[9px] font-mono font-bold uppercase tracking-widest shrink-0 select-none transition-all duration-300 z-20`}
 			style={{
-				height: 32,
+				...headerProps.style,
 				color: theme.foreground,
-				borderBottom: `1px solid ${theme.accent}88`,
-				boxShadow: isFocused ? `0 1px 8px ${glowColor}44, inset 0 -1px 4px ${glowColor}22` : 'none',
+				borderTop: isBottom ? `1px solid ${activeC1}88` : 'none',
+				borderBottom: isBottom ? 'none' : `1px solid ${activeC1}88`,
+				background: `linear-gradient(90deg, ${activeC1}22 0%, ${activeC2}11 100%)`,
+				boxShadow: isFocused ? `0 ${isBottom ? '-1px' : '1px'} 8px ${glowColor}44` : 'none',
 			}}
 		>
 			{isEditing ? (
 				<input
 					{...editInputProps}
 					className="bg-transparent border font-bold uppercase tracking-wider text-[10px] py-px px-1 outline-none w-20"
-					style={{ borderColor: theme.accent, color: theme.accent }}
+					style={{ borderColor: activeC1, color: activeC1 }}
 				/>
 			) : (
 				<span
 					onDoubleClick={onDoubleClickLabel}
 					className="cursor-default shrink-0"
-					style={{ color: theme.accent }}
+					style={{ color: activeC1, textShadow: isFocused ? `0 0 4px ${activeC1}` : 'none' }}
 				>
 					{label}
 				</span>
@@ -57,15 +72,13 @@ function StatusBar({
 			{branch && (
 				<output
 					aria-label={`Git branch: ${branch}`}
-					className="min-w-0 text-[9px] font-bold px-2 py-px overflow-hidden text-ellipsis whitespace-nowrap transition-all duration-200 hover:brightness-125"
+					className="min-w-0 text-[9px] font-bold px-3 py-px overflow-hidden text-ellipsis whitespace-nowrap"
 					title={branch}
 					style={{
 						color: theme.background,
-						backgroundColor: theme.accent,
-						clipPath: 'polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%)',
-						paddingLeft: 14,
-						paddingRight: 14,
-						textShadow: `0 0 4px ${glowColor}88`,
+						backgroundColor: activeC1,
+						clipPath: 'polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%)',
+						textShadow: isFocused ? `0 0 2px ${theme.background}` : 'none',
 					}}
 				>
 					{branch}
@@ -77,13 +90,13 @@ function StatusBar({
 					pr={pr}
 					onOpenExternal={onOpenExternal}
 					className="bg-transparent text-[9px] font-bold uppercase tracking-widest px-1 leading-none opacity-50 hover:opacity-100 transition-opacity"
-					style={{ color: theme.accent, textShadow: `0 0 4px ${glowColor}88` }}
+					style={{ color: activeC1, textShadow: isFocused ? `0 0 4px ${glowColor}88` : 'none' }}
 				/>
 			)}
 
 			<SnippetTrigger
 				className={`bg-transparent border-none cursor-pointer px-1 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
-				style={{ color: theme.accent }}
+				style={{ color: activeC2 }}
 			>
 				{'>_'}
 			</SnippetTrigger>
@@ -94,7 +107,7 @@ function StatusBar({
 				title={`Split vertical (${shortcuts.splitV})`}
 				aria-label="Split pane vertically"
 				className={`bg-transparent border-none cursor-pointer px-1 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
-				style={{ color: theme.accent }}
+				style={{ color: activeC2 }}
 			>
 				┃
 			</button>
@@ -104,7 +117,7 @@ function StatusBar({
 				title={`Split horizontal (${shortcuts.splitH})`}
 				aria-label="Split pane horizontally"
 				className={`bg-transparent border-none cursor-pointer px-1 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
-				style={{ color: theme.accent }}
+				style={{ color: activeC2 }}
 			>
 				━
 			</button>
@@ -115,11 +128,23 @@ function StatusBar({
 					title={`Close pane (${shortcuts.close})`}
 					aria-label="Close pane"
 					className={`bg-transparent border-none cursor-pointer px-1 leading-none opacity-50 hover:opacity-100 transition-opacity ${FOCUS_VIS}`}
-					style={{ color: theme.accent }}
+					style={{ color: activeC1 }}
 				>
 					✕
 				</button>
 			)}
+			{contextMenu}
+		</div>
+	)
+
+	return (
+		<div className="relative flex flex-col h-full w-full bg-transparent overflow-hidden">
+			{!isBottom && header}
+
+			{/* Terminal Content */}
+			<div className="relative z-10 flex-1 w-full min-h-0 bg-transparent">{children}</div>
+
+			{isBottom && header}
 		</div>
 	)
 }
@@ -131,7 +156,7 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 			type="button"
 			onClick={onClick}
 			aria-label="Scroll to bottom"
-			className={`absolute bottom-3 left-3 right-3 z-10 h-8 flex items-center justify-center text-[10px] font-bold uppercase tracking-widest cursor-pointer hover:brightness-125 ${FOCUS_VIS}`}
+			className={`absolute bottom-10 left-4 right-4 z-30 h-8 flex items-center justify-center text-[10px] font-bold uppercase tracking-widest cursor-pointer hover:brightness-125 ${FOCUS_VIS}`}
 			style={{
 				backgroundColor: `${theme.background}dd`,
 				color: theme.accent,
@@ -146,5 +171,5 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 	)
 }
 
-const CyberpunkVariant: PaneVariant = { StatusBar, ScrollButton }
+const CyberpunkVariant: PaneVariant = { Frame, ScrollButton }
 registerVariant('Cyberpunk', CyberpunkVariant)

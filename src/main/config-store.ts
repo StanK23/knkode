@@ -96,7 +96,7 @@ export function migrateTheme(ws: Workspace): Workspace {
 		}
 	}
 
-	const raw = ws.theme as Record<string, unknown>
+	const raw = ws.theme as unknown as Record<string, unknown>
 	if ('unfocusedDim' in raw) return ws
 
 	// Convert legacy opacity (0.3-1.0) to unfocusedDim (0-0.7)
@@ -157,19 +157,40 @@ export function migrateEffectLevels(ws: Workspace): Workspace {
 
 const HEX_RE = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
 const ANSI_KEYS: readonly (keyof AnsiColors)[] = [
-	'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',
-	'brightBlack', 'brightRed', 'brightGreen', 'brightYellow', 'brightBlue', 'brightMagenta', 'brightCyan', 'brightWhite',
+	'black',
+	'red',
+	'green',
+	'yellow',
+	'blue',
+	'magenta',
+	'cyan',
+	'white',
+	'brightBlack',
+	'brightRed',
+	'brightGreen',
+	'brightYellow',
+	'brightBlue',
+	'brightMagenta',
+	'brightCyan',
+	'brightWhite',
 ]
 
 /** Validate and sanitize PaneTheme fields loaded from disk.
  *  Strips invalid values rather than rejecting the whole workspace —
  *  config files may be hand-edited or from older versions. */
 export function sanitizeTheme(raw: Record<string, unknown>): PaneTheme {
-	const bg = typeof raw.background === 'string' && HEX_RE.test(raw.background) ? raw.background : '#1a1a2e'
-	const fg = typeof raw.foreground === 'string' && HEX_RE.test(raw.foreground) ? raw.foreground : '#e0e0e0'
-	const fontSize = typeof raw.fontSize === 'number' && Number.isFinite(raw.fontSize) && raw.fontSize > 0 ? raw.fontSize : 14
+	const bg =
+		typeof raw.background === 'string' && HEX_RE.test(raw.background) ? raw.background : '#1a1a2e'
+	const fg =
+		typeof raw.foreground === 'string' && HEX_RE.test(raw.foreground) ? raw.foreground : '#e0e0e0'
+	const fontSize =
+		typeof raw.fontSize === 'number' && Number.isFinite(raw.fontSize) && raw.fontSize > 0
+			? raw.fontSize
+			: 14
 	const unfocusedDim =
-		typeof raw.unfocusedDim === 'number' && Number.isFinite(raw.unfocusedDim) ? raw.unfocusedDim : DEFAULT_UNFOCUSED_DIM
+		typeof raw.unfocusedDim === 'number' && Number.isFinite(raw.unfocusedDim)
+			? raw.unfocusedDim
+			: DEFAULT_UNFOCUSED_DIM
 
 	const result: PaneTheme = { background: bg, foreground: fg, fontSize, unfocusedDim }
 
@@ -181,14 +202,28 @@ export function sanitizeTheme(raw: Record<string, unknown>): PaneTheme {
 	}
 
 	// Optional string fields (non-hex)
-	if (typeof raw.fontFamily === 'string' && raw.fontFamily.length > 0) result.fontFamily = raw.fontFamily
+	// fontFamily is validated at consumption time by buildFontFamily (against TERMINAL_FONTS),
+	// but we strip obviously invalid values at the disk-load boundary as defense-in-depth.
+	if (
+		typeof raw.fontFamily === 'string' &&
+		raw.fontFamily.length > 0 &&
+		raw.fontFamily.length < 128 &&
+		!/[;{}]/.test(raw.fontFamily)
+	)
+		result.fontFamily = raw.fontFamily
 	if (typeof raw.gradient === 'string' && raw.gradient.length > 0) result.gradient = raw.gradient
 	if (typeof raw.preset === 'string' && raw.preset.length > 0) result.preset = raw.preset
+	if (raw.statusBarPosition === 'top' || raw.statusBarPosition === 'bottom') {
+		result.statusBarPosition = raw.statusBarPosition
+	}
 
 	// Optional numeric fields
-	if (typeof raw.scrollback === 'number' && Number.isFinite(raw.scrollback)) result.scrollback = raw.scrollback
-	if (typeof raw.paneOpacity === 'number' && Number.isFinite(raw.paneOpacity)) result.paneOpacity = raw.paneOpacity
-	if (typeof raw.lineHeight === 'number' && Number.isFinite(raw.lineHeight)) result.lineHeight = raw.lineHeight
+	if (typeof raw.scrollback === 'number' && Number.isFinite(raw.scrollback))
+		result.scrollback = raw.scrollback
+	if (typeof raw.paneOpacity === 'number' && Number.isFinite(raw.paneOpacity))
+		result.paneOpacity = raw.paneOpacity
+	if (typeof raw.lineHeight === 'number' && Number.isFinite(raw.lineHeight))
+		result.lineHeight = raw.lineHeight
 
 	// CursorStyle
 	if (typeof raw.cursorStyle === 'string' && isCursorStyle(raw.cursorStyle)) {
@@ -196,7 +231,13 @@ export function sanitizeTheme(raw: Record<string, unknown>): PaneTheme {
 	}
 
 	// EffectLevel fields
-	for (const field of ['gradientLevel', 'glowLevel', 'scanlineLevel', 'noiseLevel', 'scrollbarAccent'] as const) {
+	for (const field of [
+		'gradientLevel',
+		'glowLevel',
+		'scanlineLevel',
+		'noiseLevel',
+		'scrollbarAccent',
+	] as const) {
 		if (isEffectLevel(raw[field])) {
 			;(result as unknown as Record<string, unknown>)[field] = raw[field]
 		}

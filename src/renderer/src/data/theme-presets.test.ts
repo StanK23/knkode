@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { isEffectLevel } from '../../../shared/types'
 import { hexToRgb, isDark, isValidHex } from '../utils/colors'
 import {
+	TERMINAL_FONTS,
 	THEME_PRESETS,
 	type ThemePreset,
 	buildFontFamily,
@@ -190,7 +191,7 @@ describe('THEME_PRESETS data integrity', () => {
 	})
 
 	it('every preset with glow has valid hex glow', () => {
-		for (const preset of THEME_PRESETS) {
+		for (const preset of THEME_PRESETS as readonly ThemePreset[]) {
 			if (preset.glow) {
 				expect(isValidHex(preset.glow), `${preset.name}.glow = "${preset.glow}"`).toBe(true)
 			}
@@ -392,6 +393,28 @@ describe('identity theme properties', () => {
 			if (b >= r) coolCount++
 		}
 		expect(coolCount, 'most Arctic ANSI colors should be cool (B >= R)').toBeGreaterThan(12)
+	})
+
+	it('every preset with fontFamily has a value in TERMINAL_FONTS', () => {
+		for (const preset of THEME_PRESETS) {
+			if (preset.fontFamily) {
+				expect(
+					(TERMINAL_FONTS as readonly string[]).includes(preset.fontFamily),
+					`${preset.name}.fontFamily "${preset.fontFamily}" must be in TERMINAL_FONTS`,
+				).toBe(true)
+			}
+		}
+	})
+
+	it('every preset with statusBarPosition has a valid value', () => {
+		for (const preset of THEME_PRESETS as readonly ThemePreset[]) {
+			if (preset.statusBarPosition !== undefined) {
+				expect(
+					['top', 'bottom'].includes(preset.statusBarPosition),
+					`${preset.name}.statusBarPosition "${preset.statusBarPosition}" must be 'top' or 'bottom'`,
+				).toBe(true)
+			}
+		}
 	})
 
 	it('community themes do not have effects', () => {

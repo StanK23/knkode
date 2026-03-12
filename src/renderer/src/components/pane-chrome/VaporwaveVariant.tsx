@@ -1,8 +1,8 @@
 import { registerVariant } from '.'
 import { FOCUS_VIS, PrBadge } from './shared'
-import type { PaneVariant, ScrollButtonProps, StatusBarProps } from './types'
+import type { FrameProps, PaneVariant, ScrollButtonProps } from './types'
 
-function StatusBar({
+function Frame({
 	label,
 	cwd,
 	branch,
@@ -19,22 +19,37 @@ function StatusBar({
 	editInputProps,
 	SnippetTrigger,
 	shortcuts,
-}: StatusBarProps) {
+	children,
+	headerProps,
+	contextMenu,
+}: FrameProps) {
 	const glowColor = theme.glow ?? theme.accent
-	return (
+	const c1 = theme.accent
+	const c2 = '#01cdfe'
+	const c3 = '#7b2fff'
+
+	const activeOpacity = isFocused ? 1 : 0.6
+	const isBottom = theme.statusBarPosition === 'bottom'
+
+	const header = (
 		<div
-			className="flex flex-col px-3 shrink-0 select-none transition-all duration-300"
+			{...headerProps}
+			className={`${headerProps.className || ''} relative z-20 flex flex-col px-3 shrink-0 select-none transition-all duration-300`}
 			style={{
-				borderBottom: '3px solid transparent',
+				...headerProps.style,
+				borderBottom: isBottom ? 'none' : '3px solid transparent',
+				borderTop: isBottom ? '3px solid transparent' : 'none',
 				borderImage: isFocused
-					? `linear-gradient(90deg, ${theme.accent}, ${glowColor}, ${theme.accent}) 1`
-					: `linear-gradient(90deg, ${theme.accent}44, ${glowColor}44, ${theme.accent}44) 1`,
+					? `linear-gradient(90deg, ${c1}, ${c2}, ${c3}) 1`
+					: `linear-gradient(90deg, ${c1}44, ${c2}44, ${c3}44) 1`,
+				backgroundColor: '#0a0015cc',
+				backdropFilter: 'blur(4px)',
 			}}
 		>
 			{/* Row 1: label, cwd, snippet, actions */}
 			<div
-				className="flex items-center gap-2 text-[11px] tracking-wider font-light pt-1"
-				style={{ color: theme.foreground }}
+				className={`flex items-center gap-2 text-[11px] tracking-wider font-light ${isBottom ? 'pb-1 pt-0.5' : 'pt-1'}`}
+				style={{ color: theme.foreground, opacity: activeOpacity }}
 			>
 				{isEditing ? (
 					<input
@@ -46,16 +61,16 @@ function StatusBar({
 					<span
 						onDoubleClick={onDoubleClickLabel}
 						className="cursor-default shrink-0 font-medium"
-						style={{ color: theme.accent }}
+						style={{ color: theme.accent, textShadow: isFocused ? `0 0 8px ${c1}` : 'none' }}
 					>
 						{label}
 					</span>
 				)}
 
 				<span
-					className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap opacity-60"
+					className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap opacity-80"
 					style={{
-						backgroundImage: `linear-gradient(90deg, ${theme.accent}, ${glowColor})`,
+						backgroundImage: `linear-gradient(90deg, ${c1}, ${c2})`,
 						WebkitBackgroundClip: 'text',
 						WebkitTextFillColor: 'transparent',
 					}}
@@ -66,8 +81,9 @@ function StatusBar({
 				<SnippetTrigger
 					className={`text-[9px] tracking-wider font-medium px-2 py-0.5 rounded-full cursor-pointer border-none hover:brightness-110 transition-all ${FOCUS_VIS}`}
 					style={{
-						background: `linear-gradient(135deg, ${theme.accent}44, ${glowColor}44)`,
+						background: `linear-gradient(135deg, ${c1}44, ${c2}44)`,
 						color: theme.foreground,
+						boxShadow: isFocused ? `0 0 6px ${c2}44` : 'none',
 					}}
 				>
 					{'>_'}
@@ -80,7 +96,7 @@ function StatusBar({
 					aria-label="Split pane vertically"
 					className={`text-[9px] tracking-wider font-medium px-2 py-0.5 rounded-full cursor-pointer border-none hover:brightness-110 transition-all ${FOCUS_VIS}`}
 					style={{
-						background: `linear-gradient(135deg, ${theme.accent}44, ${glowColor}44)`,
+						background: `linear-gradient(135deg, ${c1}44, ${c2}44)`,
 						color: theme.foreground,
 					}}
 				>
@@ -93,7 +109,7 @@ function StatusBar({
 					aria-label="Split pane horizontally"
 					className={`text-[9px] tracking-wider font-medium px-2 py-0.5 rounded-full cursor-pointer border-none hover:brightness-110 transition-all ${FOCUS_VIS}`}
 					style={{
-						background: `linear-gradient(135deg, ${theme.accent}44, ${glowColor}44)`,
+						background: `linear-gradient(135deg, ${c1}44, ${c2}44)`,
 						color: theme.foreground,
 					}}
 				>
@@ -107,7 +123,7 @@ function StatusBar({
 						aria-label="Close pane"
 						className={`text-[9px] tracking-wider font-medium px-2 py-0.5 rounded-full cursor-pointer border-none hover:brightness-110 transition-all ${FOCUS_VIS}`}
 						style={{
-							background: `linear-gradient(135deg, ${theme.accent}44, ${glowColor}44)`,
+							background: `linear-gradient(135deg, ${c1}44, ${c2}44)`,
 							color: theme.foreground,
 						}}
 					>
@@ -118,14 +134,14 @@ function StatusBar({
 
 			{/* Row 2: git branch + PR */}
 			{(branch || pr) && (
-				<div className="flex items-center gap-1.5 py-1">
+				<div className="flex items-center gap-1.5 py-1" style={{ opacity: activeOpacity }}>
 					{branch && (
 						<output
 							aria-label={`Git branch: ${branch}`}
 							className="text-[10px] font-medium px-3 py-0.5 rounded-full overflow-hidden text-ellipsis whitespace-nowrap"
 							title={branch}
 							style={{
-								background: `linear-gradient(135deg, ${theme.accent}, ${glowColor})`,
+								background: `linear-gradient(135deg, ${c1}, ${c3})`,
 								color: theme.background,
 								boxShadow: isFocused ? `0 0 8px ${glowColor}44` : 'none',
 							}}
@@ -139,7 +155,7 @@ function StatusBar({
 							onOpenExternal={onOpenExternal}
 							className="text-[10px] font-medium px-3 py-0.5 rounded-full hover:brightness-110 transition-all"
 							style={{
-								background: `linear-gradient(135deg, ${theme.accent}, ${glowColor})`,
+								background: `linear-gradient(135deg, ${c1}, ${c3})`,
 								color: theme.background,
 								boxShadow: isFocused ? `0 0 8px ${glowColor}44` : 'none',
 							}}
@@ -147,6 +163,22 @@ function StatusBar({
 					)}
 				</div>
 			)}
+			{contextMenu}
+		</div>
+	)
+
+	return (
+		<div className="relative flex flex-col h-full w-full bg-transparent overflow-hidden">
+			{!isBottom && header}
+
+			{/* Terminal Content */}
+			<div
+				className={`relative z-10 flex-1 w-full min-h-0 bg-transparent ${isBottom ? 'mb-1' : 'mt-1'}`}
+			>
+				{children}
+			</div>
+
+			{isBottom && header}
 		</div>
 	)
 }
@@ -158,7 +190,7 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 			type="button"
 			onClick={onClick}
 			aria-label="Scroll to bottom"
-			className={`absolute bottom-4 left-1/4 right-1/4 z-10 h-9 rounded-full flex items-center justify-center text-xs tracking-wider font-medium cursor-pointer hover:brightness-110 ${FOCUS_VIS}`}
+			className={`absolute bottom-4 left-1/4 right-1/4 z-30 h-9 rounded-full flex items-center justify-center text-xs tracking-wider font-medium cursor-pointer hover:brightness-110 ${FOCUS_VIS}`}
 			style={{
 				background: `linear-gradient(135deg, ${theme.accent}cc, ${glowColor}cc)`,
 				color: theme.background,
@@ -170,5 +202,5 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 	)
 }
 
-const VaporwaveVariant: PaneVariant = { StatusBar, ScrollButton }
+const VaporwaveVariant: PaneVariant = { Frame, ScrollButton }
 registerVariant('Vaporwave', VaporwaveVariant)

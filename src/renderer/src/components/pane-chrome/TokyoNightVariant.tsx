@@ -1,8 +1,8 @@
 import { registerVariant } from '.'
 import { FOCUS_VIS, PrBadge } from './shared'
-import type { PaneVariant, ScrollButtonProps, StatusBarProps } from './types'
+import type { FrameProps, PaneVariant, ScrollButtonProps } from './types'
 
-function StatusBar({
+function Frame({
 	label,
 	cwd,
 	branch,
@@ -19,14 +19,27 @@ function StatusBar({
 	editInputProps,
 	SnippetTrigger,
 	shortcuts,
-}: StatusBarProps) {
-	return (
+	children,
+	headerProps,
+	contextMenu,
+}: FrameProps) {
+	const isBottom = theme.statusBarPosition === 'bottom'
+
+	const header = (
 		<div
-			className="flex items-center gap-2 px-3 text-[10px] font-light shrink-0 select-none transition-all duration-300"
+			{...headerProps}
+			className={`${headerProps.className || ''} flex items-center gap-2 px-3 text-[10px] font-light shrink-0 select-none transition-all duration-300 z-20`}
 			style={{
+				...headerProps.style,
 				height: 26,
 				color: theme.foreground,
-				borderBottom: `1px solid ${isFocused ? `${theme.accent}66` : `${theme.foreground}11`}`,
+				borderTop: isBottom
+					? `1px solid ${isFocused ? `${theme.accent}66` : `${theme.foreground}11`}`
+					: 'none',
+				borderBottom: isBottom
+					? 'none'
+					: `1px solid ${isFocused ? `${theme.accent}66` : `${theme.foreground}11`}`,
+				backgroundColor: isFocused ? '#16161e' : 'transparent',
 			}}
 		>
 			{isEditing ? (
@@ -106,6 +119,18 @@ function StatusBar({
 					</button>
 				)}
 			</div>
+			{contextMenu}
+		</div>
+	)
+
+	return (
+		<div className="relative flex flex-col h-full w-full bg-transparent overflow-hidden">
+			{!isBottom && header}
+
+			{/* Terminal Content */}
+			<div className="relative z-10 flex-1 w-full min-h-0 bg-transparent">{children}</div>
+
+			{isBottom && header}
 		</div>
 	)
 }
@@ -116,7 +141,7 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 			type="button"
 			onClick={onClick}
 			aria-label="Scroll to bottom"
-			className={`absolute bottom-3 right-3 z-10 w-6 h-6 flex items-center justify-center text-sm cursor-pointer hover:brightness-125 ${FOCUS_VIS}`}
+			className={`absolute bottom-3 right-3 z-30 w-6 h-6 flex items-center justify-center text-sm cursor-pointer hover:brightness-125 ${FOCUS_VIS}`}
 			style={{
 				color: theme.accent,
 				backgroundColor: 'transparent',
@@ -128,5 +153,5 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 	)
 }
 
-const TokyoNightVariant: PaneVariant = { StatusBar, ScrollButton }
+const TokyoNightVariant: PaneVariant = { Frame, ScrollButton }
 registerVariant('Tokyo Night', TokyoNightVariant)

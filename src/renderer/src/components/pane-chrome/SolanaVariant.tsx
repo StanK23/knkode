@@ -1,8 +1,8 @@
 import { registerVariant } from '.'
 import { FOCUS_VIS, FolderIcon, PrBadge } from './shared'
-import type { PaneVariant, ScrollButtonProps, StatusBarProps } from './types'
+import type { FrameProps, PaneVariant, ScrollButtonProps } from './types'
 
-function StatusBar({
+function Frame({
 	label,
 	cwd,
 	branch,
@@ -19,18 +19,28 @@ function StatusBar({
 	editInputProps,
 	SnippetTrigger,
 	shortcuts,
-}: StatusBarProps) {
+	children,
+	headerProps,
+	contextMenu,
+}: FrameProps) {
 	const glowColor = theme.glow ?? theme.accent
-	return (
+	const c1 = theme.accent
+	const c2 = glowColor
+	const isBottom = theme.statusBarPosition === 'bottom'
+
+	const header = (
 		<div
-			className="flex items-center gap-2 px-3 text-[11px] font-medium shrink-0 select-none transition-all duration-200"
+			{...headerProps}
+			className={`${headerProps.className || ''} relative z-20 flex items-center gap-2 px-3 text-[11px] font-medium shrink-0 select-none transition-all duration-200`}
 			style={{
+				...headerProps.style,
 				height: 30,
 				color: theme.foreground,
-				borderBottom: '2px solid transparent',
+				borderTop: isBottom ? '2px solid transparent' : 'none',
+				borderBottom: isBottom ? 'none' : '2px solid transparent',
 				borderImage: isFocused
-					? `linear-gradient(90deg, ${theme.accent}, ${glowColor}) 1`
-					: `linear-gradient(90deg, ${theme.accent}33, ${glowColor}33) 1`,
+					? `linear-gradient(90deg, ${c1}, ${c2}) 1`
+					: `linear-gradient(90deg, ${c1}33, ${c2}33) 1`,
 			}}
 		>
 			{isEditing ? (
@@ -40,7 +50,11 @@ function StatusBar({
 					style={{ borderColor: theme.accent, color: theme.foreground }}
 				/>
 			) : (
-				<span onDoubleClick={onDoubleClickLabel} className="cursor-default shrink-0 font-semibold">
+				<span
+					onDoubleClick={onDoubleClickLabel}
+					className="cursor-default shrink-0 font-semibold"
+					style={{ textShadow: isFocused ? `0 0 8px ${c1}66` : 'none' }}
+				>
 					{label}
 				</span>
 			)}
@@ -60,9 +74,10 @@ function StatusBar({
 					className="min-w-0 text-[10px] font-medium px-2 py-px rounded-full overflow-hidden text-ellipsis whitespace-nowrap"
 					title={branch}
 					style={{
-						background: `linear-gradient(135deg, ${theme.accent}33, ${glowColor}33)`,
+						background: `linear-gradient(135deg, ${c1}33, ${c2}33)`,
 						color: theme.foreground,
-						border: `1px solid ${theme.accent}44`,
+						border: `1px solid ${c1}44`,
+						boxShadow: isFocused ? `0 0 6px ${c2}33` : 'none',
 					}}
 				>
 					{branch}
@@ -75,9 +90,10 @@ function StatusBar({
 					onOpenExternal={onOpenExternal}
 					className="text-[10px] font-medium px-2 py-px rounded-full hover:brightness-110 transition-all"
 					style={{
-						background: `linear-gradient(135deg, ${theme.accent}33, ${glowColor}33)`,
+						background: `linear-gradient(135deg, ${c1}33, ${c2}33)`,
 						color: theme.foreground,
-						border: `1px solid ${theme.accent}44`,
+						border: `1px solid ${c1}44`,
+						boxShadow: isFocused ? `0 0 6px ${c2}33` : 'none',
 					}}
 				/>
 			)}
@@ -123,6 +139,19 @@ function StatusBar({
 					✕
 				</button>
 			)}
+			{contextMenu}
+		</div>
+	)
+
+	return (
+		<div className="relative flex flex-col h-full w-full bg-transparent overflow-hidden">
+			{!isBottom && header}
+
+			<div className={`relative z-10 flex-1 w-full min-h-0 ${isBottom ? 'mb-1' : 'mt-1'}`}>
+				{children}
+			</div>
+
+			{isBottom && header}
 		</div>
 	)
 }
@@ -134,7 +163,7 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 			type="button"
 			onClick={onClick}
 			aria-label="Scroll to bottom"
-			className={`absolute bottom-3 left-1/4 right-1/4 z-10 h-8 rounded-full flex items-center justify-center text-xs cursor-pointer hover:brightness-110 ${FOCUS_VIS}`}
+			className={`absolute bottom-6 left-1/4 right-1/4 z-30 h-8 rounded-full flex items-center justify-center text-xs cursor-pointer hover:brightness-110 ${FOCUS_VIS}`}
 			style={{
 				color: theme.foreground,
 				border: `1px solid ${theme.accent}66`,
@@ -147,5 +176,5 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 	)
 }
 
-const SolanaVariant: PaneVariant = { StatusBar, ScrollButton }
+const SolanaVariant: PaneVariant = { Frame, ScrollButton }
 registerVariant('Solana', SolanaVariant)

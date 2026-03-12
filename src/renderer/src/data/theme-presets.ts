@@ -17,7 +17,11 @@ export type ThemePreset = Pick<
 	| 'scrollbarAccent'
 	| 'cursorColor'
 	| 'selectionColor'
-> & { name: string; decoration?: string }
+> &
+	Partial<Pick<PaneTheme, 'fontFamily' | 'fontSize' | 'lineHeight' | 'statusBarPosition'>> & {
+		name: string
+		decoration?: string
+	}
 
 /** Tango-based ANSI palette used by the Default Dark preset. */
 const DEFAULT_ANSI: AnsiColors = {
@@ -65,6 +69,7 @@ export const THEME_PRESETS = [
 		name: 'Default Dark',
 		background: '#1a1a2e',
 		foreground: '#e0e0e0',
+		fontFamily: 'Cascadia Code',
 		accent: '#6c63ff',
 		ansiColors: DEFAULT_ANSI,
 	},
@@ -72,6 +77,7 @@ export const THEME_PRESETS = [
 		name: 'Dracula',
 		background: '#282a36',
 		foreground: '#f8f8f2',
+		fontFamily: 'Fira Code',
 		accent: '#bd93f9',
 		glow: '#bd93f9',
 		ansiColors: {
@@ -97,6 +103,7 @@ export const THEME_PRESETS = [
 		name: 'Tokyo Night',
 		background: '#1a1b26',
 		foreground: '#a9b1d6',
+		fontFamily: 'Fira Code',
 		accent: '#7aa2f7',
 		glow: '#7aa2f7',
 		ansiColors: {
@@ -122,6 +129,7 @@ export const THEME_PRESETS = [
 		name: 'Nord',
 		background: '#2e3440',
 		foreground: '#d8dee9',
+		fontFamily: 'Victor Mono',
 		accent: '#88c0d0',
 		ansiColors: {
 			black: '#3b4252',
@@ -146,6 +154,7 @@ export const THEME_PRESETS = [
 		name: 'Catppuccin',
 		background: '#1e1e2e',
 		foreground: '#cdd6f4',
+		fontFamily: 'JetBrains Mono',
 		accent: '#cba6f7',
 		glow: '#cba6f7',
 		ansiColors: {
@@ -171,6 +180,7 @@ export const THEME_PRESETS = [
 		name: 'Gruvbox',
 		background: '#282828',
 		foreground: '#ebdbb2',
+		fontFamily: 'IBM Plex Mono',
 		accent: '#fe8019',
 		ansiColors: {
 			black: '#282828',
@@ -195,6 +205,7 @@ export const THEME_PRESETS = [
 		name: 'Monokai',
 		background: '#272822',
 		foreground: '#f8f8f2',
+		fontFamily: 'Source Code Pro',
 		accent: '#a6e22e',
 		ansiColors: {
 			black: '#272822',
@@ -220,6 +231,7 @@ export const THEME_PRESETS = [
 		name: 'Matrix',
 		background: '#0a0a0a',
 		foreground: '#00ff41',
+		fontFamily: 'IBM Plex Mono',
 		accent: '#00ff41',
 		glow: '#00ff41',
 		gradient: 'linear-gradient(180deg, rgba(0, 255, 65, 0.3) 0%, transparent 40%)',
@@ -230,9 +242,9 @@ export const THEME_PRESETS = [
 		scrollbarAccent: 'medium',
 		cursorColor: '#00ff41',
 		selectionColor: '#00ff41',
-		// Digital rain — vertical glow columns at staggered heights
+		// Digital rain — SVG data URI phosphor matrix characters
 		decoration:
-			'linear-gradient(180deg, rgba(0,255,65,0.14) 0%, transparent 65%) no-repeat 8% 0 / 3% 60%, linear-gradient(180deg, rgba(0,255,65,0.1) 0%, transparent 70%) no-repeat 22% 0 / 2% 45%, linear-gradient(180deg, rgba(0,255,65,0.12) 0%, transparent 60%) no-repeat 40% 0 / 3% 55%, linear-gradient(180deg, rgba(0,255,65,0.08) 0%, transparent 65%) no-repeat 58% 0 / 2% 40%, linear-gradient(180deg, rgba(0,255,65,0.13) 0%, transparent 55%) no-repeat 72% 0 / 3% 70%, linear-gradient(180deg, rgba(0,255,65,0.09) 0%, transparent 60%) no-repeat 88% 0 / 2% 50%',
+			'url("data:image/svg+xml,%3Csvg%20width%3D%22256%22%20height%3D%22256%22%20viewBox%3D%220%200%20256%20256%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Cstyle%3E%0A%20%20%20%20.t%20%7B%20font-family%3A%20monospace%3B%20font-size%3A%2012px%3B%20fill%3A%20%2300ff41%3B%20%7D%0A%20%20%20%20.w%20%7B%20fill%3A%20%23b3ffb3%3B%20filter%3A%20drop-shadow(0%200%204px%20%2300ff41)%3B%20%7D%0A%3C%2Fstyle%3E%0A%3Cg%20class%3D%22t%22%3E%3Ctext%20x%3D%2212%22%20y%3D%22-20%22%20fill-opacity%3D%220.00%22%3E%EF%BD%B6%3C%2Ftext%3E%3Ctext%20x%3D%2212%22%20y%3D%22-6%22%20fill-opacity%3D%220.01%22%3E%EF%BE%95%3C%2Ftext%3E%3Ctext%20x%3D%2212%22%20y%3D%228%22%20fill-opacity%3D%220.02%22%3E%EF%BE%8D%3C%2Ftext%3E%3Ctext%20x%3D%2212%22%20y%3D%2222%22%20fill-opacity%3D%220.04%22%3E%EF%BE%93%3C%2Ftext%3E%3Ctext%20x%3D%2212%22%20y%3D%2236%22%20fill-opacity%3D%220.05%22%3E%EF%BE%8D%3C%2Ftext%3E%3Ctext%20x%3D%2212%22%20y%3D%2250%22%20fill-opacity%3D%220.06%22%3E%EF%BE%92%3C%2Ftext%3E%3Ctext%20x%3D%2212%22%20y%3D%2264%22%20fill-opacity%3D%220.07%22%3E%EF%BD%BD%3C%2Ftext%3E%3Ctext%20x%3D%2212%22%20y%3D%2278%22%20fill-opacity%3D%220.09%22%3E1%3C%2Ftext%3E%3Ctext%20x%3D%2212%22%20y%3D%2292%22%20fill-opacity%3D%220.10%22%3E%EF%BD%B7%3C%2Ftext%3E%3Ctext%20x%3D%2212%22%20y%3D%22106%22%20fill-opacity%3D%220.11%22%3E%EF%BE%95%3C%2Ftext%3E%3Ctext%20x%3D%2212%22%20y%3D%22120%22%20fill-opacity%3D%220.13%22%3E%EF%BE%91%3C%2Ftext%3E%3Ctext%20x%3D%2212%22%20y%3D%22134%22%20class%3D%22w%22%3E%EF%BD%B6%3C%2Ftext%3E%3Ctext%20x%3D%2238%22%20y%3D%2240%22%20fill-opacity%3D%220.00%22%3E%EF%BE%97%3C%2Ftext%3E%3Ctext%20x%3D%2238%22%20y%3D%2254%22%20fill-opacity%3D%220.02%22%3E0%3C%2Ftext%3E%3Ctext%20x%3D%2238%22%20y%3D%2268%22%20fill-opacity%3D%220.03%22%3E%EF%BD%B5%3C%2Ftext%3E%3Ctext%20x%3D%2238%22%20y%3D%2282%22%20fill-opacity%3D%220.05%22%3E%EF%BD%BB%3C%2Ftext%3E%3Ctext%20x%3D%2238%22%20y%3D%2296%22%20fill-opacity%3D%220.07%22%3E%EF%BD%B6%3C%2Ftext%3E%3Ctext%20x%3D%2238%22%20y%3D%22110%22%20fill-opacity%3D%220.08%22%3E%EF%BE%82%3C%2Ftext%3E%3Ctext%20x%3D%2238%22%20y%3D%22124%22%20fill-opacity%3D%220.10%22%3E%EF%BE%80%3C%2Ftext%3E%3Ctext%20x%3D%2238%22%20y%3D%22138%22%20fill-opacity%3D%220.12%22%3E1%3C%2Ftext%3E%3Ctext%20x%3D%2238%22%20y%3D%22152%22%20fill-opacity%3D%220.13%22%3E%EF%BE%8D%3C%2Ftext%3E%3Ctext%20x%3D%2238%22%20y%3D%22166%22%20fill-opacity%3D%220.15%22%3E%EF%BE%8A%3C%2Ftext%3E%3Ctext%20x%3D%2238%22%20y%3D%22180%22%20fill-opacity%3D%220.17%22%3E%EF%BE%85%3C%2Ftext%3E%3Ctext%20x%3D%2238%22%20y%3D%22194%22%20fill-opacity%3D%220.18%22%3E%EF%BE%9C%3C%2Ftext%3E%3Ctext%20x%3D%2238%22%20y%3D%22208%22%20fill-opacity%3D%220.20%22%3E%EF%BE%8E%3C%2Ftext%3E%3Ctext%20x%3D%2238%22%20y%3D%22222%22%20fill-opacity%3D%220.22%22%3E%EF%BD%BE%3C%2Ftext%3E%3Ctext%20x%3D%2238%22%20y%3D%22236%22%20class%3D%22w%22%3E%EF%BE%87%3C%2Ftext%3E%3Ctext%20x%3D%2268%22%20y%3D%2210%22%20fill-opacity%3D%220.00%22%3E%EF%BE%8D%3C%2Ftext%3E%3Ctext%20x%3D%2268%22%20y%3D%2224%22%20fill-opacity%3D%220.01%22%3E%EF%BE%95%3C%2Ftext%3E%3Ctext%20x%3D%2268%22%20y%3D%2238%22%20fill-opacity%3D%220.03%22%3E%EF%BE%83%3C%2Ftext%3E%3Ctext%20x%3D%2268%22%20y%3D%2252%22%20fill-opacity%3D%220.04%22%3E%EF%BE%8A%3C%2Ftext%3E%3Ctext%20x%3D%2268%22%20y%3D%2266%22%20fill-opacity%3D%220.05%22%3E%EF%BE%86%3C%2Ftext%3E%3Ctext%20x%3D%2268%22%20y%3D%2280%22%20fill-opacity%3D%220.06%22%3E%EF%BE%88%3C%2Ftext%3E%3Ctext%20x%3D%2268%22%20y%3D%2294%22%20fill-opacity%3D%220.08%22%3E%EF%BE%86%3C%2Ftext%3E%3Ctext%20x%3D%2268%22%20y%3D%22108%22%20class%3D%22w%22%3E%EF%BE%8F%3C%2Ftext%3E%3Ctext%20x%3D%2292%22%20y%3D%2290%22%20fill-opacity%3D%220.00%22%3E1%3C%2Ftext%3E%3Ctext%20x%3D%2292%22%20y%3D%22104%22%20fill-opacity%3D%220.02%22%3E%EF%BD%B0%3C%2Ftext%3E%3Ctext%20x%3D%2292%22%20y%3D%22118%22%20fill-opacity%3D%220.03%22%3E%EF%BE%85%3C%2Ftext%3E%3Ctext%20x%3D%2292%22%20y%3D%22132%22%20fill-opacity%3D%220.05%22%3E%EF%BE%8A%3C%2Ftext%3E%3Ctext%20x%3D%2292%22%20y%3D%22146%22%20fill-opacity%3D%220.07%22%3E%EF%BE%82%3C%2Ftext%3E%3Ctext%20x%3D%2292%22%20y%3D%22160%22%20fill-opacity%3D%220.08%22%3E%EF%BD%B0%3C%2Ftext%3E%3Ctext%20x%3D%2292%22%20y%3D%22174%22%20fill-opacity%3D%220.10%22%3E%EF%BD%B1%3C%2Ftext%3E%3Ctext%20x%3D%2292%22%20y%3D%22188%22%20fill-opacity%3D%220.12%22%3E%EF%BD%BC%3C%2Ftext%3E%3Ctext%20x%3D%2292%22%20y%3D%22202%22%20fill-opacity%3D%220.13%22%3E%EF%BD%BE%3C%2Ftext%3E%3Ctext%20x%3D%2292%22%20y%3D%22216%22%20fill-opacity%3D%220.15%22%3E%EF%BE%9C%3C%2Ftext%3E%3Ctext%20x%3D%2292%22%20y%3D%22230%22%20fill-opacity%3D%220.17%22%3E%EF%BD%B1%3C%2Ftext%3E%3Ctext%20x%3D%2292%22%20y%3D%22244%22%20fill-opacity%3D%220.18%22%3E%EF%BE%83%3C%2Ftext%3E%3Ctext%20x%3D%2292%22%20y%3D%22258%22%20fill-opacity%3D%220.20%22%3E%EF%BE%8A%3C%2Ftext%3E%3Ctext%20x%3D%2292%22%20y%3D%22272%22%20fill-opacity%3D%220.22%22%3E%EF%BD%BD%3C%2Ftext%3E%3Ctext%20x%3D%2292%22%20y%3D%22286%22%20fill-opacity%3D%220.23%22%3E%EF%BE%8D%3C%2Ftext%3E%3Ctext%20x%3D%2292%22%20y%3D%22300%22%20fill-opacity%3D%220.25%22%3E%EF%BD%B0%3C%2Ftext%3E%3Ctext%20x%3D%2292%22%20y%3D%22314%22%20fill-opacity%3D%220.27%22%3E%EF%BD%B5%3C%2Ftext%3E%3Ctext%20x%3D%2292%22%20y%3D%22328%22%20class%3D%22w%22%3E%EF%BD%B3%3C%2Ftext%3E%3Ctext%20x%3D%22122%22%20y%3D%22-10%22%20fill-opacity%3D%220.00%22%3E%EF%BD%B1%3C%2Ftext%3E%3Ctext%20x%3D%22122%22%20y%3D%224%22%20fill-opacity%3D%220.01%22%3E%EF%BE%82%3C%2Ftext%3E%3Ctext%20x%3D%22122%22%20y%3D%2218%22%20fill-opacity%3D%220.03%22%3E%EF%BE%82%3C%2Ftext%3E%3Ctext%20x%3D%22122%22%20y%3D%2232%22%20fill-opacity%3D%220.04%22%3E%EF%BE%92%3C%2Ftext%3E%3Ctext%20x%3D%22122%22%20y%3D%2246%22%20fill-opacity%3D%220.06%22%3E%EF%BE%98%3C%2Ftext%3E%3Ctext%20x%3D%22122%22%20y%3D%2260%22%20fill-opacity%3D%220.07%22%3E%EF%BE%87%3C%2Ftext%3E%3Ctext%20x%3D%22122%22%20y%3D%2274%22%20fill-opacity%3D%220.09%22%3E%EF%BE%91%3C%2Ftext%3E%3Ctext%20x%3D%22122%22%20y%3D%2288%22%20fill-opacity%3D%220.10%22%3E%EF%BD%BB%3C%2Ftext%3E%3Ctext%20x%3D%22122%22%20y%3D%22102%22%20fill-opacity%3D%220.11%22%3E0%3C%2Ftext%3E%3Ctext%20x%3D%22122%22%20y%3D%22116%22%20fill-opacity%3D%220.13%22%3E%EF%BE%8B%3C%2Ftext%3E%3Ctext%20x%3D%22122%22%20y%3D%22130%22%20fill-opacity%3D%220.14%22%3E%EF%BE%91%3C%2Ftext%3E%3Ctext%20x%3D%22122%22%20y%3D%22144%22%20fill-opacity%3D%220.16%22%3E%EF%BD%BE%3C%2Ftext%3E%3Ctext%20x%3D%22122%22%20y%3D%22158%22%20fill-opacity%3D%220.17%22%3E%EF%BD%BC%3C%2Ftext%3E%3Ctext%20x%3D%22122%22%20y%3D%22172%22%20class%3D%22w%22%3E0%3C%2Ftext%3E%3Ctext%20x%3D%22152%22%20y%3D%2260%22%20fill-opacity%3D%220.00%22%3E%EF%BE%87%3C%2Ftext%3E%3Ctext%20x%3D%22152%22%20y%3D%2274%22%20fill-opacity%3D%220.01%22%3E%EF%BE%98%3C%2Ftext%3E%3Ctext%20x%3D%22152%22%20y%3D%2288%22%20fill-opacity%3D%220.03%22%3E%EF%BE%90%3C%2Ftext%3E%3Ctext%20x%3D%22152%22%20y%3D%22102%22%20fill-opacity%3D%220.04%22%3E%EF%BE%95%3C%2Ftext%3E%3Ctext%20x%3D%22152%22%20y%3D%22116%22%20fill-opacity%3D%220.06%22%3E%EF%BD%BD%3C%2Ftext%3E%3Ctext%20x%3D%22152%22%20y%3D%22130%22%20fill-opacity%3D%220.07%22%3E%EF%BE%87%3C%2Ftext%3E%3Ctext%20x%3D%22152%22%20y%3D%22144%22%20fill-opacity%3D%220.09%22%3E%EF%BE%8F%3C%2Ftext%3E%3Ctext%20x%3D%22152%22%20y%3D%22158%22%20fill-opacity%3D%220.10%22%3E%EF%BD%BC%3C%2Ftext%3E%3Ctext%20x%3D%22152%22%20y%3D%22172%22%20fill-opacity%3D%220.12%22%3E%EF%BE%85%3C%2Ftext%3E%3Ctext%20x%3D%22152%22%20y%3D%22186%22%20class%3D%22w%22%3E%EF%BD%B9%3C%2Ftext%3E%3Ctext%20x%3D%22178%22%20y%3D%2220%22%20fill-opacity%3D%220.00%22%3E%EF%BD%B6%3C%2Ftext%3E%3Ctext%20x%3D%22178%22%20y%3D%2234%22%20fill-opacity%3D%220.02%22%3E%EF%BE%8F%3C%2Ftext%3E%3Ctext%20x%3D%22178%22%20y%3D%2248%22%20fill-opacity%3D%220.03%22%3E%EF%BD%B9%3C%2Ftext%3E%3Ctext%20x%3D%22178%22%20y%3D%2262%22%20fill-opacity%3D%220.05%22%3E%EF%BE%80%3C%2Ftext%3E%3Ctext%20x%3D%22178%22%20y%3D%2276%22%20fill-opacity%3D%220.06%22%3E%EF%BE%85%3C%2Ftext%3E%3Ctext%20x%3D%22178%22%20y%3D%2290%22%20fill-opacity%3D%220.08%22%3E%EF%BE%90%3C%2Ftext%3E%3Ctext%20x%3D%22178%22%20y%3D%22104%22%20fill-opacity%3D%220.09%22%3E%EF%BD%BD%3C%2Ftext%3E%3Ctext%20x%3D%22178%22%20y%3D%22118%22%20fill-opacity%3D%220.11%22%3E%EF%BD%B7%3C%2Ftext%3E%3Ctext%20x%3D%22178%22%20y%3D%22132%22%20fill-opacity%3D%220.13%22%3E%EF%BE%80%3C%2Ftext%3E%3Ctext%20x%3D%22178%22%20y%3D%22146%22%20fill-opacity%3D%220.14%22%3E%EF%BE%80%3C%2Ftext%3E%3Ctext%20x%3D%22178%22%20y%3D%22160%22%20fill-opacity%3D%220.16%22%3E1%3C%2Ftext%3E%3Ctext%20x%3D%22178%22%20y%3D%22174%22%20fill-opacity%3D%220.17%22%3E%EF%BD%B9%3C%2Ftext%3E%3Ctext%20x%3D%22178%22%20y%3D%22188%22%20fill-opacity%3D%220.19%22%3E%EF%BD%BE%3C%2Ftext%3E%3Ctext%20x%3D%22178%22%20y%3D%22202%22%20fill-opacity%3D%220.20%22%3E%EF%BE%90%3C%2Ftext%3E%3Ctext%20x%3D%22178%22%20y%3D%22216%22%20fill-opacity%3D%220.22%22%3E%EF%BD%B1%3C%2Ftext%3E%3Ctext%20x%3D%22178%22%20y%3D%22230%22%20class%3D%22w%22%3E%EF%BE%9C%3C%2Ftext%3E%3Ctext%20x%3D%22208%22%20y%3D%22110%22%20fill-opacity%3D%220.00%22%3E%EF%BE%8D%3C%2Ftext%3E%3Ctext%20x%3D%22208%22%20y%3D%22124%22%20fill-opacity%3D%220.01%22%3E0%3C%2Ftext%3E%3Ctext%20x%3D%22208%22%20y%3D%22138%22%20fill-opacity%3D%220.02%22%3E%EF%BE%80%3C%2Ftext%3E%3Ctext%20x%3D%22208%22%20y%3D%22152%22%20fill-opacity%3D%220.03%22%3E%EF%BE%82%3C%2Ftext%3E%3Ctext%20x%3D%22208%22%20y%3D%22166%22%20fill-opacity%3D%220.03%22%3E%EF%BE%9C%3C%2Ftext%3E%3Ctext%20x%3D%22208%22%20y%3D%22180%22%20fill-opacity%3D%220.04%22%3E%EF%BE%90%3C%2Ftext%3E%3Ctext%20x%3D%22208%22%20y%3D%22194%22%20fill-opacity%3D%220.05%22%3E%EF%BD%B1%3C%2Ftext%3E%3Ctext%20x%3D%22208%22%20y%3D%22208%22%20fill-opacity%3D%220.06%22%3E%EF%BE%85%3C%2Ftext%3E%3Ctext%20x%3D%22208%22%20y%3D%22222%22%20fill-opacity%3D%220.07%22%3E%EF%BE%8A%3C%2Ftext%3E%3Ctext%20x%3D%22208%22%20y%3D%22236%22%20fill-opacity%3D%220.08%22%3E%EF%BE%9C%3C%2Ftext%3E%3Ctext%20x%3D%22208%22%20y%3D%22250%22%20fill-opacity%3D%220.08%22%3E%EF%BE%9C%3C%2Ftext%3E%3Ctext%20x%3D%22208%22%20y%3D%22264%22%20class%3D%22w%22%3E%EF%BE%8D%3C%2Ftext%3E%3Ctext%20x%3D%22232%22%20y%3D%2230%22%20fill-opacity%3D%220.00%22%3E%EF%BE%82%3C%2Ftext%3E%3Ctext%20x%3D%22232%22%20y%3D%2244%22%20fill-opacity%3D%220.01%22%3E%EF%BE%87%3C%2Ftext%3E%3Ctext%20x%3D%22232%22%20y%3D%2258%22%20fill-opacity%3D%220.02%22%3E%EF%BD%BB%3C%2Ftext%3E%3Ctext%20x%3D%22232%22%20y%3D%2272%22%20fill-opacity%3D%220.03%22%3E%EF%BE%97%3C%2Ftext%3E%3Ctext%20x%3D%22232%22%20y%3D%2286%22%20fill-opacity%3D%220.04%22%3E%EF%BD%BB%3C%2Ftext%3E%3Ctext%20x%3D%22232%22%20y%3D%22100%22%20fill-opacity%3D%220.05%22%3E%EF%BE%86%3C%2Ftext%3E%3Ctext%20x%3D%22232%22%20y%3D%22114%22%20fill-opacity%3D%220.06%22%3E%EF%BE%8D%3C%2Ftext%3E%3Ctext%20x%3D%22232%22%20y%3D%22128%22%20fill-opacity%3D%220.07%22%3E%EF%BE%9C%3C%2Ftext%3E%3Ctext%20x%3D%22232%22%20y%3D%22142%22%20fill-opacity%3D%220.08%22%3E%EF%BE%8D%3C%2Ftext%3E%3Ctext%20x%3D%22232%22%20y%3D%22156%22%20fill-opacity%3D%220.09%22%3E%EF%BE%8F%3C%2Ftext%3E%3Ctext%20x%3D%22232%22%20y%3D%22170%22%20fill-opacity%3D%220.10%22%3E%EF%BE%8D%3C%2Ftext%3E%3Ctext%20x%3D%22232%22%20y%3D%22184%22%20fill-opacity%3D%220.11%22%3E%EF%BE%97%3C%2Ftext%3E%3Ctext%20x%3D%22232%22%20y%3D%22198%22%20fill-opacity%3D%220.12%22%3E0%3C%2Ftext%3E%3Ctext%20x%3D%22232%22%20y%3D%22212%22%20fill-opacity%3D%220.13%22%3E%EF%BD%B4%3C%2Ftext%3E%3Ctext%20x%3D%22232%22%20y%3D%22226%22%20fill-opacity%3D%220.14%22%3E%EF%BE%8A%3C%2Ftext%3E%3Ctext%20x%3D%22232%22%20y%3D%22240%22%20fill-opacity%3D%220.15%22%3E%EF%BE%90%3C%2Ftext%3E%3Ctext%20x%3D%22232%22%20y%3D%22254%22%20fill-opacity%3D%220.16%22%3E%EF%BD%B5%3C%2Ftext%3E%3Ctext%20x%3D%22232%22%20y%3D%22268%22%20fill-opacity%3D%220.17%22%3E%EF%BE%8D%3C%2Ftext%3E%3Ctext%20x%3D%22232%22%20y%3D%22282%22%20fill-opacity%3D%220.18%22%3E%EF%BE%80%3C%2Ftext%3E%3Ctext%20x%3D%22232%22%20y%3D%22296%22%20class%3D%22w%22%3E1%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fsvg%3E")',
 		ansiColors: {
 			black: '#0a0a0a',
 			red: '#00cc33',
@@ -256,11 +268,13 @@ export const THEME_PRESETS = [
 		name: 'Cyberpunk',
 		background: '#0d0221',
 		foreground: '#f0e6ff',
+		fontFamily: 'Fira Code',
 		accent: '#ff2a6d',
 		glow: '#ff2a6d',
 		gradient: 'linear-gradient(135deg, rgba(255, 42, 109, 0.3) 0%, rgba(5, 217, 232, 0.2) 100%)',
 		gradientLevel: 'medium',
 		glowLevel: 'medium',
+		statusBarPosition: 'bottom',
 
 		scrollbarAccent: 'medium',
 		cursorColor: '#ff2a6d',
@@ -291,6 +305,7 @@ export const THEME_PRESETS = [
 		name: 'Solana',
 		background: '#0c0c1d',
 		foreground: '#e0e0f0',
+		fontFamily: 'Roboto Mono',
 		accent: '#9945ff',
 		glow: '#14f195',
 		gradient: 'linear-gradient(160deg, rgba(153, 69, 255, 0.3) 0%, rgba(20, 241, 149, 0.2) 100%)',
@@ -326,6 +341,7 @@ export const THEME_PRESETS = [
 		name: 'Amber',
 		background: '#0c0800',
 		foreground: '#ffb000',
+		fontFamily: 'IBM Plex Mono',
 		accent: '#ffb000',
 		glow: '#ffb000',
 		gradient: 'linear-gradient(180deg, rgba(255, 176, 0, 0.25) 0%, transparent 40%)',
@@ -362,12 +378,14 @@ export const THEME_PRESETS = [
 		name: 'Vaporwave',
 		background: '#0a0015',
 		foreground: '#f0d0ff',
+		fontFamily: 'Ubuntu Mono',
 		accent: '#ff2d95',
 		glow: '#ff71ce',
 		gradient:
 			'linear-gradient(135deg, rgba(255, 45, 149, 0.3) 0%, rgba(1, 205, 254, 0.2) 50%, rgba(123, 47, 255, 0.25) 100%)',
 		gradientLevel: 'medium',
 		glowLevel: 'intense',
+		statusBarPosition: 'bottom',
 		scrollbarAccent: 'medium',
 		cursorColor: '#01cdfe',
 		selectionColor: '#7b2fff',
@@ -397,6 +415,7 @@ export const THEME_PRESETS = [
 		name: 'Ocean',
 		background: '#020b14',
 		foreground: '#a0d8e8',
+		fontFamily: 'JetBrains Mono',
 		accent: '#00c8ff',
 		glow: '#00e5b0',
 		gradient:
@@ -432,6 +451,7 @@ export const THEME_PRESETS = [
 		name: 'Sunset',
 		background: '#110808',
 		foreground: '#f0d0a0',
+		fontFamily: 'Hack',
 		accent: '#e8a040',
 		glow: '#e04028',
 		gradient:
@@ -468,6 +488,7 @@ export const THEME_PRESETS = [
 		name: 'Arctic',
 		background: '#050d18',
 		foreground: '#c8e4f0',
+		fontFamily: 'SF Mono',
 		accent: '#48c8e0',
 		glow: '#70e8cc',
 		gradient:
@@ -504,6 +525,7 @@ export const THEME_PRESETS = [
 		name: 'Solarized Light',
 		background: '#fdf6e3',
 		foreground: '#586e75',
+		fontFamily: 'Inconsolata',
 		accent: '#268bd2',
 		ansiColors: SOLARIZED_ANSI,
 	},
@@ -539,6 +561,28 @@ export function buildFontFamily(family?: string): string {
 		return `${family}, ${FONT_FALLBACKS}`
 	}
 	return DEFAULT_FONT_FAMILY
+}
+
+/** Merge a workspace theme + optional per-pane override with preset fallbacks.
+ *  Used by both Pane.tsx (for PaneEffects) and Terminal.tsx (for xterm options). */
+export function mergeThemeWithPreset(
+	theme: PaneTheme,
+	override?: Partial<PaneTheme> | null,
+): PaneTheme {
+	const base = { ...theme, ...override }
+	const preset = base.preset ? findPreset(base.preset) : undefined
+	if (!preset) return base
+	return {
+		...base,
+		fontFamily: base.fontFamily || preset.fontFamily,
+		fontSize: base.fontSize ?? preset.fontSize,
+		lineHeight: base.lineHeight ?? preset.lineHeight,
+		gradientLevel: base.gradientLevel ?? preset.gradientLevel,
+		glowLevel: base.glowLevel ?? preset.glowLevel,
+		scanlineLevel: base.scanlineLevel ?? preset.scanlineLevel,
+		noiseLevel: base.noiseLevel ?? preset.noiseLevel,
+		scrollbarAccent: base.scrollbarAccent ?? preset.scrollbarAccent,
+	}
 }
 
 /** Build xterm.js theme options from a PaneTheme's color fields.

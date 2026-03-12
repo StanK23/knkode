@@ -1,9 +1,9 @@
 import { FOCUS_VIS, FolderIcon, GitIcon, PrBadge } from './shared'
-import type { PaneVariant, ScrollButtonProps, StatusBarProps } from './types'
+import type { FrameProps, PaneVariant, ScrollButtonProps } from './types'
 
 // DefaultVariant intentionally uses Tailwind semantic classes (bg-elevated, text-accent, etc.)
 // instead of the theme prop, so it adapts via CSS custom properties rather than inline styles.
-function StatusBar({
+function Frame({
 	label,
 	cwd,
 	branch,
@@ -19,13 +19,20 @@ function StatusBar({
 	editInputProps,
 	SnippetTrigger,
 	shortcuts,
-}: StatusBarProps) {
-	return (
+	children,
+	headerProps,
+	contextMenu,
+	theme,
+}: FrameProps) {
+	const isBottom = theme.statusBarPosition === 'bottom'
+
+	const header = (
 		<div
-			className={`flex items-center gap-2 px-2 text-[11px] shrink-0 select-none transition-colors duration-200 ${
+			{...headerProps}
+			className={`${headerProps.className || ''} flex items-center gap-2 px-2 text-[11px] shrink-0 select-none transition-colors duration-200 ${
 				isFocused ? 'bg-elevated border-b border-accent' : 'bg-sunken border-b border-edge'
-			}`}
-			style={{ height: 30 }}
+			} ${isBottom ? 'border-b-0 border-t' : ''}`}
+			style={{ ...headerProps.style, height: 30 }}
 		>
 			{isEditing ? (
 				<input
@@ -104,7 +111,16 @@ function StatusBar({
 					✕
 				</button>
 			)}
+			{contextMenu}
 		</div>
+	)
+
+	return (
+		<>
+			{!isBottom && header}
+			{children}
+			{isBottom && header}
+		</>
 	)
 }
 
@@ -127,4 +143,4 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 	)
 }
 
-export const DefaultVariant: PaneVariant = { StatusBar, ScrollButton }
+export const DefaultVariant: PaneVariant = { Frame, ScrollButton }

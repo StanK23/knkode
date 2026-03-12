@@ -65,7 +65,13 @@ function assertWorkspace(value: unknown): asserts value is Workspace {
 			throw new Error('Invalid workspace: paneOpacity must be a finite number in [0, 1]')
 		}
 	}
-	for (const field of ['gradientLevel', 'glowLevel', 'scanlineLevel', 'noiseLevel', 'scrollbarAccent'] as const) {
+	for (const field of [
+		'gradientLevel',
+		'glowLevel',
+		'scanlineLevel',
+		'noiseLevel',
+		'scrollbarAccent',
+	] as const) {
 		if (theme[field] !== undefined && !isEffectLevel(theme[field])) {
 			throw new Error(`Invalid workspace: ${field} must be a valid EffectLevel`)
 		}
@@ -82,7 +88,10 @@ function assertWorkspace(value: unknown): asserts value is Workspace {
 	}
 	// Validate optional theme color strings
 	for (const field of ['accent', 'glow', 'cursorColor', 'selectionColor'] as const) {
-		if (theme[field] !== undefined && (typeof theme[field] !== 'string' || !HEX_COLOR_RE.test(theme[field]))) {
+		if (
+			theme[field] !== undefined &&
+			(typeof theme[field] !== 'string' || !HEX_COLOR_RE.test(theme[field]))
+		) {
 			throw new Error(`Invalid workspace: theme.${field} must be a valid hex color`)
 		}
 	}
@@ -94,10 +103,19 @@ function assertWorkspace(value: unknown): asserts value is Workspace {
 			theme.gradient.includes(';') ||
 			theme.gradient.includes('{') ||
 			theme.gradient.includes('url(') ||
-			theme.gradient.includes('expression(')
+			theme.gradient.includes('expression(') ||
+			theme.gradient.includes('var(')
 		) {
 			throw new Error('Invalid workspace: theme.gradient must be a valid CSS gradient')
 		}
+	}
+	// Validate statusBarPosition
+	if (
+		theme.statusBarPosition !== undefined &&
+		theme.statusBarPosition !== 'top' &&
+		theme.statusBarPosition !== 'bottom'
+	) {
+		throw new Error('Invalid workspace: statusBarPosition must be "top" or "bottom"')
 	}
 	if (!obj.layout || typeof obj.layout !== 'object')
 		throw new Error('Invalid workspace: missing or invalid layout')

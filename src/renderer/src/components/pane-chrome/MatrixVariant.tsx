@@ -1,8 +1,8 @@
 import { registerVariant } from '.'
 import { FOCUS_VIS, PrBadge } from './shared'
-import type { PaneVariant, ScrollButtonProps, StatusBarProps } from './types'
+import type { FrameProps, PaneVariant, ScrollButtonProps } from './types'
 
-function StatusBar({
+function Frame({
 	label,
 	cwd,
 	branch,
@@ -19,16 +19,26 @@ function StatusBar({
 	editInputProps,
 	SnippetTrigger,
 	shortcuts,
-}: StatusBarProps) {
+	children,
+	headerProps,
+	contextMenu,
+}: FrameProps) {
 	const fg = isFocused ? theme.accent : theme.foreground
-	return (
+	const glowColor = theme.glow ?? theme.accent
+
+	const isBottom = theme.statusBarPosition === 'bottom'
+
+	const header = (
 		<div
-			className="flex items-center gap-0 px-2 text-[10px] font-mono uppercase shrink-0 select-none transition-colors duration-200"
+			{...headerProps}
+			className={`${headerProps.className || ''} flex items-center gap-0 px-2 text-[10px] font-mono uppercase shrink-0 select-none transition-colors duration-200 z-20 bg-black`}
 			style={{
+				...headerProps.style,
 				height: 24,
 				color: fg,
-				borderBottom: `1px solid ${theme.accent}66`,
-				textShadow: isFocused ? `0 0 6px ${theme.glow ?? theme.accent}44` : 'none',
+				borderTop: isBottom ? `1px dashed ${theme.accent}44` : 'none',
+				borderBottom: isBottom ? 'none' : `1px dashed ${theme.accent}44`,
+				textShadow: isFocused ? `0 0 6px ${glowColor}44` : 'none',
 			}}
 		>
 			{isEditing ? (
@@ -112,6 +122,27 @@ function StatusBar({
 					✕
 				</button>
 			)}
+			{contextMenu}
+		</div>
+	)
+
+	return (
+		<div className="relative flex flex-col h-full w-full bg-transparent overflow-hidden">
+			{/* Phosphor Frame Background / Scanlines */}
+			<div
+				className="absolute inset-0 pointer-events-none z-0"
+				style={{
+					boxShadow: isFocused ? `inset 0 0 20px ${glowColor}22` : 'inset 0 0 10px #000',
+					border: `1px solid ${isFocused ? `${glowColor}44` : '#111'}`,
+				}}
+			/>
+
+			{!isBottom && header}
+
+			{/* Terminal Content */}
+			<div className="relative z-10 flex-1 w-full min-h-0 bg-transparent">{children}</div>
+
+			{isBottom && header}
 		</div>
 	)
 }
@@ -122,7 +153,7 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 			type="button"
 			onClick={onClick}
 			aria-label="Scroll to bottom"
-			className={`absolute bottom-2 left-2 right-2 z-10 h-7 flex items-center justify-center text-[10px] font-mono uppercase cursor-pointer tracking-widest hover:brightness-125 ${FOCUS_VIS}`}
+			className={`absolute bottom-6 left-6 right-6 z-30 h-7 flex items-center justify-center text-[10px] font-mono uppercase cursor-pointer tracking-widest hover:brightness-125 ${FOCUS_VIS}`}
 			style={{
 				backgroundColor: `${theme.background}dd`,
 				color: theme.accent,
@@ -135,5 +166,5 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 	)
 }
 
-const MatrixVariant: PaneVariant = { StatusBar, ScrollButton }
+const MatrixVariant: PaneVariant = { Frame, ScrollButton }
 registerVariant('Matrix', MatrixVariant)
