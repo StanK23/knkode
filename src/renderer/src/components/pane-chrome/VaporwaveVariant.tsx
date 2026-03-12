@@ -34,9 +34,12 @@ function Frame({
 	const header = (
 		<div
 			{...headerProps}
-			className={`${headerProps.className || ''} relative z-20 flex flex-col px-3 shrink-0 select-none transition-all duration-300`}
+			className={`${headerProps.className || ''} relative z-20 flex items-center gap-2 px-3 py-1.5 text-[11px] tracking-wider font-light shrink-0 select-none transition-all duration-300`}
 			style={{
 				...headerProps.style,
+				height: 32,
+				color: theme.foreground,
+				opacity: activeOpacity,
 				borderBottom: isBottom ? 'none' : '3px solid transparent',
 				borderTop: isBottom ? '3px solid transparent' : 'none',
 				borderImage: isFocused
@@ -46,122 +49,112 @@ function Frame({
 				backdropFilter: 'blur(4px)',
 			}}
 		>
-			{/* Row 1: label, cwd, snippet, actions */}
-			<div
-				className={`flex items-center gap-2 text-[11px] tracking-wider font-light ${isBottom ? 'pb-1 pt-0.5' : 'pt-1'}`}
-				style={{ color: theme.foreground, opacity: activeOpacity }}
-			>
-				{isEditing ? (
-					<input
-						{...editInputProps}
-						className="bg-transparent border rounded-sm tracking-wider font-light text-[11px] py-px px-1 outline-none w-20"
-						style={{ borderColor: theme.accent, color: theme.accent }}
-					/>
-				) : (
-					<span
-						onDoubleClick={onDoubleClickLabel}
-						className="cursor-default shrink-0 font-medium"
-						style={{ color: theme.accent, textShadow: isFocused ? `0 0 8px ${c1}` : 'none' }}
-					>
-						{label}
-					</span>
-				)}
-
+			{isEditing ? (
+				<input
+					{...editInputProps}
+					className="bg-transparent border rounded-sm tracking-wider font-light text-[11px] py-px px-1 outline-none w-20"
+					style={{ borderColor: theme.accent, color: theme.accent }}
+				/>
+			) : (
 				<span
-					className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap opacity-80"
-					style={{
-						backgroundImage: `linear-gradient(90deg, ${c1}, ${c2})`,
-						WebkitBackgroundClip: 'text',
-						WebkitTextFillColor: 'transparent',
-					}}
+					onDoubleClick={onDoubleClickLabel}
+					className="cursor-default shrink-0 font-medium"
+					style={{ color: theme.accent, textShadow: isFocused ? `0 0 8px ${c1}` : 'none' }}
 				>
-					{cwd}
+					{label}
 				</span>
+			)}
 
-				<SnippetTrigger
-					className={`text-[9px] tracking-wider font-medium px-2 py-0.5 rounded-full cursor-pointer border-none hover:brightness-110 transition-all ${FOCUS_VIS}`}
+			<span
+				className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap opacity-80"
+				style={{
+					backgroundImage: `linear-gradient(90deg, ${c1}, ${c2})`,
+					WebkitBackgroundClip: 'text',
+					WebkitTextFillColor: 'transparent',
+				}}
+			>
+				{cwd}
+			</span>
+
+			{branch && (
+				<output
+					aria-label={`Git branch: ${branch}`}
+					className="min-w-0 text-[10px] font-medium px-3 py-0.5 rounded-full overflow-hidden text-ellipsis whitespace-nowrap"
+					title={branch}
 					style={{
-						background: `linear-gradient(135deg, ${c1}44, ${c2}44)`,
-						color: theme.foreground,
-						boxShadow: isFocused ? `0 0 6px ${c2}44` : 'none',
+						background: `linear-gradient(135deg, ${c1}, ${c3})`,
+						color: theme.background,
+						boxShadow: isFocused ? `0 0 8px ${glowColor}44` : 'none',
 					}}
 				>
-					{'>_'}
-				</SnippetTrigger>
+					{branch}
+				</output>
+			)}
 
+			{pr && (
+				<PrBadge
+					pr={pr}
+					onOpenExternal={onOpenExternal}
+					className="text-[10px] font-medium px-3 py-0.5 rounded-full hover:brightness-110 transition-all"
+					style={{
+						background: `linear-gradient(135deg, ${c1}, ${c3})`,
+						color: theme.background,
+						boxShadow: isFocused ? `0 0 8px ${glowColor}44` : 'none',
+					}}
+				/>
+			)}
+
+			<SnippetTrigger
+				className={`text-[9px] tracking-wider font-medium px-2 py-0.5 rounded-full cursor-pointer border-none hover:brightness-110 transition-all ${FOCUS_VIS}`}
+				style={{
+					background: `linear-gradient(135deg, ${c1}44, ${c2}44)`,
+					color: theme.foreground,
+					boxShadow: isFocused ? `0 0 6px ${c2}44` : 'none',
+				}}
+			>
+				{'>_'}
+			</SnippetTrigger>
+
+			<button
+				type="button"
+				onClick={onSplitVertical}
+				title={`Split vertical (${shortcuts.splitV})`}
+				aria-label="Split pane vertically"
+				className={`text-[9px] tracking-wider font-medium px-2 py-0.5 rounded-full cursor-pointer border-none hover:brightness-110 transition-all ${FOCUS_VIS}`}
+				style={{
+					background: `linear-gradient(135deg, ${c1}44, ${c2}44)`,
+					color: theme.foreground,
+				}}
+			>
+				┃
+			</button>
+			<button
+				type="button"
+				onClick={onSplitHorizontal}
+				title={`Split horizontal (${shortcuts.splitH})`}
+				aria-label="Split pane horizontally"
+				className={`text-[9px] tracking-wider font-medium px-2 py-0.5 rounded-full cursor-pointer border-none hover:brightness-110 transition-all ${FOCUS_VIS}`}
+				style={{
+					background: `linear-gradient(135deg, ${c1}44, ${c2}44)`,
+					color: theme.foreground,
+				}}
+			>
+				━
+			</button>
+			{canClose && (
 				<button
 					type="button"
-					onClick={onSplitVertical}
-					title={`Split vertical (${shortcuts.splitV})`}
-					aria-label="Split pane vertically"
+					onClick={onClose}
+					title={`Close pane (${shortcuts.close})`}
+					aria-label="Close pane"
 					className={`text-[9px] tracking-wider font-medium px-2 py-0.5 rounded-full cursor-pointer border-none hover:brightness-110 transition-all ${FOCUS_VIS}`}
 					style={{
 						background: `linear-gradient(135deg, ${c1}44, ${c2}44)`,
 						color: theme.foreground,
 					}}
 				>
-					SPLIT ┃
+					✕
 				</button>
-				<button
-					type="button"
-					onClick={onSplitHorizontal}
-					title={`Split horizontal (${shortcuts.splitH})`}
-					aria-label="Split pane horizontally"
-					className={`text-[9px] tracking-wider font-medium px-2 py-0.5 rounded-full cursor-pointer border-none hover:brightness-110 transition-all ${FOCUS_VIS}`}
-					style={{
-						background: `linear-gradient(135deg, ${c1}44, ${c2}44)`,
-						color: theme.foreground,
-					}}
-				>
-					SPLIT ━
-				</button>
-				{canClose && (
-					<button
-						type="button"
-						onClick={onClose}
-						title={`Close pane (${shortcuts.close})`}
-						aria-label="Close pane"
-						className={`text-[9px] tracking-wider font-medium px-2 py-0.5 rounded-full cursor-pointer border-none hover:brightness-110 transition-all ${FOCUS_VIS}`}
-						style={{
-							background: `linear-gradient(135deg, ${c1}44, ${c2}44)`,
-							color: theme.foreground,
-						}}
-					>
-						CLOSE ✕
-					</button>
-				)}
-			</div>
-
-			{/* Row 2: git branch + PR */}
-			{(branch || pr) && (
-				<div className="flex items-center gap-1.5 py-1" style={{ opacity: activeOpacity }}>
-					{branch && (
-						<output
-							aria-label={`Git branch: ${branch}`}
-							className="text-[10px] font-medium px-3 py-0.5 rounded-full overflow-hidden text-ellipsis whitespace-nowrap"
-							title={branch}
-							style={{
-								background: `linear-gradient(135deg, ${c1}, ${c3})`,
-								color: theme.background,
-								boxShadow: isFocused ? `0 0 8px ${glowColor}44` : 'none',
-							}}
-						>
-							{branch}
-						</output>
-					)}
-					{pr && (
-						<PrBadge
-							pr={pr}
-							onOpenExternal={onOpenExternal}
-							className="text-[10px] font-medium px-3 py-0.5 rounded-full hover:brightness-110 transition-all"
-							style={{
-								background: `linear-gradient(135deg, ${c1}, ${c3})`,
-								color: theme.background,
-								boxShadow: isFocused ? `0 0 8px ${glowColor}44` : 'none',
-							}}
-						/>
-					)}
-				</div>
 			)}
 			{contextMenu}
 		</div>
