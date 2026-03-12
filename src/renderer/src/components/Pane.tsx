@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
 	type DropPosition,
 	MAX_UNFOCUSED_DIM,
@@ -17,10 +18,6 @@ interface PaneDragPayload {
 }
 const PANE_DRAG_MIME = 'application/x-knkode-pane'
 const MOUSE_BUTTON_RIGHT = 2
-const DROPDOWN_DIRECTION: Record<'top' | 'bottom', string> = {
-	top: 'top-full',
-	bottom: 'bottom-full',
-}
 const ZONE_STYLES: Record<DropZone, React.CSSProperties> = {
 	center: { inset: 0, backgroundColor: 'var(--color-accent)', opacity: 0.12 },
 	left: { inset: 0, right: '50%', backgroundColor: 'var(--color-accent)', opacity: 0.18 },
@@ -87,11 +84,26 @@ function SnippetDropdown({
 	const [open, setOpen] = useState(false)
 	const ref = useRef<HTMLDivElement>(null)
 	const menuRef = useRef<HTMLDivElement>(null)
+	const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null)
 	const snippets = useStore((s) => s.snippets)
 	const runSnippet = useStore((s) => s.runSnippet)
 	const setFocusedPane = useStore((s) => s.setFocusedPane)
 
 	useClickOutside(ref, () => setOpen(false), open)
+
+	// Position the portal menu relative to the trigger button
+	useLayoutEffect(() => {
+		if (!open || !ref.current) return
+		const rect = ref.current.getBoundingClientRect()
+		const menuEl = menuRef.current
+		const menuHeight = menuEl?.getBoundingClientRect().height ?? 0
+		const x = Math.min(rect.right, window.innerWidth - VIEWPORT_MARGIN)
+		const y =
+			statusBarPosition === 'bottom'
+				? Math.max(VIEWPORT_MARGIN, rect.top - menuHeight)
+				: Math.min(rect.bottom, window.innerHeight - menuHeight - VIEWPORT_MARGIN)
+		setMenuPos({ x, y })
+	}, [open, statusBarPosition])
 
 	// Escape to close + arrow-key navigation for menu items
 	useEffect(() => {
@@ -127,7 +139,7 @@ function SnippetDropdown({
 	if (snippets.length === 0) return null
 
 	return (
-		<div className="relative" ref={ref}>
+		<div ref={ref}>
 			<button
 				type="button"
 				onClick={() => setOpen((o) => !o)}
@@ -140,30 +152,39 @@ function SnippetDropdown({
 			>
 				{children ?? '>_'}
 			</button>
-			{open && (
-				<div
-					ref={menuRef}
-					role="menu"
-					className={`ctx-menu right-0 left-auto ${DROPDOWN_DIRECTION[statusBarPosition]}`}
-				>
-					{snippets.map((snippet) => (
-						<button
-							type="button"
-							key={snippet.id}
-							role="menuitem"
-							className="ctx-item flex items-center gap-2"
-							onClick={() => {
-								runSnippet(snippet.id, paneId)
-								setOpen(false)
-								setFocusedPane(paneId)
-							}}
-						>
-							<span className="text-accent">&gt;</span>
-							<span className="truncate">{snippet.name}</span>
-						</button>
-					))}
-				</div>
-			)}
+			{open &&
+				createPortal(
+					<div
+						ref={menuRef}
+						role="menu"
+						className="ctx-menu"
+						style={{
+							position: 'fixed',
+							right: menuPos ? window.innerWidth - menuPos.x : 0,
+							top: menuPos?.y ?? 0,
+							left: 'auto',
+							visibility: menuPos ? 'visible' : 'hidden',
+						}}
+					>
+						{snippets.map((snippet) => (
+							<button
+								type="button"
+								key={snippet.id}
+								role="menuitem"
+								className="ctx-item flex items-center gap-2"
+								onClick={() => {
+									runSnippet(snippet.id, paneId)
+									setOpen(false)
+									setFocusedPane(paneId)
+								}}
+							>
+								<span className="text-accent">&gt;</span>
+								<span className="truncate">{snippet.name}</span>
+							</button>
+						))}
+					</div>,
+					document.body,
+				)}
 		</div>
 	)
 }
@@ -461,291 +482,7 @@ export function Pane({
 						onMouseDown: handleHeaderMouseDown,
 						className: `shrink-0 relative select-none ${isDragging ? 'opacity-40' : ''}`,
 					}}
-					contextMenu={
-						showContext ? (
-							<div
-								ref={contextRef}
-								className="ctx-menu"
-								style={{
-									position: 'fixed',
-									left: clampedPos?.x ?? 0,
-									top: clampedPos?.y ?? 0,
-									visibility: clampedPos ? 'visible' : 'hidden',
-								}}
-								onMouseDown={stopPropagation}
-							>
-								<button
-									type="button"
-									className="ctx-item"
-									onClick={() => {
-										onSplitVertical(paneId)
-										closeContext()
-									}}
-								>
-									Split Vertical
-								</button>
-								<button
-									type="button"
-									className="ctx-item"
-									onClick={() => {
-										onSplitHorizontal(paneId)
-										closeContext()
-									}}
-								>
-									Split Horizontal
-								</button>
-								{canClose && otherOpenWorkspaces.length > 0 && (
-									<>
-										<div className="ctx-separator" />
-										<button
-											type="button"
-											className="ctx-item"
-											onClick={() => setContextPanel(contextPanel === 'move' ? null : 'move')}
-										>
-											Move to Workspace
-										</button>
-										{contextPanel === 'move' && (
-											<div className="flex flex-col gap-0.5 px-1 py-1">
-												{otherOpenWorkspaces.map((ws) => (
-													<button
-														type="button"
-														key={ws.id}
-														className="ctx-item flex items-center gap-2"
-														onClick={() => {
-															movePaneToWorkspace(workspaceId, paneId, ws.id)
-															closeContext()
-														}}
-													>
-														<span
-															className="w-2 h-2 rounded-full shrink-0"
-															aria-hidden="true"
-															style={{ background: ws.color }}
-														/>
-														<span className="truncate">{ws.name}</span>
-													</button>
-												))}
-											</div>
-										)}
-									</>
-								)}
-								<div className="ctx-separator" />
-								<button
-									type="button"
-									className="ctx-item"
-									onClick={() => {
-										startEditing()
-										closeContext()
-									}}
-								>
-									Rename
-								</button>
-								<button
-									type="button"
-									className="ctx-item"
-									onClick={() => {
-										setCwdInput(config.cwd)
-										setContextPanel(contextPanel === 'cwd' ? null : 'cwd')
-									}}
-								>
-									Change Directory
-								</button>
-								{contextPanel === 'cwd' && (
-									<form
-										className="flex gap-1 px-3 py-1 pb-2"
-										onSubmit={(e) => {
-											e.preventDefault()
-											const cwd = cwdInput.trim()
-											if (cwd && isValidCwd(cwd)) {
-												onUpdateConfig(paneId, { cwd })
-											}
-											closeContext()
-										}}
-									>
-										<input
-											type="text"
-											value={cwdInput}
-											onChange={(e) => setCwdInput(e.target.value)}
-											placeholder="/path/to/directory"
-											className="ctx-input flex-1 min-w-0"
-											ref={(el) => el?.focus()}
-										/>
-										<button type="submit" className="ctx-submit">
-											Set
-										</button>
-									</form>
-								)}
-								<button
-									type="button"
-									className="ctx-item"
-									onClick={() => {
-										setCmdInput(config.startupCommand ?? '')
-										setContextPanel(contextPanel === 'cmd' ? null : 'cmd')
-									}}
-								>
-									Set Startup Command
-								</button>
-								{contextPanel === 'cmd' && (
-									<form
-										className="flex gap-1 px-3 py-1 pb-2"
-										onSubmit={(e) => {
-											e.preventDefault()
-											onUpdateConfig(paneId, {
-												startupCommand: cmdInput.trim() || null,
-											})
-											closeContext()
-										}}
-									>
-										<input
-											type="text"
-											value={cmdInput}
-											onChange={(e) => setCmdInput(e.target.value)}
-											placeholder="npm run dev"
-											className="ctx-input flex-1 min-w-0"
-											ref={(el) => el?.focus()}
-										/>
-										<button type="submit" className="ctx-submit">
-											Set
-										</button>
-									</form>
-								)}
-								<button
-									type="button"
-									className="ctx-item"
-									onClick={() => {
-										setThemeInput(initThemeInput(config.themeOverride))
-										setContextPanel(contextPanel === 'theme' ? null : 'theme')
-									}}
-								>
-									Theme Override
-								</button>
-								{contextPanel === 'theme' && (
-									<div className="flex flex-col gap-1.5 px-3 py-1 pb-2">
-										<label className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
-											<span>Background</span>
-											<input
-												type="text"
-												value={themeInput.background}
-												onChange={(e) =>
-													setThemeInput((t) => ({ ...t, background: e.target.value }))
-												}
-												placeholder={workspaceTheme.background}
-												className="ctx-input flex-1 min-w-0"
-											/>
-										</label>
-										<label className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
-											<span>Foreground</span>
-											<input
-												type="text"
-												value={themeInput.foreground}
-												onChange={(e) =>
-													setThemeInput((t) => ({ ...t, foreground: e.target.value }))
-												}
-												placeholder={workspaceTheme.foreground}
-												className="ctx-input flex-1 min-w-0"
-											/>
-										</label>
-										<span className="text-[11px] text-content-muted">Font</span>
-										<FontPicker
-											value={themeInput.fontFamily}
-											onChange={(font) => setThemeInput((t) => ({ ...t, fontFamily: font }))}
-											size="sm"
-										/>
-										<div className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
-											<span>Font size</span>
-											<div className="flex items-center gap-1">
-												<button
-													type="button"
-													onClick={() =>
-														setThemeInput((t) => {
-															const cur = Number(t.fontSize) || workspaceTheme.fontSize
-															return { ...t, fontSize: String(Math.max(8, cur - 1)) }
-														})
-													}
-													aria-label="Decrease font size"
-													className="bg-canvas border border-edge rounded-sm text-content cursor-pointer w-5 h-5 flex items-center justify-center text-[10px] hover:bg-overlay"
-												>
-													-
-												</button>
-												<span className="tabular-nums w-4 text-center">
-													{themeInput.fontSize || workspaceTheme.fontSize}
-												</span>
-												<button
-													type="button"
-													onClick={() =>
-														setThemeInput((t) => {
-															const cur = Number(t.fontSize) || workspaceTheme.fontSize
-															return { ...t, fontSize: String(Math.min(32, cur + 1)) }
-														})
-													}
-													aria-label="Increase font size"
-													className="bg-canvas border border-edge rounded-sm text-content cursor-pointer w-5 h-5 flex items-center justify-center text-[10px] hover:bg-overlay"
-												>
-													+
-												</button>
-											</div>
-										</div>
-										<div className="flex gap-1">
-											<button
-												type="button"
-												className="ctx-submit"
-												onClick={() => {
-													const override: Partial<PaneTheme> = {}
-													if (themeInput.background) override.background = themeInput.background
-													if (themeInput.foreground) override.foreground = themeInput.foreground
-													if (themeInput.fontSize) {
-														const fs = Number(themeInput.fontSize)
-														if (Number.isFinite(fs) && fs >= 8 && fs <= 32) override.fontSize = fs
-													}
-													if (themeInput.fontFamily) override.fontFamily = themeInput.fontFamily
-													onUpdateConfig(paneId, {
-														themeOverride: Object.keys(override).length > 0 ? override : null,
-													})
-													closeContext()
-												}}
-											>
-												Apply
-											</button>
-											<button
-												type="button"
-												className="ctx-submit text-content-muted"
-												onClick={() => {
-													onUpdateConfig(paneId, { themeOverride: null })
-													closeContext()
-												}}
-											>
-												Reset
-											</button>
-										</div>
-									</div>
-								)}
-								<div className="ctx-separator" />
-								<button
-									type="button"
-									className="ctx-item"
-									onClick={() => {
-										killPtys([paneId])
-										ensurePty(paneId, config.cwd, config.startupCommand)
-										closeContext()
-										onFocus(paneId)
-									}}
-								>
-									Restart Pane
-								</button>
-								{canClose && (
-									<button
-										type="button"
-										className="ctx-item text-danger"
-										onClick={() => {
-											onClose(paneId)
-											closeContext()
-										}}
-									>
-										Close Pane
-									</button>
-								)}
-							</div>
-						) : null
-					}
+					contextMenu={null}
 				>
 					{/* Dim overlay scoped to terminal area only (not the header).
 						Always rendered to enable CSS transition; opacity toggled via class.
@@ -787,6 +524,289 @@ export function Pane({
 			{dropZone && (
 				<div className="absolute pointer-events-none z-40" style={ZONE_STYLES[dropZone]} />
 			)}
+
+			{/* Context menu — portalled to document.body to escape pane stacking context */}
+			{showContext &&
+				createPortal(
+					<div
+						ref={contextRef}
+						className="ctx-menu"
+						style={{
+							position: 'fixed',
+							left: clampedPos?.x ?? 0,
+							top: clampedPos?.y ?? 0,
+							visibility: clampedPos ? 'visible' : 'hidden',
+						}}
+						onMouseDown={stopPropagation}
+					>
+						<button
+							type="button"
+							className="ctx-item"
+							onClick={() => {
+								onSplitVertical(paneId)
+								closeContext()
+							}}
+						>
+							Split Vertical
+						</button>
+						<button
+							type="button"
+							className="ctx-item"
+							onClick={() => {
+								onSplitHorizontal(paneId)
+								closeContext()
+							}}
+						>
+							Split Horizontal
+						</button>
+						{canClose && otherOpenWorkspaces.length > 0 && (
+							<>
+								<div className="ctx-separator" />
+								<button
+									type="button"
+									className="ctx-item"
+									onClick={() => setContextPanel(contextPanel === 'move' ? null : 'move')}
+								>
+									Move to Workspace
+								</button>
+								{contextPanel === 'move' && (
+									<div className="flex flex-col gap-0.5 px-1 py-1">
+										{otherOpenWorkspaces.map((ws) => (
+											<button
+												type="button"
+												key={ws.id}
+												className="ctx-item flex items-center gap-2"
+												onClick={() => {
+													movePaneToWorkspace(workspaceId, paneId, ws.id)
+													closeContext()
+												}}
+											>
+												<span
+													className="w-2 h-2 rounded-full shrink-0"
+													aria-hidden="true"
+													style={{ background: ws.color }}
+												/>
+												<span className="truncate">{ws.name}</span>
+											</button>
+										))}
+									</div>
+								)}
+							</>
+						)}
+						<div className="ctx-separator" />
+						<button
+							type="button"
+							className="ctx-item"
+							onClick={() => {
+								startEditing()
+								closeContext()
+							}}
+						>
+							Rename
+						</button>
+						<button
+							type="button"
+							className="ctx-item"
+							onClick={() => {
+								setCwdInput(config.cwd)
+								setContextPanel(contextPanel === 'cwd' ? null : 'cwd')
+							}}
+						>
+							Change Directory
+						</button>
+						{contextPanel === 'cwd' && (
+							<form
+								className="flex gap-1 px-3 py-1 pb-2"
+								onSubmit={(e) => {
+									e.preventDefault()
+									const cwd = cwdInput.trim()
+									if (cwd && isValidCwd(cwd)) {
+										onUpdateConfig(paneId, { cwd })
+									}
+									closeContext()
+								}}
+							>
+								<input
+									type="text"
+									value={cwdInput}
+									onChange={(e) => setCwdInput(e.target.value)}
+									placeholder="/path/to/directory"
+									className="ctx-input flex-1 min-w-0"
+									ref={(el) => el?.focus()}
+								/>
+								<button type="submit" className="ctx-submit">
+									Set
+								</button>
+							</form>
+						)}
+						<button
+							type="button"
+							className="ctx-item"
+							onClick={() => {
+								setCmdInput(config.startupCommand ?? '')
+								setContextPanel(contextPanel === 'cmd' ? null : 'cmd')
+							}}
+						>
+							Set Startup Command
+						</button>
+						{contextPanel === 'cmd' && (
+							<form
+								className="flex gap-1 px-3 py-1 pb-2"
+								onSubmit={(e) => {
+									e.preventDefault()
+									onUpdateConfig(paneId, {
+										startupCommand: cmdInput.trim() || null,
+									})
+									closeContext()
+								}}
+							>
+								<input
+									type="text"
+									value={cmdInput}
+									onChange={(e) => setCmdInput(e.target.value)}
+									placeholder="npm run dev"
+									className="ctx-input flex-1 min-w-0"
+									ref={(el) => el?.focus()}
+								/>
+								<button type="submit" className="ctx-submit">
+									Set
+								</button>
+							</form>
+						)}
+						<button
+							type="button"
+							className="ctx-item"
+							onClick={() => {
+								setThemeInput(initThemeInput(config.themeOverride))
+								setContextPanel(contextPanel === 'theme' ? null : 'theme')
+							}}
+						>
+							Theme Override
+						</button>
+						{contextPanel === 'theme' && (
+							<div className="flex flex-col gap-1.5 px-3 py-1 pb-2">
+								<label className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
+									<span>Background</span>
+									<input
+										type="text"
+										value={themeInput.background}
+										onChange={(e) => setThemeInput((t) => ({ ...t, background: e.target.value }))}
+										placeholder={workspaceTheme.background}
+										className="ctx-input flex-1 min-w-0"
+									/>
+								</label>
+								<label className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
+									<span>Foreground</span>
+									<input
+										type="text"
+										value={themeInput.foreground}
+										onChange={(e) => setThemeInput((t) => ({ ...t, foreground: e.target.value }))}
+										placeholder={workspaceTheme.foreground}
+										className="ctx-input flex-1 min-w-0"
+									/>
+								</label>
+								<span className="text-[11px] text-content-muted">Font</span>
+								<FontPicker
+									value={themeInput.fontFamily}
+									onChange={(font) => setThemeInput((t) => ({ ...t, fontFamily: font }))}
+									size="sm"
+								/>
+								<div className="flex items-center justify-between gap-2 text-[11px] text-content-muted">
+									<span>Font size</span>
+									<div className="flex items-center gap-1">
+										<button
+											type="button"
+											onClick={() =>
+												setThemeInput((t) => {
+													const cur = Number(t.fontSize) || workspaceTheme.fontSize
+													return { ...t, fontSize: String(Math.max(8, cur - 1)) }
+												})
+											}
+											aria-label="Decrease font size"
+											className="bg-canvas border border-edge rounded-sm text-content cursor-pointer w-5 h-5 flex items-center justify-center text-[10px] hover:bg-overlay"
+										>
+											-
+										</button>
+										<span className="tabular-nums w-4 text-center">
+											{themeInput.fontSize || workspaceTheme.fontSize}
+										</span>
+										<button
+											type="button"
+											onClick={() =>
+												setThemeInput((t) => {
+													const cur = Number(t.fontSize) || workspaceTheme.fontSize
+													return { ...t, fontSize: String(Math.min(32, cur + 1)) }
+												})
+											}
+											aria-label="Increase font size"
+											className="bg-canvas border border-edge rounded-sm text-content cursor-pointer w-5 h-5 flex items-center justify-center text-[10px] hover:bg-overlay"
+										>
+											+
+										</button>
+									</div>
+								</div>
+								<div className="flex gap-1">
+									<button
+										type="button"
+										className="ctx-submit"
+										onClick={() => {
+											const override: Partial<PaneTheme> = {}
+											if (themeInput.background) override.background = themeInput.background
+											if (themeInput.foreground) override.foreground = themeInput.foreground
+											if (themeInput.fontSize) {
+												const fs = Number(themeInput.fontSize)
+												if (Number.isFinite(fs) && fs >= 8 && fs <= 32) override.fontSize = fs
+											}
+											if (themeInput.fontFamily) override.fontFamily = themeInput.fontFamily
+											onUpdateConfig(paneId, {
+												themeOverride: Object.keys(override).length > 0 ? override : null,
+											})
+											closeContext()
+										}}
+									>
+										Apply
+									</button>
+									<button
+										type="button"
+										className="ctx-submit text-content-muted"
+										onClick={() => {
+											onUpdateConfig(paneId, { themeOverride: null })
+											closeContext()
+										}}
+									>
+										Reset
+									</button>
+								</div>
+							</div>
+						)}
+						<div className="ctx-separator" />
+						<button
+							type="button"
+							className="ctx-item"
+							onClick={() => {
+								killPtys([paneId])
+								ensurePty(paneId, config.cwd, config.startupCommand)
+								closeContext()
+								onFocus(paneId)
+							}}
+						>
+							Restart Pane
+						</button>
+						{canClose && (
+							<button
+								type="button"
+								className="ctx-item text-danger"
+								onClick={() => {
+									onClose(paneId)
+									closeContext()
+								}}
+							>
+								Close Pane
+							</button>
+						)}
+					</div>,
+					document.body,
+				)}
 		</div>
 	)
 }
