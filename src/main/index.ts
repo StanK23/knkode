@@ -44,8 +44,14 @@ function createWindow(): void {
 			vibrancy: 'under-window' as const,
 			hasShadow: true,
 		}),
-		// Windows: backgroundMaterial works independently of transparent flag
-		...(isWindows && { backgroundMaterial: 'acrylic' as const }),
+		// Windows: backgroundMaterial works independently of transparent flag;
+		// autoHideMenuBar hides the native File/Edit/View bar (Alt to reveal);
+		// maximizable ensures the maximize button is not grayed out.
+		...(isWindows && {
+			backgroundMaterial: 'acrylic' as const,
+			autoHideMenuBar: true,
+			maximizable: true,
+		}),
 		// Linux: no platform-native blur API in Electron — opaque window
 		...(!isMac && !isWindows && { backgroundColor: '#1a1a2e' }),
 		webPreferences: {
