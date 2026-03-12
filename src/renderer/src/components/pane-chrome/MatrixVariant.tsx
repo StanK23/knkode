@@ -31,13 +31,14 @@ function Frame({
 	const header = (
 		<div
 			{...headerProps}
-			className={`${headerProps.className || ''} flex items-center gap-0 px-2 text-[10px] font-mono uppercase shrink-0 select-none transition-colors duration-200 z-20 bg-black`}
+			className={`${headerProps.className || ''} flex items-center gap-1 px-3 py-1 text-[10px] font-mono uppercase shrink-0 select-none transition-colors duration-200 z-20`}
 			style={{
 				...headerProps.style,
-				height: 24,
+				height: 28,
 				color: fg,
-				borderTop: isBottom ? `1px dashed ${theme.accent}44` : 'none',
-				borderBottom: isBottom ? 'none' : `1px dashed ${theme.accent}44`,
+				backgroundColor: '#0a0a0a',
+				borderTop: isBottom ? `1px solid ${theme.accent}66` : 'none',
+				borderBottom: isBottom ? 'none' : `1px solid ${theme.accent}66`,
 				textShadow: isFocused ? `0 0 6px ${glowColor}44` : 'none',
 			}}
 		>
