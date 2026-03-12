@@ -102,6 +102,15 @@ describe('findPreset', () => {
 		expect(preset?.background).toBe('#282a36')
 	})
 
+	it('returns Everforest with correct palette', () => {
+		const preset = findPreset('Everforest')
+		expect(preset).toBeDefined()
+		expect(preset?.name).toBe('Everforest')
+		expect(preset?.background).toBe('#2d353b')
+		expect(preset?.accent).toBe('#a7c080')
+		expect(preset?.fontFamily).toBe('Hack')
+	})
+
 	it('returns undefined for an unknown name', () => {
 		expect(findPreset('NonExistent Theme')).toBeUndefined()
 	})
