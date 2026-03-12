@@ -3,7 +3,7 @@
 ## Current State
 - Branch: `fix/status-bar-interactions`
 - Working on: Release Bugfixes v1 (board: "Release Bugfixes — v1")
-- PR 1 of 4: Fix status bar interactions (snippets popup + context menu)
+- PR #98: Fix status bar interactions — ready for merge
 
 ## Recently Completed
 - **PR #97** — Removed Solarized Light, added Everforest (preset, variant, tests). Updated README.md, THEMING.md, and readme-preview.html. 8 identity + 8 classic = 16 themes.
