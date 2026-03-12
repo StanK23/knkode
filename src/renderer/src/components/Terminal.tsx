@@ -384,6 +384,7 @@ export function TerminalView({
 				if (ev.key.toLowerCase() === 'c' && (ev.metaKey || ev.ctrlKey)) {
 					if (isMac_ && ev.metaKey) {
 						if (term.hasSelection()) {
+							ev.preventDefault()
 							navigator.clipboard.writeText(term.getSelection()).catch((err) => {
 								console.error('[terminal] clipboard write failed:', err)
 							})
@@ -393,6 +394,7 @@ export function TerminalView({
 					}
 					if (ev.ctrlKey && (ev.shiftKey || term.hasSelection())) {
 						if (term.hasSelection()) {
+							ev.preventDefault()
 							navigator.clipboard.writeText(term.getSelection()).catch((err) => {
 								console.error('[terminal] clipboard write failed:', err)
 							})
