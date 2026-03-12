@@ -19,14 +19,14 @@ createAndRegisterVariant('Everforest', {
 			icon: 'folder',
 		},
 		branch: {
-			className: 'text-[10px] font-medium px-2 py-px rounded',
+			className: 'text-[10px] font-medium px-2 py-px rounded-md',
 			style: (theme) => ({
 				backgroundColor: `${theme.accent}18`,
 				color: theme.accent,
 			}),
 		},
 		pr: {
-			className: 'text-[10px] font-medium px-2 py-px rounded opacity-50 hover:opacity-90',
+			className: 'text-[10px] font-medium px-2 py-px rounded-md opacity-40 hover:opacity-80',
 			style: (theme) => ({
 				backgroundColor: `${theme.accent}18`,
 				color: theme.accent,
