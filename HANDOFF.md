@@ -1,13 +1,17 @@
 # HANDOFF
 
 ## Current State
-- Branch: `main`
-- PR #97 merged: `chore: remove Solarized Light theme and update README preview`
+- Branch: `fix/status-bar-interactions`
+- Working on: Release Bugfixes v1 (board: "Release Bugfixes — v1")
+- PR #98: Fix status bar interactions + terminal TUI scrollback jump-to-top regression
 
 ## Recently Completed
+- Added xterm viewport-anchor scroll preservation for the confirmed Claude TUI repro: when scrollback trims old lines during heavy agent/tool output, the pane no longer restores to row 0. Covered by `terminal-scroll` regression tests.
 - **PR #97** — Removed Solarized Light, added Everforest (preset, variant, tests). Updated README.md, THEMING.md, and readme-preview.html. 8 identity + 8 classic = 16 themes.
 - **PR #96** — Split PaneEffects into background (z-0) and overlay (z-20) so scanlines/noise render on top of terminal text. Drop zone bumped to z-40.
 - **PR #95** — Diegetic Pane Frame architecture (27 files)
 
 ## What's Next
-- Pick next task from backlog
+- PR 2: `fix/windows-window-chrome` — Hide menu bar + fix fullscreen on Windows
+- PR 3: `fix/windows-spacebar` — Fix spacebar input on Windows
+- PR 4: `fix/force-ansi-colors` — Force theme ANSI colors against Oh My Posh overrides

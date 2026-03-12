@@ -1,17 +1,25 @@
 export interface SavedScroll {
 	readonly atBottom: boolean
 	readonly linesFromBottom: number
+	readonly viewportAnchor: ScrollAnchorLike | null
+}
+
+export interface ScrollAnchorLike {
+	readonly line: number
+	dispose: () => void
 }
 
 interface BufferLike {
 	active: {
 		baseY: number
+		cursorY: number
 		viewportY: number
 	}
 }
 
 interface ScrollTerminalLike {
 	buffer: BufferLike
+	registerMarker: (cursorYOffset?: number) => ScrollAnchorLike | undefined
 	scrollToBottom: () => void
 	scrollToLine: (line: number) => void
 }
@@ -38,24 +46,40 @@ function getLinesFromBottom(term: ScrollTerminalLike): number {
 	return Math.max(0, term.buffer.active.baseY - term.buffer.active.viewportY)
 }
 
+function createViewportAnchor(term: ScrollTerminalLike): ScrollAnchorLike | null {
+	const cursorAbsoluteY = term.buffer.active.baseY + term.buffer.active.cursorY
+	const viewportOffset = term.buffer.active.viewportY - cursorAbsoluteY
+	return term.registerMarker(viewportOffset) ?? null
+}
+
 /** Capture the terminal's current scroll position as a portable snapshot.
- *  The snapshot stores distance-from-bottom so it survives buffer growth. */
+ *  The snapshot stores both distance-from-bottom and a tracked viewport anchor.
+ *  The anchor follows the top visible line when scrollback is trimmed. */
 export function readSavedScroll(term: ScrollTerminalLike): SavedScroll {
+	const atBottom = isTermAtBottom(term)
 	return {
-		atBottom: isTermAtBottom(term),
+		atBottom,
 		linesFromBottom: getLinesFromBottom(term),
+		viewportAnchor: atBottom ? null : createViewportAnchor(term),
 	}
 }
 
 /** Restore a previously captured scroll position.
  *  If the snapshot was at-bottom, scrolls to the latest output; otherwise
- *  re-applies the saved distance-from-bottom against the current buffer. */
+ *  prefers the tracked viewport anchor and falls back to distance-from-bottom. */
 export function restoreSavedScroll(term: ScrollTerminalLike, saved: SavedScroll): void {
 	if (saved.atBottom) {
 		term.scrollToBottom()
+	} else if (saved.viewportAnchor && saved.viewportAnchor.line >= 0) {
+		term.scrollToLine(saved.viewportAnchor.line)
 	} else {
 		term.scrollToLine(Math.max(0, term.buffer.active.baseY - saved.linesFromBottom))
 	}
+}
+
+/** Dispose any tracked viewport anchor associated with a saved scroll snapshot. */
+export function disposeSavedScroll(saved: SavedScroll): void {
+	saved.viewportAnchor?.dispose()
 }
 
 /**

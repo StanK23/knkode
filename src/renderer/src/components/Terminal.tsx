@@ -25,6 +25,7 @@ import { hexToRgba } from '../utils/colors'
 import {
 	type SavedScroll,
 	createViewportSyncCoordinator,
+	disposeSavedScroll,
 	readSavedScroll,
 	restoreSavedScroll,
 } from '../utils/terminal-scroll'
@@ -80,8 +81,12 @@ function fitAndPreserveScroll(term: XTerm, fitAddon: FitAddon): void {
 	}
 
 	const saved = readSavedScroll(term)
-	fitAddon.fit()
-	restoreSavedScroll(term, saved)
+	try {
+		fitAddon.fit()
+		restoreSavedScroll(term, saved)
+	} finally {
+		disposeSavedScroll(saved)
+	}
 }
 
 /**
@@ -240,8 +245,12 @@ export function TerminalView({
 
 	// Scroll preservation across workspace switches: save position while
 	// active, ignore browser-induced scroll resets while hidden, restore on reactivation.
-	// Uses linesFromBottom (see fitAndPreserveScroll for rationale).
-	const savedScrollRef = useRef<SavedScroll>({ atBottom: true, linesFromBottom: 0 })
+	// Snapshot stores both distance-from-bottom and a tracked viewport anchor.
+	const savedScrollRef = useRef<SavedScroll>({
+		atBottom: true,
+		linesFromBottom: 0,
+		viewportAnchor: null,
+	})
 	const isActiveRef = useRef(true)
 	const isWorkspaceActive = useStore((s) => {
 		const ws = s.workspaces.find((w) => paneId in w.panes)
@@ -255,6 +264,7 @@ export function TerminalView({
 				const term = termRef.current
 				if (!term || !isActiveRef.current) return
 				const saved = readSavedScroll(term)
+				disposeSavedScroll(savedScrollRef.current)
 				savedScrollRef.current = saved
 				setIsScrolledUp(!saved.atBottom)
 			},
@@ -448,6 +458,7 @@ export function TerminalView({
 		const handleViewportScroll = () => {
 			if (isScrollSuppressed()) return
 			const saved = readSavedScroll(term)
+			disposeSavedScroll(savedScrollRef.current)
 			savedScrollRef.current = saved
 			setIsScrolledUp(!saved.atBottom)
 		}
@@ -502,6 +513,8 @@ export function TerminalView({
 			wrapperEl.removeEventListener('focusin', handleFocusIn)
 			resizeObserver.disconnect()
 			viewportSyncRef.current.dispose()
+			disposeSavedScroll(savedScrollRef.current)
+			savedScrollRef.current = { atBottom: true, linesFromBottom: 0, viewportAnchor: null }
 			searchAddonRef.current = null
 			// Detach termContainer from DOM — do NOT dispose the terminal.
 			// PTY data continues writing to the buffer while detached.
@@ -643,7 +656,8 @@ export function TerminalView({
 
 	const scrollToBottom = useCallback(() => {
 		termRef.current?.scrollToBottom()
-		savedScrollRef.current = { atBottom: true, linesFromBottom: 0 }
+		disposeSavedScroll(savedScrollRef.current)
+		savedScrollRef.current = { atBottom: true, linesFromBottom: 0, viewportAnchor: null }
 		setIsScrolledUp(false)
 		termRef.current?.focus()
 	}, [])
