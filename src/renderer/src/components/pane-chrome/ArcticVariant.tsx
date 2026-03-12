@@ -3,10 +3,11 @@ import { createAndRegisterVariant } from './createVariant'
 createAndRegisterVariant('Arctic', {
 	statusBar: {
 		height: 28,
-		className: 'gap-2 px-3 text-[10px] tracking-wider font-light',
+		className: 'gap-2 px-3 py-1 text-[10px] tracking-wider font-light',
 		style: (theme, isFocused) => ({
 			color: theme.foreground,
-			borderBottom: `1px solid ${isFocused ? theme.accent : `${theme.accent}44`}`,
+			backgroundColor: '#050d18',
+			borderBottom: `1px solid ${isFocused ? `${theme.accent}44` : `${theme.accent}22`}`,
 		}),
 		separator: '│',
 		separatorOpacity: 'opacity-20',
