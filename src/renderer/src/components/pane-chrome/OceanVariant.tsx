@@ -30,17 +30,15 @@ function Frame({
 	const header = (
 		<div
 			{...headerProps}
-			className={`${headerProps.className || ''} flex items-center gap-2 px-4 text-[11px] font-light shrink-0 select-none transition-all duration-300 z-20`}
+			className={`${headerProps.className || ''} flex items-center gap-2 px-4 py-1 text-[11px] font-light shrink-0 select-none transition-all duration-300 z-20`}
 			style={{
 				...headerProps.style,
-				height: 36,
+				height: 30,
 				color: theme.foreground,
-				background: isBottom
-					? `linear-gradient(0deg, ${c1}11 0%, transparent 100%)`
-					: `linear-gradient(180deg, ${c1}11 0%, transparent 100%)`,
-				borderTop: isBottom ? `1px solid ${c1}22` : 'none',
-				borderBottom: isBottom ? 'none' : `1px solid ${c1}22`,
-				boxShadow: isFocused ? `0 ${isBottom ? '-' : ''}4px 12px ${glowColor}11` : 'none',
+				backgroundColor: '#020b14',
+				borderTop: isBottom ? `1px solid ${c1}28` : 'none',
+				borderBottom: isBottom ? 'none' : `1px solid ${c1}28`,
+				boxShadow: isFocused ? `0 ${isBottom ? '-' : ''}2px 8px ${glowColor}11` : 'none',
 			}}
 		>
 			{isEditing ? (
