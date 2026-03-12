@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
 	createViewportSyncCoordinator,
+	disposeSavedScroll,
 	readSavedScroll,
 	restoreSavedScroll,
 } from './terminal-scroll'
@@ -31,27 +32,50 @@ describe('readSavedScroll', () => {
 	it('captures distance from the bottom of the buffer', () => {
 		expect(
 			readSavedScroll({
-				buffer: { active: { baseY: 120, viewportY: 90 } },
+				buffer: { active: { baseY: 120, cursorY: 0, viewportY: 90 } },
+				registerMarker: () => null,
 				scrollToBottom: () => {},
 				scrollToLine: () => {},
 			}),
 		).toEqual({
 			atBottom: false,
 			linesFromBottom: 30,
+			viewportAnchor: null,
 		})
 	})
 
 	it('treats viewport at baseY as bottom', () => {
 		expect(
 			readSavedScroll({
-				buffer: { active: { baseY: 48, viewportY: 48 } },
+				buffer: { active: { baseY: 48, cursorY: 0, viewportY: 48 } },
+				registerMarker: () => {
+					throw new Error('should not create a marker when already at bottom')
+				},
 				scrollToBottom: () => {},
 				scrollToLine: () => {},
 			}),
 		).toEqual({
 			atBottom: true,
 			linesFromBottom: 0,
+			viewportAnchor: null,
 		})
+	})
+
+	it('registers a viewport anchor relative to the cursor when scrolled up', () => {
+		const marker = { line: 90, dispose: () => {} }
+		let offset: number | undefined
+		const saved = readSavedScroll({
+			buffer: { active: { baseY: 120, cursorY: 10, viewportY: 90 } },
+			registerMarker: (cursorOffset) => {
+				offset = cursorOffset
+				return marker
+			},
+			scrollToBottom: () => {},
+			scrollToLine: () => {},
+		})
+
+		expect(offset).toBe(-40)
+		expect(saved.viewportAnchor).toBe(marker)
 	})
 })
 
@@ -60,7 +84,8 @@ describe('restoreSavedScroll', () => {
 		let scrolledToBottom = false
 		restoreSavedScroll(
 			{
-				buffer: { active: { baseY: 80, viewportY: 40 } },
+				buffer: { active: { baseY: 80, cursorY: 0, viewportY: 40 } },
+				registerMarker: () => undefined,
 				scrollToBottom: () => {
 					scrolledToBottom = true
 				},
@@ -68,16 +93,17 @@ describe('restoreSavedScroll', () => {
 					throw new Error('should not scroll to a specific line when at bottom')
 				},
 			},
-			{ atBottom: true, linesFromBottom: 0 },
+			{ atBottom: true, linesFromBottom: 0, viewportAnchor: null },
 		)
 		expect(scrolledToBottom).toBe(true)
 	})
 
-	it('restores distance-from-bottom snapshots with scrollToLine', () => {
+	it('prefers the tracked viewport anchor when restoring a scrolled-up viewport', () => {
 		let restoredLine: number | null = null
 		restoreSavedScroll(
 			{
-				buffer: { active: { baseY: 150, viewportY: 20 } },
+				buffer: { active: { baseY: 150, cursorY: 0, viewportY: 20 } },
+				registerMarker: () => undefined,
 				scrollToBottom: () => {
 					throw new Error('should not scroll to bottom when restoring a scrolled-up viewport')
 				},
@@ -85,9 +111,63 @@ describe('restoreSavedScroll', () => {
 					restoredLine = line
 				},
 			},
-			{ atBottom: false, linesFromBottom: 25 },
+			{ atBottom: false, linesFromBottom: 25, viewportAnchor: { line: 98, dispose: () => {} } },
+		)
+		expect(restoredLine).toBe(98)
+	})
+
+	it('restores distance-from-bottom snapshots with scrollToLine', () => {
+		let restoredLine: number | null = null
+		restoreSavedScroll(
+			{
+				buffer: { active: { baseY: 150, cursorY: 0, viewportY: 20 } },
+				registerMarker: () => undefined,
+				scrollToBottom: () => {
+					throw new Error('should not scroll to bottom when restoring a scrolled-up viewport')
+				},
+				scrollToLine: (line) => {
+					restoredLine = line
+				},
+			},
+			{ atBottom: false, linesFromBottom: 25, viewportAnchor: null },
 		)
 		expect(restoredLine).toBe(125)
+	})
+
+	it('falls back to distance-from-bottom when the anchor was trimmed away', () => {
+		let restoredLine: number | null = null
+		restoreSavedScroll(
+			{
+				buffer: { active: { baseY: 150, cursorY: 0, viewportY: 20 } },
+				registerMarker: () => undefined,
+				scrollToBottom: () => {
+					throw new Error('should not scroll to bottom when restoring a scrolled-up viewport')
+				},
+				scrollToLine: (line) => {
+					restoredLine = line
+				},
+			},
+			{ atBottom: false, linesFromBottom: 25, viewportAnchor: { line: -1, dispose: () => {} } },
+		)
+		expect(restoredLine).toBe(125)
+	})
+})
+
+describe('disposeSavedScroll', () => {
+	it('disposes the viewport anchor when present', () => {
+		let disposed = false
+		disposeSavedScroll({
+			atBottom: false,
+			linesFromBottom: 25,
+			viewportAnchor: {
+				line: 42,
+				dispose: () => {
+					disposed = true
+				},
+			},
+		})
+
+		expect(disposed).toBe(true)
 	})
 })
 
