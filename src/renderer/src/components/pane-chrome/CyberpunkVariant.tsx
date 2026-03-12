@@ -36,13 +36,15 @@ function Frame({
 	const header = (
 		<div
 			{...headerProps}
-			className={`${headerProps.className || ''} w-full h-7 flex items-center gap-2 px-4 text-[9px] font-mono font-bold uppercase tracking-widest shrink-0 select-none transition-all duration-300 z-20`}
+			className={`${headerProps.className || ''} w-full flex items-center gap-2 px-4 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest shrink-0 select-none transition-all duration-300 z-20`}
 			style={{
 				...headerProps.style,
+				height: 32,
 				color: theme.foreground,
+				backgroundColor: '#0d0221',
 				borderTop: isBottom ? `1px solid ${activeC1}88` : 'none',
 				borderBottom: isBottom ? 'none' : `1px solid ${activeC1}88`,
-				background: `linear-gradient(90deg, ${activeC1}22 0%, ${activeC2}11 100%)`,
+				background: `linear-gradient(90deg, ${activeC1}26 0%, ${activeC2}14 100%), #0d0221`,
 				boxShadow: isFocused ? `0 ${isBottom ? '-1px' : '1px'} 8px ${glowColor}44` : 'none',
 			}}
 		>
