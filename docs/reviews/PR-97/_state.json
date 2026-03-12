@@ -1,0 +1,16 @@
+{
+  "type": "watch-pr",
+  "pr_number": 97,
+  "pr_title": "chore: remove Solarized Light theme and update README preview",
+  "branch": "chore/remove-solarized-light",
+  "base_branch": "main",
+  "head_sha": "5a40fb8453c1bb0d2b4abeb6e6a3a7f907a931ee",
+  "started_at": "2026-03-12T05:30:00.000Z",
+  "agents": {
+    "code-reviewer": { "status": "completed", "file": "code-reviewer.md" },
+    "code-simplifier": { "status": "completed", "file": "code-simplifier.md" },
+    "test-analyzer": { "status": "completed", "file": "test-analyzer.md" }
+  },
+  "phase": "done",
+  "compiled": true
+}

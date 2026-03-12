@@ -19,7 +19,7 @@ A default workspace with one terminal pane is created on first launch.
 
 **Split panes.** Six layout presets (single, 2-column, 2-row, 3-panel L, 3-panel T, 2x2 grid), plus split any pane on the fly. Drag pane headers to rearrange — drop on center to swap, drop on an edge to insert a new split. Move a pane to a different workspace via right-click. Splitting preserves the existing terminal's output.
 
-**Theming.** 16 built-in themes (Dracula, Tokyo Night, Nord, Catppuccin, Gruvbox, Solarized, and more) applied per workspace. Individual panes can override with their own colors, font, and font size. 10 bundled monospace fonts that work without system installation. Cursor style, scrollback (500-50k lines), and unfocused pane dimming are all adjustable.
+**Theming.** 16 built-in themes (Dracula, Tokyo Night, Nord, Catppuccin, Gruvbox, Everforest, and more) applied per workspace. Individual panes can override with their own colors, font, and font size. 10 bundled monospace fonts that work without system installation. Cursor style, scrollback (500-50k lines), and unfocused pane dimming are all adjustable.
 
 **Terminal.** WebGL-accelerated rendering via xterm.js. In-terminal search, clickable URLs, CWD tracking in each pane header, and per-pane startup commands (e.g., `npm run dev` runs when the workspace loads). `Shift+Enter` sends LF instead of CR, which tools like Claude Code use to distinguish newline from submit.
 

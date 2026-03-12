@@ -102,15 +102,25 @@ describe('findPreset', () => {
 		expect(preset?.background).toBe('#282a36')
 	})
 
+	it('returns Everforest with correct palette', () => {
+		const preset = findPreset('Everforest')
+		expect(preset).toBeDefined()
+		expect(preset?.name).toBe('Everforest')
+		expect(preset?.background).toBe('#2d353b')
+		expect(preset?.accent).toBe('#a7c080')
+		expect(preset?.fontFamily).toBe('Hack')
+	})
+
 	it('returns undefined for an unknown name', () => {
 		expect(findPreset('NonExistent Theme')).toBeUndefined()
 	})
 
-	// Presets removed in PR #78 (trimmed to most distinct identities)
+	// Presets removed in PR #78 / #97
 	it('returns undefined for removed presets', () => {
 		const removed = [
 			'One Dark',
 			'Solarized Dark',
+			'Solarized Light',
 			'GitHub Dark',
 			'GitHub Light',
 			'One Light',
@@ -426,7 +436,7 @@ describe('identity theme properties', () => {
 			'Catppuccin',
 			'Gruvbox',
 			'Monokai',
-			'Solarized Light',
+			'Everforest',
 		]
 		for (const name of community) {
 			const preset = requirePreset(name)

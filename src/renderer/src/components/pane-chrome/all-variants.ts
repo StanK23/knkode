@@ -9,13 +9,13 @@ import './CatppuccinVariant'
 import './CyberpunkVariant'
 import './DefaultDarkVariant'
 import './DraculaVariant'
+import './EverforestVariant'
 import './GruvboxVariant'
 import './MatrixVariant'
 import './MonokaiVariant'
 import './NordVariant'
 import './OceanVariant'
 import './SolanaVariant'
-import './SolarizedVariant'
 import './SunsetVariant'
 import './TokyoNightVariant'
 import './VaporwaveVariant'
@@ -32,6 +32,7 @@ const _VARIANT_COMPLETENESS: Record<ThemePresetName, true> = {
 	Catppuccin: true,
 	Gruvbox: true,
 	Monokai: true,
+	Everforest: true,
 	Matrix: true,
 	Cyberpunk: true,
 	Solana: true,
@@ -40,6 +41,5 @@ const _VARIANT_COMPLETENESS: Record<ThemePresetName, true> = {
 	Ocean: true,
 	Sunset: true,
 	Arctic: true,
-	'Solarized Light': true,
 }
 void _VARIANT_COMPLETENESS
