@@ -126,7 +126,7 @@ function Frame({
 					color: theme.foreground,
 				}}
 			>
-				┃
+				SPLIT ┃
 			</button>
 			<button
 				type="button"
@@ -139,7 +139,7 @@ function Frame({
 					color: theme.foreground,
 				}}
 			>
-				━
+				SPLIT ━
 			</button>
 			{canClose && (
 				<button
@@ -153,7 +153,7 @@ function Frame({
 						color: theme.foreground,
 					}}
 				>
-					✕
+					CLOSE ✕
 				</button>
 			)}
 			{contextMenu}
