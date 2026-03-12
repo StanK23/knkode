@@ -16,7 +16,7 @@ createAndRegisterVariant('Everforest', {
 		},
 		cwd: {
 			className: 'opacity-50 text-[10px]',
-			icon: '🌿',
+			icon: 'folder',
 		},
 		branch: {
 			className: 'text-[10px] font-medium px-2 py-px rounded',
