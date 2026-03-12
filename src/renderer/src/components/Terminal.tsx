@@ -555,6 +555,22 @@ export function TerminalView({
 		}
 	}, [isFocused, focusGeneration])
 
+	// Windows: re-focus terminal when browser window regains focus.
+	// backgroundMaterial 'acrylic' and native menu bar interactions can leave
+	// keyboard focus on the native frame instead of web contents. The main
+	// process forces webContents.focus(), but xterm's internal textarea also
+	// needs an explicit focus() call to resume receiving key events.
+	useEffect(() => {
+		if (!isFocused) return
+		const handleWindowFocus = () => {
+			if (termRef.current && !showSearchRef.current) {
+				termRef.current.focus()
+			}
+		}
+		window.addEventListener('focus', handleWindowFocus)
+		return () => window.removeEventListener('focus', handleWindowFocus)
+	}, [isFocused])
+
 	// Update xterm theme colors, cursor style, scrollback, and font metrics without
 	// re-mounting. Only calls fit() when font size or font family change (fit recalculates
 	// cell metrics). Restores scroll position and focus after fit() since it disrupts both.

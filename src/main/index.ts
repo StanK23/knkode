@@ -68,6 +68,17 @@ function createWindow(): void {
 		app.dock.setIcon(appIcon)
 	}
 
+	// Windows + backgroundMaterial: 'acrylic' can lose keyboard focus to the
+	// native frame after minimize/restore, alt-menu, or taskbar interactions.
+	// Force web contents focus when the window regains focus.
+	if (isWindows) {
+		win.on('focus', () => {
+			if (!win.isDestroyed() && !win.webContents.isDestroyed()) {
+				win.webContents.focus()
+			}
+		})
+	}
+
 	setMainWindow(win)
 
 	let saveBoundsTimer: ReturnType<typeof setTimeout> | null = null
