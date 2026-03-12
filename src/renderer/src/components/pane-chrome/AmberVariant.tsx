@@ -29,17 +29,18 @@ function Frame({
 	const header = (
 		<div
 			{...headerProps}
-			className={`${headerProps.className || ''} flex items-center gap-0 px-3 ${isBottom ? 'pb-1' : 'pt-1'} text-[10px] font-mono uppercase shrink-0 select-none transition-colors duration-200 z-20`}
+			className={`${headerProps.className || ''} flex items-center gap-1 px-3 py-1 text-[10px] font-mono uppercase shrink-0 select-none transition-colors duration-200 z-20`}
 			style={{
 				...headerProps.style,
 				height: 28,
 				color: fg,
+				backgroundColor: '#0c0800',
 				borderTop: isBottom
-					? `2px dashed ${isFocused ? `${theme.accent}88` : `${theme.accent}33`}`
+					? `1px dashed ${isFocused ? `${theme.accent}66` : `${theme.accent}33`}`
 					: 'none',
 				borderBottom: isBottom
 					? 'none'
-					: `2px dashed ${isFocused ? `${theme.accent}88` : `${theme.accent}33`}`,
+					: `1px dashed ${isFocused ? `${theme.accent}66` : `${theme.accent}33`}`,
 				textShadow: isFocused ? `0 0 8px ${theme.accent}66` : 'none',
 			}}
 		>
