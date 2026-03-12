@@ -43,26 +43,6 @@ const DEFAULT_ANSI: AnsiColors = {
 	brightWhite: '#eeeeec',
 }
 
-/** Solarized ANSI palette used by the Solarized Light preset. */
-const SOLARIZED_ANSI: AnsiColors = {
-	black: '#073642',
-	red: '#dc322f',
-	green: '#859900',
-	yellow: '#b58900',
-	blue: '#268bd2',
-	magenta: '#d33682',
-	cyan: '#2aa198',
-	white: '#eee8d5',
-	brightBlack: '#586e75',
-	brightRed: '#cb4b16',
-	brightGreen: '#859900',
-	brightYellow: '#b58900',
-	brightBlue: '#268bd2',
-	brightMagenta: '#6c71c4',
-	brightCyan: '#2aa198',
-	brightWhite: '#fdf6e3',
-}
-
 export const THEME_PRESETS = [
 	// ── Dark themes ──────────────────────────────────────────────
 	{
@@ -519,15 +499,6 @@ export const THEME_PRESETS = [
 			brightCyan: '#68d8ee',
 			brightWhite: '#f0f8ff',
 		},
-	},
-	// ── Light themes ─────────────────────────────────────────────
-	{
-		name: 'Solarized Light',
-		background: '#fdf6e3',
-		foreground: '#586e75',
-		fontFamily: 'Inconsolata',
-		accent: '#268bd2',
-		ansiColors: SOLARIZED_ANSI,
 	},
 ] as const satisfies readonly ThemePreset[]
 

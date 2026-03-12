@@ -106,11 +106,12 @@ describe('findPreset', () => {
 		expect(findPreset('NonExistent Theme')).toBeUndefined()
 	})
 
-	// Presets removed in PR #78 (trimmed to most distinct identities)
+	// Presets removed in PR #78 / #97
 	it('returns undefined for removed presets', () => {
 		const removed = [
 			'One Dark',
 			'Solarized Dark',
+			'Solarized Light',
 			'GitHub Dark',
 			'GitHub Light',
 			'One Light',
@@ -426,7 +427,6 @@ describe('identity theme properties', () => {
 			'Catppuccin',
 			'Gruvbox',
 			'Monokai',
-			'Solarized Light',
 		]
 		for (const name of community) {
 			const preset = requirePreset(name)

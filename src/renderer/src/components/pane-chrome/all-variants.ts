@@ -15,7 +15,6 @@ import './MonokaiVariant'
 import './NordVariant'
 import './OceanVariant'
 import './SolanaVariant'
-import './SolarizedVariant'
 import './SunsetVariant'
 import './TokyoNightVariant'
 import './VaporwaveVariant'
@@ -40,6 +39,5 @@ const _VARIANT_COMPLETENESS: Record<ThemePresetName, true> = {
 	Ocean: true,
 	Sunset: true,
 	Arctic: true,
-	'Solarized Light': true,
 }
 void _VARIANT_COMPLETENESS
