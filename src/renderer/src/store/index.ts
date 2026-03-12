@@ -995,8 +995,9 @@ export const useStore = create<StoreState>((set, get) => ({
 			return
 		}
 		if (fromIndex === toIndex) return
-		const [moved] = snippets.splice(fromIndex, 1)
-		snippets.splice(toIndex, 0, moved!)
+		const moved = snippets.splice(fromIndex, 1)[0]
+		if (!moved) return
+		snippets.splice(toIndex, 0, moved)
 		set({ snippets })
 		persistSnippets(snippets)
 	},

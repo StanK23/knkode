@@ -372,24 +372,96 @@ describe('sanitizeTheme', () => {
 	})
 
 	it('preserves valid statusBarPosition values', () => {
-		expect(sanitizeTheme({ background: '#000', foreground: '#fff', fontSize: 14, unfocusedDim: 0.3, statusBarPosition: 'top' }).statusBarPosition).toBe('top')
-		expect(sanitizeTheme({ background: '#000', foreground: '#fff', fontSize: 14, unfocusedDim: 0.3, statusBarPosition: 'bottom' }).statusBarPosition).toBe('bottom')
+		expect(
+			sanitizeTheme({
+				background: '#000',
+				foreground: '#fff',
+				fontSize: 14,
+				unfocusedDim: 0.3,
+				statusBarPosition: 'top',
+			}).statusBarPosition,
+		).toBe('top')
+		expect(
+			sanitizeTheme({
+				background: '#000',
+				foreground: '#fff',
+				fontSize: 14,
+				unfocusedDim: 0.3,
+				statusBarPosition: 'bottom',
+			}).statusBarPosition,
+		).toBe('bottom')
 	})
 
 	it('strips invalid statusBarPosition values', () => {
-		expect(sanitizeTheme({ background: '#000', foreground: '#fff', fontSize: 14, unfocusedDim: 0.3, statusBarPosition: 'left' }).statusBarPosition).toBeUndefined()
-		expect(sanitizeTheme({ background: '#000', foreground: '#fff', fontSize: 14, unfocusedDim: 0.3, statusBarPosition: 42 }).statusBarPosition).toBeUndefined()
-		expect(sanitizeTheme({ background: '#000', foreground: '#fff', fontSize: 14, unfocusedDim: 0.3, statusBarPosition: null }).statusBarPosition).toBeUndefined()
+		expect(
+			sanitizeTheme({
+				background: '#000',
+				foreground: '#fff',
+				fontSize: 14,
+				unfocusedDim: 0.3,
+				statusBarPosition: 'left',
+			}).statusBarPosition,
+		).toBeUndefined()
+		expect(
+			sanitizeTheme({
+				background: '#000',
+				foreground: '#fff',
+				fontSize: 14,
+				unfocusedDim: 0.3,
+				statusBarPosition: 42,
+			}).statusBarPosition,
+		).toBeUndefined()
+		expect(
+			sanitizeTheme({
+				background: '#000',
+				foreground: '#fff',
+				fontSize: 14,
+				unfocusedDim: 0.3,
+				statusBarPosition: null,
+			}).statusBarPosition,
+		).toBeUndefined()
 	})
 
 	it('strips fontFamily containing CSS injection characters', () => {
-		expect(sanitizeTheme({ background: '#000', foreground: '#fff', fontSize: 14, unfocusedDim: 0.3, fontFamily: 'monospace; } body { display:none' }).fontFamily).toBeUndefined()
-		expect(sanitizeTheme({ background: '#000', foreground: '#fff', fontSize: 14, unfocusedDim: 0.3, fontFamily: 'monospace{' }).fontFamily).toBeUndefined()
+		expect(
+			sanitizeTheme({
+				background: '#000',
+				foreground: '#fff',
+				fontSize: 14,
+				unfocusedDim: 0.3,
+				fontFamily: 'monospace; } body { display:none',
+			}).fontFamily,
+		).toBeUndefined()
+		expect(
+			sanitizeTheme({
+				background: '#000',
+				foreground: '#fff',
+				fontSize: 14,
+				unfocusedDim: 0.3,
+				fontFamily: 'monospace{',
+			}).fontFamily,
+		).toBeUndefined()
 	})
 
 	it('preserves valid fontFamily values', () => {
-		expect(sanitizeTheme({ background: '#000', foreground: '#fff', fontSize: 14, unfocusedDim: 0.3, fontFamily: 'JetBrains Mono' }).fontFamily).toBe('JetBrains Mono')
-		expect(sanitizeTheme({ background: '#000', foreground: '#fff', fontSize: 14, unfocusedDim: 0.3, fontFamily: 'Fira Code' }).fontFamily).toBe('Fira Code')
+		expect(
+			sanitizeTheme({
+				background: '#000',
+				foreground: '#fff',
+				fontSize: 14,
+				unfocusedDim: 0.3,
+				fontFamily: 'JetBrains Mono',
+			}).fontFamily,
+		).toBe('JetBrains Mono')
+		expect(
+			sanitizeTheme({
+				background: '#000',
+				foreground: '#fff',
+				fontSize: 14,
+				unfocusedDim: 0.3,
+				fontFamily: 'Fira Code',
+			}).fontFamily,
+		).toBe('Fira Code')
 	})
 
 	it('strips non-finite numeric fields', () => {
