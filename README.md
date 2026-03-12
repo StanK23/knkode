@@ -1,35 +1,52 @@
 # knkode
 
-A terminal workspace manager that persists your multi-pane layouts across sessions.
+A terminal workspace manager that saves your multi-pane layouts so you stop rebuilding them every morning.
 
-Every project needs a different terminal setup — build watcher, dev server, logs, a shell for git. You arrange them, close the window, and rebuild the whole thing next time. knkode saves each arrangement as a named workspace you can switch between instantly. Workspaces survive restarts, remember their shell state, and each one gets its own theme.
+<table>
+  <tr>
+    <td align="center"><img src="docs/themes/matrix.svg" width="220"/><br/><sub>Matrix</sub></td>
+    <td align="center"><img src="docs/themes/cyberpunk.svg" width="220"/><br/><sub>Cyberpunk</sub></td>
+    <td align="center"><img src="docs/themes/vaporwave.svg" width="220"/><br/><sub>Vaporwave</sub></td>
+    <td align="center"><img src="docs/themes/amber.svg" width="220"/><br/><sub>Amber</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/themes/solana.svg" width="220"/><br/><sub>Solana</sub></td>
+    <td align="center"><img src="docs/themes/ocean.svg" width="220"/><br/><sub>Ocean</sub></td>
+    <td align="center"><img src="docs/themes/sunset.svg" width="220"/><br/><sub>Sunset</sub></td>
+    <td align="center"><img src="docs/themes/arctic.svg" width="220"/><br/><sub>Arctic</sub></td>
+  </tr>
+</table>
 
-## 📥 Download
+Each theme comes with its own visual effects — scanlines, phosphor glow, noise textures, gradient overlays — applied to terminal backgrounds and pane chrome. These aren't just color swaps.
+
+## Download
 
 Grab the latest release from [GitHub Releases](https://github.com/StanK23/knkode/releases):
 
 - **macOS** — `.dmg` (Apple Silicon)
 - **Windows** — `.exe` installer
 
-A default workspace with one terminal pane is created on first launch.
+## Why
 
-## ✨ What it does
+Every project needs a different terminal setup — build watcher, dev server, logs, a shell for git. You arrange them, close the window, and rebuild the whole thing next time. knkode saves each arrangement as a named workspace you can switch between instantly.
 
-**Workspaces as tabs.** Each workspace is a color-coded tab with its own split-pane layout. Create, duplicate, close, drag to reorder, or reopen from the closed-workspaces menu. Switching tabs is instant — background shells stay alive.
+## What it does
 
-**Split panes.** Six layout presets (single, 2-column, 2-row, 3-panel L, 3-panel T, 2x2 grid), plus split any pane on the fly. Drag pane headers to rearrange — drop on center to swap, drop on an edge to insert a new split. Move a pane to a different workspace via right-click. Splitting preserves the existing terminal's output.
+**Workspaces as tabs.** Each workspace is a color-coded tab with its own split-pane layout. Create, duplicate, close, drag to reorder, or reopen from the closed-workspaces menu. Switching is instant — background shells stay alive.
 
-**Theming.** 16 built-in themes (Dracula, Tokyo Night, Nord, Catppuccin, Gruvbox, Everforest, and more) applied per workspace. Individual panes can override with their own colors, font, and font size. 10 bundled monospace fonts that work without system installation. Cursor style, scrollback (500-50k lines), and unfocused pane dimming are all adjustable.
+**Split panes.** Six layout presets plus split any pane on the fly. Drag pane headers to rearrange — drop on center to swap, drop on an edge to insert. Move panes across workspaces via right-click.
 
-**Terminal.** WebGL-accelerated rendering via xterm.js. In-terminal search, clickable URLs, CWD tracking in each pane header, and per-pane startup commands (e.g., `npm run dev` runs when the workspace loads). `Shift+Enter` sends LF instead of CR, which tools like Claude Code use to distinguish newline from submit.
+**16 themes.** 8 identity themes with unique visual effects (Matrix, Cyberpunk, Vaporwave, Amber, Solana, Ocean, Sunset, Arctic) and 8 classics (Dracula, Tokyo Night, Nord, Catppuccin, Gruvbox, Monokai, Everforest, Default Dark). Each has custom status bar chrome — parallelogram badges, CRT scanlines, gradient borders, retro grids. Status bar position (top or bottom) is configurable per workspace. Applied per-workspace, with per-pane color overrides.
 
-**Quick commands.** Define reusable shell snippets in workspace settings. Run them in any pane from the `>_` icon on the pane header.
+**Terminal.** WebGL-rendered via xterm.js. In-terminal search, clickable URLs, CWD tracking in pane headers, per-pane startup commands. `Shift+Enter` sends LF instead of CR for tools like Claude Code.
 
-**Persistent config.** Everything is stored as JSON in `~/.knkode/` — workspace definitions, open tabs, window position. Writes are atomic (temp file + rename) so a crash won't corrupt your config.
+**Quick commands.** Define reusable shell snippets per workspace. Run them from the `>_` icon on any pane header.
 
-## ⌨️ Keyboard shortcuts
+**Persistent.** Config stored as JSON in `~/.knkode/`. Atomic writes (temp + rename) so crashes don't corrupt state.
 
-Uses `Cmd` on macOS, `Ctrl` on Windows — intentionally avoids terminal control sequences (`Ctrl+C`, `Ctrl+D`, etc.).
+## Keyboard shortcuts
+
+`Cmd` on macOS, `Ctrl` on Windows. Avoids terminal sequences (`Ctrl+C`, `Ctrl+D`).
 
 | Action | macOS | Windows |
 |---|---|---|
@@ -44,9 +61,9 @@ Uses `Cmd` on macOS, `Ctrl` on Windows — intentionally avoids terminal control
 | Find in terminal | `Cmd+F` | `Ctrl+F` |
 | Settings | `Cmd+,` | `Ctrl+,` |
 
-## 🛠 Development
+## Development
 
-Requires [Node.js](https://nodejs.org) >= 18 and [bun](https://bun.sh).
+Requires Node.js >= 18 and [bun](https://bun.sh).
 
 ```sh
 git clone https://github.com/StanK23/knkode.git
@@ -60,30 +77,12 @@ Opens the app with hot reload. macOS uses a frameless window with native traffic
 ```sh
 bun run test         # vitest
 bun run lint         # biome check
-bun run lint:fix     # biome check --write
+bun run build        # compile to out/
+bun run package      # build + create .dmg / .exe
 ```
 
-### 📦 Building
+Stack: Electron 33, React 19, TypeScript, Zustand 5, xterm.js + node-pty, allotment, Tailwind CSS 4, electron-vite, Biome.
 
-```sh
-bun run build       # compile to out/
-bun run package     # build + create .dmg / .exe
-```
-
-Distributables land in `dist/`. macOS code signing and notarization require Apple Developer credentials — see `scripts/notarize.js`.
-
-### 🗂 Project structure
-
-```
-src/
-  main/        Electron main process — window management, PTY lifecycle, config I/O
-  preload/     Context bridge — typed IPC between main and renderer
-  renderer/    React UI — tabs, split panes, terminal views, settings panel
-  shared/      Types and constants shared across processes
-```
-
-Stack: Electron, React 19, TypeScript, Zustand, xterm.js + node-pty, allotment, Tailwind CSS v4, electron-vite, Biome.
-
-## 📄 License
+## License
 
 [MIT](LICENSE)
