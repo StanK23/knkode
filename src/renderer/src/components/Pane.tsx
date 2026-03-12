@@ -753,7 +753,7 @@ export function Pane({
 			{/* Drop zone overlay — shows where the dragged pane will land
 			    (swap for center, split for edges) */}
 			{dropZone && (
-				<div className="absolute pointer-events-none z-20" style={ZONE_STYLES[dropZone]} />
+				<div className="absolute pointer-events-none z-40" style={ZONE_STYLES[dropZone]} />
 			)}
 		</div>
 	)
