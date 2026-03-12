@@ -331,10 +331,12 @@ export function TerminalView({
 			termContainer.style.height = '100%'
 			term.open(termContainer)
 
-			// Block OSC 4 (Set Color) sequences from shell prompt tools (e.g. Oh My Posh)
-			// that override the theme's ANSI palette on every prompt render. Theme colors
-			// are applied via options.theme and should not be overwritten by external programs.
-			term.parser.registerOscHandler(4, () => true)
+			// Block OSC 4 (Change Color Number) sequences from shell prompt tools
+			// (e.g. Oh My Posh) that override the theme's ANSI palette on each new
+			// prompt. This is a blanket block — it also suppresses color queries
+			// (OSC 4;N;?) and legitimate palette changes from other programs (e.g.
+			// Vim). Acceptable since theme colors via options.theme are authoritative.
+			term.parser.registerOscHandler(4, (_data) => true)
 
 			// Entry is built with no-op listener placeholders, then the real
 			// listeners are assigned below. The entry is NOT stored in the cache
