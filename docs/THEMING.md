@@ -53,7 +53,7 @@ Programs request colors by name (e.g., "red" for errors) but get whatever hex va
 ## Preset Categories
 
 ### Community themes (general-purpose)
-Standard color schemes developers expect: Default Dark, Dracula, Tokyo Night, Nord, Catppuccin, Gruvbox, Monokai, Solarized Light. Each has a distinct color temperature and personality but uses conventional ANSI mappings (red is red, blue is blue). Some community themes also define `accent` and `glow` (Dracula, Tokyo Night, Catppuccin).
+Standard color schemes developers expect: Default Dark, Dracula, Tokyo Night, Nord, Catppuccin, Gruvbox, Monokai, Everforest. Each has a distinct color temperature and personality but uses conventional ANSI mappings (red is red, blue is blue). Some community themes also define `accent` and `glow` (Dracula, Tokyo Night, Catppuccin).
 
 ### Identity themes (remapped ANSI for a specific aesthetic)
 Themes built around a single brand or aesthetic identity: Matrix, Cyberpunk, Solana, Amber, Vaporwave, Ocean, Sunset, Arctic. The key distinction is **ANSI color remapping** — a Matrix terminal maps all 16 color slots to green shades, so `red` text appears green. A Cyberpunk terminal remaps to neon pink and cyan. All identity themes also require both `accent` and `glow`.
