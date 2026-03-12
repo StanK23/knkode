@@ -398,21 +398,28 @@ export function TerminalView({
 					}
 				}
 
-				// Paste: Ctrl+Shift+V (Windows/Linux terminal convention).
-				// macOS uses Cmd+V which Electron handles natively.
-				if (ev.key.toLowerCase() === 'v' && ev.ctrlKey && ev.shiftKey && !isMac_) {
-					navigator.clipboard
-						.readText()
-						.then((text) => {
-							if (text) {
-								window.api.writePty(paneId, text).catch((err) => {
-									console.error(`[terminal] paste writePty failed for pane ${paneId}:`, err)
-								})
-							}
-						})
-						.catch((err) => {
-							console.error('[terminal] clipboard read failed:', err)
-						})
+				// Paste: Ctrl+V / Cmd+V — prevent browser default to avoid double-paste
+				// with Electron's Edit > Paste menu accelerator. preventDefault stops
+				// the browser from firing its own paste event; Electron's accelerator
+				// (outside the DOM event system) handles the single clipboard write.
+				// Ctrl+Shift+V: no Electron accelerator — manual paste via clipboard API.
+				if (ev.key.toLowerCase() === 'v' && (ev.ctrlKey || (isMac_ && ev.metaKey))) {
+					if (ev.shiftKey && ev.ctrlKey) {
+						navigator.clipboard
+							.readText()
+							.then((text) => {
+								if (text) {
+									window.api.writePty(paneId, text).catch((err) => {
+										console.error(`[terminal] paste writePty failed for pane ${paneId}:`, err)
+									})
+								}
+							})
+							.catch((err) => {
+								console.error('[terminal] clipboard read failed:', err)
+							})
+						return false
+					}
+					ev.preventDefault()
 					return false
 				}
 
