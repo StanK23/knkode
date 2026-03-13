@@ -18,6 +18,7 @@ const mockApi = {
 	getWorkspaces: vi.fn<() => Promise<Workspace[]>>(),
 	getAppState: vi.fn<() => Promise<AppState>>(),
 	getHomeDir: vi.fn<() => Promise<string>>(),
+	logScrollDebug: vi.fn<(event: unknown) => void>(),
 	saveWorkspace: vi.fn<(ws: Workspace) => Promise<void>>(),
 	saveAppState: vi.fn<(state: AppState) => Promise<void>>(),
 	deleteWorkspace: vi.fn<(id: string) => Promise<void>>(),
@@ -30,6 +31,8 @@ const mockApi = {
 	onPtyData: vi.fn(() => () => {}),
 	onPtyExit: vi.fn(() => () => {}),
 	onPtyCwdChanged: vi.fn(() => () => {}),
+	onPtyBranchChanged: vi.fn(() => () => {}),
+	onPtyPrChanged: vi.fn(() => () => {}),
 }
 
 Object.defineProperty(window, 'api', {

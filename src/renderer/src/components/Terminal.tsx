@@ -20,6 +20,11 @@ import {
 	findPreset,
 	mergeThemeWithPreset,
 } from '../data/theme-presets'
+import {
+	createScrollDebugLogger,
+	serializeSavedScroll,
+	serializeTerminalState,
+} from '../lib/scroll-debug'
 import { useStore } from '../store'
 import { hexToRgba } from '../utils/colors'
 import {
@@ -105,6 +110,12 @@ function guardedFit(term: XTerm, fitAddon: FitAddon, isFittingRef: React.RefObje
 	} finally {
 		isFittingRef.current = false
 	}
+}
+
+function getRestoreMode(saved: SavedScroll): 'bottom' | 'anchor' | 'distance' {
+	if (saved.atBottom) return 'bottom'
+	if (saved.viewportAnchor && saved.viewportAnchor.line >= 0) return 'anchor'
+	return 'distance'
 }
 
 // ---------------------------------------------------------------------------
@@ -227,11 +238,32 @@ export function TerminalView({
 	const fitAddonRef = useRef<FitAddon | null>(null)
 	const searchAddonRef = useRef<SearchAddon | null>(null)
 	const themeRef = useRef({ ...theme, ...themeOverride })
+	const paneContextRef = useRef({
+		paneId,
+		workspaceId: null as string | null,
+		workspaceName: null as string | null,
+		paneLabel: null as string | null,
+		activeWorkspaceId: null as string | null,
+	})
+	const scrollDebugLogRef = useRef(createScrollDebugLogger(() => paneContextRef.current))
 	const onFocusRef = useRef(onFocus)
 	onFocusRef.current = onFocus
 	// Ref allows the theme-update effect to re-focus without adding isFocused to its deps
 	const isFocusedRef = useRef(isFocused)
 	isFocusedRef.current = isFocused
+	const paneContext = useStore((s) => {
+		const ws = s.workspaces.find((w) => paneId in w.panes)
+		return {
+			workspaceId: ws?.id ?? null,
+			workspaceName: ws?.name ?? null,
+			paneLabel: ws?.panes[paneId]?.label ?? null,
+			activeWorkspaceId: s.appState.activeWorkspaceId,
+		}
+	})
+	paneContextRef.current = { paneId, ...paneContext }
+	const logScrollDebug = useCallback((event: string, details?: Record<string, unknown>) => {
+		scrollDebugLogRef.current(event, details)
+	}, [])
 
 	// Suppresses handleViewportScroll during fit() to prevent corrupting savedScrollRef.
 	// Works because fit() dispatches scroll events synchronously — if xterm ever changes
@@ -269,6 +301,11 @@ export function TerminalView({
 				disposeSavedScroll(savedScrollRef.current)
 				savedScrollRef.current = saved
 				setIsScrolledUp(!saved.atBottom)
+				logScrollDebug('viewport-sync', {
+					restoreMode: getRestoreMode(saved),
+					saved: serializeSavedScroll(saved),
+					term: serializeTerminalState(term),
+				})
 			},
 		}),
 	)
@@ -282,14 +319,23 @@ export function TerminalView({
 	themeRef.current = mergedTheme
 
 	useEffect(() => {
+		logScrollDebug('mount-effect-start', {
+			term: serializeTerminalState(termRef.current),
+			saved: serializeSavedScroll(savedScrollRef.current),
+		})
 		if (!containerRef.current || !wrapperRef.current) {
 			console.warn('[terminal] containerRef or wrapperRef not ready for pane', paneId)
+			logScrollDebug('mount-effect-skipped-missing-container', {
+				hasContainer: Boolean(containerRef.current),
+				hasWrapper: Boolean(wrapperRef.current),
+			})
 			return
 		}
 
 		let cached = terminalCache.get(paneId)
 
 		if (!cached) {
+			logScrollDebug('cache-miss-create-terminal')
 			// ── CACHE MISS: first mount for this paneId ──────────────────────
 			const t = themeRef.current
 			const opacity = t.paneOpacity ?? DEFAULT_PANE_OPACITY
@@ -476,6 +522,9 @@ export function TerminalView({
 			terminalCache.set(paneId, entry)
 			cached = entry
 		} else {
+			logScrollDebug('cache-hit-reattach-terminal', {
+				term: serializeTerminalState(cached.term),
+			})
 			// ── CACHE HIT: remount (e.g. after pane split) ───────────────────
 			try {
 				cached.searchAddon.clearDecorations()
@@ -498,9 +547,18 @@ export function TerminalView({
 		// is load-bearing: registering listeners before fit() would silently
 		// corrupt scroll state.
 		try {
+			logScrollDebug('initial-fit-start', {
+				term: serializeTerminalState(term),
+			})
 			fitAddon.fit()
+			logScrollDebug('initial-fit-end', {
+				term: serializeTerminalState(term),
+			})
 		} catch (err) {
 			console.warn('[terminal] initial fit() failed:', err)
+			logScrollDebug('initial-fit-error', {
+				error: err instanceof Error ? err.message : String(err),
+			})
 		}
 
 		termRef.current = term
@@ -514,20 +572,47 @@ export function TerminalView({
 		// coalesces onWriteParsed syncs and blocks scroll handlers during
 		// mutations (workspace restore) to prevent stale reads.
 		const viewport = term.element?.querySelector('.xterm-viewport')
-		const isScrollSuppressed = () =>
-			!isActiveRef.current || isFittingRef.current || viewportSyncRef.current.isBlocked()
+		const getSuppressionState = () => ({
+			inactive: !isActiveRef.current,
+			fitting: isFittingRef.current,
+			blocked: viewportSyncRef.current.isBlocked(),
+		})
+		const isScrollSuppressed = () => {
+			const state = getSuppressionState()
+			return state.inactive || state.fitting || state.blocked
+		}
 		const handleViewportScroll = () => {
-			if (isScrollSuppressed()) return
+			if (isScrollSuppressed()) {
+				logScrollDebug('viewport-scroll-suppressed', {
+					suppression: getSuppressionState(),
+					term: serializeTerminalState(term),
+				})
+				return
+			}
 			const saved = readSavedScroll(term)
 			disposeSavedScroll(savedScrollRef.current)
 			savedScrollRef.current = saved
 			setIsScrolledUp(!saved.atBottom)
+			logScrollDebug('viewport-scroll', {
+				restoreMode: getRestoreMode(saved),
+				saved: serializeSavedScroll(saved),
+				term: serializeTerminalState(term),
+			})
 		}
 		viewport?.addEventListener('scroll', handleViewportScroll)
 		const writeParsedDisposable = term.onWriteParsed(() => {
-			if (isScrollSuppressed()) return
+			if (isScrollSuppressed()) {
+				logScrollDebug('write-parsed-suppressed', {
+					suppression: getSuppressionState(),
+					term: serializeTerminalState(term),
+				})
+				return
+			}
 			// Passive output can move the viewport without a reliable DOM scroll
 			// signal for every chunk. Re-sync once the write batch has settled.
+			logScrollDebug('write-parsed-schedule-sync', {
+				term: serializeTerminalState(term),
+			})
 			viewportSyncRef.current.scheduleSync()
 		})
 
@@ -545,14 +630,44 @@ export function TerminalView({
 			if (width === lastWidth && height === lastHeight) return
 			lastWidth = width
 			lastHeight = height
+			logScrollDebug('resize-observer', {
+				width,
+				height,
+				term: serializeTerminalState(term),
+				saved: serializeSavedScroll(savedScrollRef.current),
+			})
 
 			requestAnimationFrame(() => {
 				try {
-					if (!containerRef.current?.clientWidth) return
+					if (!containerRef.current?.clientWidth) {
+						logScrollDebug('resize-fit-skipped-hidden-container', {
+							width,
+							height,
+						})
+						return
+					}
+					const liveSaved = readSavedScroll(term)
+					logScrollDebug('resize-fit-start', {
+						width,
+						height,
+						liveSaved: serializeSavedScroll(liveSaved),
+						term: serializeTerminalState(term),
+					})
+					disposeSavedScroll(liveSaved)
 					guardedFit(term, fitAddon, isFittingRef)
+					logScrollDebug('resize-fit-end', {
+						width,
+						height,
+						term: serializeTerminalState(term),
+					})
 					if (isActiveRef.current) viewportSyncRef.current.scheduleSync()
 				} catch (err) {
 					console.warn('[terminal] fit()/scroll failed during resize:', err)
+					logScrollDebug('resize-fit-error', {
+						width,
+						height,
+						error: err instanceof Error ? err.message : String(err),
+					})
 				}
 			})
 		})
@@ -566,6 +681,10 @@ export function TerminalView({
 		wrapperEl.addEventListener('focusin', handleFocusIn)
 
 		return () => {
+			logScrollDebug('mount-effect-cleanup', {
+				term: serializeTerminalState(term),
+				saved: serializeSavedScroll(savedScrollRef.current),
+			})
 			// Per-mount listeners are cleaned up here. Per-instance listeners
 			// (onData, onPtyData, onPtyExit, onResize) remain active on the
 			// cached entry so the PTY buffer keeps accumulating while detached.
@@ -581,7 +700,7 @@ export function TerminalView({
 			// PTY data continues writing to the buffer while detached.
 			termContainer.remove()
 		}
-	}, [paneId])
+	}, [paneId, logScrollDebug])
 
 	// Restore terminal scroll position when workspace becomes active.
 	// Runs as useLayoutEffect (before paint) so the user never sees a flash
@@ -591,18 +710,31 @@ export function TerminalView({
 	useLayoutEffect(() => {
 		if (!isWorkspaceActive) {
 			isActiveRef.current = false
+			logScrollDebug('workspace-inactive', {
+				saved: serializeSavedScroll(savedScrollRef.current),
+				term: serializeTerminalState(termRef.current),
+			})
 			return
 		}
 		isActiveRef.current = true
 		if (termRef.current) {
 			const term = termRef.current
+			logScrollDebug('workspace-restore-start', {
+				restoreMode: getRestoreMode(savedScrollRef.current),
+				saved: serializeSavedScroll(savedScrollRef.current),
+				term: serializeTerminalState(term),
+			})
 			viewportSyncRef.current.runBlockedMutation(() => {
 				restoreSavedScroll(term, savedScrollRef.current)
 			})
+			logScrollDebug('workspace-restore-end', {
+				term: serializeTerminalState(term),
+			})
 		} else {
+			logScrollDebug('workspace-restore-without-terminal')
 			viewportSyncRef.current.scheduleSync()
 		}
-	}, [isWorkspaceActive])
+	}, [isWorkspaceActive, logScrollDebug])
 
 	// Sync xterm focus with pane focus state (keyboard shortcuts + click).
 	// focusGeneration is an intentional trigger dep — it re-fires the effect
@@ -673,15 +805,27 @@ export function TerminalView({
 		}
 		if (metricsChanged) {
 			try {
+				const liveSaved = readSavedScroll(termRef.current)
+				logScrollDebug('theme-fit-start', {
+					liveSaved: serializeSavedScroll(liveSaved),
+					term: serializeTerminalState(termRef.current),
+				})
+				disposeSavedScroll(liveSaved)
 				guardedFit(termRef.current, fitAddonRef.current, isFittingRef)
+				logScrollDebug('theme-fit-end', {
+					term: serializeTerminalState(termRef.current),
+				})
 				if (isActiveRef.current) viewportSyncRef.current.scheduleSync()
 				if (isFocusedRef.current) termRef.current.focus()
 			} catch (err) {
 				console.warn('[terminal] fit()/scroll failed during theme update:', err)
+				logScrollDebug('theme-fit-error', {
+					error: err instanceof Error ? err.message : String(err),
+				})
 			}
 		}
 		// paneId needed because the effect reads from terminalCache by paneId
-	}, [mergedTheme, paneId])
+	}, [mergedTheme, paneId, logScrollDebug])
 
 	// Cmd+F to open search (captured at terminal level to prevent browser find)
 	useEffect(() => {
@@ -741,8 +885,11 @@ export function TerminalView({
 		disposeSavedScroll(savedScrollRef.current)
 		savedScrollRef.current = { atBottom: true, linesFromBottom: 0, viewportAnchor: null }
 		setIsScrolledUp(false)
+		logScrollDebug('scroll-to-bottom-click', {
+			term: serializeTerminalState(termRef.current),
+		})
 		termRef.current?.focus()
-	}, [])
+	}, [logScrollDebug])
 
 	const handleSearchKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {

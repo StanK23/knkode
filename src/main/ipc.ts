@@ -1,7 +1,7 @@
 import os from 'node:os'
 import path from 'node:path'
 import { ipcMain, shell } from 'electron'
-import type { AppState, Snippet, Workspace } from '../shared/types'
+import type { AppState, ScrollDebugEvent, Snippet, Workspace } from '../shared/types'
 import { IPC, isEffectLevel } from '../shared/types'
 import {
 	deleteWorkspace,
@@ -14,6 +14,7 @@ import {
 } from './config-store'
 import { trackPane, untrackPane } from './cwd-tracker'
 import { createPty, killPty, resizePty, writePty } from './pty-manager'
+import { appendScrollDebugEvent } from './scroll-debug-log'
 
 const MAX_PANE_ID_LENGTH = 128
 const HEX_COLOR_RE = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
@@ -178,6 +179,23 @@ export function registerIpcHandlers(): void {
 			throw new Error('Only http/https URLs are allowed')
 		}
 		return shell.openExternal(parsed.href)
+	})
+
+	ipcMain.on(IPC.APP_LOG_SCROLL_DEBUG, (_e, payload: unknown) => {
+		if (!payload || typeof payload !== 'object') return
+		const event = payload as Partial<ScrollDebugEvent>
+		if (typeof event.paneId !== 'string' || typeof event.event !== 'string') return
+		appendScrollDebugEvent({
+			paneId: event.paneId,
+			workspaceId: typeof event.workspaceId === 'string' ? event.workspaceId : null,
+			workspaceName: typeof event.workspaceName === 'string' ? event.workspaceName : null,
+			paneLabel: typeof event.paneLabel === 'string' ? event.paneLabel : null,
+			activeWorkspaceId:
+				typeof event.activeWorkspaceId === 'string' ? event.activeWorkspaceId : null,
+			seq: typeof event.seq === 'number' ? event.seq : 0,
+			event: event.event,
+			details: event.details && typeof event.details === 'object' ? event.details : undefined,
+		})
 	})
 
 	ipcMain.handle(IPC.CONFIG_GET_WORKSPACES, () => getWorkspaces())
