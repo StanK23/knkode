@@ -1,13 +1,24 @@
 # HANDOFF
 
 ## Current State
-- Branch: `main`
-- Board: "Release Bugfixes — v1" — complete (all 4 PRs merged)
+- Branch: `fix/scroll-jump-debug`
+- Working on: Scroll jump investigation (board: "Bug Investigation — Scroll Jump")
 
-## Recently Completed
-- **PR #101** (merged) — Block OSC 4 palette overrides from shell prompt tools (Oh My Posh fix)
-- **PR #100** (merged) — Restore keyboard focus on Windows (webContents.focus + xterm re-focus on window focus)
-- **PR #99** (merged) — Hide native menu bar + enable maximize button on Windows
-- **PR #98** (merged) — Portal context menu + snippet dropdown to escape pane stacking context
-- Hotfix: snippet dropdown portal click-outside race (`useClickOutside` portalRef param)
-- Hotfix: portal menus inherit theme CSS variables (`#portal-root` inside themed container)
+## Completed In This Branch
+- Added persistent scroll debug logging via main/preload IPC.
+- Scroll lifecycle events now write structured JSONL records to `~/.knkode/logs/scroll-debug.jsonl`.
+- Instrumented terminal mount/remount, initial fit, resize observer fit cycles, viewport scroll, `onWriteParsed` scheduling, workspace restore, theme-triggered fit, and scroll-to-bottom actions.
+- Verified `bun run build` passes.
+
+## Known Gaps
+- `bun test` still has pre-existing failures unrelated to this instrumentation:
+  - `src/renderer/src/lib/agent-block-parser.test.ts` cannot resolve `./agent-parsers/claude-code`
+  - `src/renderer/src/store/index.test.ts` assumes a browser `window` in the current Bun test environment
+
+## What To Do Next
+- Run this branch and use the app normally until the scroll jump happens again.
+- After it jumps, provide:
+  - workspace name or id
+  - pane label or pane id
+  - approximate local time of the jump
+- Then inspect `~/.knkode/logs/scroll-debug.jsonl` around that event sequence to identify the exact race.
