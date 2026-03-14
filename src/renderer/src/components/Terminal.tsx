@@ -32,6 +32,8 @@ import {
 	cloneSavedScroll,
 	createViewportSyncCoordinator,
 	disposeSavedScroll,
+	isTransientResetBottomLeak,
+	isTransientResetCollapsed,
 	readSavedScroll,
 	restoreSavedScroll,
 	shouldCompleteTransientViewportReset,
@@ -342,6 +344,21 @@ export function TerminalView({
 				if (!term || !isActiveRef.current) return
 				const saved = readSavedScroll(term)
 				const recoverySaved = transientResetSavedScrollRef.current ?? savedScrollRef.current
+				// Guard 1: buffer still collapsed during a known transient reset —
+				// skip entirely, the buffer will rebuild and a proper sync follows.
+				if (
+					isTransientResetCollapsed({
+						sawResetToTop: sawTransientTopResetRef.current,
+						term: { baseY: term.buffer.active.baseY },
+					})
+				) {
+					disposeSavedScroll(saved)
+					logScrollDebug('viewport-sync-skipped-transient-collapse', {
+						term: serializeTerminalState(term),
+					})
+					return
+				}
+				// Guard 2: buffer rebuilt + viewport stuck at 0 (existing pattern)
 				if (
 					shouldIgnoreTransientViewportReset({
 						current: saved,
@@ -371,6 +388,43 @@ export function TerminalView({
 						return
 					}
 					logScrollDebug('viewport-sync-ignored-transient-reset', {
+						restoreMode: getRestoreMode(recoverySaved),
+						saved: serializeSavedScroll(recoverySaved),
+						term: serializeTerminalState(term),
+					})
+					viewportSyncRef.current.runBlockedMutation(() => {
+						restoreSavedScroll(term, recoverySaved)
+					})
+					showTerminalAfterFlashGuard(term)
+					return
+				}
+				// Guard 3: user was scrolled up before the reset but viewport is now
+				// following bottom during buffer rebuild — restore from frozen snapshot.
+				if (
+					isTransientResetBottomLeak({
+						frozenSnapshot: transientResetSavedScrollRef.current,
+						current: saved,
+						sawResetToTop: sawTransientTopResetRef.current,
+					})
+				) {
+					disposeSavedScroll(saved)
+					if (
+						shouldDeferTransientViewportRestore({
+							saved: recoverySaved,
+							term: {
+								baseY: term.buffer.active.baseY,
+							},
+						})
+					) {
+						logScrollDebug('viewport-sync-deferred-bottom-leak', {
+							restoreMode: getRestoreMode(recoverySaved),
+							saved: serializeSavedScroll(recoverySaved),
+							term: serializeTerminalState(term),
+						})
+						viewportSyncRef.current.runBlockedMutation(() => {})
+						return
+					}
+					logScrollDebug('viewport-sync-restored-bottom-leak', {
 						restoreMode: getRestoreMode(recoverySaved),
 						saved: serializeSavedScroll(recoverySaved),
 						term: serializeTerminalState(term),
@@ -672,6 +726,20 @@ export function TerminalView({
 			}
 			const saved = readSavedScroll(term)
 			const recoverySaved = transientResetSavedScrollRef.current ?? savedScrollRef.current
+			// Guard 1: buffer still collapsed during a known transient reset
+			if (
+				isTransientResetCollapsed({
+					sawResetToTop: sawTransientTopResetRef.current,
+					term: { baseY: term.buffer.active.baseY },
+				})
+			) {
+				disposeSavedScroll(saved)
+				logScrollDebug('viewport-scroll-skipped-transient-collapse', {
+					term: serializeTerminalState(term),
+				})
+				return
+			}
+			// Guard 2: buffer rebuilt + viewport stuck at 0 (existing pattern)
 			if (
 				shouldIgnoreTransientViewportReset({
 					current: saved,
@@ -701,6 +769,42 @@ export function TerminalView({
 					return
 				}
 				logScrollDebug('viewport-scroll-ignored-transient-reset', {
+					restoreMode: getRestoreMode(recoverySaved),
+					saved: serializeSavedScroll(recoverySaved),
+					term: serializeTerminalState(term),
+				})
+				viewportSyncRef.current.runBlockedMutation(() => {
+					restoreSavedScroll(term, recoverySaved)
+				})
+				showTerminalAfterFlashGuard(term)
+				return
+			}
+			// Guard 3: user was scrolled up but viewport follows bottom during rebuild
+			if (
+				isTransientResetBottomLeak({
+					frozenSnapshot: transientResetSavedScrollRef.current,
+					current: saved,
+					sawResetToTop: sawTransientTopResetRef.current,
+				})
+			) {
+				disposeSavedScroll(saved)
+				if (
+					shouldDeferTransientViewportRestore({
+						saved: recoverySaved,
+						term: {
+							baseY: term.buffer.active.baseY,
+						},
+					})
+				) {
+					logScrollDebug('viewport-scroll-deferred-bottom-leak', {
+						restoreMode: getRestoreMode(recoverySaved),
+						saved: serializeSavedScroll(recoverySaved),
+						term: serializeTerminalState(term),
+					})
+					viewportSyncRef.current.runBlockedMutation(() => {})
+					return
+				}
+				logScrollDebug('viewport-scroll-restored-bottom-leak', {
 					restoreMode: getRestoreMode(recoverySaved),
 					saved: serializeSavedScroll(recoverySaved),
 					term: serializeTerminalState(term),

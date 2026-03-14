@@ -114,6 +114,48 @@ export function shouldCompleteTransientViewportReset({
 	return !isSavedScrollAtTop(current)
 }
 
+export interface TransientResetCollapseCheck {
+	readonly sawResetToTop: boolean
+	readonly term: {
+		readonly baseY: number
+	}
+}
+
+/**
+ * Returns true when the terminal buffer is still in its transient collapsed
+ * state (baseY=0) during a known TUI redraw reset. Callers should skip
+ * committing scroll state — the buffer will rebuild shortly and a proper
+ * sync will follow.
+ */
+export function isTransientResetCollapsed({
+	sawResetToTop,
+	term,
+}: TransientResetCollapseCheck): boolean {
+	return sawResetToTop && term.baseY === 0
+}
+
+export interface TransientResetBottomLeakCheck {
+	readonly frozenSnapshot: SavedScroll | null
+	readonly current: SavedScroll
+	readonly sawResetToTop: boolean
+}
+
+/**
+ * Returns true when a transient reset is in progress and the frozen snapshot
+ * shows the user was scrolled up, but the current viewport reads as at-bottom.
+ * This happens when the viewport follows bottom during a fast buffer rebuild.
+ * Callers should restore from the frozen snapshot instead of committing the
+ * at-bottom state, which would permanently lose the user's scroll position.
+ */
+export function isTransientResetBottomLeak({
+	frozenSnapshot,
+	current,
+	sawResetToTop,
+}: TransientResetBottomLeakCheck): boolean {
+	if (!sawResetToTop || !frozenSnapshot) return false
+	return !frozenSnapshot.atBottom && current.atBottom
+}
+
 function getLinesFromBottom(term: ScrollTerminalLike): number {
 	return Math.max(0, term.buffer.active.baseY - term.buffer.active.viewportY)
 }

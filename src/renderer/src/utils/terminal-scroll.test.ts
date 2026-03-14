@@ -4,6 +4,8 @@ import {
 	createViewportSyncCoordinator,
 	disposeSavedScroll,
 	isSavedScrollAtTop,
+	isTransientResetBottomLeak,
+	isTransientResetCollapsed,
 	readSavedScroll,
 	restoreSavedScroll,
 	shouldCompleteTransientViewportReset,
@@ -493,5 +495,122 @@ describe('createViewportSyncCoordinator', () => {
 		scheduler.flush()
 		expect(syncCount).toBe(1)
 		expect(coordinator.isBlocked()).toBe(false)
+	})
+})
+
+describe('isTransientResetCollapsed', () => {
+	it('returns true when sawResetToTop is true and baseY is 0', () => {
+		expect(
+			isTransientResetCollapsed({
+				sawResetToTop: true,
+				term: { baseY: 0 },
+			}),
+		).toBe(true)
+	})
+
+	it('returns false when baseY is non-zero even during a reset', () => {
+		expect(
+			isTransientResetCollapsed({
+				sawResetToTop: true,
+				term: { baseY: 74 },
+			}),
+		).toBe(false)
+	})
+
+	it('returns false when sawResetToTop is false', () => {
+		expect(
+			isTransientResetCollapsed({
+				sawResetToTop: false,
+				term: { baseY: 0 },
+			}),
+		).toBe(false)
+	})
+})
+
+describe('isTransientResetBottomLeak', () => {
+	it('detects a bottom leak when user was scrolled up but current shows at-bottom', () => {
+		expect(
+			isTransientResetBottomLeak({
+				frozenSnapshot: {
+					atBottom: false,
+					linesFromBottom: 232,
+					viewportAnchor: { line: 128, dispose: () => {} },
+				},
+				current: {
+					atBottom: true,
+					linesFromBottom: 0,
+					viewportAnchor: null,
+				},
+				sawResetToTop: true,
+			}),
+		).toBe(true)
+	})
+
+	it('returns false when the frozen snapshot was at bottom', () => {
+		expect(
+			isTransientResetBottomLeak({
+				frozenSnapshot: {
+					atBottom: true,
+					linesFromBottom: 0,
+					viewportAnchor: null,
+				},
+				current: {
+					atBottom: true,
+					linesFromBottom: 0,
+					viewportAnchor: null,
+				},
+				sawResetToTop: true,
+			}),
+		).toBe(false)
+	})
+
+	it('returns false when no frozen snapshot exists', () => {
+		expect(
+			isTransientResetBottomLeak({
+				frozenSnapshot: null,
+				current: {
+					atBottom: true,
+					linesFromBottom: 0,
+					viewportAnchor: null,
+				},
+				sawResetToTop: true,
+			}),
+		).toBe(false)
+	})
+
+	it('returns false when sawResetToTop is false', () => {
+		expect(
+			isTransientResetBottomLeak({
+				frozenSnapshot: {
+					atBottom: false,
+					linesFromBottom: 232,
+					viewportAnchor: null,
+				},
+				current: {
+					atBottom: true,
+					linesFromBottom: 0,
+					viewportAnchor: null,
+				},
+				sawResetToTop: false,
+			}),
+		).toBe(false)
+	})
+
+	it('returns false when current is also scrolled up (no leak)', () => {
+		expect(
+			isTransientResetBottomLeak({
+				frozenSnapshot: {
+					atBottom: false,
+					linesFromBottom: 232,
+					viewportAnchor: null,
+				},
+				current: {
+					atBottom: false,
+					linesFromBottom: 100,
+					viewportAnchor: { line: 50, dispose: () => {} },
+				},
+				sawResetToTop: true,
+			}),
+		).toBe(false)
 	})
 })
