@@ -29,10 +29,14 @@ import { useStore } from '../store'
 import { hexToRgba } from '../utils/colors'
 import {
 	type SavedScroll,
+	cloneSavedScroll,
 	createViewportSyncCoordinator,
 	disposeSavedScroll,
 	readSavedScroll,
 	restoreSavedScroll,
+	shouldCompleteTransientViewportReset,
+	shouldDeferTransientViewportRestore,
+	shouldIgnoreTransientViewportReset,
 } from '../utils/terminal-scroll'
 import type { PaneVariant, VariantTheme } from './pane-chrome'
 
@@ -238,29 +242,24 @@ export function TerminalView({
 	const fitAddonRef = useRef<FitAddon | null>(null)
 	const searchAddonRef = useRef<SearchAddon | null>(null)
 	const themeRef = useRef({ ...theme, ...themeOverride })
-	const paneContextRef = useRef({
-		paneId,
-		workspaceId: null as string | null,
-		workspaceName: null as string | null,
-		paneLabel: null as string | null,
-		activeWorkspaceId: null as string | null,
-	})
-	const scrollDebugLogRef = useRef(createScrollDebugLogger(() => paneContextRef.current))
+	const scrollDebugLogRef = useRef(
+		createScrollDebugLogger(() => {
+			const s = useStore.getState()
+			const ws = s.workspaces.find((w) => paneId in w.panes)
+			return {
+				paneId,
+				workspaceId: ws?.id ?? null,
+				workspaceName: ws?.name ?? null,
+				paneLabel: ws?.panes[paneId]?.label ?? null,
+				activeWorkspaceId: s.appState.activeWorkspaceId,
+			}
+		}),
+	)
 	const onFocusRef = useRef(onFocus)
 	onFocusRef.current = onFocus
 	// Ref allows the theme-update effect to re-focus without adding isFocused to its deps
 	const isFocusedRef = useRef(isFocused)
 	isFocusedRef.current = isFocused
-	const paneContext = useStore((s) => {
-		const ws = s.workspaces.find((w) => paneId in w.panes)
-		return {
-			workspaceId: ws?.id ?? null,
-			workspaceName: ws?.name ?? null,
-			paneLabel: ws?.panes[paneId]?.label ?? null,
-			activeWorkspaceId: s.appState.activeWorkspaceId,
-		}
-	})
-	paneContextRef.current = { paneId, ...paneContext }
 	const logScrollDebug = useCallback((event: string, details?: Record<string, unknown>) => {
 		scrollDebugLogRef.current(event, details)
 	}, [])
@@ -285,11 +284,55 @@ export function TerminalView({
 		linesFromBottom: 0,
 		viewportAnchor: null,
 	})
+	const transientResetSavedScrollRef = useRef<SavedScroll | null>(null)
+	const lastAcceptedBaseYRef = useRef(0)
+	const sawTransientTopResetRef = useRef(false)
+	const flashGuardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+	const hideTerminalForFlashGuard = useCallback((term: XTerm) => {
+		const el = term.element
+		if (!el || el.style.visibility === 'hidden') return
+		el.style.visibility = 'hidden'
+		// Safety timeout — force-show after 150ms even if recovery never fires
+		if (flashGuardTimerRef.current) clearTimeout(flashGuardTimerRef.current)
+		flashGuardTimerRef.current = setTimeout(() => {
+			flashGuardTimerRef.current = null
+			if (el.style.visibility === 'hidden') el.style.visibility = ''
+		}, 150)
+	}, [])
+
+	const showTerminalAfterFlashGuard = useCallback((term: XTerm) => {
+		if (flashGuardTimerRef.current) {
+			clearTimeout(flashGuardTimerRef.current)
+			flashGuardTimerRef.current = null
+		}
+		const el = term.element
+		if (el?.style.visibility === 'hidden') el.style.visibility = ''
+	}, [])
 	const isActiveRef = useRef(true)
 	const isWorkspaceActive = useStore((s) => {
 		const ws = s.workspaces.find((w) => paneId in w.panes)
 		return ws?.id === s.appState.activeWorkspaceId
 	})
+	const commitSavedScroll = useCallback((term: XTerm, saved: SavedScroll) => {
+		disposeSavedScroll(savedScrollRef.current)
+		savedScrollRef.current = saved
+		lastAcceptedBaseYRef.current = term.buffer.active.baseY
+		if (
+			sawTransientTopResetRef.current &&
+			shouldCompleteTransientViewportReset({
+				current: saved,
+				term: {
+					baseY: term.buffer.active.baseY,
+				},
+			})
+		) {
+			transientResetSavedScrollRef.current = null
+			sawTransientTopResetRef.current = false
+			showTerminalAfterFlashGuard(term)
+		}
+		setIsScrolledUp(!saved.atBottom)
+	}, [showTerminalAfterFlashGuard])
 	const viewportSyncRef = useRef(
 		createViewportSyncCoordinator({
 			cancel: (id) => cancelAnimationFrame(id),
@@ -298,9 +341,47 @@ export function TerminalView({
 				const term = termRef.current
 				if (!term || !isActiveRef.current) return
 				const saved = readSavedScroll(term)
-				disposeSavedScroll(savedScrollRef.current)
-				savedScrollRef.current = saved
-				setIsScrolledUp(!saved.atBottom)
+				const recoverySaved = transientResetSavedScrollRef.current ?? savedScrollRef.current
+				if (
+					shouldIgnoreTransientViewportReset({
+						current: saved,
+						previous: recoverySaved,
+						sawResetToTop: sawTransientTopResetRef.current,
+						term: {
+							baseY: term.buffer.active.baseY,
+							viewportY: term.buffer.active.viewportY,
+						},
+					})
+				) {
+					disposeSavedScroll(saved)
+					if (
+						shouldDeferTransientViewportRestore({
+							saved: recoverySaved,
+							term: {
+								baseY: term.buffer.active.baseY,
+							},
+						})
+					) {
+						logScrollDebug('viewport-sync-deferred-transient-reset', {
+							restoreMode: getRestoreMode(recoverySaved),
+							saved: serializeSavedScroll(recoverySaved),
+							term: serializeTerminalState(term),
+						})
+						viewportSyncRef.current.runBlockedMutation(() => {})
+						return
+					}
+					logScrollDebug('viewport-sync-ignored-transient-reset', {
+						restoreMode: getRestoreMode(recoverySaved),
+						saved: serializeSavedScroll(recoverySaved),
+						term: serializeTerminalState(term),
+					})
+					viewportSyncRef.current.runBlockedMutation(() => {
+						restoreSavedScroll(term, recoverySaved)
+					})
+					showTerminalAfterFlashGuard(term)
+					return
+				}
+				commitSavedScroll(term, saved)
 				logScrollDebug('viewport-sync', {
 					restoreMode: getRestoreMode(saved),
 					saved: serializeSavedScroll(saved),
@@ -590,9 +671,47 @@ export function TerminalView({
 				return
 			}
 			const saved = readSavedScroll(term)
-			disposeSavedScroll(savedScrollRef.current)
-			savedScrollRef.current = saved
-			setIsScrolledUp(!saved.atBottom)
+			const recoverySaved = transientResetSavedScrollRef.current ?? savedScrollRef.current
+			if (
+				shouldIgnoreTransientViewportReset({
+					current: saved,
+					previous: recoverySaved,
+					sawResetToTop: sawTransientTopResetRef.current,
+					term: {
+						baseY: term.buffer.active.baseY,
+						viewportY: term.buffer.active.viewportY,
+					},
+				})
+			) {
+				disposeSavedScroll(saved)
+				if (
+					shouldDeferTransientViewportRestore({
+						saved: recoverySaved,
+						term: {
+							baseY: term.buffer.active.baseY,
+						},
+					})
+				) {
+					logScrollDebug('viewport-scroll-deferred-transient-reset', {
+						restoreMode: getRestoreMode(recoverySaved),
+						saved: serializeSavedScroll(recoverySaved),
+						term: serializeTerminalState(term),
+					})
+					viewportSyncRef.current.runBlockedMutation(() => {})
+					return
+				}
+				logScrollDebug('viewport-scroll-ignored-transient-reset', {
+					restoreMode: getRestoreMode(recoverySaved),
+					saved: serializeSavedScroll(recoverySaved),
+					term: serializeTerminalState(term),
+				})
+				viewportSyncRef.current.runBlockedMutation(() => {
+					restoreSavedScroll(term, recoverySaved)
+				})
+				showTerminalAfterFlashGuard(term)
+				return
+			}
+			commitSavedScroll(term, saved)
 			logScrollDebug('viewport-scroll', {
 				restoreMode: getRestoreMode(saved),
 				saved: serializeSavedScroll(saved),
@@ -607,6 +726,34 @@ export function TerminalView({
 					term: serializeTerminalState(term),
 				})
 				return
+			}
+			if (
+				lastAcceptedBaseYRef.current > term.rows &&
+				term.buffer.active.baseY === 0 &&
+				term.buffer.active.viewportY === 0
+			) {
+				if (!transientResetSavedScrollRef.current) {
+					transientResetSavedScrollRef.current = cloneSavedScroll(savedScrollRef.current)
+					logScrollDebug('write-parsed-preserved-transient-reset-snapshot', {
+						saved: serializeSavedScroll(transientResetSavedScrollRef.current),
+						term: serializeTerminalState(term),
+					})
+				}
+				if (!sawTransientTopResetRef.current) {
+					logScrollDebug('write-parsed-detected-transient-top-reset', {
+						lastAcceptedBaseY: lastAcceptedBaseYRef.current,
+						term: serializeTerminalState(term),
+						atBottom: savedScrollRef.current.atBottom,
+					})
+				}
+				sawTransientTopResetRef.current = true
+				if (savedScrollRef.current.atBottom) {
+					// User is following output — snap back immediately before paint
+					term.scrollToBottom()
+				} else {
+					// User is reading scrollback — hide to prevent flash, restore later
+					hideTerminalForFlashGuard(term)
+				}
 			}
 			// Passive output can move the viewport without a reliable DOM scroll
 			// signal for every chunk. Re-sync once the write batch has settled.
@@ -695,12 +842,19 @@ export function TerminalView({
 			viewportSyncRef.current.dispose()
 			disposeSavedScroll(savedScrollRef.current)
 			savedScrollRef.current = { atBottom: true, linesFromBottom: 0, viewportAnchor: null }
+			transientResetSavedScrollRef.current = null
+			lastAcceptedBaseYRef.current = 0
+			sawTransientTopResetRef.current = false
+			if (flashGuardTimerRef.current) {
+				clearTimeout(flashGuardTimerRef.current)
+				flashGuardTimerRef.current = null
+			}
 			searchAddonRef.current = null
 			// Detach termContainer from DOM — do NOT dispose the terminal.
 			// PTY data continues writing to the buffer while detached.
 			termContainer.remove()
 		}
-	}, [paneId, logScrollDebug])
+	}, [commitSavedScroll, hideTerminalForFlashGuard, showTerminalAfterFlashGuard, paneId, logScrollDebug])
 
 	// Restore terminal scroll position when workspace becomes active.
 	// Runs as useLayoutEffect (before paint) so the user never sees a flash
@@ -884,12 +1038,15 @@ export function TerminalView({
 		termRef.current?.scrollToBottom()
 		disposeSavedScroll(savedScrollRef.current)
 		savedScrollRef.current = { atBottom: true, linesFromBottom: 0, viewportAnchor: null }
+		transientResetSavedScrollRef.current = null
+		sawTransientTopResetRef.current = false
+		if (termRef.current) showTerminalAfterFlashGuard(termRef.current)
 		setIsScrolledUp(false)
 		logScrollDebug('scroll-to-bottom-click', {
 			term: serializeTerminalState(termRef.current),
 		})
 		termRef.current?.focus()
-	}, [logScrollDebug])
+	}, [logScrollDebug, showTerminalAfterFlashGuard])
 
 	const handleSearchKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
