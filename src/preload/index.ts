@@ -1,5 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppState, IpcChannel, PrInfo, Snippet, Workspace } from '../shared/types'
+import type {
+	AppState,
+	IpcChannel,
+	PrInfo,
+	ScrollDebugEvent,
+	Snippet,
+	Workspace,
+} from '../shared/types'
 import { IPC } from '../shared/types'
 
 type Unsubscribe = () => void
@@ -18,6 +25,8 @@ const api = {
 	getHomeDir: (): Promise<string> => ipcRenderer.invoke(IPC.APP_GET_HOME_DIR),
 
 	openExternal: (url: string): Promise<void> => ipcRenderer.invoke(IPC.APP_OPEN_EXTERNAL, url),
+	logScrollDebug: (event: ScrollDebugEvent): void =>
+		ipcRenderer.send(IPC.APP_LOG_SCROLL_DEBUG, event),
 
 	// Config
 	getWorkspaces: (): Promise<Workspace[]> => ipcRenderer.invoke(IPC.CONFIG_GET_WORKSPACES),

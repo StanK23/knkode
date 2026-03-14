@@ -173,6 +173,17 @@ export interface PrInfo {
 	readonly title: string
 }
 
+export interface ScrollDebugEvent {
+	readonly paneId: string
+	readonly workspaceId: string | null
+	readonly workspaceName: string | null
+	readonly paneLabel: string | null
+	readonly activeWorkspaceId: string | null
+	readonly seq: number
+	readonly event: string
+	readonly details?: Record<string, unknown>
+}
+
 // IPC channel names
 export const IPC = {
 	// Config
@@ -187,6 +198,7 @@ export const IPC = {
 	// App
 	APP_GET_HOME_DIR: 'app:get-home-dir',
 	APP_OPEN_EXTERNAL: 'app:open-external',
+	APP_LOG_SCROLL_DEBUG: 'app:log-scroll-debug',
 
 	// PTY
 	PTY_CREATE: 'pty:create',

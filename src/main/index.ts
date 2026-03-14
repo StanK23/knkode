@@ -5,6 +5,7 @@ import { startCwdTracking, stopCwdTracking } from './cwd-tracker'
 import { registerIpcHandlers } from './ipc'
 import { getMainWindow, setMainWindow } from './main-window'
 import { killAllPtys } from './pty-manager'
+import { flushScrollDebugLog } from './scroll-debug-log'
 
 // Override the default "Electron" app name (visible in macOS dock tooltip and Windows taskbar)
 app.setName('knkode')
@@ -217,6 +218,7 @@ function cleanup(): void {
 	cleanedUp = true
 	stopCwdTracking()
 	killAllPtys()
+	void flushScrollDebugLog()
 }
 
 app

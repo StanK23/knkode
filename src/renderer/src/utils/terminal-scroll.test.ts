@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
+	cloneSavedScroll,
 	createViewportSyncCoordinator,
 	disposeSavedScroll,
+	isSavedScrollAtTop,
+	isTransientResetBottomLeak,
+	isTransientResetCollapsed,
 	readSavedScroll,
 	restoreSavedScroll,
+	shouldCompleteTransientViewportReset,
+	shouldDeferTransientViewportRestore,
+	shouldIgnoreTransientViewportReset,
 } from './terminal-scroll'
 
 function createScheduler() {
@@ -171,6 +178,202 @@ describe('disposeSavedScroll', () => {
 	})
 })
 
+describe('isSavedScrollAtTop', () => {
+	it('detects a top-anchored saved scroll snapshot', () => {
+		expect(
+			isSavedScrollAtTop({
+				atBottom: false,
+				linesFromBottom: 42,
+				viewportAnchor: { line: 0, dispose: () => {} },
+			}),
+		).toBe(true)
+	})
+
+	it('returns false for bottom-aligned snapshots', () => {
+		expect(
+			isSavedScrollAtTop({
+				atBottom: true,
+				linesFromBottom: 0,
+				viewportAnchor: null,
+			}),
+		).toBe(false)
+	})
+})
+
+describe('cloneSavedScroll', () => {
+	it('freezes the current anchor line without reusing the live marker', () => {
+		const liveMarker = { line: 217, dispose: () => {} }
+		const cloned = cloneSavedScroll({
+			atBottom: false,
+			linesFromBottom: 28,
+			viewportAnchor: liveMarker,
+		})
+
+		liveMarker.line = -1
+
+		expect(cloned).toEqual({
+			atBottom: false,
+			linesFromBottom: 28,
+			viewportAnchor: { line: 217, dispose: expect.any(Function) },
+		})
+		expect(cloned.viewportAnchor).not.toBe(liveMarker)
+	})
+})
+
+describe('shouldIgnoreTransientViewportReset', () => {
+	it('ignores a transient jump to the top after a redraw reset', () => {
+		expect(
+			shouldIgnoreTransientViewportReset({
+				current: {
+					atBottom: false,
+					linesFromBottom: 492,
+					viewportAnchor: { line: 0, dispose: () => {} },
+				},
+				previous: {
+					atBottom: true,
+					linesFromBottom: 0,
+					viewportAnchor: null,
+				},
+				sawResetToTop: true,
+				term: { baseY: 492, viewportY: 0 },
+			}),
+		).toBe(true)
+	})
+
+	it('does not ignore when the pane was already intentionally at the top', () => {
+		expect(
+			shouldIgnoreTransientViewportReset({
+				current: {
+					atBottom: false,
+					linesFromBottom: 492,
+					viewportAnchor: { line: 0, dispose: () => {} },
+				},
+				previous: {
+					atBottom: false,
+					linesFromBottom: 539,
+					viewportAnchor: { line: 0, dispose: () => {} },
+				},
+				sawResetToTop: true,
+				term: { baseY: 492, viewportY: 0 },
+			}),
+		).toBe(false)
+	})
+
+	it('does not ignore without a matching redraw reset signal', () => {
+		expect(
+			shouldIgnoreTransientViewportReset({
+				current: {
+					atBottom: false,
+					linesFromBottom: 492,
+					viewportAnchor: { line: 0, dispose: () => {} },
+				},
+				previous: {
+					atBottom: true,
+					linesFromBottom: 0,
+					viewportAnchor: null,
+				},
+				sawResetToTop: false,
+				term: { baseY: 492, viewportY: 0 },
+			}),
+		).toBe(false)
+	})
+})
+
+describe('shouldDeferTransientViewportRestore', () => {
+	it('defers recovery when the anchor is gone and the buffer has not rebuilt enough yet', () => {
+		expect(
+			shouldDeferTransientViewportRestore({
+				saved: {
+					atBottom: false,
+					linesFromBottom: 218,
+					viewportAnchor: { line: -1, dispose: () => {} },
+				},
+				term: { baseY: 53 },
+			}),
+		).toBe(true)
+	})
+
+	it('does not defer once distance-from-bottom can restore the prior viewport', () => {
+		expect(
+			shouldDeferTransientViewportRestore({
+				saved: {
+					atBottom: false,
+					linesFromBottom: 218,
+					viewportAnchor: { line: -1, dispose: () => {} },
+				},
+				term: { baseY: 379 },
+			}),
+		).toBe(false)
+	})
+
+	it('does not defer when a live anchor is still available', () => {
+		expect(
+			shouldDeferTransientViewportRestore({
+				saved: {
+					atBottom: false,
+					linesFromBottom: 218,
+					viewportAnchor: { line: 161, dispose: () => {} },
+				},
+				term: { baseY: 53 },
+			}),
+		).toBe(false)
+	})
+})
+
+describe('shouldCompleteTransientViewportReset', () => {
+	it('does not complete while the temporary zero-buffer state is still active', () => {
+		expect(
+			shouldCompleteTransientViewportReset({
+				current: {
+					atBottom: true,
+					linesFromBottom: 0,
+					viewportAnchor: null,
+				},
+				term: { baseY: 0 },
+			}),
+		).toBe(false)
+	})
+
+	it('does not complete when the rebuilt viewport is still pinned to the top', () => {
+		expect(
+			shouldCompleteTransientViewportReset({
+				current: {
+					atBottom: false,
+					linesFromBottom: 243,
+					viewportAnchor: { line: 0, dispose: () => {} },
+				},
+				term: { baseY: 243 },
+			}),
+		).toBe(false)
+	})
+
+	it('completes once a non-top viewport has been restored', () => {
+		expect(
+			shouldCompleteTransientViewportReset({
+				current: {
+					atBottom: false,
+					linesFromBottom: 28,
+					viewportAnchor: { line: 217, dispose: () => {} },
+				},
+				term: { baseY: 245 },
+			}),
+		).toBe(true)
+	})
+
+	it('completes once bottom-follow is restored after the redraw rebuild', () => {
+		expect(
+			shouldCompleteTransientViewportReset({
+				current: {
+					atBottom: true,
+					linesFromBottom: 0,
+					viewportAnchor: null,
+				},
+				term: { baseY: 214 },
+			}),
+		).toBe(true)
+	})
+})
+
 describe('createViewportSyncCoordinator', () => {
 	it('coalesces repeated sync requests into one scheduled callback', () => {
 		const scheduler = createScheduler()
@@ -292,5 +495,122 @@ describe('createViewportSyncCoordinator', () => {
 		scheduler.flush()
 		expect(syncCount).toBe(1)
 		expect(coordinator.isBlocked()).toBe(false)
+	})
+})
+
+describe('isTransientResetCollapsed', () => {
+	it('returns true when sawResetToTop is true and baseY is 0', () => {
+		expect(
+			isTransientResetCollapsed({
+				sawResetToTop: true,
+				term: { baseY: 0 },
+			}),
+		).toBe(true)
+	})
+
+	it('returns false when baseY is non-zero even during a reset', () => {
+		expect(
+			isTransientResetCollapsed({
+				sawResetToTop: true,
+				term: { baseY: 74 },
+			}),
+		).toBe(false)
+	})
+
+	it('returns false when sawResetToTop is false', () => {
+		expect(
+			isTransientResetCollapsed({
+				sawResetToTop: false,
+				term: { baseY: 0 },
+			}),
+		).toBe(false)
+	})
+})
+
+describe('isTransientResetBottomLeak', () => {
+	it('detects a bottom leak when user was scrolled up but current shows at-bottom', () => {
+		expect(
+			isTransientResetBottomLeak({
+				frozenSnapshot: {
+					atBottom: false,
+					linesFromBottom: 232,
+					viewportAnchor: { line: 128, dispose: () => {} },
+				},
+				current: {
+					atBottom: true,
+					linesFromBottom: 0,
+					viewportAnchor: null,
+				},
+				sawResetToTop: true,
+			}),
+		).toBe(true)
+	})
+
+	it('returns false when the frozen snapshot was at bottom', () => {
+		expect(
+			isTransientResetBottomLeak({
+				frozenSnapshot: {
+					atBottom: true,
+					linesFromBottom: 0,
+					viewportAnchor: null,
+				},
+				current: {
+					atBottom: true,
+					linesFromBottom: 0,
+					viewportAnchor: null,
+				},
+				sawResetToTop: true,
+			}),
+		).toBe(false)
+	})
+
+	it('returns false when no frozen snapshot exists', () => {
+		expect(
+			isTransientResetBottomLeak({
+				frozenSnapshot: null,
+				current: {
+					atBottom: true,
+					linesFromBottom: 0,
+					viewportAnchor: null,
+				},
+				sawResetToTop: true,
+			}),
+		).toBe(false)
+	})
+
+	it('returns false when sawResetToTop is false', () => {
+		expect(
+			isTransientResetBottomLeak({
+				frozenSnapshot: {
+					atBottom: false,
+					linesFromBottom: 232,
+					viewportAnchor: null,
+				},
+				current: {
+					atBottom: true,
+					linesFromBottom: 0,
+					viewportAnchor: null,
+				},
+				sawResetToTop: false,
+			}),
+		).toBe(false)
+	})
+
+	it('returns false when current is also scrolled up (no leak)', () => {
+		expect(
+			isTransientResetBottomLeak({
+				frozenSnapshot: {
+					atBottom: false,
+					linesFromBottom: 232,
+					viewportAnchor: null,
+				},
+				current: {
+					atBottom: false,
+					linesFromBottom: 100,
+					viewportAnchor: { line: 50, dispose: () => {} },
+				},
+				sawResetToTop: true,
+			}),
+		).toBe(false)
 	})
 })
