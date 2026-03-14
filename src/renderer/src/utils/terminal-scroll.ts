@@ -4,6 +4,30 @@ export interface SavedScroll {
 	readonly viewportAnchor: ScrollAnchorLike | null
 }
 
+export interface TransientViewportResetCheck {
+	readonly current: SavedScroll
+	readonly previous: SavedScroll
+	readonly sawResetToTop: boolean
+	readonly term: {
+		readonly baseY: number
+		readonly viewportY: number
+	}
+}
+
+export interface DeferredTransientViewportRestoreCheck {
+	readonly saved: SavedScroll
+	readonly term: {
+		readonly baseY: number
+	}
+}
+
+export interface CompleteTransientViewportResetCheck {
+	readonly current: SavedScroll
+	readonly term: {
+		readonly baseY: number
+	}
+}
+
 export interface ScrollAnchorLike {
 	readonly line: number
 	dispose: () => void
@@ -40,6 +64,54 @@ export interface ViewportSyncCoordinator {
 /** Returns true when the terminal viewport is scrolled to (or past) the last line of output. */
 export function isTermAtBottom(term: ScrollTerminalLike): boolean {
 	return term.buffer.active.viewportY >= term.buffer.active.baseY
+}
+
+export function isSavedScrollAtTop(saved: SavedScroll): boolean {
+	return !saved.atBottom && saved.viewportAnchor?.line === 0
+}
+
+export function cloneSavedScroll(saved: SavedScroll): SavedScroll {
+	return {
+		atBottom: saved.atBottom,
+		linesFromBottom: saved.linesFromBottom,
+		viewportAnchor: saved.viewportAnchor
+			? {
+					line: saved.viewportAnchor.line,
+					dispose: () => {},
+				}
+			: null,
+	}
+}
+
+export function shouldIgnoreTransientViewportReset({
+	current,
+	previous,
+	sawResetToTop,
+	term,
+}: TransientViewportResetCheck): boolean {
+	if (!sawResetToTop) return false
+	if (term.baseY <= 0 || term.viewportY !== 0) return false
+	if (!isSavedScrollAtTop(current)) return false
+	if (current.linesFromBottom !== term.baseY) return false
+	if (isSavedScrollAtTop(previous)) return false
+	return true
+}
+
+export function shouldDeferTransientViewportRestore({
+	saved,
+	term,
+}: DeferredTransientViewportRestoreCheck): boolean {
+	if (saved.atBottom) return false
+	if (saved.viewportAnchor && saved.viewportAnchor.line >= 0) return false
+	return saved.linesFromBottom > term.baseY
+}
+
+export function shouldCompleteTransientViewportReset({
+	current,
+	term,
+}: CompleteTransientViewportResetCheck): boolean {
+	if (term.baseY <= 0) return false
+	return !isSavedScrollAtTop(current)
 }
 
 function getLinesFromBottom(term: ScrollTerminalLike): number {
