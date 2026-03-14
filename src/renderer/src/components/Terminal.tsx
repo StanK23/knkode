@@ -316,25 +316,28 @@ export function TerminalView({
 		const ws = s.workspaces.find((w) => paneId in w.panes)
 		return ws?.id === s.appState.activeWorkspaceId
 	})
-	const commitSavedScroll = useCallback((term: XTerm, saved: SavedScroll) => {
-		disposeSavedScroll(savedScrollRef.current)
-		savedScrollRef.current = saved
-		lastAcceptedBaseYRef.current = term.buffer.active.baseY
-		if (
-			sawTransientTopResetRef.current &&
-			shouldCompleteTransientViewportReset({
-				current: saved,
-				term: {
-					baseY: term.buffer.active.baseY,
-				},
-			})
-		) {
-			transientResetSavedScrollRef.current = null
-			sawTransientTopResetRef.current = false
-			showTerminalAfterFlashGuard(term)
-		}
-		setIsScrolledUp(!saved.atBottom)
-	}, [showTerminalAfterFlashGuard])
+	const commitSavedScroll = useCallback(
+		(term: XTerm, saved: SavedScroll) => {
+			disposeSavedScroll(savedScrollRef.current)
+			savedScrollRef.current = saved
+			lastAcceptedBaseYRef.current = term.buffer.active.baseY
+			if (
+				sawTransientTopResetRef.current &&
+				shouldCompleteTransientViewportReset({
+					current: saved,
+					term: {
+						baseY: term.buffer.active.baseY,
+					},
+				})
+			) {
+				transientResetSavedScrollRef.current = null
+				sawTransientTopResetRef.current = false
+				showTerminalAfterFlashGuard(term)
+			}
+			setIsScrolledUp(!saved.atBottom)
+		},
+		[showTerminalAfterFlashGuard],
+	)
 	const viewportSyncRef = useRef(
 		createViewportSyncCoordinator({
 			cancel: (id) => cancelAnimationFrame(id),
@@ -958,7 +961,13 @@ export function TerminalView({
 			// PTY data continues writing to the buffer while detached.
 			termContainer.remove()
 		}
-	}, [commitSavedScroll, hideTerminalForFlashGuard, showTerminalAfterFlashGuard, paneId, logScrollDebug])
+	}, [
+		commitSavedScroll,
+		hideTerminalForFlashGuard,
+		showTerminalAfterFlashGuard,
+		paneId,
+		logScrollDebug,
+	])
 
 	// Restore terminal scroll position when workspace becomes active.
 	// Runs as useLayoutEffect (before paint) so the user never sees a flash
