@@ -21,7 +21,7 @@ knkode v1 (Electron + xterm.js) has a persistent scroll-jump bug caused by xterm
 | Split panes | TBD (allotment or custom) | — | allotment |
 | Bundler | Vite (via Tauri) | 6 | electron-vite |
 | Linter | Biome | 2.4 | Biome |
-| Testing | Vitest | 3 | Vitest 4 |
+| Testing | Vitest | 3 | Vitest 3 |
 | Testing (React) | @testing-library/react | 16 | @testing-library/react |
 | Package manager | bun | 1.3 | bun |
 
@@ -34,12 +34,12 @@ knkode v1 (Electron + xterm.js) has a persistent scroll-jump bug caused by xterm
 - Terminal state exposed to frontend via Tauri IPC (commands + events)
 - GPU rendering: either wgpu-based custom renderer or canvas-based bridge
 
-### Frontend Layer (TypeScript/React)
-- Migrated from v1 — same components, hooks, store
-- Terminal component renders to canvas (receives frame data from Rust)
+### Frontend Layer (TypeScript/React) — Target
+- Will be migrated from v1 — same components, hooks, store
+- Terminal component will render to canvas (receives frame data from Rust)
 - All non-terminal UI (tabs, settings, status bars, context menus) stays React
-- Tauri commands replace Electron IPC invoke/handle pattern
-- Tauri events replace Electron IPC send/on pattern
+- Tauri commands will replace Electron IPC invoke/handle pattern
+- Tauri events will replace Electron IPC send/on pattern
 
 ### Data Flow
 ```

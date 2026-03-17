@@ -10,7 +10,7 @@ Phase 1 in progress — Tauri scaffold complete.
 - [x] Vitest 3 + @testing-library/react 16 installed
 - [x] Placeholder App.tsx with centered "knkode-v2" text
 - [x] Frontend build passes (tsc + vite build)
-- [x] Rust backend compiles (Tauri 2.10 + serde)
+- [x] Rust backend compiles (Tauri 2.10)
 - [x] Placeholder icons generated
 
 ## What's Next
