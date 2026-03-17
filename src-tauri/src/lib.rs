@@ -1,4 +1,4 @@
-mod terminal;
+pub mod terminal;
 
 use terminal::commands::{
     create_terminal, destroy_terminal, get_terminal_state, resize_terminal, write_to_terminal,
