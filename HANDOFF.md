@@ -52,10 +52,14 @@ Phase 2 in progress — workspace/pane/tab system. PR #6 (workspace store) merge
   - PR #6: keybindings
 
 ## Active Reviews
-None
+
+### PR #7 — feat: recursive split pane layout with allotment
+- State: `docs/reviews/PR-7/_state.json`
+- Agents: 9/9 completed
+- Phase: done — review complete, awaiting fixes
 
 ## Active Branch
-`main`
+`feature/split-pane-renderer`
 
 ## Known Issues
 - DMG bundling fails (macOS code signing) — not blocking for dev
