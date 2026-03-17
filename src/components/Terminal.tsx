@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { useTerminalStore } from "../store/terminal";
+import { useWorkspaceStore } from "../store/workspace";
 import type { CellGrid, TermColor } from "../types/terminal";
 
 const FONT_FAMILY = '"JetBrains Mono", "Fira Code", "Cascadia Code", "SF Mono", "Menlo", monospace';
@@ -77,16 +77,20 @@ function renderGrid(
 	}
 }
 
-export default function Terminal() {
+interface TerminalProps {
+	paneId: string;
+}
+
+export default function Terminal({ paneId }: TerminalProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const cellDimsRef = useRef<{ width: number; height: number } | null>(null);
 	const rafRef = useRef<number | null>(null);
 	const prevDimsRef = useRef<{ cols: number; rows: number } | null>(null);
 
-	const grid = useTerminalStore((s) => s.grid);
-	const writeToTerminal = useTerminalStore((s) => s.writeToTerminal);
-	const resizeTerminal = useTerminalStore((s) => s.resizeTerminal);
+	const grid = useWorkspaceStore((s) => s.paneTerminals[paneId]?.grid ?? null);
+	const writeToPane = useWorkspaceStore((s) => s.writeToPane);
+	const resizePane = useWorkspaceStore((s) => s.resizePane);
 
 	// Lazily measure and cache cell dimensions for this mount
 	const getCellDims = useCallback(() => {
@@ -149,7 +153,7 @@ export default function Terminal() {
 				const rows = Math.floor(entry.contentRect.height / cellHeight);
 
 				if (cols > 0 && rows > 0) {
-					resizeTerminal(cols, rows);
+					resizePane(paneId, cols, rows);
 				}
 			}, RESIZE_DEBOUNCE_MS);
 		});
@@ -159,7 +163,7 @@ export default function Terminal() {
 			clearTimeout(resizeTimeout);
 			observer.disconnect();
 		};
-	}, [getCellDims, resizeTerminal]);
+	}, [getCellDims, resizePane, paneId]);
 
 	// Handle keyboard input
 	const handleKeyDown = useCallback(
@@ -180,10 +184,10 @@ export default function Terminal() {
 
 			if (data) {
 				e.preventDefault();
-				writeToTerminal(data);
+				writeToPane(paneId, data);
 			}
 		},
-		[writeToTerminal],
+		[writeToPane, paneId],
 	);
 
 	const handlePaste = useCallback(
@@ -191,10 +195,10 @@ export default function Terminal() {
 			const text = e.clipboardData.getData("text/plain");
 			if (text) {
 				e.preventDefault();
-				writeToTerminal(text);
+				writeToPane(paneId, text);
 			}
 		},
-		[writeToTerminal],
+		[writeToPane, paneId],
 	);
 
 	return (
