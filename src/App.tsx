@@ -1,38 +1,41 @@
 import { useEffect, useRef } from "react";
 import Terminal from "./components/Terminal";
-import { useTerminalStore } from "./store/terminal";
+import { useWorkspaceStore } from "./store/workspace";
 
 export default function App() {
-	const connected = useTerminalStore((s) => s.connected);
-	const error = useTerminalStore((s) => s.error);
+	const activePaneId = useWorkspaceStore((s) => s.activePaneId);
+	const paneTerminal = useWorkspaceStore((s) =>
+		activePaneId ? s.paneTerminals[activePaneId] : undefined,
+	);
 	const initedRef = useRef(false);
 
 	useEffect(() => {
 		if (initedRef.current) return;
 		initedRef.current = true;
 
-		const { createTerminal, subscribeToEvents, refreshGrid } = useTerminalStore.getState();
+		const store = useWorkspaceStore.getState();
 		let unsubscribe: (() => void) | undefined;
 
-		// Subscribe before first refresh to avoid missing events during startup
 		async function init() {
-			await createTerminal();
-			unsubscribe = await subscribeToEvents();
-			await refreshGrid();
+			const workspaceId = store.createWorkspace();
+			unsubscribe = await store.subscribeToEvents();
+			await store.initWorkspace(workspaceId);
 		}
 
 		init().catch(console.error);
 
 		return () => {
 			unsubscribe?.();
-			useTerminalStore.getState().destroyTerminal().catch(console.error);
 		};
 	}, []);
 
+	const connected = paneTerminal?.connected ?? false;
+	const error = paneTerminal?.error ?? null;
+
 	return (
 		<div className="flex h-screen w-screen flex-col bg-[#1d1f21]">
-			{connected ? (
-				<Terminal />
+			{activePaneId && connected ? (
+				<Terminal paneId={activePaneId} />
 			) : (
 				<div className="flex h-full items-center justify-center text-neutral-500">
 					{error ?? "Terminal disconnected"}
