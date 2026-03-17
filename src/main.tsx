@@ -4,7 +4,8 @@ import App from "./App";
 import { api } from "./lib/tauri-api";
 import "./styles.css";
 
-window.api = api;
+// One-time global assignment for v1-compatible components that reference window.api
+(window as { api: typeof api }).api = api;
 
 const root = document.getElementById("root");
 if (!root) throw new Error("Missing #root element in index.html");
