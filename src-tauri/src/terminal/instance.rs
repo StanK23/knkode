@@ -25,7 +25,10 @@ const EVENT_TERMINAL_OUTPUT: &str = "terminal-output";
 /// A single terminal instance: PTY + alacritty Term + event loop.
 pub struct TerminalInstance {
     id: String,
-    term: Arc<FairMutex<Term<EventProxy>>>,
+    /// Wrapped in Option so Drop can release it before joining the event thread.
+    /// The Arc<FairMutex<Term>> holds an EventProxy (sender). Dropping it before
+    /// joining event_thread ensures the receiver's recv() returns Err, unblocking it.
+    term: Option<Arc<FairMutex<Term<EventProxy>>>>,
     notifier: Notifier,
     pty_thread: Option<
         JoinHandle<(
@@ -72,7 +75,7 @@ impl TerminalInstance {
 
         Ok(Self {
             id,
-            term,
+            term: Some(term),
             notifier,
             pty_thread: Some(pty_thread),
             event_thread: Some(event_thread),
@@ -146,26 +149,38 @@ impl TerminalInstance {
         };
         self.notifier.on_resize(window_size);
 
-        let mut term = self.term.lock();
+        let term = self.term.as_ref().ok_or("Terminal already shut down")?;
+        let mut term = term.lock();
         term.resize(TermSize::new(cols as usize, rows as usize));
         Ok(())
     }
 
     /// Snapshot the visible grid for the frontend.
-    pub fn get_state(&self) -> CellGrid {
-        let term = self.term.lock();
-        extract_grid(&term)
+    pub fn get_state(&self) -> Result<CellGrid, String> {
+        let term = self.term.as_ref().ok_or("Terminal already shut down")?;
+        let term = term.lock();
+        Ok(extract_grid(&term))
     }
 }
 
 impl Drop for TerminalInstance {
     fn drop(&mut self) {
+        // 1. Signal the PTY event loop to shut down.
         if let Err(e) = self.notifier.0.send(Msg::Shutdown) {
             log::warn!("Terminal {}: failed to send shutdown: {e}", self.id);
         }
+
+        // 2. Wait for the PTY event loop thread to exit.
         if let Some(handle) = self.pty_thread.take() {
             let _ = handle.join();
         }
+
+        // 3. Drop the Term (and its EventProxy sender) so the event thread's
+        //    recv() returns Err and the loop breaks. Without this, the event
+        //    thread would block on recv() forever because the sender is still alive.
+        self.term.take();
+
+        // 4. Now the event thread can exit.
         if let Some(handle) = self.event_thread.take() {
             let _ = handle.join();
         }

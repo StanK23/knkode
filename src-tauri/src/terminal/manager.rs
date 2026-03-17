@@ -61,15 +61,22 @@ impl TerminalManager {
         let instance = terminals
             .get(id)
             .ok_or_else(|| format!("Terminal not found: {id}"))?;
-        Ok(instance.get_state())
+        instance.get_state()
     }
 
     /// Remove and drop a terminal instance, cleaning up its PTY and threads.
+    /// The instance is moved out of the map before the lock is released,
+    /// then dropped outside the lock so thread joins don't block other commands.
     pub fn remove(&self, id: &str) -> Result<(), String> {
-        let mut terminals = self.terminals.lock();
-        terminals
-            .remove(id)
-            .ok_or_else(|| format!("Terminal not found: {id}"))?;
+        let instance = {
+            let mut terminals = self.terminals.lock();
+            terminals
+                .remove(id)
+                .ok_or_else(|| format!("Terminal not found: {id}"))?
+        };
+        // instance is dropped here, outside the lock — thread joins won't
+        // block get_state/write/resize calls for other terminals.
+        drop(instance);
         Ok(())
     }
 }
