@@ -1,7 +1,7 @@
 # HANDOFF — knkode-v2
 
 ## Current State
-Phase 1 in progress — Rust terminal backend complete, review fixes applied.
+Phase 1 in progress — PR #2 merged, ready for PR #3.
 
 ## What's Done
 - [x] Tauri 2 project scaffolded (React 19 + TypeScript 5.9 + Vite 6 + Tailwind CSS 4.2)
@@ -24,7 +24,7 @@ Phase 1 in progress — Rust terminal backend complete, review fixes applied.
 - [ ] PR #3: `feature/terminal-renderer` — Canvas renderer + single terminal working
 
 ## Active Branch
-`feature/rust-terminal-backend` — PR #2
+`main` — ready for PR #3
 
 ## Known Issues
 - DMG bundling fails (macOS code signing) — not blocking for dev
