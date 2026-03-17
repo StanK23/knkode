@@ -30,9 +30,15 @@ Phase 1 complete — single working terminal in a native Tauri window.
 
 ## What's Next
 - Phase 2: Port workspace/pane/tab system (store, layout tree, drag-drop)
+  - PR #5 (layout types) — review fixes applied, ready to merge
+  - PR #2: workspace store
+  - PR #3: split pane UI (allotment)
+  - PR #4: tab bar
+  - PR #5: drag-and-drop
+  - PR #6: keybindings
 
 ## Active Branch
-`main`
+`feature/layout-types`
 
 ## Known Issues
 - DMG bundling fails (macOS code signing) — not blocking for dev

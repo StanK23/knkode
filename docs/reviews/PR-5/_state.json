@@ -1,0 +1,23 @@
+{
+	"type": "watch-pr",
+	"pr_number": 5,
+	"pr_title": "feat: layout tree types, operations, and presets",
+	"branch": "feature/layout-types",
+	"base_branch": "main",
+	"head_sha": "f5ace8a67ea2d5952594e78180869276a000b3db",
+	"started_at": "2026-03-17T07:55:00Z",
+	"agents": {
+		"code-reviewer": { "status": "completed", "file": "code-reviewer.md" },
+		"security-auditor": { "status": "completed", "file": "security-auditor.md" },
+		"silent-failure-hunter": { "status": "completed", "file": "silent-failure-hunter.md" },
+		"code-simplifier": { "status": "completed", "file": "code-simplifier.md" },
+		"dry-reuse": { "status": "completed", "file": "dry-reuse.md" },
+		"comment-analyzer": { "status": "completed", "file": "comment-analyzer.md" },
+		"type-design-analyzer": { "status": "completed", "file": "type-design-analyzer.md" },
+		"pr-test-analyzer": { "status": "completed", "file": "pr-test-analyzer.md" },
+		"typescript-reviewer": { "status": "completed", "file": "typescript-reviewer.md" },
+		"efficiency": { "status": "completed", "file": "efficiency.md" }
+	},
+	"phase": "done",
+	"compiled": true
+}
