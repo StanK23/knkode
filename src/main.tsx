@@ -1,7 +1,10 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import { api } from "./lib/tauri-api";
 import "./styles.css";
+
+window.api = api;
 
 const root = document.getElementById("root");
 if (!root) throw new Error("Missing #root element in index.html");
