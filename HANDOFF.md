@@ -1,7 +1,7 @@
 # HANDOFF — knkode-v2
 
 ## Current State
-Phase 2 in progress — workspace/pane/tab system. PR #7 (split pane renderer) merged.
+Phase 2 in progress — workspace/pane/tab system. PR #8 (tab bar) ready for merge.
 
 ## What's Done
 - [x] Tauri 2 project scaffolded (React 19 + TypeScript 5.9 + Vite 6 + Tailwind CSS 4.2)
@@ -52,18 +52,23 @@ Phase 2 in progress — workspace/pane/tab system. PR #7 (split pane renderer) m
   - Shared useDebouncedCallback hook extracted to src/hooks/
   - 9-agent review: 17 findings, 15 fixed, 2 skipped (nitpicks)
 
+- [ ] PR #8: Workspace tab bar with context menu (in review)
+  - TabBar with role="tablist", workspace tabs, "+" create button
+  - WorkspaceTab with click-to-switch, double-click rename, close, color dot, pane count badge
+  - TabContextMenu portal-rendered context menu: Rename, Duplicate, Color picker, Close
+  - Pane header with split-right, split-down, close buttons (hover-reveal)
+  - Bug fixes: workspace init on create/duplicate, empty pane title fallback
+  - DEFAULT_WORKSPACE_COLOR constant extracted, React.memo on WorkspaceTab
+  - Viewport-clamped context menu, full ARIA roles and labels
+  - 9-agent review: 19 findings, all 19 addressed
+
 ## What's Next
 - Phase 2 (continued):
-  - PR #8: tab bar
   - PR #9: drag-and-drop
   - PR #10: keybindings
 
 ## Active Reviews
-
-### PR #8 — feat: workspace tab bar with context menu
-- State: `docs/reviews/PR-8/_state.json`
-- Agents: 9/9 completed
-- Phase: done — review complete, awaiting fixes
+None
 
 ## Active Branch
 `feature/tab-bar` (PR #8)
@@ -72,3 +77,4 @@ Phase 2 in progress — workspace/pane/tab system. PR #7 (split pane renderer) m
 - DMG bundling fails (macOS code signing) — not blocking for dev
 - Icons are placeholder dark squares — replace with real branding later
 - Cell flags (bold/italic/underline) not yet rendered — documented as Phase 2+
+- 9 pre-existing test failures (vi.mocked not supported by bun test runner)
