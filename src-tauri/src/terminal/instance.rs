@@ -14,8 +14,13 @@ use crate::terminal::types::{extract_grid, CellGrid};
 
 const DEFAULT_COLS: u16 = 80;
 const DEFAULT_ROWS: u16 = 24;
+const MAX_COLS: u16 = 500;
+const MAX_ROWS: u16 = 200;
 const CELL_WIDTH: u16 = 8;
 const CELL_HEIGHT: u16 = 16;
+
+const EVENT_TERMINAL_EXIT: &str = "terminal-exit";
+const EVENT_TERMINAL_OUTPUT: &str = "terminal-output";
 
 /// A single terminal instance: PTY + alacritty Term + event loop.
 pub struct TerminalInstance {
@@ -85,7 +90,7 @@ impl TerminalInstance {
                 Ok(e) => e,
                 Err(_) => {
                     log::warn!("Terminal {terminal_id}: event channel disconnected");
-                    if let Err(e) = app_handle.emit("terminal-exit", &terminal_id) {
+                    if let Err(e) = app_handle.emit(EVENT_TERMINAL_EXIT, &terminal_id) {
                         log::warn!(
                             "Terminal {terminal_id}: failed to emit exit on disconnect: {e}"
                         );
@@ -94,18 +99,18 @@ impl TerminalInstance {
                 }
             };
 
-            match &event {
+            match event {
                 Event::Exit | Event::ChildExit(_) => {
-                    if let Err(e) = app_handle.emit("terminal-exit", &terminal_id) {
+                    if let Err(e) = app_handle.emit(EVENT_TERMINAL_EXIT, &terminal_id) {
                         log::warn!("Terminal {terminal_id}: failed to emit exit: {e}");
                     }
                     break;
                 }
                 Event::PtyWrite(text) => {
-                    pty_notifier.notify(text.clone().into_bytes());
+                    pty_notifier.notify(text.into_bytes());
                 }
                 Event::Wakeup => {
-                    if let Err(e) = app_handle.emit("terminal-output", &terminal_id) {
+                    if let Err(e) = app_handle.emit(EVENT_TERMINAL_OUTPUT, &terminal_id) {
                         log::warn!("Terminal {terminal_id}: failed to emit output: {e}");
                     }
                 }
@@ -122,9 +127,14 @@ impl TerminalInstance {
     }
 
     /// Resize the terminal grid and PTY.
-    pub fn resize(&mut self, cols: u16, rows: u16) {
+    pub fn resize(&mut self, cols: u16, rows: u16) -> Result<(), String> {
         if cols == 0 || rows == 0 {
-            return;
+            return Err(format!("Invalid terminal dimensions: {cols}x{rows}"));
+        }
+        if cols > MAX_COLS || rows > MAX_ROWS {
+            return Err(format!(
+                "Terminal dimensions {cols}x{rows} exceed maximum {MAX_COLS}x{MAX_ROWS}"
+            ));
         }
 
         let window_size = WindowSize {
@@ -137,6 +147,7 @@ impl TerminalInstance {
 
         let mut term = self.term.lock();
         term.resize(TermSize::new(cols as usize, rows as usize));
+        Ok(())
     }
 
     /// Snapshot the visible grid for the frontend.

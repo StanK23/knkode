@@ -48,8 +48,7 @@ impl TerminalManager {
         let instance = terminals
             .get_mut(id)
             .ok_or_else(|| format!("Terminal not found: {id}"))?;
-        instance.resize(cols, rows);
-        Ok(())
+        instance.resize(cols, rows)
     }
 
     pub fn get_state(&self, id: &str) -> Result<CellGrid, String> {
