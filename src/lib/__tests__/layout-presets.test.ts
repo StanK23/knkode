@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { isLayoutBranch, isLayoutLeaf } from "../../types/workspace";
 import { createLayoutFromPreset, LAYOUT_PRESETS } from "../layout-presets";
 import { countPanes, getPaneIdsInOrder } from "../layout-tree";
@@ -7,12 +7,15 @@ describe("createLayoutFromPreset", () => {
 	let counter = 0;
 	const generateId = () => `pane-${++counter}`;
 
-	function resetCounter() {
+	beforeEach(() => {
 		counter = 0;
-	}
+	});
+
+	it("LAYOUT_PRESETS has all preset entries", () => {
+		expect(LAYOUT_PRESETS).toHaveLength(6);
+	});
 
 	it.each(LAYOUT_PRESETS)("creates valid layout for preset '%s'", (preset) => {
-		resetCounter();
 		const { layout, panes } = createLayoutFromPreset(preset, generateId, "/home");
 
 		expect(layout.type).toBe("preset");
@@ -34,51 +37,46 @@ describe("createLayoutFromPreset", () => {
 	});
 
 	it("single preset creates 1 pane", () => {
-		resetCounter();
 		const { layout } = createLayoutFromPreset("single", generateId, "/home");
 		expect(countPanes(layout.tree)).toBe(1);
 		expect(isLayoutLeaf(layout.tree)).toBe(true);
 	});
 
 	it("2-column preset creates 2 panes in horizontal split", () => {
-		resetCounter();
 		const { layout } = createLayoutFromPreset("2-column", generateId, "/home");
 		expect(countPanes(layout.tree)).toBe(2);
+		expect(isLayoutBranch(layout.tree)).toBe(true);
 		if (isLayoutBranch(layout.tree)) {
 			expect(layout.tree.direction).toBe("horizontal");
 		}
 	});
 
 	it("2-row preset creates 2 panes in vertical split", () => {
-		resetCounter();
 		const { layout } = createLayoutFromPreset("2-row", generateId, "/home");
 		expect(countPanes(layout.tree)).toBe(2);
+		expect(isLayoutBranch(layout.tree)).toBe(true);
 		if (isLayoutBranch(layout.tree)) {
 			expect(layout.tree.direction).toBe("vertical");
 		}
 	});
 
 	it("3-panel-l preset creates 3 panes", () => {
-		resetCounter();
 		const { layout } = createLayoutFromPreset("3-panel-l", generateId, "/home");
 		expect(countPanes(layout.tree)).toBe(3);
 	});
 
 	it("3-panel-t preset creates 3 panes", () => {
-		resetCounter();
 		const { layout } = createLayoutFromPreset("3-panel-t", generateId, "/home");
 		expect(countPanes(layout.tree)).toBe(3);
 	});
 
 	it("2x2-grid preset creates 4 panes", () => {
-		resetCounter();
 		const { layout } = createLayoutFromPreset("2x2-grid", generateId, "/home");
 		expect(countPanes(layout.tree)).toBe(4);
 	});
 
 	it("root node always has size 100", () => {
 		for (const preset of LAYOUT_PRESETS) {
-			resetCounter();
 			const { layout } = createLayoutFromPreset(preset, generateId, "/home");
 			expect(layout.tree.size).toBe(100);
 		}

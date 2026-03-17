@@ -1,14 +1,24 @@
-import type { LayoutBranch, LayoutNode } from "../types/workspace";
-import { isLayoutBranch, isLayoutLeaf } from "../types/workspace";
+import {
+	createBranch,
+	createLeaf,
+	isLayoutBranch,
+	isLayoutLeaf,
+	type LayoutBranch,
+	type LayoutLeaf,
+	type LayoutNode,
+} from "../types/workspace";
+
+/** Maximum tree depth to prevent stack overflow from corrupted persisted state. */
+const MAX_DEPTH = 20;
 
 /**
  * Get the first pane ID in the tree (depth-first, left-child traversal).
- * Returns undefined for empty branches.
  */
-export function getFirstPaneId(node: LayoutNode): string | undefined {
+export function getFirstPaneId(node: LayoutNode, depth = 0): string | undefined {
+	if (depth > MAX_DEPTH) return undefined;
 	if (isLayoutLeaf(node)) return node.paneId;
 	for (const child of node.children) {
-		const id = getFirstPaneId(child);
+		const id = getFirstPaneId(child, depth + 1);
 		if (id !== undefined) return id;
 	}
 	return undefined;
@@ -17,34 +27,44 @@ export function getFirstPaneId(node: LayoutNode): string | undefined {
 /**
  * Get all pane IDs in depth-first order.
  */
-export function getPaneIdsInOrder(node: LayoutNode): string[] {
+export function getPaneIdsInOrder(node: LayoutNode, depth = 0): string[] {
+	if (depth > MAX_DEPTH) return [];
 	if (isLayoutLeaf(node)) return [node.paneId];
-	return node.children.flatMap(getPaneIdsInOrder);
+	return node.children.flatMap((c) => getPaneIdsInOrder(c, depth + 1));
 }
 
 /**
  * Remove a leaf from the tree by pane ID.
  * Collapses single-child branches after removal.
  * Returns undefined if the removed leaf was the root.
+ * Returns the original node reference if paneId was not found.
  */
-export function removeLeaf(node: LayoutNode, paneId: string): LayoutNode | undefined {
+export function removeLeaf(node: LayoutNode, paneId: string, depth = 0): LayoutNode | undefined {
+	if (depth > MAX_DEPTH) return node;
 	if (isLayoutLeaf(node)) {
 		return node.paneId === paneId ? undefined : node;
 	}
 
 	const newChildren: LayoutNode[] = [];
 	for (const child of node.children) {
-		const result = removeLeaf(child, paneId);
+		const result = removeLeaf(child, paneId, depth + 1);
 		if (result !== undefined) {
 			newChildren.push(result);
 		}
 	}
 
+	// No change in this subtree — return original node for referential equality
+	if (
+		newChildren.length === node.children.length &&
+		newChildren.every((c, i) => c === node.children[i])
+	) {
+		return node;
+	}
+
 	if (newChildren.length === 0) return undefined;
 	if (newChildren.length === 1) {
-		// Collapse single-child branch: promote the child with parent's size
-		const only = newChildren[0];
-		if (!only) return undefined;
+		// Collapse single-child branch: promote the child, inheriting this branch's size
+		const only = newChildren[0] as LayoutNode;
 		return { ...only, size: node.size };
 	}
 
@@ -55,58 +75,76 @@ export function removeLeaf(node: LayoutNode, paneId: string): LayoutNode | undef
 		size: totalSize > 0 ? (c.size / totalSize) * 100 : 100 / newChildren.length,
 	}));
 
-	return { ...node, children: resized };
+	return createBranch(node.direction, node.size, resized);
 }
 
 /**
  * Replace a leaf in the tree by pane ID, using a replacer function.
  * The replacer receives the matched leaf and returns a new node (or subtree).
+ * Returns the original node reference if paneId was not found.
  */
 export function replaceLeaf(
 	node: LayoutNode,
 	paneId: string,
-	replacer: (leaf: LayoutNode) => LayoutNode,
+	replacer: (leaf: LayoutLeaf) => LayoutNode,
+	depth = 0,
 ): LayoutNode {
+	if (depth > MAX_DEPTH) return node;
 	if (isLayoutLeaf(node)) {
 		return node.paneId === paneId ? replacer(node) : node;
 	}
 
-	return {
-		...node,
-		children: node.children.map((child) => replaceLeaf(child, paneId, replacer)),
-	};
+	const newChildren = node.children.map((child) => replaceLeaf(child, paneId, replacer, depth + 1));
+
+	// Short-circuit: if no child changed, return original node
+	if (newChildren.every((c, i) => c === node.children[i])) return node;
+
+	return { ...node, children: newChildren };
 }
 
 /**
  * Remap every leaf's paneId using a mapping function.
  * Used when duplicating workspaces (new UUIDs for all panes).
  */
-export function remapTree(node: LayoutNode, mapId: (oldId: string) => string): LayoutNode {
+export function remapTree(
+	node: LayoutNode,
+	mapId: (oldId: string) => string,
+	depth = 0,
+): LayoutNode {
+	if (depth > MAX_DEPTH) return node;
 	if (isLayoutLeaf(node)) {
-		return { ...node, paneId: mapId(node.paneId) };
+		return createLeaf(mapId(node.paneId), node.size);
 	}
-	return { ...node, children: node.children.map((child) => remapTree(child, mapId)) };
+	return {
+		...node,
+		children: node.children.map((child) => remapTree(child, mapId, depth + 1)),
+	};
 }
 
 /**
  * Update child sizes at a specific path in the tree.
  * Path is an array of child indices from root to the target branch.
- * Sizes are percentages that should sum to 100.
+ * Callers must ensure sizes sum to 100; no normalization is performed.
  */
 export function updateSizesAtPath(
 	node: LayoutNode,
 	path: readonly number[],
 	sizes: readonly number[],
+	depth = 0,
 ): LayoutNode {
+	if (depth > MAX_DEPTH) return node;
+
 	if (path.length === 0) {
 		// We're at the target branch — update its children's sizes
 		if (!isLayoutBranch(node)) return node;
 		if (sizes.length !== node.children.length) return node;
+		if (sizes.some((s) => !Number.isFinite(s) || s < 0)) return node;
 
 		return {
 			...node,
 			children: node.children.map((child, i) => ({
 				...child,
+				// Guaranteed defined by the length check above; ?? satisfies noUncheckedIndexedAccess
 				size: sizes[i] ?? child.size,
 			})),
 		};
@@ -118,7 +156,7 @@ export function updateSizesAtPath(
 	return {
 		...node,
 		children: node.children.map((child, i) =>
-			i === head ? updateSizesAtPath(child, rest, sizes) : child,
+			i === head ? updateSizesAtPath(child, rest, sizes, depth + 1) : child,
 		),
 	};
 }
@@ -127,15 +165,15 @@ export function updateSizesAtPath(
  * Count the total number of panes (leaves) in the tree.
  */
 export function countPanes(node: LayoutNode): number {
-	if (isLayoutLeaf(node)) return 1;
-	return node.children.reduce((sum, child) => sum + countPanes(child), 0);
+	return getPaneIdsInOrder(node).length;
 }
 
 /**
  * Find the path (array of child indices) to a specific pane.
  * Returns undefined if the pane is not found.
  */
-export function findPanePath(node: LayoutNode, paneId: string): number[] | undefined {
+export function findPanePath(node: LayoutNode, paneId: string, depth = 0): number[] | undefined {
+	if (depth > MAX_DEPTH) return undefined;
 	if (isLayoutLeaf(node)) {
 		return node.paneId === paneId ? [] : undefined;
 	}
@@ -143,7 +181,7 @@ export function findPanePath(node: LayoutNode, paneId: string): number[] | undef
 	for (let i = 0; i < node.children.length; i++) {
 		const child = node.children[i];
 		if (!child) continue;
-		const subPath = findPanePath(child, paneId);
+		const subPath = findPanePath(child, paneId, depth + 1);
 		if (subPath !== undefined) return [i, ...subPath];
 	}
 
@@ -160,12 +198,7 @@ export function splitAtPane(
 	newPaneId: string,
 	direction: LayoutBranch["direction"],
 ): LayoutNode {
-	return replaceLeaf(node, targetPaneId, (leaf) => ({
-		direction,
-		size: leaf.size,
-		children: [
-			{ ...leaf, size: 50 },
-			{ paneId: newPaneId, size: 50 },
-		],
-	}));
+	return replaceLeaf(node, targetPaneId, (leaf) =>
+		createBranch(direction, leaf.size, [createLeaf(leaf.paneId, 50), createLeaf(newPaneId, 50)]),
+	);
 }

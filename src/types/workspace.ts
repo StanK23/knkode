@@ -1,18 +1,23 @@
-/** Layout presets matching v1. Names follow iTerm2 convention. */
+/** Layout presets matching v1 feature set. */
 export type LayoutPreset = "single" | "2-column" | "2-row" | "3-panel-l" | "3-panel-t" | "2x2-grid";
 
 /** Leaf node — a single pane in the layout tree. */
 export interface LayoutLeaf {
+	readonly type: "leaf";
 	readonly paneId: string;
-	/** Percentage size relative to siblings (0-100). */
+	/** Percentage size relative to siblings (0-100). Root node is always 100. */
 	readonly size: number;
 }
 
-/** Branch node — splits children horizontally or vertically. */
+/**
+ * Branch node — splits children horizontally or vertically.
+ * Must have at least 2 children. Single-child branches are collapsed by removeLeaf.
+ */
 export interface LayoutBranch {
+	readonly type: "branch";
 	/** 'horizontal' = side-by-side (vertical divider), 'vertical' = stacked (horizontal divider). */
 	readonly direction: "horizontal" | "vertical";
-	/** Percentage size relative to siblings (0-100). */
+	/** Percentage size relative to siblings (0-100). Root node is always 100. */
 	readonly size: number;
 	readonly children: readonly LayoutNode[];
 }
@@ -22,11 +27,16 @@ export type LayoutNode = LayoutLeaf | LayoutBranch;
 
 /** Workspace layout: either a named preset or a custom (user-modified) layout. */
 export type WorkspaceLayout =
-	| { readonly type: "preset"; readonly preset: LayoutPreset; readonly tree: LayoutNode }
+	| {
+			readonly type: "preset";
+			readonly preset: LayoutPreset;
+			readonly tree: LayoutNode;
+	  }
 	| { readonly type: "custom"; readonly tree: LayoutNode };
 
 /** Per-pane configuration. */
 export interface PaneConfig {
+	/** Display name shown in the pane's tab header. */
 	readonly label: string;
 	readonly cwd: string;
 	readonly startupCommand: string | null;
@@ -44,11 +54,14 @@ export const WORKSPACE_COLORS = [
 	"#e67e22",
 ] as const;
 
-/** Full workspace definition. */
+/**
+ * Full workspace definition.
+ * The panes record is keyed by paneId values from the layout tree's leaf nodes.
+ */
 export interface Workspace {
 	readonly id: string;
 	readonly name: string;
-	readonly color: string;
+	readonly color: (typeof WORKSPACE_COLORS)[number];
 	readonly layout: WorkspaceLayout;
 	readonly panes: Readonly<Record<string, PaneConfig>>;
 }
@@ -68,9 +81,53 @@ export interface AppState {
 // -- Type guards --
 
 export function isLayoutLeaf(node: LayoutNode): node is LayoutLeaf {
-	return "paneId" in node;
+	return node.type === "leaf";
 }
 
 export function isLayoutBranch(node: LayoutNode): node is LayoutBranch {
-	return "direction" in node;
+	return node.type === "branch";
+}
+
+// -- Factory functions --
+
+export function createLeaf(paneId: string, size: number): LayoutLeaf {
+	return { type: "leaf", paneId, size };
+}
+
+/**
+ * Create a branch node. Children must contain at least 2 nodes.
+ */
+export function createBranch(
+	direction: LayoutBranch["direction"],
+	size: number,
+	children: readonly LayoutNode[],
+): LayoutBranch {
+	return { type: "branch", direction, size, children };
+}
+
+// -- Validation --
+
+/**
+ * Validate workspace referential integrity: every leaf paneId in the layout tree
+ * must have a corresponding entry in the panes record, and vice versa.
+ */
+export function validateWorkspace(workspace: Workspace): boolean {
+	const treeIds = new Set<string>();
+	function collectIds(node: LayoutNode): void {
+		if (isLayoutLeaf(node)) {
+			treeIds.add(node.paneId);
+		} else {
+			for (const child of node.children) {
+				collectIds(child);
+			}
+		}
+	}
+	collectIds(workspace.layout.tree);
+
+	const paneKeys = new Set(Object.keys(workspace.panes));
+	if (treeIds.size !== paneKeys.size) return false;
+	for (const id of treeIds) {
+		if (!paneKeys.has(id)) return false;
+	}
+	return true;
 }

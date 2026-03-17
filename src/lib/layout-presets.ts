@@ -1,113 +1,54 @@
 import type { LayoutNode, LayoutPreset, PaneConfig, WorkspaceLayout } from "../types/workspace";
+import { createBranch, createLeaf } from "../types/workspace";
+import { getPaneIdsInOrder } from "./layout-tree";
 
-type PresetFactory = (ids: () => string) => { tree: LayoutNode; paneIds: string[] };
+type PresetFactory = (generateId: () => string) => { tree: LayoutNode };
+
+function twoPane(direction: "horizontal" | "vertical"): PresetFactory {
+	return (generateId) => {
+		const a = generateId();
+		const b = generateId();
+		return {
+			tree: createBranch(direction, 100, [createLeaf(a, 50), createLeaf(b, 50)]),
+		};
+	};
+}
+
+function threePanel(
+	outerDir: "horizontal" | "vertical",
+	innerDir: "horizontal" | "vertical",
+): PresetFactory {
+	return (generateId) => {
+		const main = generateId();
+		const a = generateId();
+		const b = generateId();
+		return {
+			tree: createBranch(outerDir, 100, [
+				createLeaf(main, 60),
+				createBranch(innerDir, 40, [createLeaf(a, 50), createLeaf(b, 50)]),
+			]),
+		};
+	};
+}
 
 const PRESET_FACTORIES: Record<LayoutPreset, PresetFactory> = {
-	single: (ids) => {
-		const id = ids();
-		return { tree: { paneId: id, size: 100 }, paneIds: [id] };
+	single: (generateId) => {
+		const id = generateId();
+		return { tree: createLeaf(id, 100) };
 	},
 
-	"2-column": (ids) => {
-		const [a, b] = [ids(), ids()];
-		return {
-			tree: {
-				direction: "horizontal",
-				size: 100,
-				children: [
-					{ paneId: a, size: 50 },
-					{ paneId: b, size: 50 },
-				],
-			},
-			paneIds: [a, b],
-		};
-	},
+	"2-column": twoPane("horizontal"),
+	"2-row": twoPane("vertical"),
+	"3-panel-l": threePanel("horizontal", "vertical"),
+	"3-panel-t": threePanel("vertical", "horizontal"),
 
-	"2-row": (ids) => {
-		const [a, b] = [ids(), ids()];
+	"2x2-grid": (generateId) => {
+		const [tl, tr, bl, br] = [generateId(), generateId(), generateId(), generateId()];
 		return {
-			tree: {
-				direction: "vertical",
-				size: 100,
-				children: [
-					{ paneId: a, size: 50 },
-					{ paneId: b, size: 50 },
-				],
-			},
-			paneIds: [a, b],
-		};
-	},
-
-	"3-panel-l": (ids) => {
-		const [main, tr, br] = [ids(), ids(), ids()];
-		return {
-			tree: {
-				direction: "horizontal",
-				size: 100,
-				children: [
-					{ paneId: main, size: 60 },
-					{
-						direction: "vertical",
-						size: 40,
-						children: [
-							{ paneId: tr, size: 50 },
-							{ paneId: br, size: 50 },
-						],
-					},
-				],
-			},
-			paneIds: [main, tr, br],
-		};
-	},
-
-	"3-panel-t": (ids) => {
-		const [top, bl, bRight] = [ids(), ids(), ids()];
-		return {
-			tree: {
-				direction: "vertical",
-				size: 100,
-				children: [
-					{ paneId: top, size: 60 },
-					{
-						direction: "horizontal",
-						size: 40,
-						children: [
-							{ paneId: bl, size: 50 },
-							{ paneId: bRight, size: 50 },
-						],
-					},
-				],
-			},
-			paneIds: [top, bl, bRight],
-		};
-	},
-
-	"2x2-grid": (ids) => {
-		const [tl, tr, bl, br] = [ids(), ids(), ids(), ids()];
-		return {
-			tree: {
-				direction: "vertical",
-				size: 100,
-				children: [
-					{
-						direction: "horizontal",
-						size: 50,
-						children: [
-							{ paneId: tl, size: 50 },
-							{ paneId: tr, size: 50 },
-						],
-					},
-					{
-						direction: "horizontal",
-						size: 50,
-						children: [
-							{ paneId: bl, size: 50 },
-							{ paneId: br, size: 50 },
-						],
-					},
-				],
-			},
-			paneIds: [tl, tr, bl, br],
+			tree: createBranch("vertical", 100, [
+				createBranch("horizontal", 50, [createLeaf(tl, 50), createLeaf(tr, 50)]),
+				createBranch("horizontal", 50, [createLeaf(bl, 50), createLeaf(br, 50)]),
+			]),
 		};
 	},
 };
@@ -122,7 +63,8 @@ export function createLayoutFromPreset(
 	defaultCwd: string,
 ): { layout: WorkspaceLayout; panes: Record<string, PaneConfig> } {
 	const factory = PRESET_FACTORIES[preset];
-	const { tree, paneIds } = factory(generateId);
+	const { tree } = factory(generateId);
+	const paneIds = getPaneIdsInOrder(tree);
 
 	const panes: Record<string, PaneConfig> = {};
 	for (const id of paneIds) {
@@ -135,12 +77,5 @@ export function createLayoutFromPreset(
 	};
 }
 
-/** All available preset names. */
-export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
-	"single",
-	"2-column",
-	"2-row",
-	"3-panel-l",
-	"3-panel-t",
-	"2x2-grid",
-];
+/** All available preset names, derived from PRESET_FACTORIES. */
+export const LAYOUT_PRESETS = Object.keys(PRESET_FACTORIES) as LayoutPreset[];

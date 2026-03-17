@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LayoutBranch, LayoutNode } from "../../types/workspace";
+import { createBranch, createLeaf, isLayoutBranch } from "../../types/workspace";
 import {
 	countPanes,
 	findPanePath,
@@ -14,32 +15,17 @@ import {
 
 // -- Fixtures --
 
-const singleLeaf: LayoutNode = { paneId: "a", size: 100 };
+const singleLeaf: LayoutNode = createLeaf("a", 100);
 
-const twoColumn: LayoutBranch = {
-	direction: "horizontal",
-	size: 100,
-	children: [
-		{ paneId: "a", size: 50 },
-		{ paneId: "b", size: 50 },
-	],
-};
+const twoColumn: LayoutBranch = createBranch("horizontal", 100, [
+	createLeaf("a", 50),
+	createLeaf("b", 50),
+]);
 
-const nested: LayoutBranch = {
-	direction: "vertical",
-	size: 100,
-	children: [
-		{ paneId: "a", size: 60 },
-		{
-			direction: "horizontal",
-			size: 40,
-			children: [
-				{ paneId: "b", size: 50 },
-				{ paneId: "c", size: 50 },
-			],
-		},
-	],
-};
+const nested: LayoutBranch = createBranch("vertical", 100, [
+	createLeaf("a", 60),
+	createBranch("horizontal", 40, [createLeaf("b", 50), createLeaf("c", 50)]),
+]);
 
 // -- getFirstPaneId --
 
@@ -76,36 +62,35 @@ describe("removeLeaf", () => {
 		expect(removeLeaf(singleLeaf, "a")).toBeUndefined();
 	});
 
-	it("does not modify tree when pane not found", () => {
-		expect(removeLeaf(twoColumn, "z")).toEqual(twoColumn);
+	it("returns original reference when pane not found", () => {
+		const result = removeLeaf(twoColumn, "z");
+		expect(result).toBe(twoColumn);
 	});
 
 	it("collapses single-child branch after removal", () => {
 		const result = removeLeaf(twoColumn, "a");
-		expect(result).toEqual({ paneId: "b", size: 100 });
+		expect(result).toEqual(createLeaf("b", 100));
 	});
 
-	it("redistributes sizes after removal from 3-child branch", () => {
-		const threeChildren: LayoutBranch = {
-			direction: "horizontal",
-			size: 100,
-			children: [
-				{ paneId: "a", size: 33.33 },
-				{ paneId: "b", size: 33.33 },
-				{ paneId: "c", size: 33.33 },
-			],
-		};
+	it("redistributes sizes proportionally after removal from 3-child branch", () => {
+		const threeChildren: LayoutBranch = createBranch("horizontal", 100, [
+			createLeaf("a", 33.33),
+			createLeaf("b", 33.33),
+			createLeaf("c", 33.33),
+		]);
 		const result = removeLeaf(threeChildren, "b") as LayoutBranch;
 		expect(result.children).toHaveLength(2);
-		const totalSize = result.children.reduce((s, c) => s + c.size, 0);
-		expect(totalSize).toBeCloseTo(100);
+		expect(result.children[0]?.size).toBeCloseTo(50);
+		expect(result.children[1]?.size).toBeCloseTo(50);
 	});
 
-	it("removes from nested tree and collapses", () => {
+	it("removes from nested tree and collapses with correct size", () => {
 		const result = removeLeaf(nested, "b") as LayoutBranch;
 		// After removing "b", the inner branch collapses to just "c"
 		expect(getPaneIdsInOrder(result)).toEqual(["a", "c"]);
 		expect(result.children).toHaveLength(2);
+		// Promoted child inherits the parent branch's size (40), not its own (50)
+		expect(result.children[1]?.size).toBe(40);
 	});
 });
 
@@ -113,18 +98,23 @@ describe("removeLeaf", () => {
 
 describe("replaceLeaf", () => {
 	it("replaces a leaf at root level", () => {
-		const result = replaceLeaf(singleLeaf, "a", () => ({ paneId: "x", size: 100 }));
-		expect(result).toEqual({ paneId: "x", size: 100 });
+		const result = replaceLeaf(singleLeaf, "a", () => createLeaf("x", 100));
+		expect(result).toEqual(createLeaf("x", 100));
 	});
 
 	it("replaces a leaf in a branch", () => {
-		const result = replaceLeaf(twoColumn, "b", () => ({ paneId: "x", size: 50 }));
+		const result = replaceLeaf(twoColumn, "b", () => createLeaf("x", 50));
 		expect(getPaneIdsInOrder(result)).toEqual(["a", "x"]);
 	});
 
-	it("does not modify when pane not found", () => {
-		const result = replaceLeaf(twoColumn, "z", () => ({ paneId: "x", size: 50 }));
-		expect(result).toEqual(twoColumn);
+	it("returns original reference when pane not found", () => {
+		const result = replaceLeaf(twoColumn, "z", () => createLeaf("x", 50));
+		expect(result).toBe(twoColumn);
+	});
+
+	it("replaces a leaf in a nested tree", () => {
+		const result = replaceLeaf(nested, "c", () => createLeaf("x", 50));
+		expect(getPaneIdsInOrder(result)).toEqual(["a", "b", "x"]);
 	});
 });
 
@@ -133,12 +123,18 @@ describe("replaceLeaf", () => {
 describe("remapTree", () => {
 	it("remaps a single leaf", () => {
 		const result = remapTree(singleLeaf, (id) => `new-${id}`);
-		expect(result).toEqual({ paneId: "new-a", size: 100 });
+		expect(result).toEqual(createLeaf("new-a", 100));
 	});
 
-	it("remaps all leaves in a nested tree", () => {
+	it("remaps all leaves in a nested tree preserving structure", () => {
 		const result = remapTree(nested, (id) => `new-${id}`);
 		expect(getPaneIdsInOrder(result)).toEqual(["new-a", "new-b", "new-c"]);
+		// Verify structure is preserved
+		expect(isLayoutBranch(result)).toBe(true);
+		const branch = result as LayoutBranch;
+		expect(branch.direction).toBe("vertical");
+		expect(branch.children[0]?.size).toBe(60);
+		expect(branch.children[1]?.size).toBe(40);
 	});
 });
 
@@ -166,6 +162,13 @@ describe("updateSizesAtPath", () => {
 	it("returns node unchanged for mismatched sizes length", () => {
 		const result = updateSizesAtPath(twoColumn, [], [50]);
 		expect(result).toEqual(twoColumn);
+	});
+
+	it("returns node unchanged for invalid sizes (NaN, negative)", () => {
+		const result = updateSizesAtPath(twoColumn, [], [Number.NaN, 50]);
+		expect(result).toBe(twoColumn);
+		const result2 = updateSizesAtPath(twoColumn, [], [-10, 110]);
+		expect(result2).toBe(twoColumn);
 	});
 });
 
@@ -209,17 +212,51 @@ describe("splitAtPane", () => {
 		expect(result.direction).toBe("horizontal");
 		expect(result.children).toHaveLength(2);
 		expect(getPaneIdsInOrder(result)).toEqual(["a", "new"]);
+		// New branch inherits original leaf's size
+		expect(result.size).toBe(100);
+		// Children each get 50%
+		expect(result.children[0]?.size).toBe(50);
+		expect(result.children[1]?.size).toBe(50);
 	});
 
-	it("splits a leaf inside a branch", () => {
+	it("splits a leaf inside a branch with correct size inheritance", () => {
 		const result = splitAtPane(twoColumn, "b", "new", "vertical");
 		expect(countPanes(result)).toBe(3);
 		expect(getPaneIdsInOrder(result)).toEqual(["a", "b", "new"]);
+		// Inner branch should inherit original leaf's size (50)
+		const branch = result as LayoutBranch;
+		const innerBranch = branch.children[1] as LayoutBranch;
+		expect(innerBranch.size).toBe(50);
 	});
 
 	it("preserves the rest of the tree", () => {
 		const result = splitAtPane(nested, "c", "new", "horizontal");
 		expect(countPanes(result)).toBe(4);
 		expect(getPaneIdsInOrder(result)).toEqual(["a", "b", "c", "new"]);
+	});
+
+	it("returns original reference when pane not found", () => {
+		const result = splitAtPane(twoColumn, "z", "new", "horizontal");
+		expect(result).toBe(twoColumn);
+	});
+});
+
+// -- Immutability --
+
+describe("immutability", () => {
+	it("does not mutate input nodes", () => {
+		const frozen = Object.freeze(
+			createBranch("horizontal", 100, [
+				Object.freeze(createLeaf("a", 50)),
+				Object.freeze(createLeaf("b", 50)),
+			]),
+		);
+		Object.freeze(frozen.children);
+
+		// These should not throw despite frozen input
+		expect(() => removeLeaf(frozen, "a")).not.toThrow();
+		expect(() => replaceLeaf(frozen, "a", () => createLeaf("x", 50))).not.toThrow();
+		expect(() => splitAtPane(frozen, "a", "new", "vertical")).not.toThrow();
+		expect(() => updateSizesAtPath(frozen, [], [60, 40])).not.toThrow();
 	});
 });
