@@ -20,6 +20,13 @@ vi.mock("@tauri-apps/api/event", () => ({
 	listen: vi.fn(async () => () => {}),
 }));
 
+/** Get activePaneId with a preceding assertion so Biome doesn't require non-null assertions. */
+function getActivePaneId(): string {
+	const id = useWorkspaceStore.getState().activePaneId;
+	if (!id) throw new Error("Expected activePaneId to be set");
+	return id;
+}
+
 function resetStore() {
 	useWorkspaceStore.setState({
 		workspaces: {},
@@ -222,11 +229,9 @@ describe("workspace store", () => {
 	describe("splitPane", () => {
 		it("splits a pane and sets new pane as active", () => {
 			const id = useWorkspaceStore.getState().createWorkspace();
-			const state = useWorkspaceStore.getState();
-			const paneId = state.activePaneId;
-			expect(paneId).toBeTruthy();
+			const paneId = getActivePaneId();
 
-			useWorkspaceStore.getState().splitPane(paneId!, "horizontal");
+			useWorkspaceStore.getState().splitPane(paneId, "horizontal");
 
 			const after = useWorkspaceStore.getState();
 			const ws = after.workspaces[id];
@@ -249,11 +254,11 @@ describe("workspace store", () => {
 	describe("closePane", () => {
 		it("closes a pane and updates active pane", () => {
 			const id = useWorkspaceStore.getState().createWorkspace();
-			const paneId = useWorkspaceStore.getState().activePaneId!;
+			const paneId = getActivePaneId();
 
 			// Split to have 2 panes
 			useWorkspaceStore.getState().splitPane(paneId, "horizontal");
-			const newPaneId = useWorkspaceStore.getState().activePaneId!;
+			const newPaneId = getActivePaneId();
 			expect(newPaneId).not.toBe(paneId);
 
 			// Close the new pane
@@ -266,7 +271,7 @@ describe("workspace store", () => {
 
 		it("removes workspace when last pane is closed", () => {
 			const id = useWorkspaceStore.getState().createWorkspace();
-			const paneId = useWorkspaceStore.getState().activePaneId!;
+			const paneId = getActivePaneId();
 
 			useWorkspaceStore.getState().closePane(paneId);
 
@@ -282,7 +287,7 @@ describe("workspace store", () => {
 	describe("updatePaneSizes", () => {
 		it("updates sizes at a given path", () => {
 			const id = useWorkspaceStore.getState().createWorkspace();
-			const paneId = useWorkspaceStore.getState().activePaneId!;
+			const paneId = getActivePaneId();
 
 			// Split to create a branch
 			useWorkspaceStore.getState().splitPane(paneId, "horizontal");
@@ -305,7 +310,7 @@ describe("workspace store", () => {
 	describe("initPane", () => {
 		it("creates terminal and stores state", async () => {
 			useWorkspaceStore.getState().createWorkspace();
-			const paneId = useWorkspaceStore.getState().activePaneId!;
+			const paneId = getActivePaneId();
 
 			await useWorkspaceStore.getState().initPane(paneId);
 
@@ -319,7 +324,7 @@ describe("workspace store", () => {
 		it("skips if terminal already initialized", async () => {
 			const { invoke } = await import("@tauri-apps/api/core");
 			useWorkspaceStore.getState().createWorkspace();
-			const paneId = useWorkspaceStore.getState().activePaneId!;
+			const paneId = getActivePaneId();
 
 			await useWorkspaceStore.getState().initPane(paneId);
 			const callCount = vi.mocked(invoke).mock.calls.length;
