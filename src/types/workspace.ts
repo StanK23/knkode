@@ -54,6 +54,9 @@ export const WORKSPACE_COLORS = [
 	"#e67e22",
 ] as const;
 
+/** Default workspace color — used as fallback when color is undefined. */
+export const DEFAULT_WORKSPACE_COLOR = WORKSPACE_COLORS[0];
+
 /**
  * Full workspace definition.
  * The panes record is keyed by paneId values from the layout tree's leaf nodes.

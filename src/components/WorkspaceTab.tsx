@@ -1,57 +1,54 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { getPaneIdsInOrder } from "../lib/layout-tree";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { countPanes } from "../lib/layout-tree";
 import { useWorkspaceStore } from "../store/workspace";
+import { DEFAULT_WORKSPACE_COLOR } from "../types/workspace";
 
 interface WorkspaceTabProps {
 	workspaceId: string;
 	canClose: boolean;
 	isRenaming: boolean;
 	onContextMenu: (e: React.MouseEvent, workspaceId: string) => void;
+	onStartRename: (workspaceId: string) => void;
 	onRenameComplete: () => void;
 }
 
-export default function WorkspaceTab({
+export default memo(function WorkspaceTab({
 	workspaceId,
 	canClose,
-	isRenaming: externalRenaming,
+	isRenaming,
 	onContextMenu,
+	onStartRename,
 	onRenameComplete,
 }: WorkspaceTabProps) {
 	const isActive = useWorkspaceStore((s) => s.activeWorkspaceId === workspaceId);
 	const name = useWorkspaceStore((s) => s.workspaces[workspaceId]?.name ?? "");
-	const color = useWorkspaceStore((s) => s.workspaces[workspaceId]?.color ?? "#6c63ff");
+	const color = useWorkspaceStore(
+		(s) => s.workspaces[workspaceId]?.color ?? DEFAULT_WORKSPACE_COLOR,
+	);
 	const paneCount = useWorkspaceStore((s) => {
 		const ws = s.workspaces[workspaceId];
-		return ws ? getPaneIdsInOrder(ws.layout.tree).length : 0;
+		return ws ? countPanes(ws.layout.tree) : 0;
 	});
 	const setActiveWorkspace = useWorkspaceStore((s) => s.setActiveWorkspace);
 	const renameWorkspace = useWorkspaceStore((s) => s.renameWorkspace);
 	const removeWorkspace = useWorkspaceStore((s) => s.removeWorkspace);
 
-	const [isEditing, setIsEditing] = useState(false);
-	const [draft, setDraft] = useState(name);
+	const [draft, setDraft] = useState("");
 	const inputRef = useRef<HTMLInputElement>(null);
 
-	// Trigger editing from parent (context menu "Rename") or double-click
+	// Trigger editing from parent via context menu "Rename"
 	useEffect(() => {
-		if (externalRenaming && !isEditing) {
-			setIsEditing(true);
-		}
-	}, [externalRenaming, isEditing]);
-
-	useEffect(() => {
-		if (isEditing) {
+		if (isRenaming) {
 			setDraft(name);
 			requestAnimationFrame(() => inputRef.current?.select());
 		}
-	}, [isEditing, name]);
+	}, [isRenaming, name]);
 
 	const commitRename = useCallback(() => {
 		const trimmed = draft.trim();
 		if (trimmed && trimmed !== name) {
 			renameWorkspace(workspaceId, trimmed);
 		}
-		setIsEditing(false);
 		onRenameComplete();
 	}, [draft, name, renameWorkspace, workspaceId, onRenameComplete]);
 
@@ -60,15 +57,15 @@ export default function WorkspaceTab({
 	}, [isActive, setActiveWorkspace, workspaceId]);
 
 	const handleDoubleClick = useCallback(() => {
-		setIsEditing(true);
-	}, []);
+		onStartRename(workspaceId);
+	}, [onStartRename, workspaceId]);
 
-	const handleKeyDown = useCallback(
+	const handleInputKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
+			e.stopPropagation();
 			if (e.key === "Enter") {
 				commitRename();
 			} else if (e.key === "Escape") {
-				setIsEditing(false);
 				onRenameComplete();
 			}
 		},
@@ -87,10 +84,10 @@ export default function WorkspaceTab({
 		(e: React.KeyboardEvent) => {
 			if (e.key === "Enter" || e.key === " ") {
 				e.preventDefault();
-				if (!isActive) setActiveWorkspace(workspaceId);
+				handleClick();
 			}
 		},
-		[isActive, setActiveWorkspace, workspaceId],
+		[handleClick],
 	);
 
 	const handleContextMenu = useCallback(
@@ -100,6 +97,8 @@ export default function WorkspaceTab({
 		},
 		[onContextMenu, workspaceId],
 	);
+
+	const isEditing = isRenaming;
 
 	return (
 		<div
@@ -117,39 +116,37 @@ export default function WorkspaceTab({
 			onKeyDown={handleTabKeyDown}
 			onContextMenu={handleContextMenu}
 		>
-			{/* Color dot */}
 			<span
 				className="inline-block size-2 shrink-0 rounded-full"
 				style={{ backgroundColor: color }}
 			/>
 
-			{/* Name or rename input */}
 			{isEditing ? (
 				<input
 					ref={inputRef}
 					className="w-20 bg-transparent text-xs text-neutral-200 outline-none"
 					value={draft}
+					maxLength={128}
 					onChange={(e) => setDraft(e.target.value)}
 					onBlur={commitRename}
-					onKeyDown={handleKeyDown}
+					onKeyDown={handleInputKeyDown}
 				/>
 			) : (
 				<span className="max-w-32 truncate">{name}</span>
 			)}
 
-			{/* Pane count badge */}
 			{paneCount > 1 && (
 				<span className="rounded bg-white/[0.06] px-1 text-[10px] text-neutral-500">
 					{paneCount}
 				</span>
 			)}
 
-			{/* Close button */}
 			{canClose && (
 				<button
 					type="button"
 					className="ml-0.5 hidden size-4 items-center justify-center rounded text-neutral-500 hover:bg-white/10 hover:text-neutral-300 group-hover:inline-flex"
 					onClick={handleClose}
+					aria-label="Close workspace"
 					tabIndex={-1}
 				>
 					×
@@ -157,4 +154,4 @@ export default function WorkspaceTab({
 			)}
 		</div>
 	);
-}
+});

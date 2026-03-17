@@ -5,20 +5,21 @@ import WorkspaceTab from "./WorkspaceTab";
 
 interface ContextMenuState {
 	workspaceId: string;
-	x: number;
-	y: number;
+	clientX: number;
+	clientY: number;
 }
 
 export default function TabBar() {
 	const openWorkspaceIds = useWorkspaceStore((s) => s.openWorkspaceIds);
 	const createWorkspace = useWorkspaceStore((s) => s.createWorkspace);
+	const initWorkspace = useWorkspaceStore((s) => s.initWorkspace);
 	const canClose = openWorkspaceIds.length > 1;
 
 	const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 	const [renamingId, setRenamingId] = useState<string | null>(null);
 
 	const handleContextMenu = useCallback((e: React.MouseEvent, workspaceId: string) => {
-		setContextMenu({ workspaceId, x: e.clientX, y: e.clientY });
+		setContextMenu({ workspaceId, clientX: e.clientX, clientY: e.clientY });
 	}, []);
 
 	const handleCloseMenu = useCallback(() => {
@@ -34,8 +35,6 @@ export default function TabBar() {
 		setRenamingId(null);
 	}, []);
 
-	const initWorkspace = useWorkspaceStore((s) => s.initWorkspace);
-
 	const handleCreate = useCallback(() => {
 		const id = createWorkspace();
 		initWorkspace(id).catch(console.error);
@@ -45,6 +44,7 @@ export default function TabBar() {
 		<div
 			className="flex h-9 shrink-0 items-stretch border-b border-neutral-700 bg-neutral-900"
 			role="tablist"
+			aria-label="Workspaces"
 		>
 			{openWorkspaceIds.map((id) => (
 				<WorkspaceTab
@@ -53,16 +53,17 @@ export default function TabBar() {
 					canClose={canClose}
 					isRenaming={renamingId === id}
 					onContextMenu={handleContextMenu}
+					onStartRename={handleStartRename}
 					onRenameComplete={handleRenameComplete}
 				/>
 			))}
 
-			{/* New workspace button */}
 			<button
 				type="button"
 				className="flex items-center px-3 text-neutral-500 hover:text-neutral-300"
 				onClick={handleCreate}
 				title="New workspace"
+				aria-label="New workspace"
 			>
 				<span className="text-sm">+</span>
 			</button>
@@ -70,8 +71,9 @@ export default function TabBar() {
 			{contextMenu && (
 				<TabContextMenu
 					workspaceId={contextMenu.workspaceId}
-					x={contextMenu.x}
-					y={contextMenu.y}
+					x={contextMenu.clientX}
+					y={contextMenu.clientY}
+					canClose={canClose}
 					onClose={handleCloseMenu}
 					onStartRename={handleStartRename}
 				/>

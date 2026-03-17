@@ -19,7 +19,7 @@ import type {
 	Workspace,
 	WorkspaceLayout,
 } from "../types/workspace";
-import { WORKSPACE_COLORS } from "../types/workspace";
+import { DEFAULT_WORKSPACE_COLOR, WORKSPACE_COLORS } from "../types/workspace";
 
 const EVENT_TERMINAL_OUTPUT = "terminal-output";
 const EVENT_TERMINAL_EXIT = "terminal-exit";
@@ -31,7 +31,7 @@ function generateId(): string {
 /** Pick the next color from the palette based on workspace count. */
 function nextColor(count: number): (typeof WORKSPACE_COLORS)[number] {
 	// Fallback satisfies noUncheckedIndexedAccess — modulo guarantees a valid index
-	return WORKSPACE_COLORS[count % WORKSPACE_COLORS.length] ?? "#6c63ff";
+	return WORKSPACE_COLORS[count % WORKSPACE_COLORS.length] ?? DEFAULT_WORKSPACE_COLOR;
 }
 
 /** Find which workspace owns a pane, checking active workspace first. */
