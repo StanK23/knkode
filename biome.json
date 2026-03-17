@@ -38,7 +38,8 @@
 			"linter": {
 				"rules": {
 					"a11y": {
-						"noStaticElementInteractions": "off"
+						"noStaticElementInteractions": "off",
+						"useSemanticElements": "off"
 					}
 				}
 			}

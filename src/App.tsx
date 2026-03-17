@@ -39,17 +39,12 @@ function ActiveWorkspace() {
 	const tree = useWorkspaceStore((s) =>
 		activeWorkspaceId ? (s.workspaces[activeWorkspaceId]?.layout.tree ?? null) : null,
 	);
-	const workspaceColor = useWorkspaceStore((s) =>
-		activeWorkspaceId ? (s.workspaces[activeWorkspaceId]?.color ?? null) : null,
-	);
 
-	if (!activeWorkspaceId || !tree || !workspaceColor) {
+	if (!activeWorkspaceId || !tree) {
 		return (
 			<div className="flex h-full items-center justify-center text-neutral-500">No workspace</div>
 		);
 	}
 
-	return (
-		<SplitPaneLayout workspaceId={activeWorkspaceId} tree={tree} workspaceColor={workspaceColor} />
-	);
+	return <SplitPaneLayout workspaceId={activeWorkspaceId} tree={tree} />;
 }
