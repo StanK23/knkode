@@ -1,0 +1,41 @@
+# PR-5 Silent Failure Audit: Layout Types & Tree Operations
+
+## Summary
+
+This PR introduces pure TypeScript types and recursive tree operations for a layout system. The code is largely well-structured with immutable data patterns, but contains **multiple functions that silently return unchanged data on invalid input instead of signaling errors**, making bugs in calling code invisible to both developers and users. Additionally, several operations can silently produce corrupt tree state (sizes that don't sum to 100, empty branches) without any indication.
+
+## Must Fix
+
+- **`src/lib/layout-tree.ts:103` and `104` -- `updateSizesAtPath` silently ignores invalid input on two separate conditions.** When the path points to a leaf (line 103) or when the sizes array length doesn't match the children count (line 104), the function returns the node unchanged with no indication that the operation failed. A caller resizing panes via drag will see nothing happen -- no error, no feedback. The caller has zero way to distinguish "the update succeeded" from "the input was invalid." This is especially dangerous because a mismatched `sizes.length` almost certainly indicates a bug in the calling code that should be caught immediately, not papered over. Should return a discriminated result type (e.g., `{ ok: true, node } | { ok: false, reason: string }`) or throw.
+
+- **`src/lib/layout-tree.ts:115` -- `updateSizesAtPath` silently ignores an invalid path mid-traversal.** When the path reaches a leaf before being fully consumed (the path still has entries but the node is a leaf), the function silently returns the unchanged node. This means a corrupted or stale path (e.g., from a race condition where the tree changed between `findPanePath` and `updateSizesAtPath`) will silently do nothing. The user drags a divider and nothing moves, with no diagnostic information anywhere.
+
+- **`src/lib/layout-tree.ts:30-59` -- `removeLeaf` silently returns the unchanged tree when the target paneId is not found.** If a caller passes a stale or incorrect pane ID (e.g., from a closed pane that was already removed), the function silently returns the original tree. The caller cannot distinguish "removal succeeded" from "pane didn't exist." This is a data integrity risk: the caller may proceed to delete the pane's config from the `panes` record, creating an orphaned leaf in the tree with no corresponding config. The test at line 80 (`layout-tree.test.ts`) explicitly tests and endorses this silent behavior.
+
+- **`src/lib/layout-tree.ts:65-78` -- `replaceLeaf` silently returns the unchanged tree when the target paneId is not found.** Same issue as `removeLeaf`. A stale pane ID results in a completely silent no-op. The caller will believe the replacement happened. If this is used during a split operation on a pane that was just closed by another action, the new pane's config will be created but the tree won't contain it -- an invisible orphan. The test at line 125 (`layout-tree.test.ts`) endorses this silent behavior.
+
+- **`src/lib/layout-tree.ts:157-171` -- `splitAtPane` inherits `replaceLeaf`'s silent failure.** When `targetPaneId` is not found, `splitAtPane` returns the original tree unchanged. The caller will have generated a new pane ID and potentially created a pane config for it, but the tree has no corresponding leaf. This creates a silent pane leak -- the config exists but the pane is never rendered, and the user has no idea why their split didn't work.
+
+## Suggestions
+
+- **`src/lib/layout-tree.ts:52-56` -- `removeLeaf` size redistribution can produce floating-point drift.** The redistribution formula `(c.size / totalSize) * 100` will produce values that don't sum to exactly 100 due to floating-point arithmetic (e.g., removing from three 33.33% panes yields two 50.0015...% panes). Over many remove/add cycles this drift accumulates. Consider rounding the last child's size to `100 - sumOfOthers` to ensure the invariant holds exactly.
+
+- **`src/lib/layout-tree.ts:52` -- `removeLeaf` has an edge case when `totalSize` is 0.** If all remaining children have `size: 0` (admittedly unusual), the fallback `100 / newChildren.length` kicks in. However, no validation prevents `size: 0` children from being created elsewhere, and the fact that this specific edge case is handled suggests it has been encountered. Consider validating that sizes are positive earlier in the pipeline rather than patching here.
+
+- **`src/types/workspace.ts:17` -- `LayoutBranch.children` has no minimum length constraint.** The type allows `children: readonly LayoutNode[]` which permits empty arrays and single-child branches. An empty `children` array would cause `getFirstPaneId` to return `undefined`, `getPaneIdsInOrder` to return `[]`, and `countPanes` to return `0` -- all silently. A `children` array with a single element is structurally degenerate (a branch with one child should be collapsed). Consider adding a branded type or a runtime assertion in tree construction functions to enforce `children.length >= 2`.
+
+- **`src/types/workspace.ts:8` -- `LayoutLeaf.size` and `LayoutBranch.size` have no runtime validation.** The JSDoc says "0-100" but nothing prevents negative sizes or sizes > 100. Tree operations like `removeLeaf` redistribute sizes proportionally, which would produce nonsensical results with negative inputs. Consider a `newSize` helper that clamps or throws on out-of-range values.
+
+- **`src/lib/layout-tree.ts:108-111` -- `updateSizesAtPath` uses nullish coalescing (`sizes[i] ?? child.size`) despite having already validated `sizes.length === node.children.length`.** The `??` on line 110 is dead code -- `sizes[i]` will never be `undefined` since the lengths match and `i` is within bounds. While harmless, this is misleading: it suggests the author anticipated a case where `sizes[i]` could be missing, which contradicts the guard on line 104. If the intent is to allow partial size updates, the length guard should be removed. If not, the `??` should be removed to avoid confusion.
+
+- **`src/lib/layout-presets.ts:124-125` -- `createLayoutFromPreset` does not validate that `generateId` returns unique IDs.** If the `generateId` function returns duplicate IDs (e.g., a broken UUID generator), the resulting tree will have duplicate pane IDs and the `panes` record will silently overwrite earlier entries. The 3-panel and 4-panel presets would lose pane configs with no error. Consider adding a `Set`-based uniqueness check on `paneIds` before returning.
+
+- **`src/lib/__tests__/layout-presets.test.ts:47-49` and `54-56` -- Tests use `if (isLayoutBranch(...))` guards that silently skip assertions.** In the "2-column" and "2-row" tests, the direction assertion is wrapped in an `if` guard. If a regression causes `layout.tree` to be a leaf instead of a branch, the test will pass without checking the direction at all. These should use `expect(isLayoutBranch(layout.tree)).toBe(true)` before the assertion, or restructure to fail explicitly when the guard is false.
+
+## Nitpicks
+
+- **`src/lib/layout-tree.ts:8` -- `getFirstPaneId` documents "Returns undefined for empty branches" but this is impossible by construction.** Every branch is created by preset factories with at least 2 children, and `splitAtPane` always creates 2 children. The `undefined` return type adds unnecessary defensive complexity for callers who must handle a case that currently cannot occur. If empty branches are truly impossible, the return type should be `string` with a runtime assertion as a safety net.
+
+- **`src/lib/layout-presets.ts:139-146` -- `LAYOUT_PRESETS` array is manually maintained separately from `PRESET_FACTORIES`.** If a new preset is added to the `LayoutPreset` type and `PRESET_FACTORIES` but not to `LAYOUT_PRESETS`, the constant will be silently incomplete. Consider deriving it: `export const LAYOUT_PRESETS = Object.keys(PRESET_FACTORIES) as LayoutPreset[]`.
+
+- **`src/types/workspace.ts:70-76` -- Type guards use `"paneId" in node` / `"direction" in node` which could be defeated by malformed data.** An object with both `paneId` and `direction` properties would satisfy both guards. This is unlikely with TypeScript-typed code but could occur when deserializing user-saved layouts from disk or IPC. Consider checking for the absence of the other property as well, or use a `type` discriminant field.
