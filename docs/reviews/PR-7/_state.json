@@ -1,0 +1,22 @@
+{
+  "type": "watch-pr",
+  "pr_number": 7,
+  "pr_title": "feat: recursive split pane layout with allotment",
+  "branch": "feature/split-pane-renderer",
+  "base_branch": "main",
+  "head_sha": "44503c6b5e42dbd30108ae9bbbbe56ea1f733e0e",
+  "started_at": "2026-03-17T13:50:00Z",
+  "agents": {
+    "code-reviewer": { "status": "completed", "file": "code-reviewer.md" },
+    "security-auditor": { "status": "completed", "file": "security-auditor.md" },
+    "code-simplifier": { "status": "completed", "file": "code-simplifier.md" },
+    "dry-reuse": { "status": "completed", "file": "dry-reuse.md" },
+    "comment-analyzer": { "status": "completed", "file": "comment-analyzer.md" },
+    "type-design-analyzer": { "status": "completed", "file": "type-design-analyzer.md" },
+    "typescript-reviewer": { "status": "completed", "file": "typescript-reviewer.md" },
+    "frontend-reviewer": { "status": "completed", "file": "frontend-reviewer.md" },
+    "efficiency": { "status": "completed", "file": "efficiency.md" }
+  },
+  "phase": "done",
+  "compiled": true
+}

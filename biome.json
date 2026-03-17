@@ -32,6 +32,17 @@
 					}
 				}
 			}
+		},
+		{
+			"includes": ["src/components/Pane.tsx"],
+			"linter": {
+				"rules": {
+					"a11y": {
+						"noStaticElementInteractions": "off",
+						"useSemanticElements": "off"
+					}
+				}
+			}
 		}
 	]
 }

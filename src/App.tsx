@@ -1,15 +1,8 @@
 import { useEffect, useRef } from "react";
-import Terminal from "./components/Terminal";
+import SplitPaneLayout from "./components/SplitPaneLayout";
 import { useWorkspaceStore } from "./store/workspace";
 
 export default function App() {
-	const activePaneId = useWorkspaceStore((s) => s.activePaneId);
-	const connected = useWorkspaceStore((s) =>
-		activePaneId ? (s.paneTerminals[activePaneId]?.connected ?? false) : false,
-	);
-	const error = useWorkspaceStore((s) =>
-		activePaneId ? (s.paneTerminals[activePaneId]?.error ?? null) : null,
-	);
 	const initedRef = useRef(false);
 
 	useEffect(() => {
@@ -36,13 +29,22 @@ export default function App() {
 
 	return (
 		<div className="flex h-screen w-screen flex-col bg-[#1d1f21]">
-			{activePaneId && connected ? (
-				<Terminal paneId={activePaneId} />
-			) : (
-				<div className="flex h-full items-center justify-center text-neutral-500">
-					{error ?? "Terminal disconnected"}
-				</div>
-			)}
+			<ActiveWorkspace />
 		</div>
 	);
+}
+
+function ActiveWorkspace() {
+	const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
+	const tree = useWorkspaceStore((s) =>
+		activeWorkspaceId ? (s.workspaces[activeWorkspaceId]?.layout.tree ?? null) : null,
+	);
+
+	if (!activeWorkspaceId || !tree) {
+		return (
+			<div className="flex h-full items-center justify-center text-neutral-500">No workspace</div>
+		);
+	}
+
+	return <SplitPaneLayout workspaceId={activeWorkspaceId} tree={tree} />;
 }
