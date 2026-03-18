@@ -5,12 +5,15 @@ use std::time::Duration;
 use tauri::Manager;
 
 const DEBOUNCE_MS: u64 = 500;
+// Must match minWidth/minHeight in tauri.conf.json
+const MIN_WINDOW_WIDTH: f64 = 600.0;
+const MIN_WINDOW_HEIGHT: f64 = 400.0;
 
 /// Apply platform-specific window effects, restore saved bounds, and show.
 ///
 /// Static config (titleBarStyle, trafficLightPosition, shadow, transparent)
 /// lives in `tauri.conf.json`. This function handles:
-/// - Platform-conditional effects (macOS vibrancy, Windows acrylic)
+/// - Platform-conditional effects (macOS translucency, Windows acrylic)
 /// - Window bounds restore from app-state.json
 /// - Bounds watcher (debounced save on resize/move)
 /// - Showing the window after setup completes
@@ -39,7 +42,7 @@ fn apply_effects(window: &tauri::WebviewWindow) {
             .effect(Effect::UnderWindowBackground)
             .build();
         if let Err(e) = window.set_effects(effects) {
-            eprintln!("[window] Failed to set vibrancy: {e}");
+            eprintln!("[window] Failed to set window effect: {e}");
         }
     }
 
@@ -56,7 +59,7 @@ fn apply_effects(window: &tauri::WebviewWindow) {
         let _ = window.set_resizable(true);
     }
 
-    // Suppress unused variable warning on Linux
+    // Suppress unused variable warning on other platforms
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     let _ = window;
 }
@@ -82,7 +85,7 @@ fn restore_bounds(app: &tauri::App, window: &tauri::WebviewWindow) {
     let y = bounds.get("y").and_then(|v| v.as_f64());
 
     if let (Some(w), Some(h)) = (width, height) {
-        if w >= 600.0 && h >= 400.0 {
+        if w >= MIN_WINDOW_WIDTH && h >= MIN_WINDOW_HEIGHT {
             let _ = window.set_size(tauri::LogicalSize::new(w, h));
         }
     }
@@ -92,7 +95,7 @@ fn restore_bounds(app: &tauri::App, window: &tauri::WebviewWindow) {
     }
 }
 
-/// Watch for resize/move events and save bounds with 500ms debounce.
+/// Watch for resize/move events and save bounds with debounced writes.
 fn start_bounds_watcher(app: &tauri::App, window: &tauri::WebviewWindow) {
     let (tx, rx) = mpsc::channel::<()>();
     let window_clone = window.clone();
@@ -108,7 +111,7 @@ fn start_bounds_watcher(app: &tauri::App, window: &tauri::WebviewWindow) {
         }
     });
 
-    // Background thread: debounce 500ms then save
+    // Background thread: debounce then save
     std::thread::Builder::new()
         .name("bounds-watcher".into())
         .spawn(move || {
@@ -132,6 +135,7 @@ fn start_bounds_watcher(app: &tauri::App, window: &tauri::WebviewWindow) {
         .ok();
 }
 
+/// Persist current window bounds (logical units) to app-state.json.
 fn save_bounds(window: &tauri::WebviewWindow, config: &ConfigStore) {
     let Ok(size) = window.inner_size() else {
         return;
