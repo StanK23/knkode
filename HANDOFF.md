@@ -1,7 +1,7 @@
 # HANDOFF — knkode-v2
 
 ## Current State
-Phase 7 complete — Window configuration merged (PR #16).
+Phase 8 complete — Native menu merged (PR #17).
 
 ## What's Done
 - [x] Tauri 2 project scaffolded (React 19 + TypeScript 5.9 + Vite 6 + Tailwind CSS 4.2)
@@ -21,9 +21,9 @@ Phase 7 complete — Window configuration merged (PR #16).
 - [x] Phase 6a: Config store hardening — migrations, sanitization, permissions (PR #14 merged)
 - [x] Phase 6b: CWD tracker with git branch and PR detection (PR #15 merged)
 - [x] Phase 7: Window configuration — platform effects, bounds persistence (PR #16 merged)
+- [x] Phase 8: Native menu — platform-specific submenus via PredefinedMenuItem (PR #17 merged)
 
 ## What's Next
-- [ ] Phase 8: Native menu
 - [ ] Phase 9: Frontend changes (port v1 React code)
 
 ## Key Reference
