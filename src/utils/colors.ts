@@ -1,12 +1,15 @@
 import type React from 'react'
-import { TERMINAL_FONTS } from '../data/theme-presets'
+import { buildFontFamily } from '../data/theme-presets'
+
+const HEX_RE = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i
 
 /** Test whether a string is a valid hex color (#RGB, #RRGGBB, or bare RGB/RRGGBB). */
 export function isValidHex(hex: string): boolean {
-	return /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.test(hex)
+	return HEX_RE.test(hex)
 }
 
-/** Test whether a string is a safe CSS gradient (no injection vectors). */
+/** Coarse safety check for CSS gradient strings — blocks known dangerous tokens
+ *  but is not a comprehensive sanitizer. Uses a blocklist approach. */
 export function isValidGradient(value: string): boolean {
 	return (
 		/^(linear|radial|conic)-gradient\(/.test(value) &&
@@ -18,9 +21,16 @@ export function isValidGradient(value: string): boolean {
 	)
 }
 
+/** Default accent color for dark themes. */
+export const DEFAULT_ACCENT_DARK = '#6c63ff'
+/** Default accent color for light themes. */
+export const DEFAULT_ACCENT_LIGHT = '#4d46e5'
+/** Standard danger/error color. */
+export const COLOR_DANGER = '#e74c3c'
+
 /** Parse a hex color string (#RGB or #RRGGBB) into an RGB tuple. Returns [0,0,0] on malformed input. */
 export function hexToRgb(hex: string): [number, number, number] {
-	const match = hex.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i)
+	const match = hex.match(HEX_RE)
 	if (!match) {
 		console.warn('[theme] malformed hex color:', hex)
 		return [0, 0, 0]
@@ -52,16 +62,21 @@ export function rgbToHex(r: number, g: number, b: number): string {
 		.join('')}`
 }
 
-/** Linearly interpolate between two hex colors. Weight 1 = 100% color1, 0 = 100% color2. Clamps weight to [0, 1]. */
-export function mixColors(color1: string, color2: string, weight: number): string {
-	const c1 = hexToRgb(color1)
-	const c2 = hexToRgb(color2)
+type RGB = [number, number, number]
+
+/** Linearly interpolate between two RGB tuples. Avoids re-parsing when called in a loop. */
+function mixRgb(c1: RGB, c2: RGB, weight: number): string {
 	const w = Math.max(0, Math.min(1, weight))
 	return rgbToHex(
 		c1[0] * w + c2[0] * (1 - w),
 		c1[1] * w + c2[1] * (1 - w),
 		c1[2] * w + c2[2] * (1 - w),
 	)
+}
+
+/** Linearly interpolate between two hex colors. Weight 1 = 100% color1, 0 = 100% color2. Clamps weight to [0, 1]. */
+export function mixColors(color1: string, color2: string, weight: number): string {
+	return mixRgb(hexToRgb(color1), hexToRgb(color2), weight)
 }
 
 /** Convert a hex color (#RGB or #RRGGBB) to an rgba() CSS string.
@@ -135,32 +150,33 @@ export function generateThemeVariables(opts: ThemeVarOptions): ThemeVariables {
 
 	const dark = isDark(safeBg)
 
+	// Pre-parse to RGB tuples to avoid redundant hex parsing in mixRgb calls
+	const bgRgb = hexToRgb(safeBg)
+	const fgRgb = hexToRgb(safeFg)
+
 	// Surfaces shift toward white (dark mode) or black (light mode) for depth
-	const depthColor = dark ? '#ffffff' : '#000000'
-	const recessColor = dark ? '#000000' : '#e8e8e8'
+	const depthRgb: RGB = dark ? [255, 255, 255] : [0, 0, 0]
+	const recessRgb: RGB = dark ? [0, 0, 0] : [232, 232, 232]
 
 	// Surface levels by elevation: sunken < canvas < elevated < overlay
-	const elevated = mixColors(safeBg, depthColor, 0.95)
-	const sunken = mixColors(safeBg, recessColor, 0.92)
-	const overlay = mixColors(safeBg, depthColor, 0.9)
-	const overlayHover = mixColors(safeBg, depthColor, 0.85)
-	const overlayActive = mixColors(safeBg, depthColor, 0.8)
+	const elevated = mixRgb(bgRgb, depthRgb, 0.95)
+	const sunken = mixRgb(bgRgb, recessRgb, 0.92)
+	const overlay = mixRgb(bgRgb, depthRgb, 0.9)
+	const overlayHover = mixRgb(bgRgb, depthRgb, 0.85)
+	const overlayActive = mixRgb(bgRgb, depthRgb, 0.8)
 
 	// Content — three tiers of text prominence
-	const contentSecondary = mixColors(safeFg, safeBg, 0.8)
-	const contentMuted = mixColors(safeFg, safeBg, 0.55)
+	const contentSecondary = mixRgb(fgRgb, bgRgb, 0.8)
+	const contentMuted = mixRgb(fgRgb, bgRgb, 0.55)
 
 	// Border: 85% background + 15% foreground tint
-	const edge = mixColors(safeBg, safeFg, 0.85)
+	const edge = mixRgb(bgRgb, fgRgb, 0.85)
 
 	// Per-theme accent or sensible default
-	let accent: string
-	if (accentOverride && isValidHex(accentOverride)) {
-		accent = accentOverride
-	} else {
-		accent = dark ? '#6c63ff' : '#4d46e5'
-	}
-	const danger = '#e74c3c'
+	const accent =
+		accentOverride && isValidHex(accentOverride)
+			? accentOverride
+			: dark ? DEFAULT_ACCENT_DARK : DEFAULT_ACCENT_LIGHT
 
 	// Glow: box-shadow effect for themed components.
 	const glowValue = glow && isValidHex(glow) ? `0 0 12px ${hexToRgba(glow, 0.4)}` : 'none'
@@ -183,13 +199,9 @@ export function generateThemeVariables(opts: ThemeVarOptions): ThemeVariables {
 		'--color-content-muted': contentMuted,
 		'--color-edge': edge,
 		'--color-accent': accent,
-		'--color-danger': danger,
+		'--color-danger': COLOR_DANGER,
 		'--theme-glow': glowValue,
-		// Sanitize fontFamily — only allow known fonts to prevent CSS injection from tampered config.
-		'--font-family-ui':
-			fontFamily && (TERMINAL_FONTS as readonly string[]).includes(fontFamily)
-				? `"${fontFamily}", var(--font-mono-fallback)`
-				: 'var(--font-mono-fallback)',
+		'--font-family-ui': buildFontFamily(fontFamily),
 		'--font-size-ui': `${uiFontSize}px`,
 	}
 }
