@@ -8,12 +8,12 @@ export function buildVariantTheme(
 	colors: {
 		background: string
 		foreground: string
-		accent?: string
-		glow?: string
-		presetAccent?: string
-		presetGlow?: string
+		accent?: string | undefined
+		glow?: string | undefined
+		presetAccent?: string | undefined
+		presetGlow?: string | undefined
 	},
-	statusBarPosition?: 'top' | 'bottom',
+	statusBarPosition?: 'top' | 'bottom' | undefined,
 ): VariantTheme {
 	return {
 		background: colors.background,

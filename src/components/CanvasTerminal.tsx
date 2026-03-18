@@ -13,11 +13,11 @@ export interface CanvasTerminalProps {
 	readonly grid: GridSnapshot | null;
 	readonly onWrite: (data: string) => void;
 	readonly onResize: (cols: number, rows: number) => void;
-	readonly fontSize?: number;
-	readonly fontFamily?: string;
-	readonly lineHeight?: number;
-	readonly cursorColor?: string;
-	readonly background?: string;
+	readonly fontSize?: number | undefined;
+	readonly fontFamily?: string | undefined;
+	readonly lineHeight?: number | undefined;
+	readonly cursorColor?: string | undefined;
+	readonly background?: string | undefined;
 }
 
 const CURSOR_BLINK_MS = 530;
