@@ -1,7 +1,7 @@
 # HANDOFF — knkode-v2
 
 ## Current State
-Phase 6a complete — Config store hardening merged (PR #14).
+Phase 6b complete — CWD tracker merged (PR #15).
 
 ## What's Done
 - [x] Tauri 2 project scaffolded (React 19 + TypeScript 5.9 + Vite 6 + Tailwind CSS 4.2)
@@ -19,9 +19,9 @@ Phase 6a complete — Config store hardening merged (PR #14).
 - [x] Phase 5a: Rust terminal emulation layer (PR #12 merged)
 - [x] Phase 5b: Frontend canvas terminal renderer (PR #13 merged)
 - [x] Phase 6a: Config store hardening — migrations, sanitization, permissions (PR #14 merged)
+- [x] Phase 6b: CWD tracker with git branch and PR detection (PR #15 merged)
 
 ## What's Next
-- [ ] Phase 6b: CWD tracker (Rust)
 - [ ] Phase 7: Window configuration (platform-specific)
 - [ ] Phase 8: Native menu
 - [ ] Phase 9: Frontend changes (port v1 React code)
@@ -32,10 +32,7 @@ Phase 6a complete — Config store hardening merged (PR #14).
 
 ## Active Reviews
 
-### PR #15 — feat: CWD tracker with git branch and PR detection
-- State: `docs/reviews/PR-15/_state.json`
-- Agents: 8/8 completed
-- Phase: done — all 30 findings addressed (4 fix commits pushed)
+None.
 
 ## Known Issues
 - DMG bundling fails (macOS code signing) — not blocking for dev
