@@ -1,7 +1,7 @@
 # HANDOFF — knkode-v2
 
 ## Current State
-Phase 9 in progress — PR #18 (frontend foundation) under review.
+Phase 9 in progress — PR #18 merged. PR #19 (components & app shell) next.
 
 ## What's Done
 - [x] Tauri 2 project scaffolded (React 19 + TypeScript 5.9 + Vite 6 + Tailwind CSS 4.2)
@@ -22,9 +22,10 @@ Phase 9 in progress — PR #18 (frontend foundation) under review.
 - [x] Phase 6b: CWD tracker with git branch and PR detection (PR #15 merged)
 - [x] Phase 7: Window configuration — platform effects, bounds persistence (PR #16 merged)
 - [x] Phase 8: Native menu — platform-specific submenus via PredefinedMenuItem (PR #17 merged)
+- [x] Phase 9a: Frontend foundation — store, utils, hooks, data (PR #18 merged)
 
 ## What's Next
-- [ ] Phase 9: Frontend changes (port v1 React code)
+- [ ] Phase 9b: Frontend components & app shell (PR #19)
 
 ## Key Reference
 - Migration prompt: `/Users/sfory/dev/knkode/docs/TAURI_MIGRATION_PROMPT.md`
@@ -32,10 +33,7 @@ Phase 9 in progress — PR #18 (frontend foundation) under review.
 
 ## Active Reviews
 
-### PR #18 — feat: port frontend foundation (store, utils, hooks, data)
-- State: `docs/reviews/PR-18/_state.json`
-- Agents: 9/9 completed
-- Phase: fixes applied
+None.
 
 ## Known Issues
 - DMG bundling fails (macOS code signing) — not blocking for dev
