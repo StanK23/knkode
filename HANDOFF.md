@@ -1,7 +1,7 @@
 # HANDOFF — knkode-v2
 
 ## Current State
-Phase 4 complete and merged. Ready for Phase 5.
+Phase 5a in progress — Rust terminal emulation layer (PR #12 open).
 
 ## What's Done
 - [x] Tauri 2 project scaffolded (React 19 + TypeScript 5.9 + Vite 6 + Tailwind CSS 4.2)
@@ -18,7 +18,8 @@ Phase 4 complete and merged. Ready for Phase 5.
 - [x] Phase 4: Rust PTY manager with portable-pty 0.9 (PR #11 merged)
 
 ## What's Next
-- [ ] Phase 5: Terminal emulation (wezterm-term + canvas renderer)
+- [ ] Phase 5a: Rust terminal emulation layer (PR #12 — tattoy-wezterm-term + TerminalState + PTY integration)
+- [ ] Phase 5b: Frontend canvas terminal renderer (PR #13 — CanvasTerminal.tsx + key-to-ansi.ts)
 - [ ] Phase 6: Config store (Rust, ~/.knkode/)
 - [ ] Phase 7: CWD tracker (Rust)
 - [ ] Phase 8: Window configuration (platform-specific)
@@ -30,9 +31,9 @@ Phase 4 complete and merged. Ready for Phase 5.
 - V1 codebase: `/Users/sfory/dev/knkode/`
 
 ## Active Branch
-`main`
+`feature/rust-terminal-emulation`
 
 ## Known Issues
 - DMG bundling fails (macOS code signing) — not blocking for dev
 - Icons are placeholder dark squares
-- wezterm-term is NOT on crates.io as standalone — only `tattoy-wezterm-term` fork exists (affects Phase 5)
+- wezterm-term resolved: using `tattoy-wezterm-term` 0.1.0-fork.5 (fork published on crates.io)
