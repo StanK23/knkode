@@ -517,6 +517,7 @@ export const THEME_PRESETS = [
 ] as const satisfies readonly ThemePreset[]
 
 /** Union of all theme preset names. Used for compile-time variant completeness checks. */
+/** Union of all theme preset names. */
 export type ThemePresetName = (typeof THEME_PRESETS)[number]['name']
 
 export const TERMINAL_FONTS = [
@@ -548,14 +549,27 @@ export function buildFontFamily(family?: string): string {
 	return DEFAULT_FONT_FAMILY
 }
 
-/** Remove keys whose value is `undefined` so they don't poison exactOptionalPropertyTypes. */
-function stripUndefined<T extends Record<string, unknown>>(obj: T): T {
+/** Remove keys whose value is `undefined` so they don't poison exactOptionalPropertyTypes.
+ *  Returns Partial<T> since required keys with undefined values are dropped. */
+function stripUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
 	const result = {} as Record<string, unknown>
 	for (const [k, v] of Object.entries(obj)) {
 		if (v !== undefined) result[k] = v
 	}
-	return result as T
+	return result as Partial<T>
 }
+
+/** Optional PaneTheme fields that can be filled from a preset. */
+const PRESET_FILL_KEYS = [
+	'fontFamily',
+	'fontSize',
+	'lineHeight',
+	'gradientLevel',
+	'glowLevel',
+	'scanlineLevel',
+	'noiseLevel',
+	'scrollbarAccent',
+] as const
 
 /** Merge a workspace theme + optional per-pane override with preset fallbacks. */
 export function mergeThemeWithPreset(
@@ -563,27 +577,17 @@ export function mergeThemeWithPreset(
 	override?: Partial<PaneTheme> | null,
 ): PaneTheme {
 	// Merge override into theme, stripping undefined values to satisfy exactOptionalPropertyTypes
-	const base = override ? stripUndefined({ ...theme, ...override }) : { ...theme }
+	const base: Partial<PaneTheme> = override ? stripUndefined({ ...theme, ...override }) : { ...theme }
 	const preset = base.preset ? findPreset(base.preset) : undefined
 	if (!preset) return base as PaneTheme
 
 	// Fill in preset values only for missing optional fields
 	const result = { ...base } as Record<string, unknown>
-	if (!result['fontFamily'] && preset.fontFamily) result['fontFamily'] = preset.fontFamily
-	if (result['fontSize'] === undefined && preset.fontSize !== undefined)
-		result['fontSize'] = preset.fontSize
-	if (result['lineHeight'] === undefined && preset.lineHeight !== undefined)
-		result['lineHeight'] = preset.lineHeight
-	if (result['gradientLevel'] === undefined && preset.gradientLevel !== undefined)
-		result['gradientLevel'] = preset.gradientLevel
-	if (result['glowLevel'] === undefined && preset.glowLevel !== undefined)
-		result['glowLevel'] = preset.glowLevel
-	if (result['scanlineLevel'] === undefined && preset.scanlineLevel !== undefined)
-		result['scanlineLevel'] = preset.scanlineLevel
-	if (result['noiseLevel'] === undefined && preset.noiseLevel !== undefined)
-		result['noiseLevel'] = preset.noiseLevel
-	if (result['scrollbarAccent'] === undefined && preset.scrollbarAccent !== undefined)
-		result['scrollbarAccent'] = preset.scrollbarAccent
+	for (const key of PRESET_FILL_KEYS) {
+		if (result[key] === undefined && preset[key] !== undefined) {
+			result[key] = preset[key]
+		}
+	}
 	return result as unknown as PaneTheme
 }
 
