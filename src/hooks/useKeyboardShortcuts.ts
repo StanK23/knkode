@@ -26,8 +26,8 @@ interface ShortcutOptions {
 export function useKeyboardShortcuts({ toggleSettings }: ShortcutOptions = {}) {
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
-			// Use Cmd on macOS, Ctrl on other platforms to avoid conflicting
-			// with terminal control sequences (Ctrl+D = EOF, Ctrl+W = delete word)
+			// Check modifier key first to avoid unnecessary state reads on every keypress.
+			// isMac is a module-level constant (never changes) — safe to omit from deps.
 			const isMod = isMac ? e.metaKey : e.ctrlKey
 			if (!isMod) return
 
