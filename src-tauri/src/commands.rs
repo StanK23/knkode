@@ -88,6 +88,14 @@ pub fn resize_pty(
     rows: u16,
     pty_mgr: State<'_, PtyManager>,
 ) -> Result<(), String> {
+    if cols == 0 || rows == 0 {
+        return Err("cols and rows must be at least 1".to_string());
+    }
+    if cols > 500 || rows > 500 {
+        return Err(format!(
+            "cols ({cols}) and rows ({rows}) must not exceed 500"
+        ));
+    }
     pty_mgr.resize(&id, cols, rows)
 }
 

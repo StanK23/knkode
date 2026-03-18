@@ -1,3 +1,4 @@
+use crate::terminal::{TerminalState, DEFAULT_COLS, DEFAULT_ROWS};
 use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
 use serde_json::json;
 use std::collections::HashMap;
@@ -36,13 +37,15 @@ struct PtySession {
 pub struct PtyManager {
     sessions: Arc<Mutex<HashMap<String, PtySession>>>,
     next_generation: AtomicU64,
+    terminal_state: Arc<TerminalState>,
 }
 
 impl PtyManager {
-    pub fn new() -> Self {
+    pub fn new(terminal_state: Arc<TerminalState>) -> Self {
         Self {
             sessions: Arc::new(Mutex::new(HashMap::new())),
             next_generation: AtomicU64::new(1),
+            terminal_state,
         }
     }
 
@@ -68,7 +71,7 @@ impl PtyManager {
 
         let pty_system = native_pty_system();
         let pair = pty_system
-            .openpty(pty_size(80, 24))
+            .openpty(pty_size(DEFAULT_COLS as u16, DEFAULT_ROWS as u16))
             .map_err(|e| format!("Failed to open PTY: {e}"))?;
 
         let shell = std::env::var("SHELL").unwrap_or_else(|_| {
@@ -115,7 +118,7 @@ impl PtyManager {
                 let exists = sessions_clone
                     .lock()
                     .ok()
-                    .map_or(false, |s| s.contains_key(&id_clone));
+                    .is_some_and(|s| s.contains_key(&id_clone));
                 if exists {
                     if let Ok(mut w) = writer_clone.lock() {
                         if let Err(e) = w.write_all(cmd_str.as_bytes()) {
@@ -143,21 +146,32 @@ impl PtyManager {
         };
         self.lock_sessions()?.insert(id.clone(), session);
 
-        // Background reader thread: read PTY output, emit events
+        // Create terminal state AFTER successful session insert to avoid orphaned
+        // terminal entries if sessions lock is poisoned
+        self.terminal_state.create(&id, DEFAULT_COLS, DEFAULT_ROWS);
+
+        // Background reader thread: read PTY output → wezterm-term → emit grid snapshot
         let id_clone = id.clone();
         let sessions_clone = Arc::clone(&self.sessions);
+        let term_state = Arc::clone(&self.terminal_state);
         std::thread::spawn(move || {
             let mut buf = [0u8; READ_BUFFER_SIZE];
             loop {
                 match reader.read(&mut buf) {
                     Ok(0) => break,
                     Ok(n) => {
-                        let data = String::from_utf8_lossy(&buf[..n]).to_string();
-                        if app
-                            .emit("pty:data", json!({ "id": &id_clone, "data": data }))
-                            .is_err()
-                        {
-                            break;
+                        if let Some(snapshot) = term_state.advance_bytes(&id_clone, &buf[..n]) {
+                            if app
+                                .emit(
+                                    "terminal:render",
+                                    json!({ "id": &id_clone, "grid": snapshot }),
+                                )
+                                .is_err()
+                            {
+                                break;
+                            }
+                        } else {
+                            eprintln!("[pty] Terminal state returned None for {id_clone} ({n} bytes dropped)");
                         }
                     }
                     Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
@@ -173,7 +187,7 @@ impl PtyManager {
             let removed = if let Ok(mut sessions) = sessions_clone.lock() {
                 if sessions
                     .get(&id_clone)
-                    .map_or(false, |s| s.generation == generation)
+                    .is_some_and(|s| s.generation == generation)
                 {
                     sessions.remove(&id_clone)
                 } else {
@@ -186,6 +200,7 @@ impl PtyManager {
 
             // Wait for child outside the lock to avoid blocking other operations
             let exit_code: i64 = if let Some(mut session) = removed {
+                term_state.remove(&id_clone);
                 session
                     .child
                     .wait()
@@ -226,13 +241,16 @@ impl PtyManager {
 
     pub fn resize(&self, id: &str, cols: u16, rows: u16) -> Result<(), String> {
         // Silently ignore missing sessions — resize can race with tab close
-        let sessions = self.lock_sessions()?;
-        if let Some(session) = sessions.get(id) {
-            session
-                .master
-                .resize(pty_size(cols, rows))
-                .map_err(|e| format!("PTY resize failed: {e}"))?;
-        }
+        {
+            let sessions = self.lock_sessions()?;
+            if let Some(session) = sessions.get(id) {
+                session
+                    .master
+                    .resize(pty_size(cols, rows))
+                    .map_err(|e| format!("PTY resize failed: {e}"))?;
+            }
+        } // Drop sessions lock before acquiring terminals lock to prevent deadlock
+        self.terminal_state.resize(id, cols as usize, rows as usize);
         Ok(())
     }
 
@@ -242,6 +260,7 @@ impl PtyManager {
         if let Some(mut session) = sessions.remove(id) {
             let _ = session.child.kill();
         }
+        self.terminal_state.remove(id);
         Ok(())
     }
 
@@ -251,6 +270,7 @@ impl PtyManager {
         for (_id, mut session) in sessions.drain() {
             let _ = session.child.kill();
         }
+        self.terminal_state.remove_all();
     }
 
     fn lock_sessions(&self) -> Result<MutexGuard<'_, HashMap<String, PtySession>>, String> {
