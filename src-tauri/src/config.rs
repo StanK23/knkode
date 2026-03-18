@@ -407,6 +407,18 @@ impl ConfigStore {
         self.write_json_atomic(&self.path(APP_STATE_FILE), &state)
     }
 
+    /// Update a single top-level field in app-state.json without replacing the entire object.
+    pub fn update_app_state_field(&self, key: &str, value: Value) -> Result<(), String> {
+        let _guard = self.acquire_write()?;
+        let path = self.path(APP_STATE_FILE);
+        let mut state = match self.read_file(&path)? {
+            Some(Value::Object(obj)) => obj,
+            _ => serde_json::Map::new(),
+        };
+        state.insert(key.to_string(), value);
+        self.write_json_atomic(&path, &Value::Object(state))
+    }
+
     // --- Snippets ---
 
     pub fn get_snippets(&self) -> Result<Vec<Value>, String> {

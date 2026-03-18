@@ -1,18 +1,36 @@
+use crate::config::ConfigStore;
+use serde_json::json;
+use std::sync::mpsc;
+use std::time::Duration;
 use tauri::Manager;
 
-/// Apply platform-specific window effects and show the window.
+const DEBOUNCE_MS: u64 = 500;
+
+/// Apply platform-specific window effects, restore saved bounds, and show.
 ///
 /// Static config (titleBarStyle, trafficLightPosition, shadow, transparent)
-/// lives in `tauri.conf.json`. This function handles effects that vary by OS:
-/// - macOS: under-window vibrancy
-/// - Windows: acrylic backdrop, force maximizable/resizable
-/// - Linux: no effects (transparent: true in config is harmless)
+/// lives in `tauri.conf.json`. This function handles:
+/// - Platform-conditional effects (macOS vibrancy, Windows acrylic)
+/// - Window bounds restore from app-state.json
+/// - Bounds watcher (debounced save on resize/move)
+/// - Showing the window after setup completes
 pub fn setup_window(app: &tauri::App) {
     let Some(window) = app.get_webview_window("main") else {
         eprintln!("[window] Main window not found during setup");
         return;
     };
 
+    apply_effects(&window);
+    restore_bounds(app, &window);
+    start_bounds_watcher(app, &window);
+
+    if let Err(e) = window.show() {
+        eprintln!("[window] Failed to show window: {e}");
+    }
+}
+
+/// Apply platform-specific window effects.
+fn apply_effects(window: &tauri::WebviewWindow) {
     #[cfg(target_os = "macos")]
     {
         use tauri::window::{Effect, EffectsBuilder};
@@ -38,9 +56,102 @@ pub fn setup_window(app: &tauri::App) {
         let _ = window.set_resizable(true);
     }
 
-    // Window starts hidden (visible: false in config) to allow bounds restore
-    // before showing. Show is called here; Card 3 will move it after restore.
-    if let Err(e) = window.show() {
-        eprintln!("[window] Failed to show window: {e}");
+    // Suppress unused variable warning on Linux
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let _ = window;
+}
+
+/// Restore window position and size from app-state.json.
+fn restore_bounds(app: &tauri::App, window: &tauri::WebviewWindow) {
+    let config = app.state::<ConfigStore>();
+    let state = match config.get_app_state() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("[window] Failed to read app state for bounds restore: {e}");
+            return;
+        }
+    };
+
+    let Some(bounds) = state.get("windowBounds") else {
+        return;
+    };
+
+    let width = bounds.get("width").and_then(|v| v.as_f64());
+    let height = bounds.get("height").and_then(|v| v.as_f64());
+    let x = bounds.get("x").and_then(|v| v.as_f64());
+    let y = bounds.get("y").and_then(|v| v.as_f64());
+
+    if let (Some(w), Some(h)) = (width, height) {
+        if w >= 600.0 && h >= 400.0 {
+            let _ = window.set_size(tauri::LogicalSize::new(w, h));
+        }
+    }
+
+    if let (Some(x), Some(y)) = (x, y) {
+        let _ = window.set_position(tauri::LogicalPosition::new(x, y));
+    }
+}
+
+/// Watch for resize/move events and save bounds with 500ms debounce.
+fn start_bounds_watcher(app: &tauri::App, window: &tauri::WebviewWindow) {
+    let (tx, rx) = mpsc::channel::<()>();
+    let window_clone = window.clone();
+    let app_handle = app.handle().clone();
+
+    // Event handler: notify the debounce thread on resize/move
+    window.on_window_event(move |event| {
+        if matches!(
+            event,
+            tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Moved(_)
+        ) {
+            let _ = tx.send(());
+        }
+    });
+
+    // Background thread: debounce 500ms then save
+    std::thread::Builder::new()
+        .name("bounds-watcher".into())
+        .spawn(move || {
+            let config = app_handle.state::<ConfigStore>();
+            loop {
+                // Block until first event
+                if rx.recv().is_err() {
+                    break; // channel closed
+                }
+                // Drain events until 500ms of quiet
+                loop {
+                    match rx.recv_timeout(Duration::from_millis(DEBOUNCE_MS)) {
+                        Ok(()) => continue,                            // more events — keep waiting
+                        Err(mpsc::RecvTimeoutError::Timeout) => break, // quiet — save
+                        Err(mpsc::RecvTimeoutError::Disconnected) => return,
+                    }
+                }
+                save_bounds(&window_clone, &config);
+            }
+        })
+        .ok();
+}
+
+fn save_bounds(window: &tauri::WebviewWindow, config: &ConfigStore) {
+    let Ok(size) = window.inner_size() else {
+        return;
+    };
+    let Ok(position) = window.outer_position() else {
+        return;
+    };
+    let Ok(scale) = window.scale_factor() else {
+        return;
+    };
+
+    // Save as logical (DPI-independent) values for cross-monitor consistency
+    let bounds = json!({
+        "width": (size.width as f64 / scale).round(),
+        "height": (size.height as f64 / scale).round(),
+        "x": (position.x as f64 / scale).round(),
+        "y": (position.y as f64 / scale).round(),
+    });
+
+    if let Err(e) = config.update_app_state_field("windowBounds", bounds) {
+        eprintln!("[window] Failed to save window bounds: {e}");
     }
 }
