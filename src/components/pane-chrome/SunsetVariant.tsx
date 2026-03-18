@@ -1,4 +1,5 @@
 import { createAndRegisterVariant } from "./createVariant";
+import { resolveGlow } from "./shared";
 
 createAndRegisterVariant("Sunset", {
 	statusBar: {
@@ -8,7 +9,7 @@ createAndRegisterVariant("Sunset", {
 			color: theme.foreground,
 			backgroundColor: "#110808",
 			borderTop: `1px solid ${theme.accent}${isFocused ? "44" : "22"}`,
-			boxShadow: isFocused ? `inset 0 1px 0 ${theme.glow ?? theme.accent}22` : "none",
+			boxShadow: isFocused ? `inset 0 1px 0 ${resolveGlow(theme)}22` : "none",
 		}),
 		separator: "│",
 		separatorOpacity: "opacity-20",

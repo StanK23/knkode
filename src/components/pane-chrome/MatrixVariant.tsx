@@ -1,5 +1,5 @@
 import { registerVariant } from ".";
-import { FOCUS_VIS, PrBadge } from "./shared";
+import { FOCUS_VIS, PrBadge, resolveGlow } from "./shared";
 import type { FrameProps, PaneVariant, ScrollButtonProps } from "./types";
 
 function Frame({
@@ -24,7 +24,7 @@ function Frame({
 	contextMenu,
 }: FrameProps) {
 	const fg = isFocused ? theme.accent : theme.foreground;
-	const glowColor = theme.glow ?? theme.accent;
+	const glowColor = resolveGlow(theme);
 
 	const isBottom = theme.statusBarPosition === "bottom";
 
@@ -159,7 +159,7 @@ function ScrollButton({ onClick, theme }: ScrollButtonProps) {
 				backgroundColor: `${theme.background}dd`,
 				color: theme.accent,
 				border: `1px solid ${theme.accent}44`,
-				textShadow: `0 0 8px ${theme.glow ?? theme.accent}66`,
+				textShadow: `0 0 8px ${resolveGlow(theme)}66`,
 			}}
 		>
 			[▼ SCROLL TO BOTTOM]

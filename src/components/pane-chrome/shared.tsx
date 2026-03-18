@@ -1,9 +1,11 @@
 /** Shared constants and utilities for pane-chrome variant components. */
 
 import type { PrInfo } from "../../shared/types";
+import { DEFAULT_ACCENT_DARK, isValidHex } from "../../utils/colors";
 import type { VariantTheme } from "./types";
 
-/** Build a VariantTheme from workspace/preset colors with fallback accent. */
+/** Build a VariantTheme from workspace/preset colors with validated fallback accent.
+ *  Validates hex colors to prevent CSS injection via inline styles. */
 export function buildVariantTheme(
 	colors: {
 		background: string;
@@ -15,21 +17,26 @@ export function buildVariantTheme(
 	},
 	statusBarPosition?: "top" | "bottom" | undefined,
 ): VariantTheme {
+	const rawAccent = colors.accent ?? colors.presetAccent;
+	const rawGlow = colors.glow ?? colors.presetGlow;
 	return {
 		background: colors.background,
 		foreground: colors.foreground,
-		accent: colors.accent ?? colors.presetAccent ?? DEFAULT_ACCENT,
-		glow: colors.glow ?? colors.presetGlow,
+		accent:
+			rawAccent && isValidHex(rawAccent) ? rawAccent : DEFAULT_ACCENT_DARK,
+		glow: rawGlow && isValidHex(rawGlow) ? rawGlow : undefined,
 		statusBarPosition: statusBarPosition ?? "top",
 	};
+}
+
+/** Resolve the glow color for a variant theme, falling back to accent. */
+export function resolveGlow(theme: VariantTheme): string {
+	return theme.glow ?? theme.accent;
 }
 
 /** Focus-visible ring applied to interactive elements in all variants. */
 export const FOCUS_VIS =
 	"focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none";
-
-/** Fallback accent color when no theme accent or preset accent is available. */
-export const DEFAULT_ACCENT = "#888888";
 
 /** Folder icon SVG used in several variant status bars. Pass className for opacity. */
 export function FolderIcon({ className }: { className?: string | undefined }) {
@@ -83,9 +90,9 @@ export function PrBadge({
 }: {
 	pr: PrInfo;
 	onOpenExternal: (url: string) => void;
-	className?: string;
-	style?: React.CSSProperties;
-	children?: React.ReactNode;
+	className?: string | undefined;
+	style?: React.CSSProperties | undefined;
+	children?: React.ReactNode | undefined;
 }) {
 	return (
 		<button

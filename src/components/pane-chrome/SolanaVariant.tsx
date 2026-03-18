@@ -1,5 +1,5 @@
 import { registerVariant } from ".";
-import { FOCUS_VIS, FolderIcon, PrBadge } from "./shared";
+import { FOCUS_VIS, FolderIcon, PrBadge, resolveGlow } from "./shared";
 import type { FrameProps, PaneVariant, ScrollButtonProps } from "./types";
 
 function Frame({
@@ -23,7 +23,7 @@ function Frame({
 	headerProps,
 	contextMenu,
 }: FrameProps) {
-	const glowColor = theme.glow ?? theme.accent;
+	const glowColor = resolveGlow(theme);
 	const c1 = theme.accent;
 	const c2 = glowColor;
 	const isBottom = theme.statusBarPosition === "bottom";
@@ -158,7 +158,7 @@ function Frame({
 }
 
 function ScrollButton({ onClick, theme }: ScrollButtonProps) {
-	const glowColor = theme.glow ?? theme.accent;
+	const glowColor = resolveGlow(theme);
 	return (
 		<button
 			type="button"

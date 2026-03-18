@@ -1,5 +1,5 @@
 import { registerVariant } from ".";
-import { FOCUS_VIS, PrBadge } from "./shared";
+import { FOCUS_VIS, PrBadge, resolveGlow } from "./shared";
 import type { FrameProps, PaneVariant, ScrollButtonProps } from "./types";
 
 function Frame({
@@ -23,7 +23,7 @@ function Frame({
 	headerProps,
 	contextMenu,
 }: FrameProps) {
-	const glowColor = theme.glow ?? theme.accent;
+	const glowColor = resolveGlow(theme);
 	const c1 = theme.accent;
 	const c2 = theme.glow || "#05d9e8";
 
@@ -152,7 +152,7 @@ function Frame({
 }
 
 function ScrollButton({ onClick, theme }: ScrollButtonProps) {
-	const glowColor = theme.glow ?? theme.accent;
+	const glowColor = resolveGlow(theme);
 	return (
 		<button
 			type="button"
