@@ -46,6 +46,7 @@ export const MAX_FONT_SIZE = 32;
 
 export const DEFAULT_FONT_FAMILY = "Menlo, Monaco, 'Courier New', monospace";
 export const DEFAULT_BACKGROUND = "#1e1e1e";
+export const DEFAULT_FOREGROUND = "#e0e0e0";
 export const DEFAULT_CURSOR_COLOR = "#c0c0c0";
 
 export const DEFAULT_LINE_HEIGHT = 1.0;
