@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useClickOutside } from "../hooks/useClickOutside";
 import type { Workspace } from "../shared/types";
 import { useStore, WORKSPACE_COLORS } from "../store";
-import { isMac, modKey } from "../utils/platform";
+import { modKey } from "../utils/platform";
 import { Tab } from "./Tab";
 
 interface TabBarProps {
@@ -23,6 +23,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 	const [showClosedMenu, setShowClosedMenu] = useState(false);
 	const [dragFromIndex, setDragFromIndex] = useState<number | null>(null);
 	const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+	const [actionError, setActionError] = useState<string | null>(null);
 	const dragFromRef = useRef<number | null>(null);
 	const closedMenuRef = useRef<HTMLDivElement>(null);
 	useClickOutside(closedMenuRef, () => setShowClosedMenu(false), showClosedMenu);
@@ -87,25 +88,32 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 		[updateWorkspaceField],
 	);
 
+	const showTransientError = useCallback((msg: string) => {
+		setActionError(msg);
+		setTimeout(() => setActionError(null), 3000);
+	}, []);
+
 	const handleDuplicate = useCallback(
 		(id: string) => {
 			duplicateWorkspace(id).catch((err: unknown) => {
 				console.error("[tabbar] Failed to duplicate workspace:", err);
+				showTransientError("Failed to duplicate workspace");
 			});
 		},
-		[duplicateWorkspace],
+		[duplicateWorkspace, showTransientError],
 	);
 
 	const handleNewWorkspace = useCallback(() => {
 		createDefaultWorkspace().catch((err: unknown) => {
 			console.error("[tabbar] Failed to create workspace:", err);
+			showTransientError("Failed to create workspace");
 		});
-	}, [createDefaultWorkspace]);
+	}, [createDefaultWorkspace, showTransientError]);
 
 	return (
 		<div
 			className="flex items-end bg-sunken border-b border-edge relative shrink-0"
-			style={isMac ? { WebkitAppRegion: "drag" } : undefined}
+			style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
 		>
 			{/* Tabs */}
 			<div
@@ -218,6 +226,13 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 						</div>
 					)}
 				</div>
+			)}
+
+			{/* Transient error indicator */}
+			{actionError && (
+				<span className="no-drag absolute bottom-0 left-1/2 -translate-x-1/2 text-[10px] text-danger bg-danger/10 rounded-t px-2 py-0.5 pointer-events-none">
+					{actionError}
+				</span>
 			)}
 		</div>
 	);
