@@ -19,6 +19,7 @@ import {
 import { THEME_PRESETS } from '../data/theme-presets'
 import { COLOR_DANGER, DEFAULT_ACCENT_DARK } from '../utils/colors'
 import { isValidCwd } from '../utils/validation'
+import { reorderArray } from '../utils/array'
 import {
 	createLayoutFromPreset,
 	remapLayoutTree,
@@ -320,20 +321,9 @@ export function createWorkspacePaneSlice(
 
 		reorderWorkspaceTabs: (fromIndex: number, toIndex: number) => {
 			set((state) => {
-				const ids = [...state.appState.openWorkspaceIds]
-				if (fromIndex < 0 || fromIndex >= ids.length || toIndex < 0 || toIndex >= ids.length) {
-					console.warn('[store] reorderWorkspaceTabs: index out of range', {
-						fromIndex,
-						toIndex,
-						length: ids.length,
-					})
-					return {}
-				}
-				if (fromIndex === toIndex) return {}
-				const [moved] = ids.splice(fromIndex, 1)
-				if (!moved) return {}
-				ids.splice(toIndex, 0, moved)
-				const newAppState = { ...state.appState, openWorkspaceIds: ids }
+				const reordered = reorderArray(state.appState.openWorkspaceIds, fromIndex, toIndex)
+				if (!reordered) return {}
+				const newAppState = { ...state.appState, openWorkspaceIds: reordered }
 				persistAppState(newAppState)
 				return { appState: newAppState }
 			})

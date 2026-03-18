@@ -1,4 +1,5 @@
 import type { Snippet } from '../shared/types'
+import { reorderArray } from '../utils/array'
 
 function persistSnippets(snippets: Snippet[]): void {
 	window.api.saveSnippets(snippets).catch((err) => {
@@ -36,24 +37,8 @@ export function createSnippetSlice(
 		},
 
 		reorderSnippets: (fromIndex: number, toIndex: number) => {
-			const snippets = [...get().snippets]
-			if (
-				fromIndex < 0 ||
-				fromIndex >= snippets.length ||
-				toIndex < 0 ||
-				toIndex >= snippets.length
-			) {
-				console.warn('[store] reorderSnippets: index out of range', {
-					fromIndex,
-					toIndex,
-					length: snippets.length,
-				})
-				return
-			}
-			if (fromIndex === toIndex) return
-			const moved = snippets.splice(fromIndex, 1)[0]
-			if (!moved) return
-			snippets.splice(toIndex, 0, moved)
+			const snippets = reorderArray(get().snippets, fromIndex, toIndex)
+			if (!snippets) return
 			set({ snippets })
 			persistSnippets(snippets)
 		},
