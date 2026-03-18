@@ -29,6 +29,7 @@ export function parsePaneDragPayload(raw: string): PaneDragPayload | null {
 	return parsed as PaneDragPayload
 }
 
+// Inline styles (not Tailwind) — dynamic drag overlay highlights require computed CSS properties.
 export const ZONE_STYLES: Record<DropZone, React.CSSProperties> = {
 	center: { inset: 0, backgroundColor: 'var(--color-accent)', opacity: 0.12 },
 	left: { inset: 0, right: '50%', backgroundColor: 'var(--color-accent)', opacity: 0.18 },
