@@ -1,9 +1,11 @@
 import { useCallback, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useClickOutside } from "../hooks/useClickOutside";
 import { useInlineEdit } from "../hooks/useInlineEdit";
+import { getPortalRoot } from "../lib/ui-constants";
 import type { Workspace } from "../shared/types";
 
-const INACTIVE_TAB_STYLE: React.CSSProperties = { borderLeft: "3px solid transparent" };
+const INACTIVE_TAB_STYLE = Object.freeze<React.CSSProperties>({ borderLeft: "3px solid transparent" });
 
 interface TabProps {
 	workspace: Workspace;
@@ -45,7 +47,9 @@ export function Tab({
 }: TabProps) {
 	const [showContext, setShowContext] = useState(false);
 	const [showColorPicker, setShowColorPicker] = useState(false);
+	const [contextPos, setContextPos] = useState({ x: 0, y: 0 });
 	const contextRef = useRef<HTMLDivElement>(null);
+	const tabRef = useRef<HTMLDivElement>(null);
 
 	const { isEditing, inputProps, startEditing } = useInlineEdit(workspace.name, (name) =>
 		onRename(workspace.id, name),
@@ -53,6 +57,7 @@ export function Tab({
 
 	const handleContextMenu = useCallback((e: React.MouseEvent) => {
 		e.preventDefault();
+		setContextPos({ x: e.clientX, y: e.clientY });
 		setShowContext(true);
 	}, []);
 
@@ -79,6 +84,7 @@ export function Tab({
 
 	return (
 		<div
+			ref={tabRef}
 			role="tab"
 			tabIndex={isActive ? 0 : -1}
 			aria-selected={isActive}
@@ -109,7 +115,6 @@ export function Tab({
 					else if (e.key === "Home") target = 0;
 					else if (e.key === "End") target = count - 1;
 					tabs[target]?.focus();
-					// Dispatch activation directly instead of synthetic .click()
 					const wsId = tabs[target]?.dataset.workspaceId;
 					if (wsId) onActivate(wsId);
 				}
@@ -117,7 +122,8 @@ export function Tab({
 			onContextMenu={handleContextMenu}
 			onDragStart={(e) => {
 				e.dataTransfer.effectAllowed = "move";
-				e.dataTransfer.setData("text/plain", workspace.id);
+				// Use empty string — rely on internal React state for reorder tracking
+				e.dataTransfer.setData("text/plain", "");
 				onDragStart(index);
 			}}
 			onDragOver={(e) => onDragOver(e, index)}
@@ -164,7 +170,7 @@ export function Tab({
 				</span>
 			)}
 
-			{/* Close button — always visible on active, visible on hover for inactive */}
+			{/* Close button */}
 			<button
 				type="button"
 				onClick={(e) => {
@@ -180,7 +186,7 @@ export function Tab({
 					viewBox="0 0 12 12"
 					fill="none"
 					stroke="currentColor"
-					strokeWidth="1.5"
+					strokeWidth="2"
 					strokeLinecap="round"
 					aria-hidden="true"
 				>
@@ -188,81 +194,84 @@ export function Tab({
 				</svg>
 			</button>
 
-			{/* Context menu */}
-			{showContext && (
-				<div
-					ref={contextRef}
-					className="ctx-menu top-tab left-0"
-					onKeyDown={(e) => {
-						if (e.key === "Escape") closeContext();
-					}}
-				>
-					<button
-						type="button"
-						className="ctx-item"
-						onClick={(e) => {
-							e.stopPropagation();
-							startEditing();
-							closeContext();
+			{/* Context menu — portalled to escape overflow-hidden containers */}
+			{showContext &&
+				createPortal(
+					<div
+						ref={contextRef}
+						className="ctx-menu fixed z-[300]"
+						style={{ left: contextPos.x, top: contextPos.y }}
+						onKeyDown={(e) => {
+							if (e.key === "Escape") closeContext();
 						}}
 					>
-						Rename
-					</button>
-					<button
-						type="button"
-						className="ctx-item"
-						onClick={(e) => {
-							e.stopPropagation();
-							setShowColorPicker((v) => !v);
-						}}
-					>
-						Change Color
-					</button>
-					{showColorPicker && (
-						<div className="flex flex-wrap gap-1 px-3 py-1 pb-2">
-							{colors.map((c) => (
-								<button
-									type="button"
-									key={c}
-									aria-label={`Color ${c}`}
-									className={`size-4.5 rounded-full border-none cursor-pointer p-0 ${
-										c === workspace.color ? "outline-2 outline-content outline-offset-1" : ""
-									}`}
-									style={{ background: c }}
-									onClick={(e) => {
-										e.stopPropagation();
-										onChangeColor(workspace.id, c);
-										closeContext();
-									}}
-								/>
-							))}
-						</div>
-					)}
-					<button
-						type="button"
-						className="ctx-item"
-						onClick={(e) => {
-							e.stopPropagation();
-							onDuplicate(workspace.id);
-							closeContext();
-						}}
-					>
-						Duplicate
-					</button>
-					<div className="ctx-separator" />
-					<button
-						type="button"
-						className="ctx-item text-danger"
-						onClick={(e) => {
-							e.stopPropagation();
-							onClose(workspace.id);
-							closeContext();
-						}}
-					>
-						Close Tab
-					</button>
-				</div>
-			)}
+						<button
+							type="button"
+							className="ctx-item"
+							onClick={(e) => {
+								e.stopPropagation();
+								startEditing();
+								closeContext();
+							}}
+						>
+							Rename
+						</button>
+						<button
+							type="button"
+							className="ctx-item"
+							onClick={(e) => {
+								e.stopPropagation();
+								setShowColorPicker((v) => !v);
+							}}
+						>
+							Change Color
+						</button>
+						{showColorPicker && (
+							<div className="flex flex-wrap gap-1 px-3 py-1 pb-2">
+								{colors.map((c) => (
+									<button
+										type="button"
+										key={c}
+										aria-label={`Color ${c}`}
+										className={`size-4.5 rounded-full border-none cursor-pointer p-0 ${
+											c === workspace.color ? "outline-2 outline-content outline-offset-1" : ""
+										}`}
+										style={{ background: c }}
+										onClick={(e) => {
+											e.stopPropagation();
+											onChangeColor(workspace.id, c);
+											closeContext();
+										}}
+									/>
+								))}
+							</div>
+						)}
+						<button
+							type="button"
+							className="ctx-item"
+							onClick={(e) => {
+								e.stopPropagation();
+								onDuplicate(workspace.id);
+								closeContext();
+							}}
+						>
+							Duplicate
+						</button>
+						<div className="ctx-separator" />
+						<button
+							type="button"
+							className="ctx-item text-danger"
+							onClick={(e) => {
+								e.stopPropagation();
+								onClose(workspace.id);
+								closeContext();
+							}}
+						>
+							Close Tab
+						</button>
+					</div>,
+					getPortalRoot(),
+				)}
 		</div>
 	);
 }
