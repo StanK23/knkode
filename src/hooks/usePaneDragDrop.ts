@@ -4,6 +4,7 @@ import {
 	PANE_DRAG_MIME,
 	type PaneDragPayload,
 	getDropZone,
+	parsePaneDragPayload,
 } from '../lib/pane-drag-utils'
 import { useStore } from '../store'
 
@@ -97,14 +98,8 @@ export function usePaneDragDrop({ paneId, workspaceId, onFocus }: UsePaneDragDro
 			const zone = el ? getDropZone(e, el) : null
 			const raw = e.dataTransfer.getData(PANE_DRAG_MIME)
 			if (!raw) return
-			let data: PaneDragPayload
-			try {
-				data = JSON.parse(raw)
-			} catch (err) {
-				console.warn('[pane] Failed to parse drag payload:', raw, err)
-				return
-			}
-			if (typeof data.paneId !== 'string' || typeof data.workspaceId !== 'string') return
+			const data = parsePaneDragPayload(raw)
+			if (!data) return
 			if (data.workspaceId !== workspaceId || data.paneId === paneId) return
 			if (zone === 'center' || !zone) {
 				swapPanes(workspaceId, data.paneId, paneId)

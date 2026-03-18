@@ -9,6 +9,26 @@ export interface PaneDragPayload {
 
 export const PANE_DRAG_MIME = 'application/x-knkode-pane'
 
+/** Parse and validate a drag payload from untrusted JSON. Returns null on invalid input. */
+export function parsePaneDragPayload(raw: string): PaneDragPayload | null {
+	let parsed: unknown
+	try {
+		parsed = JSON.parse(raw)
+	} catch {
+		console.warn('[pane] Failed to parse drag payload:', raw)
+		return null
+	}
+	if (
+		typeof parsed !== 'object' ||
+		parsed === null ||
+		typeof (parsed as Record<string, unknown>).paneId !== 'string' ||
+		typeof (parsed as Record<string, unknown>).workspaceId !== 'string'
+	) {
+		return null
+	}
+	return parsed as PaneDragPayload
+}
+
 export const ZONE_STYLES: Record<DropZone, React.CSSProperties> = {
 	center: { inset: 0, backgroundColor: 'var(--color-accent)', opacity: 0.12 },
 	left: { inset: 0, right: '50%', backgroundColor: 'var(--color-accent)', opacity: 0.18 },
