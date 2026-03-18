@@ -88,15 +88,45 @@ fn restore_bounds(app: &tauri::App, window: &tauri::WebviewWindow) {
     let x = bounds.get("x").and_then(|v| v.as_f64());
     let y = bounds.get("y").and_then(|v| v.as_f64());
 
+    // Clamp to reasonable range: min from tauri.conf.json, max covers 8K displays
+    const MAX_DIMENSION: f64 = 16384.0;
     if let (Some(w), Some(h)) = (width, height) {
-        if w >= MIN_WINDOW_WIDTH && h >= MIN_WINDOW_HEIGHT {
-            let _ = window.set_size(tauri::LogicalSize::new(w, h));
-        }
+        let w = w.clamp(MIN_WINDOW_WIDTH, MAX_DIMENSION);
+        let h = h.clamp(MIN_WINDOW_HEIGHT, MAX_DIMENSION);
+        let _ = window.set_size(tauri::LogicalSize::new(w, h));
     }
 
     if let (Some(x), Some(y)) = (x, y) {
-        let _ = window.set_position(tauri::LogicalPosition::new(x, y));
+        if is_position_visible(window, x, y) {
+            let _ = window.set_position(tauri::LogicalPosition::new(x, y));
+        }
     }
+}
+
+/// Check if position falls within any connected monitor's bounds.
+fn is_position_visible(window: &tauri::WebviewWindow, x: f64, y: f64) -> bool {
+    let monitors = match window.available_monitors() {
+        Ok(m) => m,
+        Err(_) => return true, // can't check — allow the restore
+    };
+    if monitors.is_empty() {
+        return true;
+    }
+    for monitor in &monitors {
+        let pos = monitor.position();
+        let size = monitor.size();
+        let scale = monitor.scale_factor();
+        // Convert monitor bounds to logical coordinates
+        let mx = pos.x as f64 / scale;
+        let my = pos.y as f64 / scale;
+        let mw = size.width as f64 / scale;
+        let mh = size.height as f64 / scale;
+        // Window origin must land within the monitor (with some margin)
+        if x >= mx - 100.0 && x < mx + mw && y >= my - 100.0 && y < my + mh {
+            return true;
+        }
+    }
+    false
 }
 
 /// Watch for resize/move events and save bounds with debounced writes.
@@ -155,6 +185,10 @@ fn save_bounds(window: &tauri::WebviewWindow, config: &ConfigStore) {
         eprintln!("[window] Failed to get scale factor");
         return;
     };
+    if scale <= 0.0 {
+        eprintln!("[window] Invalid scale factor: {scale}");
+        return;
+    }
 
     // Save as logical (DPI-independent) values for cross-monitor consistency
     let bounds = json!({
