@@ -33,6 +33,13 @@ Phase 5b in progress — Frontend canvas terminal renderer (PR #13 open).
 ## Active Branch
 `feature/canvas-terminal`
 
+## Active Reviews
+
+### PR #13 — feat: frontend canvas terminal renderer (Phase 5b)
+- State: `docs/reviews/PR-13/_state.json`
+- Agents: 8/8 completed
+- Phase: done — review compiled, awaiting fix pass
+
 ## Known Issues
 - DMG bundling fails (macOS code signing) — not blocking for dev
 - Icons are placeholder dark squares
