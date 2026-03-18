@@ -24,6 +24,13 @@ impl ConfigStore {
     pub fn new() -> Result<Self, String> {
         let dir = home_dir()?.join(CONFIG_DIR_NAME);
         fs::create_dir_all(&dir).map_err(|e| format!("Failed to create config dir: {e}"))?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let perms = fs::Permissions::from_mode(0o700);
+            fs::set_permissions(&dir, perms)
+                .map_err(|e| format!("Failed to set config dir permissions: {e}"))?;
+        }
         Ok(Self {
             dir,
             lock: RwLock::new(()),
@@ -178,6 +185,18 @@ impl ConfigStore {
                 tmp_path.display(),
                 path.display()
             )
-        })
+        })?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let perms = fs::Permissions::from_mode(0o600);
+            if let Err(e) = fs::set_permissions(path, perms) {
+                eprintln!(
+                    "[config-store] Failed to set file permissions on {}: {e}",
+                    path.display()
+                );
+            }
+        }
+        Ok(())
     }
 }
