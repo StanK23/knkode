@@ -76,8 +76,9 @@ pub fn create_pty(
             return Err("startup_command must not contain null bytes".to_string());
         }
     }
-    tracker.track_pane(id.clone(), cwd.clone());
-    pty_mgr.create(id, cwd, startup_command, app)
+    pty_mgr.create(id.clone(), cwd.clone(), startup_command, app)?;
+    tracker.track_pane(id, cwd);
+    Ok(())
 }
 
 #[tauri::command]
