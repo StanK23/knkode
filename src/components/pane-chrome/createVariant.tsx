@@ -2,8 +2,8 @@ import { registerVariant } from ".";
 import { FOCUS_VIS, FolderIcon, LeafIcon, PrBadge } from "./shared";
 import type { FrameProps, PaneVariant, ScrollButtonProps, VariantTheme } from "./types";
 
-type StyleFn = (theme: VariantTheme, isFocused: boolean) => React.CSSProperties;
-type ThemeFn = (theme: VariantTheme) => React.CSSProperties;
+export type StyleFn = (theme: VariantTheme, isFocused: boolean) => React.CSSProperties;
+export type ThemeFn = (theme: VariantTheme) => React.CSSProperties;
 
 export interface VariantConfig {
 	statusBar: {
@@ -53,9 +53,21 @@ export interface VariantConfig {
 
 /** Create and register a pane-chrome variant from a style configuration.
  *  Covers single-row Frame layouts — use a custom implementation
- *  for variants with unique DOM structure (e.g. Vaporwave's 2-row layout). */
+ *  for variants that need entirely custom DOM structure. */
 export function createAndRegisterVariant(name: string, config: VariantConfig): PaneVariant {
 	const { statusBar: sb, scrollButton: scr } = config;
+	const hasSep = sb.separator != null;
+	const sepClass = sb.separatorOpacity ?? "opacity-30";
+
+	/** Stable separator component — defined once per variant, not per render. */
+	function Sep({ theme }: { theme: VariantTheme }) {
+		if (!hasSep) return null;
+		return (
+			<span className={sepClass} style={sb.separatorStyle?.(theme)}>
+				{sb.separator}
+			</span>
+		);
+	}
 
 	function Frame({
 		label,
@@ -78,16 +90,6 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 		headerProps,
 		contextMenu,
 	}: FrameProps) {
-		const hasSep = sb.separator != null;
-		const sepClass = sb.separatorOpacity ?? "opacity-30";
-		const sepStyle = sb.separatorStyle?.(theme);
-		const Sep = hasSep
-			? () => (
-					<span className={sepClass} style={sepStyle}>
-						{sb.separator}
-					</span>
-				)
-			: () => null;
 		const actionCls = `bg-transparent border-none cursor-pointer leading-none transition-opacity ${FOCUS_VIS} ${sb.action.className}`;
 		const actionStyle = sb.action.style(theme);
 		const isBottom = theme.statusBarPosition === "bottom";
@@ -114,7 +116,7 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 					</span>
 				)}
 
-				{(sb.showSeparatorAfterLabel ?? true) && <Sep />}
+				{(sb.showSeparatorAfterLabel ?? true) && <Sep theme={theme} />}
 
 				<span
 					className={`flex-1 overflow-hidden text-ellipsis whitespace-nowrap ${sb.cwd.className}`}
@@ -158,7 +160,7 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 					/>
 				)}
 
-				<Sep />
+				<Sep theme={theme} />
 
 				<SnippetTrigger className={actionCls} style={actionStyle}>
 					{sb.snippet.label}
