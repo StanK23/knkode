@@ -28,11 +28,7 @@ fn detect_cwd(pid: u32) -> Option<String> {
     let lines: Vec<&str> = stdout.lines().collect();
     let cwd_idx = lines.iter().position(|l| *l == "fcwd")?;
     let name_line = lines.get(cwd_idx + 1)?;
-    if name_line.starts_with('n') {
-        Some(name_line[1..].to_string())
-    } else {
-        None
-    }
+    name_line.strip_prefix('n').map(|path| path.to_string())
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -315,7 +311,7 @@ impl PtyManager {
         let fallback = session.initial_cwd.clone();
         drop(sessions);
 
-        pid.and_then(|p| detect_cwd(p)).or(Some(fallback))
+        pid.and_then(detect_cwd).or(Some(fallback))
     }
 
     fn lock_sessions(&self) -> Result<MutexGuard<'_, HashMap<String, PtySession>>, String> {
