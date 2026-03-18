@@ -217,7 +217,7 @@ export function PaneContextMenu({
 						onChange={(e) => setCwdInput(e.target.value)}
 						placeholder="/path/to/directory"
 						className="ctx-input flex-1 min-w-0"
-						ref={(el) => el?.focus()}
+						autoFocus
 					/>
 					<button type="submit" className="ctx-submit">
 						Set
@@ -251,7 +251,7 @@ export function PaneContextMenu({
 						onChange={(e) => setCmdInput(e.target.value)}
 						placeholder="npm run dev"
 						className="ctx-input flex-1 min-w-0"
-						ref={(el) => el?.focus()}
+						autoFocus
 					/>
 					<button type="submit" className="ctx-submit">
 						Set
@@ -335,18 +335,17 @@ export function PaneContextMenu({
 							type="button"
 							className="ctx-submit"
 							onClick={() => {
-								const fields: Record<string, string | number> = {};
-								if (themeInput.background) fields.background = themeInput.background;
-								if (themeInput.foreground) fields.foreground = themeInput.foreground;
-								if (themeInput.fontSize) {
-									const fs = Number(themeInput.fontSize);
-									if (Number.isFinite(fs) && fs >= MIN_FONT_SIZE && fs <= MAX_FONT_SIZE)
-										fields.fontSize = fs;
-								}
-								if (themeInput.fontFamily) fields.fontFamily = themeInput.fontFamily;
+								const fs = Number(themeInput.fontSize);
+								const validFs = Number.isFinite(fs) && fs >= MIN_FONT_SIZE && fs <= MAX_FONT_SIZE ? fs : undefined;
+								const fields: Partial<PaneTheme> = {
+									...(themeInput.background ? { background: themeInput.background } : {}),
+									...(themeInput.foreground ? { foreground: themeInput.foreground } : {}),
+									...(validFs !== undefined ? { fontSize: validFs } : {}),
+									...(themeInput.fontFamily ? { fontFamily: themeInput.fontFamily } : {}),
+								};
 								onUpdateConfig({
 									themeOverride:
-										Object.keys(fields).length > 0 ? (fields as Partial<PaneTheme>) : null,
+										Object.keys(fields).length > 0 ? fields : null,
 								});
 								closeContext();
 							}}
