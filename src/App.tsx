@@ -23,7 +23,7 @@ export function App() {
 	const [showSettings, setShowSettings] = useState(false);
 	const closeSettings = useCallback(() => {
 		setShowSettings(false);
-		// Re-focus the terminal pane when the settings panel closes
+		// Imperatively read store to avoid stale closure over focusedPaneId
 		const { focusedPaneId, setFocusedPane } = useStore.getState();
 		if (focusedPaneId) setFocusedPane(focusedPaneId);
 	}, []);
@@ -42,51 +42,51 @@ export function App() {
 		document.title = activeWorkspaceName ? `${activeWorkspaceName} — knkode` : "knkode";
 	}, [activeWorkspaceName]);
 
-	// Listen for CWD changes from the backend
+	// Listen for backend PTY events (CWD, git branch, PR status).
+	// Unified into a single effect to avoid three identical subscribe/lookup patterns.
 	useEffect(() => {
-		const unsubscribe = window.api.onPtyCwdChanged((paneId, cwd) => {
-			const ws = useStore.getState().workspaces.find((w) => paneId in w.panes);
-			if (ws) updatePaneCwd(ws.id, paneId, cwd);
-		});
-		return unsubscribe;
-	}, [updatePaneCwd]);
+		const findWs = (paneId: string) =>
+			useStore.getState().workspaces.find((w) => paneId in w.panes);
 
-	// Listen for git branch changes from the backend
-	useEffect(() => {
-		const unsubscribe = window.api.onPtyBranchChanged((paneId, branch) => {
-			const ws = useStore.getState().workspaces.find((w) => paneId in w.panes);
-			if (ws) updatePaneBranch(paneId, branch);
-		});
-		return unsubscribe;
-	}, [updatePaneBranch]);
+		const unsubs = [
+			window.api.onPtyCwdChanged((paneId, cwd) => {
+				const ws = findWs(paneId);
+				if (ws) updatePaneCwd(ws.id, paneId, cwd);
+			}),
+			window.api.onPtyBranchChanged((paneId, branch) => {
+				const ws = findWs(paneId);
+				if (ws) updatePaneBranch(paneId, branch);
+			}),
+			window.api.onPtyPrChanged((paneId, pr) => {
+				const ws = findWs(paneId);
+				if (ws) updatePanePr(paneId, pr);
+			}),
+		];
+		return () => unsubs.forEach((fn) => fn());
+	}, [updatePaneCwd, updatePaneBranch, updatePanePr]);
 
-	// Listen for PR status changes from the backend
-	useEffect(() => {
-		const unsubscribe = window.api.onPtyPrChanged((paneId, pr) => {
-			const ws = useStore.getState().workspaces.find((w) => paneId in w.panes);
-			if (ws) updatePanePr(paneId, pr);
-		});
-		return unsubscribe;
-	}, [updatePanePr]);
-
-	// Must be above early returns to satisfy React's rules of hooks
-	const themeStyles = useMemo(() => {
-		if (!activeWorkspace?.theme) return undefined;
+	// Must be above early returns to satisfy React's rules of hooks.
+	// Returns { vars, failed } so we can show a fallback indicator on failure.
+	const { themeStyles, themeFailed } = useMemo(() => {
+		if (!activeWorkspace?.theme) return { themeStyles: undefined, themeFailed: false };
 		try {
 			const t = activeWorkspace.theme;
 			const preset = t.preset ? findPreset(t.preset) : undefined;
 			if (t.preset && !preset) console.warn("[App] unknown theme preset:", t.preset);
-			return generateThemeVariables({
-				bg: t.background,
-				fg: t.foreground,
-				fontFamily: t.fontFamily,
-				fontSize: t.fontSize,
-				accent: t.accent ?? preset?.accent,
-				glow: t.glow ?? preset?.glow,
-			});
+			return {
+				themeStyles: generateThemeVariables({
+					bg: t.background,
+					fg: t.foreground,
+					fontFamily: t.fontFamily,
+					fontSize: t.fontSize,
+					accent: t.accent ?? preset?.accent,
+					glow: t.glow ?? preset?.glow,
+				}),
+				themeFailed: false,
+			};
 		} catch (err) {
 			console.error("[App] theme generation failed:", err);
-			return undefined;
+			return { themeStyles: undefined, themeFailed: true };
 		}
 	}, [activeWorkspace?.theme]);
 
@@ -106,7 +106,10 @@ export function App() {
 		);
 	}
 
-	const visitedWorkspaces = workspaces.filter((w) => visitedWorkspaceIds.includes(w.id));
+	const visitedWorkspaces = useMemo(
+		() => workspaces.filter((w) => visitedWorkspaceIds.includes(w.id)),
+		[workspaces, visitedWorkspaceIds],
+	);
 
 	return (
 		<ErrorBoundary>
@@ -121,6 +124,11 @@ export function App() {
 				}}
 			>
 				<TabBar onOpenSettings={() => setShowSettings(true)} />
+				{themeFailed && (
+					<div className="px-3 py-1 text-xs text-danger bg-danger/10 border-b border-danger/20">
+						Theme failed to load — using defaults.
+					</div>
+				)}
 				{visitedWorkspaces.length > 0 ? (
 					<>
 						<div className="relative flex flex-1 overflow-hidden">
@@ -145,10 +153,7 @@ export function App() {
 					</>
 				) : (
 					<div className="flex items-center justify-center flex-1 bg-canvas">
-						<p className="text-content-muted text-sm">
-							No workspace open. Click + to create one.{" "}
-							{!activeWorkspace && `(Debug: activeId=${appState.activeWorkspaceId})`}
-						</p>
+						<p className="text-content-muted text-sm">No workspace open. Click + to create one.</p>
 					</div>
 				)}
 				{/* Portal root for menus that need to escape pane stacking/overflow
