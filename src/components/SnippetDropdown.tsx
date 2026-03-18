@@ -105,7 +105,6 @@ export function SnippetDropdown({
 							position: "fixed",
 							right: menuPos?.right ?? 0,
 							top: menuPos?.top ?? 0,
-							left: "auto",
 							visibility: menuPos ? "visible" : "hidden",
 						}}
 					>

@@ -17,17 +17,23 @@ export function SnippetsSection() {
 	const [newCommand, setNewCommand] = useState("");
 	const [liveMessage, setLiveMessage] = useState("");
 
-	const { dragFromIndex, dragOverIndex, resetDragState, handleDragStart, handleDragOver, handleDrop } =
-		useDragReorder({
-			onReorder: useCallback(
-				(from: number, to: number) => {
-					reorderSnippets(from, to);
-					const name = snippets[from]?.name ?? "Snippet";
-					setLiveMessage(`Moved ${name} to position ${to + 1}`);
-				},
-				[reorderSnippets, snippets],
-			),
-		});
+	const {
+		dragFromIndex,
+		dragOverIndex,
+		resetDragState,
+		handleDragStart,
+		handleDragOver,
+		handleDrop,
+	} = useDragReorder({
+		onReorder: useCallback(
+			(from: number, to: number) => {
+				reorderSnippets(from, to);
+				const name = snippets[from]?.name ?? "Snippet";
+				setLiveMessage(`Moved ${name} to position ${to + 1}`);
+			},
+			[reorderSnippets, snippets],
+		),
+	});
 
 	const startEdit = useCallback(
 		(id: string) => {
@@ -106,6 +112,7 @@ export function SnippetsSection() {
 								<input
 									value={editName}
 									onChange={(e) => setEditName(e.target.value)}
+									maxLength={64}
 									className="settings-input flex-1 min-w-0"
 									placeholder="Name"
 									aria-label="Snippet name"
@@ -119,6 +126,7 @@ export function SnippetsSection() {
 								<input
 									value={editCommand}
 									onChange={(e) => setEditCommand(e.target.value)}
+									maxLength={1024}
 									className="settings-input flex-[2] min-w-0"
 									placeholder="Command"
 									aria-label="Snippet command"
@@ -187,6 +195,7 @@ export function SnippetsSection() {
 					<input
 						value={newName}
 						onChange={(e) => setNewName(e.target.value)}
+						maxLength={64}
 						className="settings-input flex-1 min-w-0"
 						placeholder="Name (e.g. Claude)"
 						aria-label="New snippet name"
@@ -200,6 +209,7 @@ export function SnippetsSection() {
 					<input
 						value={newCommand}
 						onChange={(e) => setNewCommand(e.target.value)}
+						maxLength={1024}
 						className="settings-input flex-[2] min-w-0"
 						placeholder="Command (e.g. claude --dangerously-skip-permissions)"
 						aria-label="New snippet command"

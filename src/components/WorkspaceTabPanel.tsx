@@ -76,6 +76,7 @@ export function WorkspaceTabPanel({
 						<input
 							value={pane.label}
 							onChange={(e) => onPaneUpdate(paneId, { label: e.target.value })}
+							maxLength={64}
 							className="settings-input w-24 shrink-0"
 							placeholder="Label"
 							aria-label={`Pane ${pane.label} label`}
@@ -93,6 +94,7 @@ export function WorkspaceTabPanel({
 									startupCommand: e.target.value || null,
 								})
 							}
+							maxLength={1024}
 							className="settings-input flex-[2] min-w-0"
 							placeholder="Startup command"
 							aria-label={`Pane ${pane.label} startup command`}

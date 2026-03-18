@@ -22,10 +22,12 @@ export function SegmentedButton<T extends string>({
 					if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
 					e.preventDefault();
 					const idx = options.indexOf(value);
-					const next =
+					const nextIdx =
 						e.key === "ArrowRight"
-							? options[(idx + 1) % options.length]!
-							: options[(idx - 1 + options.length) % options.length]!;
+							? (idx + 1) % options.length
+							: (idx - 1 + options.length) % options.length;
+					const next = options[nextIdx];
+					if (!next) return;
 					onChange(next);
 					const el = e.currentTarget.querySelector(`[data-value="${CSS.escape(next)}"]`);
 					if (el instanceof HTMLElement) el.focus();
@@ -40,7 +42,7 @@ export function SegmentedButton<T extends string>({
 						tabIndex={value === option ? 0 : -1}
 						data-value={option}
 						onClick={() => onChange(option)}
-						className={`text-[11px] px-2.5 py-1 cursor-pointer border-none transition-colors ${
+						className={`text-[11px] px-2.5 py-1 cursor-pointer border-none transition-colors focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent focus-visible:outline-none ${
 							value === option
 								? "bg-accent/20 text-accent font-medium"
 								: "bg-transparent text-content-muted hover:text-content-secondary"

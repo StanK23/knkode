@@ -24,7 +24,7 @@ import type { ThemePresetName } from "../../data/theme-presets";
 
 /** Compile-time completeness check: if a preset is added to THEME_PRESETS
  *  without a corresponding entry here, TypeScript will report a missing property. */
-const _VARIANT_COMPLETENESS: Record<ThemePresetName, true> = {
+({
 	"Default Dark": true,
 	Dracula: true,
 	"Tokyo Night": true,
@@ -41,5 +41,4 @@ const _VARIANT_COMPLETENESS: Record<ThemePresetName, true> = {
 	Ocean: true,
 	Sunset: true,
 	Arctic: true,
-};
-void _VARIANT_COMPLETENESS;
+}) satisfies Record<ThemePresetName, true>;

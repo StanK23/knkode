@@ -90,13 +90,15 @@ const PRESETS: { value: LayoutPreset; label: string; icon: React.ReactNode }[] =
 export function LayoutPicker({ current, onSelect }: LayoutPickerProps) {
 	return (
 		<SettingsSection label="Layout">
-			<div className="grid grid-cols-3 gap-1.5">
+			<div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Layout preset">
 				{PRESETS.map((p) => (
 					<button
 						type="button"
+						role="radio"
+						aria-checked={current === p.value}
 						key={p.value}
 						onClick={() => onSelect(p.value)}
-						className={`flex flex-col items-center gap-1 py-2.5 px-2 border rounded-md cursor-pointer text-content ${
+						className={`flex flex-col items-center gap-1 py-2.5 px-2 border rounded-md cursor-pointer text-content focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
 							current === p.value
 								? "border-accent bg-accent/15"
 								: "border-edge bg-sunken hover:border-content-muted"
