@@ -1,7 +1,10 @@
 /** Maps DOM KeyboardEvent to ANSI escape sequences for terminal input.
- *  Simplified version — no input mode awareness (application cursor mode deferred). */
+ *  Simplified version -- no input mode awareness (application cursor mode deferred).
+ *  Modifier parameters applied to both CSI and SS3 (F1-F4) sequences. */
 
-const SPECIAL_KEYS: Record<string, string> = {
+const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta"]);
+
+const SPECIAL_KEYS = {
 	Enter: "\r",
 	Backspace: "\x7f",
 	Tab: "\t",
@@ -28,30 +31,24 @@ const SPECIAL_KEYS: Record<string, string> = {
 	F10: "\x1b[21~",
 	F11: "\x1b[23~",
 	F12: "\x1b[24~",
-};
+} as const satisfies Record<string, string>;
 
 /** Convert a DOM KeyboardEvent to an ANSI string for the terminal.
  *  Returns null if the event should not be sent (modifier-only keys, unhandled combos). */
 export function keyEventToAnsi(e: KeyboardEvent): string | null {
-	// Ignore standalone modifier keys
-	if (e.key === "Shift" || e.key === "Control" || e.key === "Alt" || e.key === "Meta") {
-		return null;
-	}
+	if (MODIFIER_KEYS.has(e.key)) return null;
 
-	// Ctrl+key combinations (a-z, plus common special combos)
+	// Ctrl+key: a-z maps to 0x01-0x1A; also handles Ctrl+[ ] \ and Space
 	if (e.ctrlKey && !e.altKey && !e.metaKey) {
 		if (e.key.length === 1) {
 			const code = e.key.toLowerCase().charCodeAt(0);
-			// Ctrl+a through Ctrl+z → 0x01-0x1A
 			if (code >= 0x61 && code <= 0x7a) {
 				return String.fromCharCode(code - 0x60);
 			}
-			// Ctrl+[ → ESC, Ctrl+\ → 0x1C, Ctrl+] → 0x1D
 			if (e.key === "[") return "\x1b";
 			if (e.key === "\\") return "\x1c";
 			if (e.key === "]") return "\x1d";
 		}
-		// Ctrl+Space → NUL
 		if (e.key === " ") return "\x00";
 	}
 
@@ -62,20 +59,26 @@ export function keyEventToAnsi(e: KeyboardEvent): string | null {
 		}
 	}
 
+	// Shift+Tab → reverse-tab (backtab)
+	if (e.key === "Tab" && e.shiftKey) return "\x1b[Z";
+
 	// Special keys (arrows, function keys, etc.)
-	const special = SPECIAL_KEYS[e.key];
+	const special = (SPECIAL_KEYS as Record<string, string>)[e.key];
 	if (special !== undefined) {
-		// Shift/Ctrl/Alt modifiers on special keys → CSI with modifier parameter
 		const mod = modifierParam(e);
-		if (mod > 1 && special.startsWith("\x1b[") && special.length > 2) {
-			// CSI sequences: \x1b[X~ or \x1b[X → \x1b[1;modX or \x1b[N;mod~
-			const inner = special.slice(2);
-			if (inner.endsWith("~")) {
-				// \x1b[N~ → \x1b[N;mod~
-				return `\x1b[${inner.slice(0, -1)};${mod}~`;
+		if (mod > 1) {
+			// CSI sequences: \x1b[N~ → \x1b[N;mod~ or \x1b[X → \x1b[1;modX
+			if (special.startsWith("\x1b[")) {
+				const inner = special.slice(2);
+				if (inner.endsWith("~")) {
+					return `\x1b[${inner.slice(0, -1)};${mod}~`;
+				}
+				return `\x1b[1;${mod}${inner}`;
 			}
-			// \x1b[X (single letter) → \x1b[1;modX
-			return `\x1b[1;${mod}${inner}`;
+			// SS3 sequences (F1-F4): \x1bOX → \x1b[1;modX
+			if (special.startsWith("\x1bO")) {
+				return `\x1b[1;${mod}${special[2]}`;
+			}
 		}
 		return special;
 	}
