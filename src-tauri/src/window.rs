@@ -55,8 +55,12 @@ fn apply_effects(window: &tauri::WebviewWindow) {
             eprintln!("[window] Failed to set acrylic: {e}");
         }
         // Force maximizable/resizable — acrylic can gray out window controls
-        let _ = window.set_maximizable(true);
-        let _ = window.set_resizable(true);
+        if let Err(e) = window.set_maximizable(true) {
+            eprintln!("[window] Failed to set maximizable: {e}");
+        }
+        if let Err(e) = window.set_resizable(true) {
+            eprintln!("[window] Failed to set resizable: {e}");
+        }
     }
 
     // Suppress unused variable warning on other platforms
@@ -112,7 +116,7 @@ fn start_bounds_watcher(app: &tauri::App, window: &tauri::WebviewWindow) {
     });
 
     // Background thread: debounce then save
-    std::thread::Builder::new()
+    if let Err(e) = std::thread::Builder::new()
         .name("bounds-watcher".into())
         .spawn(move || {
             let config = app_handle.state::<ConfigStore>();
@@ -121,7 +125,7 @@ fn start_bounds_watcher(app: &tauri::App, window: &tauri::WebviewWindow) {
                 if rx.recv().is_err() {
                     break; // channel closed
                 }
-                // Drain events until 500ms of quiet
+                // Drain events until quiet
                 loop {
                     match rx.recv_timeout(Duration::from_millis(DEBOUNCE_MS)) {
                         Ok(()) => continue,                            // more events — keep waiting
@@ -132,18 +136,23 @@ fn start_bounds_watcher(app: &tauri::App, window: &tauri::WebviewWindow) {
                 save_bounds(&window_clone, &config);
             }
         })
-        .ok();
+    {
+        eprintln!("[window] Failed to spawn bounds-watcher thread: {e}");
+    }
 }
 
 /// Persist current window bounds (logical units) to app-state.json.
 fn save_bounds(window: &tauri::WebviewWindow, config: &ConfigStore) {
-    let Ok(size) = window.inner_size() else {
+    let Ok(size) = window.outer_size() else {
+        eprintln!("[window] Failed to get window size");
         return;
     };
     let Ok(position) = window.outer_position() else {
+        eprintln!("[window] Failed to get window position");
         return;
     };
     let Ok(scale) = window.scale_factor() else {
+        eprintln!("[window] Failed to get scale factor");
         return;
     };
 
