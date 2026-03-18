@@ -11,26 +11,35 @@ const SHELL_READY_DELAY_MS: u64 = 300;
 const READ_BUFFER_SIZE: usize = 8192;
 const MAX_SESSIONS: usize = 64;
 
-/// Detect the CWD of a child process via OS-specific mechanisms.
-/// macOS: `lsof -p PID -Fn` parses the `fcwd` + `n/path` lines.
-/// Returns None if detection fails or is unsupported on this platform.
+/// Detect the CWD of a child process by parsing `lsof -p PID -Fn` output.
+/// Scans for the `fcwd` file descriptor line, then reads the `n/path` line after it.
+/// Does not need PATH augmentation — `lsof` lives in `/usr/sbin` which is always
+/// in the default PATH, even for Dock/Spotlight-launched apps.
 #[cfg(target_os = "macos")]
 fn detect_cwd(pid: u32) -> Option<String> {
     use std::process::Command;
     let output = Command::new("lsof")
         .args(["-p", &pid.to_string(), "-Fn"])
+        .stderr(std::process::Stdio::null())
         .output()
         .ok()?;
     if !output.status.success() {
         return None;
     }
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let lines: Vec<&str> = stdout.lines().collect();
-    let cwd_idx = lines.iter().position(|l| *l == "fcwd")?;
-    let name_line = lines.get(cwd_idx + 1)?;
-    name_line.strip_prefix('n').map(|path| path.to_string())
+    let mut found_cwd = false;
+    for line in stdout.lines() {
+        if found_cwd {
+            return line.strip_prefix('n').map(|path| path.to_string());
+        }
+        if line == "fcwd" {
+            found_cwd = true;
+        }
+    }
+    None
 }
 
+// TODO: Linux support via `/proc/<pid>/cwd` (readlink)
 #[cfg(not(target_os = "macos"))]
 fn detect_cwd(_pid: u32) -> Option<String> {
     None
