@@ -45,13 +45,15 @@ export function updateSizesAtPath(node: LayoutNode, path: number[], sizes: numbe
 				children: node.children.length,
 			})
 		}
-		return {
-			...node,
-			children: node.children.map((child, i) => ({
-				...child,
-				size: sizes[i] ?? child.size,
-			})),
-		}
+		let changed = false
+		const newChildren = node.children.map((child, i) => {
+			const newSize = sizes[i] ?? child.size
+			if (newSize === child.size) return child
+			changed = true
+			return { ...child, size: newSize }
+		})
+		if (!changed) return node
+		return { ...node, children: newChildren }
 	}
 	if (!isLayoutBranch(node)) {
 		console.warn('[layout] updateSizesAtPath: path traversal hit leaf before exhausting path')
@@ -65,22 +67,22 @@ export function updateSizesAtPath(node: LayoutNode, path: number[], sizes: numbe
 		})
 		return node
 	}
+	const updatedChild = updateSizesAtPath(node.children[head]!, rest, sizes)
+	if (updatedChild === node.children[head]) return node
 	return {
 		...node,
-		children: node.children.map((child, i) =>
-			i === head ? updateSizesAtPath(child, rest, sizes) : child,
-		),
+		children: node.children.map((child, i) => (i === head ? updatedChild : child)),
 	}
 }
 
 /** Get the first leaf pane ID in a subtree (depth-first, left-child-first).
- *  Returns 'empty' for branches with no children (corrupted state guard). */
-export function getFirstPaneId(node: LayoutNode): string {
+ *  Returns null for branches with no children (corrupted state guard). */
+export function getFirstPaneId(node: LayoutNode): string | null {
 	if (!isLayoutBranch(node)) return node.paneId
 	const first = node.children[0]
 	if (!first) {
 		console.warn('[layout] getFirstPaneId: branch has no children (corrupted state)')
-		return 'empty'
+		return null
 	}
 	return getFirstPaneId(first)
 }
