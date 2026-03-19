@@ -44,8 +44,14 @@ const BAR_WIDTH_RATIO = 0.12;
 const UNDERLINE_HEIGHT_RATIO = 0.12;
 /** Selection highlight overlay opacity — balances visibility against text readability. */
 const SELECTION_HIGHLIGHT_OPACITY = 0.33;
-/** Maximum time between clicks to count as a multi-click (word/line select). */
+/** Maximum elapsed time between clicks for a click streak to continue. */
 const CLICK_STREAK_TIMEOUT_MS = 400;
+/** Click streak values — also used as drag granularity mode. */
+const CLICK_CHAR = 1;
+const CLICK_WORD = 2;
+const CLICK_LINE = 3;
+/** Word character pattern for word-boundary detection in findWordBounds. */
+const WORD_CHAR_RE = /\w/;
 
 interface CellMetrics {
 	width: number;
@@ -87,7 +93,7 @@ function findWordBounds(
 
 	const isWordChar = (c: number): boolean => {
 		const cell = row[c];
-		return cell != null && /\w/.test(cell.text);
+		return cell != null && WORD_CHAR_RE.test(cell.text);
 	};
 
 	if (!isWordChar(col)) return { startCol: col, endCol: col };
@@ -768,22 +774,23 @@ export function CanvasTerminal({
 			const lastCell = lastClickCellRef.current;
 			const sameCell = lastCell != null && lastCell.row === absRow && lastCell.col === cell.col;
 			if (sameCell && now - lastClickTimeRef.current < CLICK_STREAK_TIMEOUT_MS) {
-				clickStreakRef.current = Math.min(clickStreakRef.current + 1, 3);
+				clickStreakRef.current = Math.min(clickStreakRef.current + 1, CLICK_LINE);
 			} else {
-				clickStreakRef.current = 1;
+				clickStreakRef.current = CLICK_CHAR;
 			}
 			lastClickTimeRef.current = now;
 			lastClickCellRef.current = { row: absRow, col: cell.col };
+			// streak also governs drag granularity (char/word/line) in onMove below
 			const streak = clickStreakRef.current;
 
 			// Determine initial selection based on click streak
 			let anchorCol: number;
 			let endCol: number;
-			if (streak === 3) {
+			if (streak === CLICK_LINE) {
 				// Triple-click: select entire line
 				anchorCol = 0;
 				endCol = snap.cols - 1;
-			} else if (streak === 2) {
+			} else if (streak === CLICK_WORD) {
 				// Double-click: select word at click position
 				const bounds = findWordBounds(snap.rows, cell.row, cell.col, snap.cols);
 				anchorCol = bounds.startCol;
@@ -804,8 +811,7 @@ export function CanvasTerminal({
 			const canvas = canvasRef.current;
 			const cachedRect = canvas?.getBoundingClientRect();
 			const cachedDpr = dprRef.current;
-			// Capture drag mode and original selection bounds for granular dragging
-			const dragMode = streak;
+			// Capture original selection bounds for granular dragging
 			const origRow = absRow;
 			const origStartCol = anchorCol;
 			const origEndCol = endCol;
@@ -835,7 +841,7 @@ export function CanvasTerminal({
 				if (!snap) return;
 				const moveAbsRow = toAbsoluteRow(snap, cell.row);
 
-				if (dragMode === 3) {
+				if (streak === CLICK_LINE) {
 					// Line-granularity drag
 					if (moveAbsRow >= origRow) {
 						selectionAnchorRef.current = { row: origRow, col: 0 };
@@ -844,7 +850,7 @@ export function CanvasTerminal({
 						selectionAnchorRef.current = { row: origRow, col: snap.cols - 1 };
 						selectionEndRef.current = { row: moveAbsRow, col: 0 };
 					}
-				} else if (dragMode === 2) {
+				} else if (streak === CLICK_WORD) {
 					// Word-granularity drag
 					const bounds = findWordBounds(snap.rows, cell.row, cell.col, snap.cols);
 					const isAfter =
