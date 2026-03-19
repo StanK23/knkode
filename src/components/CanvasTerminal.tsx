@@ -8,6 +8,7 @@ import {
 	DEFAULT_FONT_SIZE,
 	DEFAULT_LINE_HEIGHT,
 } from "../shared/types";
+import { isMac } from "../utils/platform";
 
 export interface CanvasTerminalProps {
 	readonly grid: GridSnapshot | null;
@@ -18,6 +19,8 @@ export interface CanvasTerminalProps {
 	readonly fontSize?: number | undefined;
 	readonly fontFamily?: string | undefined;
 	readonly lineHeight?: number | undefined;
+	/** User-configured cursor style. Overridden by TUI escape sequences when cursorShape !== "default". */
+	readonly cursorStyle?: "block" | "underline" | "bar" | undefined;
 	readonly cursorColor?: string | undefined;
 	readonly background?: string | undefined;
 	readonly isFocused?: boolean | undefined;
@@ -31,6 +34,12 @@ const CURSOR_MAX_OPACITY = 0.7;
 const CURSOR_MIN_OPACITY = 0.0;
 const CURSOR_STATIC_OPACITY = 0.5;
 const RESIZE_DEBOUNCE_MS = 100;
+/** Bar cursor width as fraction of cell width. */
+const BAR_WIDTH_RATIO = 0.12;
+/** Underline cursor height as fraction of cell height. */
+const UNDERLINE_HEIGHT_RATIO = 0.12;
+
+type EffectiveCursorShape = "block" | "underline" | "bar";
 
 interface CellMetrics {
 	width: number;
@@ -110,6 +119,7 @@ export function CanvasTerminal({
 	fontSize = DEFAULT_FONT_SIZE,
 	fontFamily = DEFAULT_FONT_FAMILY,
 	lineHeight = DEFAULT_LINE_HEIGHT,
+	cursorStyle = "bar",
 	cursorColor = DEFAULT_CURSOR_COLOR,
 	background = DEFAULT_BACKGROUND,
 	isFocused = true,
@@ -125,6 +135,7 @@ export function CanvasTerminal({
 	const dprRef = useRef(window.devicePixelRatio || 1);
 	const onResizeRef = useRef(onResize);
 	const onScrollRef = useRef(onScroll);
+	const cursorStyleRef = useRef(cursorStyle);
 	const resizeTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
 	const isFocusedRef = useRef(isFocused);
 
@@ -132,7 +143,15 @@ export function CanvasTerminal({
 	gridRef.current = grid;
 	onResizeRef.current = onResize;
 	onScrollRef.current = onScroll;
+	cursorStyleRef.current = cursorStyle;
 	isFocusedRef.current = isFocused;
+
+	/** Resolve the effective cursor shape. User's cursorStyle setting always wins —
+	 *  TUI DECSCUSR escape sequences are ignored so the cursor stays consistent.
+	 *  Defined as a ref to avoid triggering useCallback dependency changes. */
+	const resolveShapeRef = useRef((_snap: GridSnapshot): EffectiveCursorShape => {
+		return cursorStyleRef.current;
+	});
 
 	// Measure cell dimensions using actual font metrics (ascent + descent)
 	// instead of just fontSize, so descenders aren't clipped.
@@ -207,18 +226,27 @@ export function CanvasTerminal({
 
 		// Draw cursor overlay with current opacity
 		if (snap.cursorVisible) {
+			const shape = resolveShapeRef.current(snap);
 			ctx.fillStyle = cursorColor;
 			ctx.globalAlpha = cursorOpacity.current;
-			ctx.fillRect(cx, cy, cellW, cellH);
-			ctx.globalAlpha = 1.0;
 
-			if (cursorCell?.text.trim()) {
-				ctx.font = buildFont(cursorCell, scaledSize, fontFamily);
-				ctx.fillStyle = background;
-				ctx.globalAlpha = cursorOpacity.current / CURSOR_MAX_OPACITY;
-				ctx.fillText(cursorCell.text, cx, cy + baselineOffset);
+			if (shape === "bar") {
+				ctx.fillRect(cx, cy, Math.max(dpr, cellW * BAR_WIDTH_RATIO), cellH);
+			} else if (shape === "underline") {
+				const h = Math.max(dpr, cellH * UNDERLINE_HEIGHT_RATIO);
+				ctx.fillRect(cx, cy + cellH - h, cellW, h);
+			} else {
+				// block — fill entire cell, invert text on top
+				ctx.fillRect(cx, cy, cellW, cellH);
 				ctx.globalAlpha = 1.0;
+				if (cursorCell?.text.trim()) {
+					ctx.font = buildFont(cursorCell, scaledSize, fontFamily);
+					ctx.fillStyle = background;
+					ctx.globalAlpha = cursorOpacity.current / CURSOR_MAX_OPACITY;
+					ctx.fillText(cursorCell.text, cx, cy + baselineOffset);
+				}
 			}
+			ctx.globalAlpha = 1.0;
 		}
 	}, [fontSize, fontFamily, cursorColor, background]);
 
@@ -260,24 +288,32 @@ export function CanvasTerminal({
 
 		// Draw cursor
 		if (snap.cursorVisible) {
+			const shape = resolveShapeRef.current(snap);
 			const cx = snap.cursorCol * cellW;
 			const cy = snap.cursorRow * cellH;
 
 			ctx.fillStyle = cursorColor;
 			ctx.globalAlpha = cursorOpacity.current;
-			ctx.fillRect(cx, cy, cellW, cellH);
-			ctx.globalAlpha = 1.0;
 
-			// Redraw cursor cell text on top so it's visible against cursor color
-			const cursorRow = snap.rows[snap.cursorRow];
-			const cursorCell = cursorRow?.[snap.cursorCol];
-			if (cursorCell?.text.trim()) {
-				ctx.font = buildFont(cursorCell, scaledSize, fontFamily);
-				ctx.fillStyle = background;
-				ctx.globalAlpha = cursorOpacity.current / CURSOR_MAX_OPACITY;
-				ctx.fillText(cursorCell.text, cx, cy + baselineOffset);
+			if (shape === "bar") {
+				ctx.fillRect(cx, cy, Math.max(dpr, cellW * BAR_WIDTH_RATIO), cellH);
+			} else if (shape === "underline") {
+				const h = Math.max(dpr, cellH * UNDERLINE_HEIGHT_RATIO);
+				ctx.fillRect(cx, cy + cellH - h, cellW, h);
+			} else {
+				// block — fill entire cell, invert text on top
+				ctx.fillRect(cx, cy, cellW, cellH);
 				ctx.globalAlpha = 1.0;
+				const cursorRow = snap.rows[snap.cursorRow];
+				const cursorCell = cursorRow?.[snap.cursorCol];
+				if (cursorCell?.text.trim()) {
+					ctx.font = buildFont(cursorCell, scaledSize, fontFamily);
+					ctx.fillStyle = background;
+					ctx.globalAlpha = cursorOpacity.current / CURSOR_MAX_OPACITY;
+					ctx.fillText(cursorCell.text, cx, cy + baselineOffset);
+				}
 			}
+			ctx.globalAlpha = 1.0;
 		}
 	}, [background, cursorColor, fontSize, fontFamily, lineHeight]);
 
@@ -383,11 +419,11 @@ export function CanvasTerminal({
 		draw();
 	}, [grid, draw]);
 
-	// Smooth cursor blink animation — only runs when focused
-	// biome-ignore lint/correctness/useExhaustiveDependencies: repaintCursor reads from refs
+	// Smooth cursor blink animation — runs whenever the pane is focused.
+	// TUI DECSCUSR blink requests are ignored; user's setting always wins.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: grid in deps resets blink on new output (keystroke → cursor fully visible)
 	useEffect(() => {
 		if (!isFocused) {
-			// Static cursor when unfocused
 			cursorOpacity.current = CURSOR_STATIC_OPACITY;
 			repaintCursor();
 			return;
@@ -401,10 +437,8 @@ export function CanvasTerminal({
 			const elapsed = now - blinkStart.current;
 
 			if (elapsed < CURSOR_HOLD_MS) {
-				// Hold at full opacity after keystroke
 				cursorOpacity.current = CURSOR_MAX_OPACITY;
 			} else {
-				// Smooth cosine wave: max → min → max over BLINK_PERIOD
 				const t = elapsed - CURSOR_HOLD_MS;
 				const phase = (1 + Math.cos((t * 2 * Math.PI) / CURSOR_BLINK_PERIOD_MS)) / 2;
 				cursorOpacity.current =
@@ -419,13 +453,60 @@ export function CanvasTerminal({
 		return () => cancelAnimationFrame(animFrame.current);
 	}, [isFocused, grid, repaintCursor]);
 
+	/** Read clipboard and write contents to PTY. */
+	const pasteFromClipboard = useCallback(() => {
+		navigator.clipboard
+			.readText()
+			.then((text) => {
+				if (text) onWrite(text);
+			})
+			.catch((err: unknown) => {
+				console.error("[terminal] clipboard read failed:", err);
+			});
+	}, [onWrite]);
+
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
+			// Windows/Linux: Ctrl+C without Shift — copy if selection exists, SIGINT otherwise
+			if (
+				!isMac &&
+				e.ctrlKey &&
+				!e.shiftKey &&
+				!e.altKey &&
+				!e.metaKey &&
+				e.key.toLowerCase() === "c"
+			) {
+				const sel = window.getSelection()?.toString();
+				if (sel) {
+					// Copy selection — don't preventDefault so the native copy fires
+					return;
+				}
+				// No selection → send SIGINT
+				e.preventDefault();
+				onWrite("\x03");
+				return;
+			}
+
 			const ansi = keyEventToAnsi(e.nativeEvent);
+			if (ansi === "paste") {
+				e.preventDefault();
+				pasteFromClipboard();
+				return;
+			}
 			if (ansi !== null) {
 				e.preventDefault();
 				onWrite(ansi);
 			}
+		},
+		[onWrite, pasteFromClipboard],
+	);
+
+	// Handle native paste events (Cmd+V on macOS via Tauri menu, browser paste)
+	const handlePaste = useCallback(
+		(e: React.ClipboardEvent) => {
+			e.preventDefault();
+			const text = e.clipboardData.getData("text/plain");
+			if (text) onWrite(text);
 		},
 		[onWrite],
 	);
@@ -439,6 +520,7 @@ export function CanvasTerminal({
 			role="textbox"
 			aria-label="Terminal"
 			onKeyDown={handleKeyDown}
+			onPaste={handlePaste}
 		>
 			<canvas ref={canvasRef} className="block" />
 		</div>
