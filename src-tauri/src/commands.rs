@@ -1,6 +1,6 @@
 use crate::config::ConfigStore;
 use crate::pty::PtyManager;
-use crate::terminal::{AnsiThemeColors, GridSnapshot, TerminalState};
+use crate::terminal::{AnsiThemeColors, GridSnapshot, SelectionRange, TerminalState};
 use crate::tracker::CwdTracker;
 use serde_json::Value;
 use std::sync::Arc;
@@ -150,13 +150,10 @@ pub fn set_terminal_colors(
 #[tauri::command]
 pub fn get_selection_text(
     id: String,
-    start_row: usize,
-    start_col: usize,
-    end_row: usize,
-    end_col: usize,
+    range: SelectionRange,
     terminal_state: State<'_, Arc<TerminalState>>,
 ) -> Result<String, String> {
-    terminal_state.extract_text(&id, start_row, start_col, end_row, end_col)
+    terminal_state.extract_text(&id, &range)
 }
 
 // --- Debug ---

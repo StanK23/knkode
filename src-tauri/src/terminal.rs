@@ -93,6 +93,17 @@ pub struct AnsiThemeColors {
     pub bright_white: String,
 }
 
+/// Cell range for text extraction via IPC. Mirrors `SelectionRange` in
+/// `src/shared/types.ts`. All indices are inclusive.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SelectionRange {
+    pub start_row: usize,
+    pub start_col: usize,
+    pub end_row: usize,
+    pub end_col: usize,
+}
+
 /// Parse a hex color string into an RgbColor.
 /// Accepts `#RRGGBB`, `RRGGBB`, `#RGB`, or `RGB` formats.
 /// The 3-char form is expanded (e.g. `#F0A` → `#FF00AA`).
@@ -286,14 +297,7 @@ impl TerminalState {
     /// (wide-character continuation cells are skipped).
     /// Handles coordinate normalization (start/end swap), row/column clamping,
     /// trailing whitespace trimming, and joining rows with newlines.
-    pub fn extract_text(
-        &self,
-        id: &str,
-        start_row: usize,
-        start_col: usize,
-        end_row: usize,
-        end_col: usize,
-    ) -> Result<String, String> {
+    pub fn extract_text(&self, id: &str, range: &SelectionRange) -> Result<String, String> {
         let terminals = self
             .lock_terminals()
             .map_err(|e| format!("extract_text lock failed for {id}: {e}"))?;
@@ -310,12 +314,23 @@ impl TerminalState {
         }
 
         // Normalize: ensure start <= end
-        let (sr, sc, er, ec) =
-            if start_row < end_row || (start_row == end_row && start_col <= end_col) {
-                (start_row, start_col, end_row, end_col)
-            } else {
-                (end_row, end_col, start_row, start_col)
-            };
+        let (sr, sc, er, ec) = if range.start_row < range.end_row
+            || (range.start_row == range.end_row && range.start_col <= range.end_col)
+        {
+            (
+                range.start_row,
+                range.start_col,
+                range.end_row,
+                range.end_col,
+            )
+        } else {
+            (
+                range.end_row,
+                range.end_col,
+                range.start_row,
+                range.start_col,
+            )
+        };
 
         // Clamp row indices to buffer bounds (column clamping happens per-line below)
         let er = er.min(total_lines - 1);
