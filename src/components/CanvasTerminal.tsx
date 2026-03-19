@@ -1,3 +1,4 @@
+import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { useCallback, useEffect, useRef } from "react";
 import { DEFAULT_FONT_FAMILY } from "../data/theme-presets";
 import { keyEventToAnsi, PASTE_SENTINEL } from "../lib/key-to-ansi";
@@ -44,6 +45,14 @@ const BAR_WIDTH_RATIO = 0.12;
 const UNDERLINE_HEIGHT_RATIO = 0.12;
 /** Selection highlight overlay opacity — balances visibility against text readability. */
 const SELECTION_HIGHLIGHT_OPACITY = 0.33;
+/** Maximum elapsed time between clicks for a click streak to continue. */
+const CLICK_STREAK_TIMEOUT_MS = 400;
+/** Click streak values — also used as drag granularity mode. */
+const CLICK_CHAR = 1;
+const CLICK_WORD = 2;
+const CLICK_LINE = 3;
+/** Word character pattern for word-boundary detection in findWordBounds. */
+const WORD_CHAR_RE = /\w/;
 
 interface CellMetrics {
 	width: number;
@@ -69,6 +78,93 @@ function normalizeSelection(anchor: CellPosition, end: CellPosition): SelectionR
 		return { startRow: anchor.row, startCol: anchor.col, endRow: end.row, endCol: end.col };
 	}
 	return { startRow: end.row, startCol: end.col, endRow: anchor.row, endCol: anchor.col };
+}
+
+/** Find word boundaries at a given column in a viewport row.
+ *  A "word" is a contiguous run of word characters (\w). If the target cell is
+ *  not a word character, returns a single-cell range. If the viewport row does
+ *  not exist in the grid, also returns a single-cell range. */
+function findWordBounds(
+	rows: readonly (readonly CellSnapshot[])[],
+	viewportRow: number,
+	col: number,
+	totalCols: number,
+): { startCol: number; endCol: number } {
+	const row = rows[viewportRow];
+	if (!row) return { startCol: col, endCol: col };
+
+	const isWordChar = (c: number): boolean => {
+		const cell = row[c];
+		return cell != null && WORD_CHAR_RE.test(cell.text);
+	};
+
+	if (!isWordChar(col)) return { startCol: col, endCol: col };
+
+	let startCol = col;
+	while (startCol > 0 && isWordChar(startCol - 1)) startCol--;
+
+	let endCol = col;
+	while (endCol < totalCols - 1 && isWordChar(endCol + 1)) endCol++;
+
+	return { startCol, endCol };
+}
+
+/** Move one word left/right from a column, skipping whitespace first.
+ *  Returns the column at the start (left) or end (right) of the next word.
+ *  If no word is found, returns 0 (left) or totalCols-1 (right). */
+function moveByWord(
+	rows: readonly (readonly CellSnapshot[])[],
+	viewportRow: number,
+	col: number,
+	totalCols: number,
+	direction: "left" | "right",
+): number {
+	const row = rows[viewportRow];
+	if (!row) return col;
+
+	const isWordChar = (c: number): boolean => {
+		const cell = row[c];
+		return cell != null && WORD_CHAR_RE.test(cell.text);
+	};
+
+	if (direction === "left") {
+		let c = col - 1;
+		// Skip non-word chars
+		while (c >= 0 && !isWordChar(c)) c--;
+		if (c < 0) return 0;
+		// Find start of this word
+		while (c > 0 && isWordChar(c - 1)) c--;
+		return c;
+	}
+
+	// right
+	let c = col + 1;
+	// Skip non-word chars
+	while (c < totalCols && !isWordChar(c)) c++;
+	if (c >= totalCols) return totalCols - 1;
+	// Find end of this word
+	while (c < totalCols - 1 && isWordChar(c + 1)) c++;
+	return c;
+}
+
+/** Convert client (mouse) coordinates to a viewport-relative cell position
+ *  using a pre-computed rect and DPR. Returns null if metrics are unavailable. */
+function cellFromRect(
+	rect: DOMRect,
+	dpr: number,
+	clientX: number,
+	clientY: number,
+	cellW: number,
+	cellH: number,
+	maxCol: number,
+	maxRow: number,
+): { row: number; col: number } {
+	const x = (clientX - rect.left) * dpr;
+	const y = (clientY - rect.top) * dpr;
+	return {
+		col: Math.max(0, Math.min(maxCol, Math.floor(x / cellW))),
+		row: Math.max(0, Math.min(maxRow, Math.floor(y / cellH))),
+	};
 }
 
 /** Build a CSS font string for a cell's style attributes. */
@@ -264,6 +360,14 @@ export function CanvasTerminal({
 		move: (e: MouseEvent) => void;
 		up: (e: MouseEvent) => void;
 	} | null>(null);
+	/** Timestamp of the last mousedown — used for click streak detection. */
+	const lastClickTimeRef = useRef(0);
+	/** Cell position of the last mousedown — streaks only count when clicking the same cell. */
+	const lastClickCellRef = useRef<CellPosition | null>(null);
+	/** Current click streak count: 1 = single, 2 = double (word), 3 = triple (line). */
+	const clickStreakRef = useRef(1);
+	/** Whether a non-degenerate selection is active (set by multi-click or drag). */
+	const selectionActiveRef = useRef(false);
 
 	// Keep refs in sync
 	gridRef.current = grid;
@@ -281,17 +385,17 @@ export function CanvasTerminal({
 			if (!canvas) return null;
 			const { width: cellW, height: cellH } = cellMetrics.current;
 			if (cellW === 0 || cellH === 0) return null;
-			const dpr = dprRef.current;
-			const rect = canvas.getBoundingClientRect();
-			const x = (clientX - rect.left) * dpr;
-			const y = (clientY - rect.top) * dpr;
 			const snap = gridRef.current;
-			const maxCol = snap ? snap.cols - 1 : 0;
-			const maxRow = snap ? snap.totalRows - 1 : 0;
-			return {
-				col: Math.max(0, Math.min(maxCol, Math.floor(x / cellW))),
-				row: Math.max(0, Math.min(maxRow, Math.floor(y / cellH))),
-			};
+			return cellFromRect(
+				canvas.getBoundingClientRect(),
+				dprRef.current,
+				clientX,
+				clientY,
+				cellW,
+				cellH,
+				snap ? snap.cols - 1 : 0,
+				snap ? snap.totalRows - 1 : 0,
+			);
 		},
 		[],
 	);
@@ -427,10 +531,8 @@ export function CanvasTerminal({
 		// Draw selection highlight (between cells and cursor so cursor stays on top)
 		const anchor = selectionAnchorRef.current;
 		const end = selectionEndRef.current;
-		if (anchor && end && selectionColorRef.current) {
-			if (anchor.row !== end.row || anchor.col !== end.col) {
-				drawSelectionHighlight(ctx, anchor, end, snap, cellW, cellH, selectionColorRef.current);
-			}
+		if (anchor && end && selectionColorRef.current && selectionActiveRef.current) {
+			drawSelectionHighlight(ctx, anchor, end, snap, cellW, cellH, selectionColorRef.current);
 		}
 
 		// Draw cursor
@@ -467,6 +569,7 @@ export function CanvasTerminal({
 	const clearSelection = useCallback(() => {
 		selectionAnchorRef.current = null;
 		selectionEndRef.current = null;
+		selectionActiveRef.current = false;
 		drawRef.current();
 	}, []);
 
@@ -577,6 +680,11 @@ export function CanvasTerminal({
 			return;
 		}
 
+		// Ensure DOM focus matches logical focus (e.g. after snippet command)
+		if (containerRef.current && document.activeElement !== containerRef.current) {
+			containerRef.current.focus();
+		}
+
 		// Reset blink start so cursor is fully visible when pane gains focus
 		blinkStart.current = performance.now();
 		cursorOpacity.current = CURSOR_MAX_OPACITY;
@@ -600,6 +708,16 @@ export function CanvasTerminal({
 		animFrame.current = requestAnimationFrame(tick);
 		return () => cancelAnimationFrame(animFrame.current);
 	}, [isFocused, grid, repaintCursor]);
+
+	// Kill native browser text selection on the terminal container — CSS user-select:none
+	// doesn't prevent keyboard-driven selection in WKWebView.
+	useEffect(() => {
+		const el = containerRef.current;
+		if (!el) return;
+		const prevent = (e: Event) => e.preventDefault();
+		el.addEventListener("selectstart", prevent);
+		return () => el.removeEventListener("selectstart", prevent);
+	}, []);
 
 	// Cleanup drag listeners and selection RAF on unmount — prevents leaks if
 	// the component unmounts mid-drag (pane close, workspace switch).
@@ -632,8 +750,7 @@ export function CanvasTerminal({
 	/** Read clipboard and write contents to PTY. Complements the PASTE_SENTINEL
 	 *  path in handleKeyDown — both ultimately call writePaste. */
 	const pasteFromClipboard = useCallback(() => {
-		navigator.clipboard
-			.readText()
+		readText()
 			.then(writePaste)
 			.catch((err: unknown) => {
 				console.error("[terminal] clipboard read failed:", err);
@@ -650,13 +767,13 @@ export function CanvasTerminal({
 			if (isCopy) {
 				const anchor = selectionAnchorRef.current;
 				const end = selectionEndRef.current;
-				if (anchor && end && (anchor.row !== end.row || anchor.col !== end.col)) {
+				if (anchor && end && selectionActiveRef.current) {
 					e.preventDefault();
 					const range = normalizeSelection(anchor, end);
 					window.api
 						.getSelectionText(paneId, range)
 						.then((text) => {
-							if (text) return navigator.clipboard.writeText(text);
+							if (text) return writeText(text);
 						})
 						.then(() => clearSelection())
 						.catch((err: unknown) => {
@@ -670,6 +787,46 @@ export function CanvasTerminal({
 					e.preventDefault();
 					onWrite("\x03");
 				}
+				return;
+			}
+
+			// Shift+Arrow → char selection; Alt+Shift+Arrow → word selection
+			if (
+				e.shiftKey &&
+				!e.ctrlKey &&
+				!e.metaKey &&
+				(e.key === "ArrowLeft" || e.key === "ArrowRight")
+			) {
+				e.preventDefault();
+				const snap = gridRef.current;
+				if (!snap) return;
+
+				const left = e.key === "ArrowLeft";
+
+				// If no selection, start from cursor position
+				if (!selectionAnchorRef.current || !selectionActiveRef.current) {
+					const absRow = toAbsoluteRow(snap, snap.cursorRow);
+					selectionAnchorRef.current = { row: absRow, col: snap.cursorCol };
+					selectionEndRef.current = { row: absRow, col: snap.cursorCol };
+					selectionActiveRef.current = true;
+				}
+
+				const end = selectionEndRef.current;
+				if (!end) return;
+				const vpRow = end.row - snap.scrollbackRows + snap.scrollOffset;
+				if (vpRow < 0 || vpRow >= snap.totalRows) return;
+
+				let newCol: number;
+				if (e.altKey) {
+					// Word granularity
+					newCol = moveByWord(snap.rows, vpRow, end.col, snap.cols, left ? "left" : "right");
+				} else {
+					// Character granularity
+					newCol = left ? Math.max(0, end.col - 1) : Math.min(snap.cols - 1, end.col + 1);
+				}
+				selectionEndRef.current = { row: end.row, col: newCol };
+
+				drawRef.current();
 				return;
 			}
 
@@ -699,6 +856,8 @@ export function CanvasTerminal({
 	);
 
 	/** Start selection on left-click; track via window listeners until mouseup.
+	 *  Supports single-click (char), double-click (word), triple-click (line),
+	 *  and shift+click (extend). Drag granularity matches the click mode.
 	 *  Caches the canvas rect for the duration of the drag to avoid layout reflows.
 	 *  RAF-throttles redraws so high-frequency trackpad events don't saturate the main thread. */
 	const handleMouseDown = useCallback(
@@ -710,14 +869,66 @@ export function CanvasTerminal({
 			if (!snap) return;
 
 			const absRow = toAbsoluteRow(snap, cell.row);
-			selectionAnchorRef.current = { row: absRow, col: cell.col };
-			selectionEndRef.current = { row: absRow, col: cell.col };
-			// No redraw on initial click — anchor equals end so no highlight to show
+			selectionActiveRef.current = false;
+
+			// Shift+click: extend existing selection to the exact clicked cell
+			// (always char-granular, no drag). Reset streak so next click starts fresh.
+			if (e.shiftKey && selectionAnchorRef.current) {
+				clickStreakRef.current = 1;
+				lastClickTimeRef.current = performance.now();
+				lastClickCellRef.current = { row: absRow, col: cell.col };
+				selectionActiveRef.current = true;
+				selectionEndRef.current = { row: absRow, col: cell.col };
+				drawRef.current();
+				return;
+			}
+
+			// Click streak detection — increment if same cell within timeout, else reset
+			const now = performance.now();
+			const lastCell = lastClickCellRef.current;
+			const sameCell = lastCell !== null && lastCell.row === absRow && lastCell.col === cell.col;
+			if (sameCell && now - lastClickTimeRef.current < CLICK_STREAK_TIMEOUT_MS) {
+				clickStreakRef.current = Math.min(clickStreakRef.current + 1, CLICK_LINE);
+			} else {
+				clickStreakRef.current = CLICK_CHAR;
+			}
+			lastClickTimeRef.current = now;
+			lastClickCellRef.current = { row: absRow, col: cell.col };
+			// streak also governs drag granularity (char/word/line) in onMove below
+			const streak = clickStreakRef.current;
+
+			// Determine initial selection based on click streak
+			let anchorCol: number;
+			let endCol: number;
+			if (streak === CLICK_LINE) {
+				// Triple-click: select entire line
+				anchorCol = 0;
+				endCol = snap.cols - 1;
+			} else if (streak === CLICK_WORD) {
+				// Double-click: select word at click position
+				const bounds = findWordBounds(snap.rows, cell.row, cell.col, snap.cols);
+				anchorCol = bounds.startCol;
+				endCol = bounds.endCol;
+			} else {
+				// Single click: point selection
+				anchorCol = cell.col;
+				endCol = cell.col;
+			}
+			selectionAnchorRef.current = { row: absRow, col: anchorCol };
+			selectionEndRef.current = { row: absRow, col: endCol };
+			if (streak > 1) {
+				selectionActiveRef.current = true;
+				drawRef.current();
+			}
 
 			// Cache canvas rect for the drag to avoid getBoundingClientRect per mousemove
 			const canvas = canvasRef.current;
 			const cachedRect = canvas?.getBoundingClientRect();
 			const cachedDpr = dprRef.current;
+			// Capture original selection bounds for granular dragging
+			const origRow = absRow;
+			const origStartCol = anchorCol;
+			const origEndCol = endCol;
 
 			const cellAtCachedRect = (
 				clientX: number,
@@ -726,15 +937,17 @@ export function CanvasTerminal({
 				if (!cachedRect) return null;
 				const { width: cellW, height: cellH } = cellMetrics.current;
 				if (cellW === 0 || cellH === 0) return null;
-				const x = (clientX - cachedRect.left) * cachedDpr;
-				const y = (clientY - cachedRect.top) * cachedDpr;
 				const s = gridRef.current;
-				const maxCol = s ? s.cols - 1 : 0;
-				const maxRow = s ? s.totalRows - 1 : 0;
-				return {
-					col: Math.max(0, Math.min(maxCol, Math.floor(x / cellW))),
-					row: Math.max(0, Math.min(maxRow, Math.floor(y / cellH))),
-				};
+				return cellFromRect(
+					cachedRect,
+					cachedDpr,
+					clientX,
+					clientY,
+					cellW,
+					cellH,
+					s ? s.cols - 1 : 0,
+					s ? s.totalRows - 1 : 0,
+				);
 			};
 
 			const onMove = (ev: MouseEvent) => {
@@ -742,7 +955,35 @@ export function CanvasTerminal({
 				if (!cell) return;
 				const snap = gridRef.current;
 				if (!snap) return;
-				selectionEndRef.current = { row: toAbsoluteRow(snap, cell.row), col: cell.col };
+				const moveAbsRow = toAbsoluteRow(snap, cell.row);
+
+				if (streak === CLICK_LINE) {
+					// Line-granularity drag
+					if (moveAbsRow >= origRow) {
+						selectionAnchorRef.current = { row: origRow, col: 0 };
+						selectionEndRef.current = { row: moveAbsRow, col: snap.cols - 1 };
+					} else {
+						selectionAnchorRef.current = { row: origRow, col: snap.cols - 1 };
+						selectionEndRef.current = { row: moveAbsRow, col: 0 };
+					}
+				} else if (streak === CLICK_WORD) {
+					// Word-granularity drag
+					const bounds = findWordBounds(snap.rows, cell.row, cell.col, snap.cols);
+					const isAfter =
+						moveAbsRow > origRow || (moveAbsRow === origRow && bounds.endCol >= origEndCol);
+					if (isAfter) {
+						selectionAnchorRef.current = { row: origRow, col: origStartCol };
+						selectionEndRef.current = { row: moveAbsRow, col: bounds.endCol };
+					} else {
+						selectionAnchorRef.current = { row: origRow, col: origEndCol };
+						selectionEndRef.current = { row: moveAbsRow, col: bounds.startCol };
+					}
+				} else {
+					// Char-granularity drag
+					selectionEndRef.current = { row: moveAbsRow, col: cell.col };
+				}
+				selectionActiveRef.current = true;
+
 				// RAF-throttle: coalesce rapid mousemove into one redraw per frame
 				if (selectionRafRef.current === 0) {
 					selectionRafRef.current = requestAnimationFrame(() => {
@@ -782,7 +1023,7 @@ export function CanvasTerminal({
 		// biome-ignore lint/a11y/useSemanticElements: canvas terminal cannot be a native textarea
 		<div
 			ref={containerRef}
-			className="relative h-full w-full overflow-hidden outline-none"
+			className="relative h-full w-full overflow-hidden outline-none select-none"
 			tabIndex={0}
 			role="textbox"
 			aria-label="Terminal"
