@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { findPreset, mergeThemeWithPreset } from "../data/theme-presets";
+import { useFileDrop } from "../hooks/useFileDrop";
 import { useInlineEdit } from "../hooks/useInlineEdit";
 import { usePaneDragDrop } from "../hooks/usePaneDragDrop";
 import { ZONE_STYLES } from "../lib/pane-drag-utils";
@@ -182,6 +183,8 @@ export function Pane({
 		},
 		[paneId],
 	);
+
+	const { isDropTarget } = useFileDrop({ containerRef: outerRef, onWrite: handleWrite });
 
 	// RAF-throttled scroll handler — accumulates fractional deltas from trackpad,
 	// rounds to integer offset, and coalesces into one IPC call per frame.
@@ -440,6 +443,15 @@ export function Pane({
 			{/* Drop zone overlay — shows where the dragged pane will land */}
 			{dropZone && (
 				<div className="absolute pointer-events-none z-40" style={ZONE_STYLES[dropZone]} />
+			)}
+
+			{/* File drop overlay — shows when files are dragged over this pane */}
+			{isDropTarget && (
+				<div className="absolute inset-0 z-50 pointer-events-none flex items-center justify-center bg-accent/10 border-2 border-dashed border-accent/40 rounded">
+					<span className="text-xs font-medium text-content-muted bg-canvas/80 backdrop-blur-sm rounded px-3 py-1.5">
+						Drop files here
+					</span>
+				</div>
 			)}
 
 			{showContext && (
