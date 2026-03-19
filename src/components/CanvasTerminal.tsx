@@ -300,6 +300,8 @@ export function CanvasTerminal({
 	const lastClickCellRef = useRef<CellPosition | null>(null);
 	/** Current click streak count: 1 = single, 2 = double (word), 3 = triple (line). */
 	const clickStreakRef = useRef(1);
+	/** Whether a non-degenerate selection is active (set by multi-click or drag). */
+	const selectionActiveRef = useRef(false);
 
 	// Keep refs in sync
 	gridRef.current = grid;
@@ -463,10 +465,8 @@ export function CanvasTerminal({
 		// Draw selection highlight (between cells and cursor so cursor stays on top)
 		const anchor = selectionAnchorRef.current;
 		const end = selectionEndRef.current;
-		if (anchor && end && selectionColorRef.current) {
-			if (anchor.row !== end.row || anchor.col !== end.col) {
-				drawSelectionHighlight(ctx, anchor, end, snap, cellW, cellH, selectionColorRef.current);
-			}
+		if (anchor && end && selectionColorRef.current && selectionActiveRef.current) {
+			drawSelectionHighlight(ctx, anchor, end, snap, cellW, cellH, selectionColorRef.current);
 		}
 
 		// Draw cursor
@@ -503,6 +503,7 @@ export function CanvasTerminal({
 	const clearSelection = useCallback(() => {
 		selectionAnchorRef.current = null;
 		selectionEndRef.current = null;
+		selectionActiveRef.current = false;
 		drawRef.current();
 	}, []);
 
@@ -686,7 +687,7 @@ export function CanvasTerminal({
 			if (isCopy) {
 				const anchor = selectionAnchorRef.current;
 				const end = selectionEndRef.current;
-				if (anchor && end && (anchor.row !== end.row || anchor.col !== end.col)) {
+				if (anchor && end && selectionActiveRef.current) {
 					e.preventDefault();
 					const range = normalizeSelection(anchor, end);
 					window.api
@@ -748,9 +749,11 @@ export function CanvasTerminal({
 			if (!snap) return;
 
 			const absRow = toAbsoluteRow(snap, cell.row);
+			selectionActiveRef.current = false;
 
 			// Shift+click: extend existing selection to clicked position (no drag)
 			if (e.shiftKey && selectionAnchorRef.current) {
+				selectionActiveRef.current = true;
 				selectionEndRef.current = { row: absRow, col: cell.col };
 				drawRef.current();
 				return;
@@ -788,7 +791,10 @@ export function CanvasTerminal({
 			}
 			selectionAnchorRef.current = { row: absRow, col: anchorCol };
 			selectionEndRef.current = { row: absRow, col: endCol };
-			if (streak > 1) drawRef.current();
+			if (streak > 1) {
+				selectionActiveRef.current = true;
+				drawRef.current();
+			}
 
 			// Cache canvas rect for the drag to avoid getBoundingClientRect per mousemove
 			const canvas = canvasRef.current;
@@ -850,6 +856,7 @@ export function CanvasTerminal({
 					// Char-granularity drag
 					selectionEndRef.current = { row: moveAbsRow, col: cell.col };
 				}
+				selectionActiveRef.current = true;
 
 				// RAF-throttle: coalesce rapid mousemove into one redraw per frame
 				if (selectionRafRef.current === 0) {
