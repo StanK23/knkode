@@ -250,6 +250,9 @@ export interface KnkodeApi {
 	resizePty(id: string, cols: number, rows: number): Promise<void>;
 	killPty(id: string): Promise<void>;
 
+	// Terminal colors — send theme ANSI palette to Rust for per-terminal color resolution
+	setTerminalColors(id: string, ansiColors: AnsiColors, foreground: string, background: string): Promise<void>;
+
 	// Terminal grid events — Rust processes PTY data via wezterm-term, sends rendered snapshots
 	onTerminalRender(cb: (id: string, grid: GridSnapshot) => void): Unsubscribe;
 	onPtyExit(cb: (id: string, exitCode: number) => void): Unsubscribe;

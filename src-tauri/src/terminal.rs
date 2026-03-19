@@ -233,9 +233,8 @@ impl TerminalState {
             }
             Err(e) => eprintln!("[terminal] remove lock failed for {id}: {e}"),
         }
-        if let Ok(mut palettes) = self.palettes.lock() {
-            palettes.remove(id);
-        }
+        // Palette intentionally NOT removed — survives pane restart.
+        // Cleaned up in remove_all() on app shutdown.
     }
 
     pub fn remove_all(&self) {

@@ -164,6 +164,20 @@ export function Pane({
 		[workspaceTheme, config.themeOverride],
 	);
 
+	// Send theme ANSI colors to Rust whenever the merged theme changes.
+	// Rust uses these to resolve ANSI color codes (palette indices 0–15)
+	// in the terminal grid snapshot — without this, all themes render
+	// with wezterm-term's default XTerm palette.
+	useEffect(() => {
+		if (mergedTheme.ansiColors) {
+			window.api
+				.setTerminalColors(paneId, mergedTheme.ansiColors, mergedTheme.foreground, mergedTheme.background)
+				.catch((err: unknown) => {
+					console.warn(`[pane] setTerminalColors failed for ${paneId}:`, err);
+				});
+		}
+	}, [paneId, mergedTheme.ansiColors, mergedTheme.foreground, mergedTheme.background]);
+
 	const handleOpenExternal = useCallback((url: string) => {
 		window.api.openExternal(url).catch((err: unknown) => {
 			console.error("[pane] Failed to open URL:", url, err);
