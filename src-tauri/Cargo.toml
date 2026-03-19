@@ -1,10 +1,10 @@
 [package]
-name = "knkode-v2"
+name = "knkode"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "knkode_v2_lib"
+name = "knkode_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]
