@@ -751,8 +751,12 @@ export function CanvasTerminal({
 			const absRow = toAbsoluteRow(snap, cell.row);
 			selectionActiveRef.current = false;
 
-			// Shift+click: extend existing selection to clicked position (no drag)
+			// Shift+click: extend existing selection to the exact clicked cell
+			// (always char-granular, no drag). Reset streak so next click starts fresh.
 			if (e.shiftKey && selectionAnchorRef.current) {
+				clickStreakRef.current = 1;
+				lastClickTimeRef.current = performance.now();
+				lastClickCellRef.current = { row: absRow, col: cell.col };
 				selectionActiveRef.current = true;
 				selectionEndRef.current = { row: absRow, col: cell.col };
 				drawRef.current();
