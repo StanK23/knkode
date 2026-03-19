@@ -81,9 +81,10 @@ function normalizeSelection(anchor: CellPosition, end: CellPosition): SelectionR
 
 /** Find word boundaries at a given column in a viewport row.
  *  A "word" is a contiguous run of word characters (\w). If the target cell is
- *  not a word character, returns a single-cell range. */
+ *  not a word character, returns a single-cell range. If the viewport row does
+ *  not exist in the grid, also returns a single-cell range. */
 function findWordBounds(
-	rows: readonly (readonly CellSnapshot[] | undefined)[],
+	rows: readonly (readonly CellSnapshot[])[],
 	viewportRow: number,
 	col: number,
 	totalCols: number,
@@ -792,7 +793,7 @@ export function CanvasTerminal({
 			// Click streak detection — increment if same cell within timeout, else reset
 			const now = performance.now();
 			const lastCell = lastClickCellRef.current;
-			const sameCell = lastCell != null && lastCell.row === absRow && lastCell.col === cell.col;
+			const sameCell = lastCell !== null && lastCell.row === absRow && lastCell.col === cell.col;
 			if (sameCell && now - lastClickTimeRef.current < CLICK_STREAK_TIMEOUT_MS) {
 				clickStreakRef.current = Math.min(clickStreakRef.current + 1, CLICK_LINE);
 			} else {
