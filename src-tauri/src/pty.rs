@@ -5,11 +5,16 @@ use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
+use std::time::{Duration, Instant};
 use tauri::Emitter;
 
 const SHELL_READY_DELAY_MS: u64 = 300;
 const READ_BUFFER_SIZE: usize = 8192;
 const MAX_SESSIONS: usize = 64;
+/// Minimum interval between render events per terminal (~60fps).
+/// During high-throughput output the reader advances terminal state on every
+/// chunk but only snapshots + emits at this cadence, preventing UI freezes.
+const RENDER_INTERVAL: Duration = Duration::from_millis(16);
 
 /// Detect the CWD of a child process by parsing `lsof -p PID -Fn` output.
 /// Scans for the `fcwd` file descriptor line, then reads the `n/path` line after it.
@@ -187,28 +192,34 @@ impl PtyManager {
         // terminal entries if sessions lock is poisoned
         self.terminal_state.create(&id, DEFAULT_COLS, DEFAULT_ROWS);
 
-        // Background reader thread: read PTY output → wezterm-term → emit grid snapshot
+        // Background reader thread: read PTY output → wezterm-term → throttled emit.
+        // Advances terminal state on every chunk but only snapshots + emits at
+        // RENDER_INTERVAL (~60fps) to avoid flooding the frontend during bursts.
         let id_clone = id.clone();
         let sessions_clone = Arc::clone(&self.sessions);
         let term_state = Arc::clone(&self.terminal_state);
         std::thread::spawn(move || {
             let mut buf = [0u8; READ_BUFFER_SIZE];
+            let mut last_emit = Instant::now() - RENDER_INTERVAL; // emit first frame immediately
             loop {
                 match reader.read(&mut buf) {
                     Ok(0) => break,
                     Ok(n) => {
-                        if let Some(snapshot) = term_state.advance_bytes(&id_clone, &buf[..n]) {
-                            if app
-                                .emit(
-                                    "terminal:render",
-                                    json!({ "id": &id_clone, "grid": snapshot }),
-                                )
-                                .is_err()
-                            {
-                                break;
+                        term_state.advance_only(&id_clone, &buf[..n]);
+
+                        if last_emit.elapsed() >= RENDER_INTERVAL {
+                            if let Some(snapshot) = term_state.snapshot(&id_clone) {
+                                if app
+                                    .emit(
+                                        "terminal:render",
+                                        json!({ "id": &id_clone, "grid": snapshot }),
+                                    )
+                                    .is_err()
+                                {
+                                    break;
+                                }
                             }
-                        } else {
-                            eprintln!("[pty] Terminal state returned None for {id_clone} ({n} bytes dropped)");
+                            last_emit = Instant::now();
                         }
                     }
                     Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
@@ -217,6 +228,15 @@ impl PtyManager {
                         break;
                     }
                 }
+            }
+
+            // Always emit a final snapshot so the screen shows the complete output
+            // (the last chunk may have been throttled).
+            if let Some(snapshot) = term_state.snapshot(&id_clone) {
+                let _ = app.emit(
+                    "terminal:render",
+                    json!({ "id": &id_clone, "grid": snapshot }),
+                );
             }
 
             // PTY closed — get exit code and clean up
