@@ -40,7 +40,11 @@ Phase 9 complete — all frontend code ported. App shell fully functional with d
 - V1 codebase: `/Users/sfory/dev/knkode/`
 
 ## Active Reviews
-None
+
+### PR #26 — feat: inline terminal image rendering (iTerm2/Kitty/Sixel)
+- State: `docs/reviews/PR-26/_state.json`
+- Agents: 10/10 completed
+- Phase: compiling → fixing
 
 ## Known Issues
 - DMG bundling fails (macOS code signing) — not blocking for dev
