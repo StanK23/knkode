@@ -32,6 +32,35 @@ fn term_size(cols: usize, rows: usize, pixel_width: usize, pixel_height: usize) 
     }
 }
 
+/// A reference to an image slice within a terminal cell. Each cell that participates
+/// in an image has one or more of these, with texture coordinates defining which
+/// portion of the full image to render.
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageCellSnapshot {
+    /// Hex-encoded SHA256 hash of the image data — used as cache key.
+    pub hash: String,
+    /// Texture UV coordinates defining the slice of the full image for this cell.
+    /// Range [0.0, 1.0] where (0,0) = top-left, (1,1) = bottom-right.
+    pub top_left_x: f32,
+    pub top_left_y: f32,
+    pub bottom_right_x: f32,
+    pub bottom_right_y: f32,
+    /// Negative z_index renders behind text; zero or positive renders on top.
+    pub z_index: i32,
+}
+
+/// Full image data sent once per unique image. Subsequent frames reference by hash only.
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageSnapshot {
+    /// Base64-encoded image data (PNG/JPEG/etc).
+    pub data: String,
+    /// Image dimensions in pixels.
+    pub width: u32,
+    pub height: u32,
+}
+
 #[derive(Serialize, Clone)]
 pub struct CellSnapshot {
     pub text: String,
@@ -41,6 +70,9 @@ pub struct CellSnapshot {
     pub italic: bool,
     pub underline: bool,
     pub strikethrough: bool,
+    /// Image slices attached to this cell (omitted when empty).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub images: Option<Vec<ImageCellSnapshot>>,
 }
 
 #[derive(Serialize, Clone)]
@@ -66,6 +98,11 @@ pub struct GridSnapshot {
     /// with an explicit colored background — only the latter get drawn, leaving
     /// default-bg cells transparent so PaneBackgroundEffects show through.
     pub default_bg: String,
+    /// Unique images visible in the current viewport, keyed by hex SHA256 hash.
+    /// Only includes images not previously sent (tracked per-session).
+    /// Frontend caches decoded ImageBitmaps by hash.
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub images: HashMap<String, ImageSnapshot>,
 }
 
 /// ANSI 16-color palette sent from the frontend theme system.
@@ -491,6 +528,7 @@ impl TerminalState {
                     italic: attrs.italic(),
                     underline: !matches!(attrs.underline(), Underline::None),
                     strikethrough: attrs.strikethrough(),
+                    images: None,
                 });
             }
             rows.push(cells);
@@ -519,6 +557,7 @@ impl TerminalState {
             scrollback_rows: max_offset,
             scroll_offset: clamped_offset,
             default_bg: palette.background.to_rgb_string(),
+            images: HashMap::new(),
         }
     }
 

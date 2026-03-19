@@ -209,6 +209,24 @@ export interface ScrollDebugEvent {
 
 // --- Terminal grid rendering ---
 
+/** A reference to an image slice within a terminal cell. Texture coordinates
+ *  define which portion of the full image to render in this cell (0.0–1.0 UV). */
+export interface ImageCellSnapshot {
+	readonly hash: string;
+	readonly topLeftX: number;
+	readonly topLeftY: number;
+	readonly bottomRightX: number;
+	readonly bottomRightY: number;
+	readonly zIndex: number;
+}
+
+/** Full image data sent once per unique image. Frontend caches decoded ImageBitmaps by hash. */
+export interface ImageSnapshot {
+	readonly data: string;
+	readonly width: number;
+	readonly height: number;
+}
+
 /** A single cell in the terminal grid. Designed to be serialized from Rust (wezterm-term). */
 export interface CellSnapshot {
 	readonly text: string;
@@ -218,6 +236,7 @@ export interface CellSnapshot {
 	readonly italic: boolean;
 	readonly underline: boolean;
 	readonly strikethrough: boolean;
+	readonly images?: readonly ImageCellSnapshot[];
 }
 
 /** Full terminal grid state, designed to be emitted by Rust via `terminal:render` event.
@@ -242,6 +261,9 @@ export interface GridSnapshot {
 	/** Terminal palette default background (hex). Cells matching this have no
 	 *  custom background and should be left transparent so theme effects show. */
 	readonly defaultBg: string;
+	/** Unique images visible in the viewport, keyed by hex SHA256 hash.
+	 *  Only includes images not previously sent — frontend caches by hash. */
+	readonly images?: Readonly<Record<string, ImageSnapshot>>;
 }
 
 // --- Selection ---
