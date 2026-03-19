@@ -164,19 +164,29 @@ export function Pane({
 		[workspaceTheme, config.themeOverride],
 	);
 
-	// Send theme ANSI colors to Rust whenever the merged theme changes.
-	// Rust uses these to resolve ANSI color codes (palette indices 0–15)
-	// in the terminal grid snapshot — without this, all themes render
-	// with wezterm-term's default XTerm palette.
+	// Stable key — prevents the effect from firing when the ansiColors object
+	// reference changes but values are identical (e.g. useMemo recompute).
+	const ansiColorsKey = useMemo(
+		() => (mergedTheme.ansiColors ? JSON.stringify(mergedTheme.ansiColors) : null),
+		[mergedTheme.ansiColors],
+	);
+
+	// Sync theme ANSI palette to Rust when palette-related fields change.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: ansiColorsKey replaces mergedTheme.ansiColors — JSON serialization avoids redundant IPC on object-reference churn
 	useEffect(() => {
 		if (mergedTheme.ansiColors) {
 			window.api
-				.setTerminalColors(paneId, mergedTheme.ansiColors, mergedTheme.foreground, mergedTheme.background)
+				.setTerminalColors(
+					paneId,
+					mergedTheme.ansiColors,
+					mergedTheme.foreground,
+					mergedTheme.background,
+				)
 				.catch((err: unknown) => {
-					console.warn(`[pane] setTerminalColors failed for ${paneId}:`, err);
+					console.error(`[pane] setTerminalColors failed for ${paneId}:`, err);
 				});
 		}
-	}, [paneId, mergedTheme.ansiColors, mergedTheme.foreground, mergedTheme.background]);
+	}, [paneId, ansiColorsKey, mergedTheme.foreground, mergedTheme.background]);
 
 	const handleOpenExternal = useCallback((url: string) => {
 		window.api.openExternal(url).catch((err: unknown) => {

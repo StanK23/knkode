@@ -56,7 +56,9 @@ export function isCursorStyle(v: string): v is CursorStyle {
 	return (CURSOR_STYLES as readonly string[]).includes(v);
 }
 
-/** ANSI 16-color palette for terminal themes. All values are hex strings (#RRGGBB). */
+/** ANSI 16-color palette for terminal themes. All values are hex strings (#RRGGBB).
+ *  Mirrors `AnsiThemeColors` in `src-tauri/src/terminal.rs` and
+ *  `ANSI_KEYS` in `src-tauri/src/config.rs`. Keep all three in sync. */
 export interface AnsiColors {
 	readonly black: string;
 	readonly red: string;
