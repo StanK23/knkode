@@ -280,8 +280,12 @@ impl TerminalState {
     }
 
     /// Extract text from a cell range. Row indices are absolute physical rows
-    /// in the scrollback buffer. Handles multi-row selections, trims trailing
-    /// whitespace per line, and joins rows with newlines.
+    /// in the scrollback buffer (row 0 = oldest line in buffer). All indices
+    /// are inclusive: (start_row, start_col) through (end_row, end_col) are
+    /// included in the result. Column indices follow `visible_cells()` ordering
+    /// (wide-character continuation cells are skipped).
+    /// Handles coordinate normalization (start/end swap), row/column clamping,
+    /// trailing whitespace trimming, and joining rows with newlines.
     pub fn extract_text(
         &self,
         id: &str,
@@ -290,12 +294,20 @@ impl TerminalState {
         end_row: usize,
         end_col: usize,
     ) -> Result<String, String> {
-        let terminals = self.lock_terminals()?;
+        let terminals = self
+            .lock_terminals()
+            .map_err(|e| format!("extract_text lock failed for {id}: {e}"))?;
         let terminal = terminals
             .get(id)
             .ok_or_else(|| format!("Terminal session not found: {id}"))?;
 
         let screen = terminal.screen();
+
+        // scrollback_rows() returns total lines in buffer (visible + scrollback)
+        let total_lines = screen.scrollback_rows();
+        if total_lines == 0 {
+            return Ok(String::new());
+        }
 
         // Normalize: ensure start <= end
         let (sr, sc, er, ec) =
@@ -305,38 +317,39 @@ impl TerminalState {
                 (end_row, end_col, start_row, start_col)
             };
 
-        // Clamp to buffer bounds
-        let total_lines = screen.scrollback_rows();
-        let er = er.min(total_lines.saturating_sub(1));
+        // Clamp row indices to buffer bounds (column clamping happens per-line below)
+        let er = er.min(total_lines - 1);
         let sr = sr.min(er);
 
         let lines = screen.lines_in_phys_range(sr..er + 1);
-        let mut result = String::new();
+        let num_lines = lines.len();
+        if num_lines == 0 {
+            return Ok(String::new());
+        }
+
+        let num_cols = screen.physical_cols;
+        let last = num_lines - 1;
+        let mut result = String::with_capacity(num_lines * num_cols);
 
         for (i, line) in lines.iter().enumerate() {
-            let abs_row = sr + i;
-            let cells: Vec<_> = line.visible_cells().collect();
-            let num_cols = cells.len();
-
-            let col_start = if abs_row == sr { sc.min(num_cols) } else { 0 };
-            let col_end = if abs_row == er {
-                (ec + 1).min(num_cols)
+            let col_start = if i == 0 { sc.min(num_cols) } else { 0 };
+            let col_end = if i == last {
+                ec.saturating_add(1).min(num_cols)
             } else {
                 num_cols
             };
 
-            // Collect cell text in range
-            let mut line_text = String::new();
-            for cell_ref in &cells[col_start..col_end] {
-                line_text.push_str(cell_ref.str());
+            let take_count = col_end.saturating_sub(col_start);
+            let mut line_text = String::with_capacity(take_count);
+            for cell in line.visible_cells().skip(col_start).take(take_count) {
+                line_text.push_str(cell.str());
             }
 
             // Trim trailing whitespace per line (empty cells are spaces)
-            let trimmed = line_text.trim_end();
-            result.push_str(trimmed);
+            result.push_str(line_text.trim_end());
 
             // Add newline between rows (not after last)
-            if i < lines.len() - 1 {
+            if i < last {
                 result.push('\n');
             }
         }
