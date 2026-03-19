@@ -118,7 +118,7 @@ export function App() {
 				className="flex flex-col h-full w-full relative"
 				style={{
 					...themeStyles,
-					...(isMac && { "--spacing-traffic": "78px" }),
+					...(isMac && { "--spacing-traffic": "90px" }),
 					color: "var(--color-content)",
 					fontFamily: "var(--font-family-ui)",
 					fontSize: "var(--font-size-ui)",

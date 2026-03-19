@@ -5,7 +5,9 @@ import { useInlineEdit } from "../hooks/useInlineEdit";
 import { getPortalRoot } from "../lib/ui-constants";
 import type { Workspace } from "../shared/types";
 
-const INACTIVE_TAB_STYLE = Object.freeze<React.CSSProperties>({ borderLeft: "3px solid transparent" });
+const INACTIVE_TAB_STYLE = Object.freeze<React.CSSProperties>({
+	borderLeft: "3px solid transparent",
+});
 
 interface TabProps {
 	workspace: Workspace;
@@ -18,10 +20,7 @@ interface TabProps {
 	onRename: (id: string, name: string) => void;
 	onChangeColor: (id: string, color: string) => void;
 	onDuplicate: (id: string) => void;
-	onDragStart: (e: React.DragEvent, index: number) => void;
-	onDragOver: (e: React.DragEvent, index: number) => void;
-	onDrop: (index: number) => void;
-	onDragEnd: () => void;
+	onPointerDown: (e: React.PointerEvent, index: number) => void;
 	isDragOver: boolean;
 	isDragging: boolean;
 	colors: readonly string[];
@@ -37,10 +36,7 @@ export function Tab({
 	onRename,
 	onChangeColor,
 	onDuplicate,
-	onDragStart,
-	onDragOver,
-	onDrop,
-	onDragEnd,
+	onPointerDown,
 	isDragOver,
 	isDragging,
 	colors,
@@ -90,8 +86,10 @@ export function Tab({
 			aria-selected={isActive}
 			aria-roledescription="draggable tab"
 			data-workspace-id={workspace.id}
-			draggable={!isEditing}
 			onClick={() => onActivate(workspace.id)}
+			onPointerDown={(e) => {
+				if (!isEditing) onPointerDown(e, index);
+			}}
 			onKeyDown={(e) => {
 				if (e.key === "Enter" || e.key === " ") {
 					e.preventDefault();
@@ -120,11 +118,7 @@ export function Tab({
 				}
 			}}
 			onContextMenu={handleContextMenu}
-			onDragStart={(e) => onDragStart(e, index)}
-			onDragOver={(e) => onDragOver(e, index)}
-			onDrop={() => onDrop(index)}
-			onDragEnd={onDragEnd}
-			className={`group flex items-center gap-2 px-3 h-tab cursor-pointer rounded-t-md select-none relative transition-colors duration-300 ease-[var(--ease-mechanical)] flex-[0_1_200px] min-w-[100px] max-w-[240px] ${bgClass} ${dragOverClass} ${draggingClass}`}
+			className={`no-drag group flex items-center gap-2 px-3 h-tab cursor-pointer rounded-t-md select-none relative transition-colors duration-300 ease-[var(--ease-mechanical)] flex-[0_1_200px] min-w-[100px] max-w-[240px] ${bgClass} ${dragOverClass} ${draggingClass}`}
 			style={tabStyle}
 		>
 			{/* Color indicator dot */}

@@ -336,7 +336,10 @@ export function PaneContextMenu({
 							className="ctx-submit"
 							onClick={() => {
 								const fs = Number(themeInput.fontSize);
-								const validFs = Number.isFinite(fs) && fs >= MIN_FONT_SIZE && fs <= MAX_FONT_SIZE ? fs : undefined;
+								const validFs =
+									Number.isFinite(fs) && fs >= MIN_FONT_SIZE && fs <= MAX_FONT_SIZE
+										? fs
+										: undefined;
 								const fields: Partial<PaneTheme> = {
 									...(themeInput.background ? { background: themeInput.background } : {}),
 									...(themeInput.foreground ? { foreground: themeInput.foreground } : {}),
@@ -344,8 +347,7 @@ export function PaneContextMenu({
 									...(themeInput.fontFamily ? { fontFamily: themeInput.fontFamily } : {}),
 								};
 								onUpdateConfig({
-									themeOverride:
-										Object.keys(fields).length > 0 ? fields : null,
+									themeOverride: Object.keys(fields).length > 0 ? fields : null,
 								});
 								closeContext();
 							}}

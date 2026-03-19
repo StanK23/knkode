@@ -22,8 +22,7 @@ export function buildVariantTheme(
 	return {
 		background: colors.background,
 		foreground: colors.foreground,
-		accent:
-			rawAccent && isValidHex(rawAccent) ? rawAccent : DEFAULT_ACCENT_DARK,
+		accent: rawAccent && isValidHex(rawAccent) ? rawAccent : DEFAULT_ACCENT_DARK,
 		glow: rawGlow && isValidHex(rawGlow) ? rawGlow : undefined,
 		statusBarPosition: statusBarPosition ?? "top",
 	};

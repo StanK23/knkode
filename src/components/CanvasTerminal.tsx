@@ -18,11 +18,24 @@ export interface CanvasTerminalProps {
 	readonly lineHeight?: number | undefined;
 	readonly cursorColor?: string | undefined;
 	readonly background?: string | undefined;
+	readonly isFocused?: boolean | undefined;
 }
 
-const CURSOR_BLINK_MS = 530;
-const CURSOR_OPACITY = 0.7;
+/** Smooth cursor blink — full cycle duration (fade out → fade in). */
+const CURSOR_BLINK_PERIOD_MS = 1200;
+/** Hold cursor at full opacity after keystroke before fading starts. */
+const CURSOR_HOLD_MS = 500;
+const CURSOR_MAX_OPACITY = 0.7;
+const CURSOR_MIN_OPACITY = 0.0;
+const CURSOR_STATIC_OPACITY = 0.5;
 const RESIZE_DEBOUNCE_MS = 100;
+
+interface CellMetrics {
+	width: number;
+	height: number;
+	/** Distance from cell top to text baseline (for textBaseline = "alphabetic"). */
+	baselineOffset: number;
+}
 
 /** Build a CSS font string for a cell's style attributes. */
 function buildFont(cell: CellSnapshot, scaledSize: number, fontFamily: string): string {
@@ -48,7 +61,9 @@ function drawHLine(
 	ctx.stroke();
 }
 
-/** Draw a single terminal cell (background, text, decorations). */
+/** Draw a single terminal cell (background, text, decorations).
+ *  Cells whose bg matches `defaultBg` (the terminal palette default) are left
+ *  transparent so PaneBackgroundEffects show through. */
 function drawCell(
 	ctx: CanvasRenderingContext2D,
 	cell: CellSnapshot,
@@ -56,12 +71,13 @@ function drawCell(
 	y: number,
 	cellW: number,
 	cellH: number,
+	baselineOffset: number,
 	scaledSize: number,
 	fontFamily: string,
-	background: string,
+	defaultBg: string,
 ) {
-	// Background
-	if (cell.bg !== background) {
+	// Background — only draw cells with a custom (non-default) background
+	if (cell.bg !== defaultBg) {
 		ctx.fillStyle = cell.bg;
 		ctx.fillRect(x, y, cellW, cellH);
 	}
@@ -70,8 +86,7 @@ function drawCell(
 	if (cell.text.trim()) {
 		ctx.font = buildFont(cell, scaledSize, fontFamily);
 		ctx.fillStyle = cell.fg;
-		const textY = y + (cellH - scaledSize) / 2;
-		ctx.fillText(cell.text, x, textY);
+		ctx.fillText(cell.text, x, y + baselineOffset);
 	}
 
 	// Underline
@@ -94,23 +109,28 @@ export function CanvasTerminal({
 	lineHeight = DEFAULT_LINE_HEIGHT,
 	cursorColor = DEFAULT_CURSOR_COLOR,
 	background = DEFAULT_BACKGROUND,
+	isFocused = true,
 }: CanvasTerminalProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
-	const cellMetrics = useRef({ width: 0, height: 0 });
-	const cursorVisible = useRef(true);
-	const blinkTimer = useRef<ReturnType<typeof setInterval>>(null);
+	const cellMetrics = useRef<CellMetrics>({ width: 0, height: 0, baselineOffset: 0 });
+	const cursorOpacity = useRef(CURSOR_MAX_OPACITY);
+	const blinkStart = useRef(performance.now());
+	const animFrame = useRef<number>(0);
 	const gridRef = useRef<GridSnapshot | null>(null);
 	const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
 	const dprRef = useRef(window.devicePixelRatio || 1);
 	const onResizeRef = useRef(onResize);
 	const resizeTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
+	const isFocusedRef = useRef(isFocused);
 
 	// Keep refs in sync
 	gridRef.current = grid;
 	onResizeRef.current = onResize;
+	isFocusedRef.current = isFocused;
 
-	// Measure cell width from monospace glyph; height is fontSize * lineHeight
+	// Measure cell dimensions using actual font metrics (ascent + descent)
+	// instead of just fontSize, so descenders aren't clipped.
 	const measureCell = useCallback(() => {
 		const ctx = ctxRef.current;
 		if (!ctx) return;
@@ -119,13 +139,86 @@ export function CanvasTerminal({
 		const scaledSize = fontSize * dpr;
 		ctx.font = `${scaledSize}px ${fontFamily}`;
 		const metrics = ctx.measureText("M");
+
+		// Use real font bounding box for proper vertical sizing.
+		// Fallback ratios for older engines that lack fontBoundingBox*.
+		const ascent = metrics.fontBoundingBoxAscent ?? scaledSize * 0.8;
+		const descent = metrics.fontBoundingBoxDescent ?? scaledSize * 0.2;
+		const naturalHeight = ascent + descent;
+		const cellH = Math.ceil(naturalHeight * lineHeight);
+
+		// Vertically center the text within the (possibly taller) cell
+		const padding = (cellH - naturalHeight) / 2;
+
 		cellMetrics.current = {
 			width: metrics.width,
-			height: fontSize * lineHeight * dpr,
+			height: cellH,
+			baselineOffset: padding + ascent,
 		};
 	}, [fontSize, fontFamily, lineHeight]);
 
+	/** Repaint only the cursor cell area — used by the blink animation loop. */
+	const repaintCursor = useCallback(() => {
+		const snap = gridRef.current;
+		const ctx = ctxRef.current;
+		if (!snap || !ctx) return;
+		const { width: cellW, height: cellH, baselineOffset } = cellMetrics.current;
+		if (cellW === 0 || cellH === 0) return;
+
+		const dpr = dprRef.current;
+		const scaledSize = fontSize * dpr;
+		const cx = snap.cursorCol * cellW;
+		const cy = snap.cursorRow * cellH;
+
+		const cursorRow = snap.rows[snap.cursorRow];
+		const cursorCell = cursorRow?.[snap.cursorCol];
+
+		ctx.textBaseline = "alphabetic";
+		ctx.lineWidth = dpr;
+
+		// Clear cursor rect to transparent
+		ctx.clearRect(cx, cy, cellW, cellH);
+
+		// Redraw cell background if it has a custom color
+		if (cursorCell && cursorCell.bg !== snap.defaultBg) {
+			ctx.fillStyle = cursorCell.bg;
+			ctx.fillRect(cx, cy, cellW, cellH);
+		}
+
+		// Redraw cell content
+		if (cursorCell) {
+			if (cursorCell.text.trim()) {
+				ctx.font = buildFont(cursorCell, scaledSize, fontFamily);
+				ctx.fillStyle = cursorCell.fg;
+				ctx.fillText(cursorCell.text, cx, cy + baselineOffset);
+			}
+			if (cursorCell.underline) {
+				drawHLine(ctx, cursorCell.fg, dpr, cx, cy + cellH - dpr, cellW);
+			}
+			if (cursorCell.strikethrough) {
+				drawHLine(ctx, cursorCell.fg, dpr, cx, cy + cellH / 2, cellW);
+			}
+		}
+
+		// Draw cursor overlay with current opacity
+		if (snap.cursorVisible) {
+			ctx.fillStyle = cursorColor;
+			ctx.globalAlpha = cursorOpacity.current;
+			ctx.fillRect(cx, cy, cellW, cellH);
+			ctx.globalAlpha = 1.0;
+
+			if (cursorCell?.text.trim()) {
+				ctx.font = buildFont(cursorCell, scaledSize, fontFamily);
+				ctx.fillStyle = background;
+				ctx.globalAlpha = cursorOpacity.current / CURSOR_MAX_OPACITY;
+				ctx.fillText(cursorCell.text, cx, cy + baselineOffset);
+				ctx.globalAlpha = 1.0;
+			}
+		}
+	}, [fontSize, fontFamily, cursorColor, background]);
+
 	// Draw the full grid
+	// biome-ignore lint/correctness/useExhaustiveDependencies: lineHeight affects cellMetrics ref
 	const draw = useCallback(() => {
 		const canvas = canvasRef.current;
 		const snap = gridRef.current;
@@ -134,16 +227,17 @@ export function CanvasTerminal({
 
 		const dpr = dprRef.current;
 		const scaledSize = fontSize * dpr;
-		const { width: cellW, height: cellH } = cellMetrics.current;
+		const { width: cellW, height: cellH, baselineOffset } = cellMetrics.current;
 		if (cellW === 0 || cellH === 0) return;
 
-		// Clear
-		ctx.fillStyle = background;
-		ctx.fillRect(0, 0, canvas.width, canvas.height);
+		// Clear to transparent — PaneBackgroundEffects provides the visual background
+		ctx.clearRect(0, 0, canvas.width, canvas.height);
 
 		// Set shared state once before the cell loop
-		ctx.textBaseline = "top";
+		ctx.textBaseline = "alphabetic";
 		ctx.lineWidth = dpr;
+
+		const defaultBg = snap.defaultBg;
 
 		// Draw cells
 		for (let row = 0; row < snap.rows.length; row++) {
@@ -155,31 +249,37 @@ export function CanvasTerminal({
 				const x = col * cellW;
 				const y = row * cellH;
 
-				drawCell(ctx, cell, x, y, cellW, cellH, scaledSize, fontFamily, background);
+				drawCell(ctx, cell, x, y, cellW, cellH, baselineOffset, scaledSize, fontFamily, defaultBg);
 			}
 		}
 
 		// Draw cursor
-		if (snap.cursorVisible && cursorVisible.current) {
+		if (snap.cursorVisible) {
 			const cx = snap.cursorCol * cellW;
 			const cy = snap.cursorRow * cellH;
 
 			ctx.fillStyle = cursorColor;
-			ctx.globalAlpha = CURSOR_OPACITY;
+			ctx.globalAlpha = cursorOpacity.current;
 			ctx.fillRect(cx, cy, cellW, cellH);
 			ctx.globalAlpha = 1.0;
 
-			// Redraw cursor cell text on top so it's visible
+			// Redraw cursor cell text on top so it's visible against cursor color
 			const cursorRow = snap.rows[snap.cursorRow];
 			const cursorCell = cursorRow?.[snap.cursorCol];
 			if (cursorCell?.text.trim()) {
 				ctx.font = buildFont(cursorCell, scaledSize, fontFamily);
 				ctx.fillStyle = background;
-				const textY = cy + (cellH - scaledSize) / 2;
-				ctx.fillText(cursorCell.text, cx, textY);
+				ctx.globalAlpha = cursorOpacity.current / CURSOR_MAX_OPACITY;
+				ctx.fillText(cursorCell.text, cx, cy + baselineOffset);
+				ctx.globalAlpha = 1.0;
 			}
 		}
 	}, [background, cursorColor, fontSize, fontFamily, lineHeight]);
+
+	// Keep draw ref in sync so the resize observer can trigger redraws
+	// without being recreated when draw's dependencies change.
+	const drawRef = useRef(draw);
+	drawRef.current = draw;
 
 	// Handle resize: compute cols/rows from container dimensions
 	useEffect(() => {
@@ -195,6 +295,13 @@ export function CanvasTerminal({
 				const rect = container.getBoundingClientRect();
 				const w = Math.floor(rect.width * dpr);
 				const h = Math.floor(rect.height * dpr);
+
+				// Skip if dimensions haven't changed — avoids clearing the canvas
+				// (setting canvas.width/height always clears it, even to the same value)
+				if (canvas.width === w && canvas.height === h) {
+					drawRef.current();
+					return;
+				}
 
 				canvas.width = w;
 				canvas.height = h;
@@ -214,6 +321,9 @@ export function CanvasTerminal({
 						onResizeRef.current(cols, rows);
 					}
 				}
+
+				// Redraw after resize so the canvas isn't blank
+				drawRef.current();
 			}, RESIZE_DEBOUNCE_MS);
 		});
 
@@ -224,76 +334,50 @@ export function CanvasTerminal({
 		};
 	}, [measureCell]);
 
-	// Redraw when grid changes
+	// Redraw when grid changes — grid is state that triggers redraw, draw reads from gridRef
+	// biome-ignore lint/correctness/useExhaustiveDependencies: grid triggers redraw via state
 	useEffect(() => {
+		// Reset blink timer on grid change (keystroke makes cursor fully visible)
+		blinkStart.current = performance.now();
+		cursorOpacity.current = CURSOR_MAX_OPACITY;
 		draw();
 	}, [grid, draw]);
 
-	// Cursor blink — restart timer on grid change so cursor stays visible after keystroke
+	// Smooth cursor blink animation — only runs when focused
+	// biome-ignore lint/correctness/useExhaustiveDependencies: repaintCursor reads from refs
 	useEffect(() => {
-		cursorVisible.current = true;
-		if (blinkTimer.current) clearInterval(blinkTimer.current);
-		blinkTimer.current = setInterval(() => {
-			cursorVisible.current = !cursorVisible.current;
-			// Only repaint the cursor cell instead of the full grid
-			const canvas = canvasRef.current;
-			const snap = gridRef.current;
-			const ctx = ctxRef.current;
-			if (!canvas || !snap || !ctx) return;
-			const { width: cellW, height: cellH } = cellMetrics.current;
-			if (cellW === 0 || cellH === 0) return;
+		if (!isFocused) {
+			// Static cursor when unfocused
+			cursorOpacity.current = CURSOR_STATIC_OPACITY;
+			repaintCursor();
+			return;
+		}
 
-			const dpr = dprRef.current;
-			const scaledSize = fontSize * dpr;
-			const cx = snap.cursorCol * cellW;
-			const cy = snap.cursorRow * cellH;
+		// Reset blink start so cursor is fully visible when pane gains focus
+		blinkStart.current = performance.now();
+		cursorOpacity.current = CURSOR_MAX_OPACITY;
 
-			// Redraw cursor cell background
-			const cursorRow = snap.rows[snap.cursorRow];
-			const cursorCell = cursorRow?.[snap.cursorCol];
+		const tick = (now: number) => {
+			const elapsed = now - blinkStart.current;
 
-			ctx.textBaseline = "top";
-			ctx.lineWidth = dpr;
-
-			// Clear cursor rect with cell or terminal background
-			ctx.fillStyle = cursorCell && cursorCell.bg !== background ? cursorCell.bg : background;
-			ctx.fillRect(cx, cy, cellW, cellH);
-
-			// Redraw cell content
-			if (cursorCell) {
-				if (cursorCell.text.trim()) {
-					ctx.font = buildFont(cursorCell, scaledSize, fontFamily);
-					ctx.fillStyle = cursorCell.fg;
-					const textY = cy + (cellH - scaledSize) / 2;
-					ctx.fillText(cursorCell.text, cx, textY);
-				}
-				if (cursorCell.underline) {
-					drawHLine(ctx, cursorCell.fg, dpr, cx, cy + cellH - dpr, cellW);
-				}
-				if (cursorCell.strikethrough) {
-					drawHLine(ctx, cursorCell.fg, dpr, cx, cy + cellH / 2, cellW);
-				}
+			if (elapsed < CURSOR_HOLD_MS) {
+				// Hold at full opacity after keystroke
+				cursorOpacity.current = CURSOR_MAX_OPACITY;
+			} else {
+				// Smooth cosine wave: max → min → max over BLINK_PERIOD
+				const t = elapsed - CURSOR_HOLD_MS;
+				const phase = (1 + Math.cos((t * 2 * Math.PI) / CURSOR_BLINK_PERIOD_MS)) / 2;
+				cursorOpacity.current =
+					CURSOR_MIN_OPACITY + (CURSOR_MAX_OPACITY - CURSOR_MIN_OPACITY) * phase;
 			}
 
-			// Draw cursor overlay if visible
-			if (snap.cursorVisible && cursorVisible.current) {
-				ctx.fillStyle = cursorColor;
-				ctx.globalAlpha = CURSOR_OPACITY;
-				ctx.fillRect(cx, cy, cellW, cellH);
-				ctx.globalAlpha = 1.0;
-
-				if (cursorCell?.text.trim()) {
-					ctx.font = buildFont(cursorCell, scaledSize, fontFamily);
-					ctx.fillStyle = background;
-					const textY = cy + (cellH - scaledSize) / 2;
-					ctx.fillText(cursorCell.text, cx, textY);
-				}
-			}
-		}, CURSOR_BLINK_MS);
-		return () => {
-			if (blinkTimer.current) clearInterval(blinkTimer.current);
+			repaintCursor();
+			animFrame.current = requestAnimationFrame(tick);
 		};
-	}, [grid, fontSize, fontFamily, background, cursorColor]);
+
+		animFrame.current = requestAnimationFrame(tick);
+		return () => cancelAnimationFrame(animFrame.current);
+	}, [isFocused, grid, repaintCursor]);
 
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
@@ -307,6 +391,7 @@ export function CanvasTerminal({
 	);
 
 	return (
+		// biome-ignore lint/a11y/useSemanticElements: canvas terminal cannot be a native textarea
 		<div
 			ref={containerRef}
 			className="relative h-full w-full overflow-hidden outline-none"
@@ -314,8 +399,6 @@ export function CanvasTerminal({
 			role="textbox"
 			aria-label="Terminal"
 			onKeyDown={handleKeyDown}
-			/* Dynamic theme color — cannot use Tailwind class */
-			style={{ background }}
 		>
 			<canvas ref={canvasRef} className="block" />
 		</div>

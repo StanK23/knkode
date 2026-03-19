@@ -564,6 +564,7 @@ const PRESET_FILL_KEYS = [
 	"fontFamily",
 	"fontSize",
 	"lineHeight",
+	"cursorColor",
 	"gradientLevel",
 	"glowLevel",
 	"scanlineLevel",

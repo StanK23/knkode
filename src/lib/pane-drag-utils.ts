@@ -9,6 +9,39 @@ export interface PaneDragPayload {
 
 export const PANE_DRAG_MIME = "application/x-knkode-pane";
 
+/** Module-level state for the active pane drag operation.
+ *  WKWebView (Safari) doesn't expose custom MIME types in `dataTransfer.types`
+ *  during `dragover`, so we can't gate `preventDefault()` on the MIME check.
+ *  Instead, track drag state in JS and read it during `dragover` / `drop`. */
+let activePaneDrag: PaneDragPayload | null = null;
+
+export function setActivePaneDrag(payload: PaneDragPayload | null): void {
+	activePaneDrag = payload;
+}
+
+export function getActivePaneDrag(): PaneDragPayload | null {
+	return activePaneDrag;
+}
+
+/** Module-level state for the current drop target during a pane drag.
+ *  Updated by the target pane's dragover handler, read by the source pane's
+ *  dragend handler as a fallback when WKWebView doesn't fire the drop event. */
+export interface PaneDropTarget {
+	paneId: string;
+	workspaceId: string;
+	zone: DropZone;
+}
+
+let activeDropTarget: PaneDropTarget | null = null;
+
+export function setActiveDropTarget(target: PaneDropTarget | null): void {
+	activeDropTarget = target;
+}
+
+export function getActiveDropTarget(): PaneDropTarget | null {
+	return activeDropTarget;
+}
+
 /** Parse and validate a drag payload from untrusted JSON. Returns null on invalid input. */
 export function parsePaneDragPayload(raw: string): PaneDragPayload | null {
 	let parsed: unknown;

@@ -266,9 +266,11 @@
 	}
 }
 
-/* Frameless window — interactive elements inside a drag region */
+/* Frameless window — .no-drag marks elements that should NOT trigger window
+   dragging. The TabBar's mousedown handler checks for this class via
+   closest('.no-drag') and skips the Tauri startDragging() call. */
 .no-drag {
-	-webkit-app-region: no-drag;
+	/* Marker class — no CSS rules needed; used as a JS selector only. */
 }
 
 /* Allotment sash overrides — CSS custom property controls visual width */

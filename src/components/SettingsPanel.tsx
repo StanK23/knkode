@@ -334,9 +334,7 @@ export function SettingsPanel({ workspace, onClose }: SettingsPanelProps) {
 			>
 				<div className="flex items-center justify-between px-6 py-4 border-b border-edge/50">
 					<h2 className="text-sm font-semibold tracking-wide">Workspace Settings</h2>
-					{saveFailed && (
-						<span className="text-[10px] text-danger">Save failed</span>
-					)}
+					{saveFailed && <span className="text-[10px] text-danger">Save failed</span>}
 					<button
 						type="button"
 						onClick={onClose}

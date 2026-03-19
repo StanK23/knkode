@@ -220,6 +220,9 @@ export interface GridSnapshot {
 	readonly cols: number;
 	readonly totalRows: number;
 	readonly scrollbackRows: number;
+	/** Terminal palette default background (hex). Cells matching this have no
+	 *  custom background and should be left transparent so theme effects show. */
+	readonly defaultBg: string;
 }
 
 // --- API interface ---

@@ -75,18 +75,11 @@ export function Pane({
 	const [ptyError, setPtyError] = useState(false);
 	const homeDir = useStore((s) => s.homeDir);
 
-	const {
-		isDragging,
-		dropZone,
-		outerRef,
-		handleHeaderMouseDown,
-		handleDragStart,
-		handleDragEnd,
-		handlePaneDragOver,
-		handlePaneDragEnter,
-		handlePaneDragLeave,
-		handlePaneDrop,
-	} = usePaneDragDrop({ paneId, workspaceId, onFocus });
+	const { isDragging, dropZone, outerRef, handleHeaderPointerDown } = usePaneDragDrop({
+		paneId,
+		workspaceId,
+		onFocus,
+	});
 
 	const ensurePty = useStore((s) => s.ensurePty);
 	// One-shot capture — PTY should only use initial CWD and startup command
@@ -136,7 +129,9 @@ export function Pane({
 	}, []);
 
 	// Use homeDir from store for cross-platform path shortening
-	const shortCwd = config.cwd.startsWith(homeDir) ? `~${config.cwd.slice(homeDir.length)}` : config.cwd;
+	const shortCwd = config.cwd.startsWith(homeDir)
+		? `~${config.cwd.slice(homeDir.length)}`
+		: config.cwd;
 	const statusBarPosition = workspaceTheme.statusBarPosition ?? "top";
 
 	const preset = workspaceTheme.preset ? findPreset(workspaceTheme.preset) : undefined;
@@ -184,19 +179,17 @@ export function Pane({
 	const handleFocus = useCallback(() => onFocus(paneId), [paneId, onFocus]);
 
 	// Compute dim opacity once, use inline style exclusively (no class/inline conflict)
-	const dimOpacity = !isFocused && workspaceTheme.unfocusedDim > 0
-		? Math.max(0, Math.min(MAX_UNFOCUSED_DIM, workspaceTheme.unfocusedDim))
-		: 0;
+	const dimOpacity =
+		!isFocused && workspaceTheme.unfocusedDim > 0
+			? Math.max(0, Math.min(MAX_UNFOCUSED_DIM, workspaceTheme.unfocusedDim))
+			: 0;
 
 	return (
 		<div
 			ref={outerRef}
-			className="flex flex-col h-full w-full relative overflow-hidden"
+			data-pane-id={paneId}
+			className="flex flex-col h-full w-full relative overflow-hidden select-none"
 			onMouseDown={handleFocus}
-			onDragOver={handlePaneDragOver}
-			onDragEnter={handlePaneDragEnter}
-			onDragLeave={handlePaneDragLeave}
-			onDrop={handlePaneDrop}
 		>
 			<PaneBackgroundEffects theme={mergedTheme} isFocused={isFocused} />
 
@@ -223,17 +216,14 @@ export function Pane({
 						close: `${modKey}+W`,
 					}}
 					headerProps={{
-						draggable: !isEditing,
 						"aria-roledescription": "draggable pane",
-						onDragStart: handleDragStart,
-						onDragEnd: handleDragEnd,
+						onPointerDown: handleHeaderPointerDown,
 						onContextMenu: handleContextMenu,
-						onMouseDown: handleHeaderMouseDown,
-						className: `shrink-0 relative select-none ${isDragging ? "opacity-40" : ""}`,
+						className: `shrink-0 relative select-none cursor-grab active:cursor-grabbing ${isDragging ? "opacity-40" : ""}`,
 					}}
 					contextMenu={null}
 				>
-					<div className="flex-1 overflow-hidden p-px relative h-full">
+					<div className="flex-1 overflow-hidden p-2 relative h-full">
 						<CanvasTerminal
 							grid={grid}
 							onWrite={handleWrite}
@@ -241,6 +231,8 @@ export function Pane({
 							fontSize={mergedTheme.fontSize}
 							fontFamily={mergedTheme.fontFamily}
 							background={mergedTheme.background}
+							cursorColor={mergedTheme.cursorColor ?? mergedTheme.foreground}
+							isFocused={isFocused}
 						/>
 						{/* Dim overlay — uses inline style exclusively to avoid class/inline transition conflict */}
 						<div

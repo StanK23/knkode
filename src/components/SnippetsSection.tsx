@@ -17,14 +17,7 @@ export function SnippetsSection() {
 	const [newCommand, setNewCommand] = useState("");
 	const [liveMessage, setLiveMessage] = useState("");
 
-	const {
-		dragFromIndex,
-		dragOverIndex,
-		resetDragState,
-		handleDragStart,
-		handleDragOver,
-		handleDrop,
-	} = useDragReorder({
+	const { dragFromIndex, dragOverIndex, handlePointerDown } = useDragReorder({
 		onReorder: useCallback(
 			(from: number, to: number) => {
 				reorderSnippets(from, to);
@@ -33,6 +26,8 @@ export function SnippetsSection() {
 			},
 			[reorderSnippets, snippets],
 		),
+		containerSelector: "[data-snippet-list]",
+		itemSelector: "[data-snippet-item]",
 	});
 
 	const startEdit = useCallback(
@@ -89,6 +84,7 @@ export function SnippetsSection() {
 			{snippets.length === 0 && !isAdding && (
 				<span className="text-[11px] text-content-muted italic">No snippets yet</span>
 			)}
+			<div data-snippet-list className="flex flex-col gap-2">
 			{snippets.map((snippet, index) => {
 				const isDropTarget =
 					dragOverIndex === index && dragFromIndex !== null && dragFromIndex !== index;
@@ -99,11 +95,10 @@ export function SnippetsSection() {
 				return (
 					<div
 						key={snippet.id}
-						draggable={!isEditing}
-						onDragStart={(e) => handleDragStart(e, index)}
-						onDragOver={(e) => handleDragOver(e, index)}
-						onDrop={() => handleDrop(index)}
-						onDragEnd={resetDragState}
+						data-snippet-item
+						onPointerDown={(ev) => {
+							if (!isEditing) handlePointerDown(ev, index);
+						}}
 						aria-roledescription="reorderable snippet"
 						className={`flex items-center gap-1.5 rounded-sm transition-colors ${isDropTarget ? "bg-accent/10" : ""} ${isDragSource ? "opacity-40" : ""}`}
 					>
@@ -187,6 +182,7 @@ export function SnippetsSection() {
 					</div>
 				);
 			})}
+			</div>
 			<span className="sr-only" aria-live="polite">
 				{liveMessage}
 			</span>

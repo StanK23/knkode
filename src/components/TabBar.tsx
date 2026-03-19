@@ -1,3 +1,4 @@
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useClickOutside } from "../hooks/useClickOutside";
 import { useDragReorder } from "../hooks/useDragReorder";
@@ -26,8 +27,9 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 	const closedMenuRef = useRef<HTMLDivElement>(null);
 	useClickOutside(closedMenuRef, () => setShowClosedMenu(false), showClosedMenu);
 
-	const { dragFromIndex, dragOverIndex, resetDragState, handleDragStart, handleDragOver, handleDrop } =
-		useDragReorder({ onReorder: reorderWorkspaceTabs });
+	const { dragFromIndex, dragOverIndex, handlePointerDown } = useDragReorder({
+		onReorder: reorderWorkspaceTabs,
+	});
 
 	const openTabs = useMemo(
 		() =>
@@ -82,15 +84,24 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 		});
 	}, [createDefaultWorkspace, showTransientError]);
 
+	const handleBarMouseDown = useCallback((e: React.MouseEvent) => {
+		// Only left-click triggers window drag
+		if (e.button !== 0) return;
+		// Don't drag if clicking on an interactive element (tabs, buttons, etc.)
+		if ((e.target as HTMLElement).closest(".no-drag")) return;
+		e.preventDefault();
+		getCurrentWindow().startDragging();
+	}, []);
+
 	return (
 		<div
 			className="flex items-end bg-sunken border-b border-edge relative shrink-0"
-			style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+			onMouseDown={handleBarMouseDown}
 		>
 			{/* Tabs */}
 			<div
 				role="tablist"
-				className="no-drag flex items-end gap-0.5 pl-traffic pt-1.5 overflow-x-auto overflow-y-hidden flex-1"
+				className="flex items-end gap-0.5 pl-traffic pt-1.5 overflow-x-auto overflow-y-hidden flex-1"
 			>
 				{openTabs.map((ws, i) => (
 					<Tab
@@ -104,10 +115,7 @@ export function TabBar({ onOpenSettings }: TabBarProps) {
 						onRename={handleRename}
 						onChangeColor={handleChangeColor}
 						onDuplicate={handleDuplicate}
-						onDragStart={handleDragStart}
-						onDragOver={handleDragOver}
-						onDrop={handleDrop}
-						onDragEnd={resetDragState}
+						onPointerDown={handlePointerDown}
 						isDragOver={dragOverIndex === i && dragFromIndex !== i}
 						isDragging={dragFromIndex === i}
 						colors={WORKSPACE_COLORS}
