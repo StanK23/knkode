@@ -62,12 +62,12 @@ fn emit_snapshot(app: &tauri::AppHandle, term_state: &TerminalState, id: &str) -
     }
 }
 
-fn pty_size(cols: u16, rows: u16) -> PtySize {
+fn pty_size(cols: u16, rows: u16, pixel_width: u16, pixel_height: u16) -> PtySize {
     PtySize {
         rows,
         cols,
-        pixel_width: 0,
-        pixel_height: 0,
+        pixel_width,
+        pixel_height,
     }
 }
 
@@ -124,7 +124,7 @@ impl PtyManager {
 
         let pty_system = native_pty_system();
         let pair = pty_system
-            .openpty(pty_size(DEFAULT_COLS as u16, DEFAULT_ROWS as u16))
+            .openpty(pty_size(DEFAULT_COLS as u16, DEFAULT_ROWS as u16, 0, 0))
             .map_err(|e| format!("Failed to open PTY: {e}"))?;
 
         let shell = std::env::var("SHELL").unwrap_or_else(|_| {
@@ -202,7 +202,8 @@ impl PtyManager {
 
         // Create terminal state AFTER successful session insert to avoid orphaned
         // terminal entries if sessions lock is poisoned
-        self.terminal_state.create(&id, DEFAULT_COLS, DEFAULT_ROWS);
+        self.terminal_state
+            .create(&id, DEFAULT_COLS, DEFAULT_ROWS, 0, 0);
 
         // Shared flags between reader and flush threads.
         // `dirty`: set when terminal state advances but no snapshot was emitted (throttled).
@@ -326,18 +327,31 @@ impl PtyManager {
         writer.flush().map_err(|e| format!("PTY flush failed: {e}"))
     }
 
-    pub fn resize(&self, id: &str, cols: u16, rows: u16) -> Result<(), String> {
+    pub fn resize(
+        &self,
+        id: &str,
+        cols: u16,
+        rows: u16,
+        pixel_width: u16,
+        pixel_height: u16,
+    ) -> Result<(), String> {
         // Silently ignore missing sessions — resize can race with tab close
         {
             let sessions = self.lock_sessions()?;
             if let Some(session) = sessions.get(id) {
                 session
                     .master
-                    .resize(pty_size(cols, rows))
+                    .resize(pty_size(cols, rows, pixel_width, pixel_height))
                     .map_err(|e| format!("PTY resize failed: {e}"))?;
             }
         } // Drop sessions lock before acquiring terminals lock to prevent deadlock
-        self.terminal_state.resize(id, cols as usize, rows as usize);
+        self.terminal_state.resize(
+            id,
+            cols as usize,
+            rows as usize,
+            pixel_width as usize,
+            pixel_height as usize,
+        );
         Ok(())
     }
 

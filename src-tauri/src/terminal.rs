@@ -22,12 +22,12 @@ impl tattoy_wezterm_term::config::TerminalConfiguration for TermConfig {
     }
 }
 
-fn term_size(cols: usize, rows: usize) -> TerminalSize {
+fn term_size(cols: usize, rows: usize, pixel_width: usize, pixel_height: usize) -> TerminalSize {
     TerminalSize {
         rows,
         cols,
-        pixel_width: 0,
-        pixel_height: 0,
+        pixel_width,
+        pixel_height,
         dpi: DEFAULT_DPI,
     }
 }
@@ -205,11 +205,18 @@ impl TerminalState {
         }
     }
 
-    pub fn create(&self, id: &str, cols: usize, rows: usize) {
+    pub fn create(
+        &self,
+        id: &str,
+        cols: usize,
+        rows: usize,
+        pixel_width: usize,
+        pixel_height: usize,
+    ) {
         // NOTE: Terminal writer is sink() — shell DSR responses (e.g. cursor position
         // reports via \e[6n) are discarded. Known limitation for Phase 5a.
         let terminal = Terminal::new(
-            term_size(cols, rows),
+            term_size(cols, rows, pixel_width, pixel_height),
             Arc::clone(&self.config),
             "knkode",
             env!("CARGO_PKG_VERSION"),
@@ -372,11 +379,18 @@ impl TerminalState {
         Ok(result)
     }
 
-    pub fn resize(&self, id: &str, cols: usize, rows: usize) {
+    pub fn resize(
+        &self,
+        id: &str,
+        cols: usize,
+        rows: usize,
+        pixel_width: usize,
+        pixel_height: usize,
+    ) {
         match self.lock_terminals() {
             Ok(mut terminals) => {
                 if let Some(terminal) = terminals.get_mut(id) {
-                    terminal.resize(term_size(cols, rows));
+                    terminal.resize(term_size(cols, rows, pixel_width, pixel_height));
                 } else {
                     eprintln!("[terminal] resize called for unknown session {id}");
                 }

@@ -279,7 +279,7 @@ export interface KnkodeApi {
 	// PTY
 	createPty(id: string, cwd: string, startupCommand: string | null): Promise<void>;
 	writePty(id: string, data: string): Promise<void>;
-	resizePty(id: string, cols: number, rows: number): Promise<void>;
+	resizePty(id: string, cols: number, rows: number, pixelWidth?: number, pixelHeight?: number): Promise<void>;
 	killPty(id: string): Promise<void>;
 
 	// Terminal scroll — request a snapshot at a given scrollback offset (0 = bottom)

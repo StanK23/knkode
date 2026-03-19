@@ -14,7 +14,7 @@ import { isMac } from "../utils/platform";
 export interface CanvasTerminalProps {
 	readonly grid: GridSnapshot | null;
 	readonly onWrite: (data: string) => void;
-	readonly onResize: (cols: number, rows: number) => void;
+	readonly onResize: (cols: number, rows: number, pixelWidth: number, pixelHeight: number) => void;
 	/** Scroll delta in lines: positive = scroll up (into scrollback), negative = toward bottom. */
 	readonly onScroll: (deltaLines: number) => void;
 	readonly fontSize?: number | undefined;
@@ -610,7 +610,7 @@ export function CanvasTerminal({
 					const cols = Math.floor(w / cellW);
 					const rows = Math.floor(h / cellH);
 					if (cols > 0 && rows > 0) {
-						onResizeRef.current(cols, rows);
+						onResizeRef.current(cols, rows, Math.round(cellW * cols), Math.round(cellH * rows));
 					}
 				}
 

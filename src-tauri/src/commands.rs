@@ -96,6 +96,8 @@ pub fn resize_pty(
     id: String,
     cols: u16,
     rows: u16,
+    pixel_width: Option<u16>,
+    pixel_height: Option<u16>,
     pty_mgr: State<'_, Arc<PtyManager>>,
 ) -> Result<(), String> {
     if cols == 0 || rows == 0 {
@@ -106,7 +108,13 @@ pub fn resize_pty(
             "cols ({cols}) and rows ({rows}) must not exceed 500"
         ));
     }
-    pty_mgr.resize(&id, cols, rows)
+    pty_mgr.resize(
+        &id,
+        cols,
+        rows,
+        pixel_width.unwrap_or(0),
+        pixel_height.unwrap_or(0),
+    )
 }
 
 #[tauri::command]
