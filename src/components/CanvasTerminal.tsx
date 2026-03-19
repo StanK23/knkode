@@ -257,6 +257,10 @@ export function CanvasTerminal({
 	const selectionAnchorRef = useRef<CellPosition | null>(null);
 	const selectionEndRef = useRef<CellPosition | null>(null);
 	const selectionColorRef = useRef(selectionColor);
+	/** Pending selection RAF frame — coalesces rapid mousemove into one redraw per frame. */
+	const selectionRafRef = useRef(0);
+	/** Active window listeners attached during selection drag — cleaned up on unmount. */
+	const dragListenersRef = useRef<{ move: (e: MouseEvent) => void; up: (e: MouseEvent) => void } | null>(null);
 
 	// Keep refs in sync
 	gridRef.current = grid;
@@ -593,6 +597,23 @@ export function CanvasTerminal({
 		return () => cancelAnimationFrame(animFrame.current);
 	}, [isFocused, grid, repaintCursor]);
 
+	// Cleanup drag listeners and selection RAF on unmount — prevents leaks if
+	// the component unmounts mid-drag (pane close, workspace switch).
+	useEffect(() => {
+		return () => {
+			const listeners = dragListenersRef.current;
+			if (listeners) {
+				window.removeEventListener("mousemove", listeners.move);
+				window.removeEventListener("mouseup", listeners.up);
+				dragListenersRef.current = null;
+			}
+			if (selectionRafRef.current) {
+				cancelAnimationFrame(selectionRafRef.current);
+				selectionRafRef.current = 0;
+			}
+		};
+	}, []);
+
 	/** Write text to PTY wrapped in bracketed paste escape sequences. */
 	const writePaste = useCallback(
 		(text: string) => {
@@ -682,7 +703,9 @@ export function CanvasTerminal({
 		[writePaste],
 	);
 
-	/** Start selection on left-click; track via window listeners until mouseup. */
+	/** Start selection on left-click; track via window listeners until mouseup.
+	 *  Caches the canvas rect for the duration of the drag to avoid layout reflows.
+	 *  RAF-throttles redraws so high-frequency trackpad events don't saturate the main thread. */
 	const handleMouseDown = useCallback(
 		(e: React.MouseEvent) => {
 			if (e.button !== 0) return;
@@ -694,22 +717,63 @@ export function CanvasTerminal({
 			const absRow = toAbsoluteRow(snap, cell.row);
 			selectionAnchorRef.current = { row: absRow, col: cell.col };
 			selectionEndRef.current = { row: absRow, col: cell.col };
-			drawRef.current();
+			// No redraw on initial click — anchor equals end so no highlight to show
+
+			// Cache canvas rect for the drag to avoid getBoundingClientRect per mousemove
+			const canvas = canvasRef.current;
+			const cachedRect = canvas?.getBoundingClientRect();
+			const cachedDpr = dprRef.current;
+
+			const cellAtCachedRect = (clientX: number, clientY: number): { row: number; col: number } | null => {
+				if (!cachedRect) return null;
+				const { width: cellW, height: cellH } = cellMetrics.current;
+				if (cellW === 0 || cellH === 0) return null;
+				const x = (clientX - cachedRect.left) * cachedDpr;
+				const y = (clientY - cachedRect.top) * cachedDpr;
+				const s = gridRef.current;
+				const maxCol = s ? s.cols - 1 : 0;
+				const maxRow = s ? s.totalRows - 1 : 0;
+				return {
+					col: Math.max(0, Math.min(maxCol, Math.floor(x / cellW))),
+					row: Math.max(0, Math.min(maxRow, Math.floor(y / cellH))),
+				};
+			};
 
 			const onMove = (ev: MouseEvent) => {
-				const cell = cellAtPixel(ev.clientX, ev.clientY);
+				const cell = cellAtCachedRect(ev.clientX, ev.clientY);
 				if (!cell) return;
 				const snap = gridRef.current;
 				if (!snap) return;
 				selectionEndRef.current = { row: toAbsoluteRow(snap, cell.row), col: cell.col };
-				drawRef.current();
+				// RAF-throttle: coalesce rapid mousemove into one redraw per frame
+				if (selectionRafRef.current === 0) {
+					selectionRafRef.current = requestAnimationFrame(() => {
+						selectionRafRef.current = 0;
+						drawRef.current();
+					});
+				}
 			};
 
 			const onUp = () => {
 				window.removeEventListener("mousemove", onMove);
 				window.removeEventListener("mouseup", onUp);
+				dragListenersRef.current = null;
+				if (selectionRafRef.current) {
+					cancelAnimationFrame(selectionRafRef.current);
+					selectionRafRef.current = 0;
+				}
+				// Final redraw to ensure highlight matches the last mouse position
+				drawRef.current();
 			};
 
+			// Clean up any previous drag listeners (defensive)
+			const prev = dragListenersRef.current;
+			if (prev) {
+				window.removeEventListener("mousemove", prev.move);
+				window.removeEventListener("mouseup", prev.up);
+			}
+
+			dragListenersRef.current = { move: onMove, up: onUp };
 			window.addEventListener("mousemove", onMove);
 			window.addEventListener("mouseup", onUp);
 		},
