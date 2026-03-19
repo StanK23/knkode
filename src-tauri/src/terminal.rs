@@ -220,28 +220,43 @@ impl TerminalState {
         Ok(())
     }
 
-    /// Feed raw PTY output through the terminal state machine and return
-    /// a snapshot of the visible grid for the frontend to render.
-    ///
-    /// Lock ordering: acquires `terminals` then `palettes` (via `get_palette`).
-    /// All code paths must follow this order to prevent deadlocks.
-    pub fn advance_bytes(&self, id: &str, data: &[u8]) -> Option<GridSnapshot> {
+    /// Advance the terminal state machine with raw PTY output, without
+    /// taking a snapshot. Used by the throttled PTY reader loop to process
+    /// data as fast as possible, deferring the expensive snapshot+emit step.
+    pub fn advance_only(&self, id: &str, data: &[u8]) {
         let mut terminals = match self.lock_terminals() {
             Ok(t) => t,
             Err(e) => {
-                eprintln!("[terminal] advance_bytes lock failed for {id}: {e}");
-                return None;
+                eprintln!("[terminal] advance_only lock failed for {id}: {e}");
+                return;
             }
         };
         let terminal = match terminals.get_mut(id) {
             Some(t) => t,
             None => {
-                eprintln!("[terminal] advance_bytes called for unknown session {id}");
-                return None;
+                eprintln!("[terminal] advance_only called for unknown session {id}");
+                return;
             }
         };
         terminal.advance_bytes(data);
+    }
 
+    /// Take a snapshot of the current visible grid for the frontend to render.
+    ///
+    /// Lock ordering: acquires `terminals` then `palettes` (via `get_palette`).
+    /// All code paths must follow this order to prevent deadlocks.
+    pub fn snapshot(&self, id: &str) -> Option<GridSnapshot> {
+        let terminals = match self.lock_terminals() {
+            Ok(t) => t,
+            Err(e) => {
+                eprintln!("[terminal] snapshot lock failed for {id}: {e}");
+                return None;
+            }
+        };
+        let terminal = match terminals.get(id) {
+            Some(t) => t,
+            None => return None,
+        };
         let palette = self.get_palette(id);
         Some(Self::snapshot_with_palette(terminal, &palette))
     }
