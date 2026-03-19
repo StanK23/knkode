@@ -26,9 +26,13 @@ Phase 9 complete — all frontend code ported. App shell fully functional with d
 - [x] Phase 9b: Frontend components & app shell (PR #19 merged)
 
 - [x] Fix: Keyboard input, render throttle, cursor style (PR #21 merged)
+- [x] Selection: IPC text extraction (PR #22 merged)
+- [x] Selection: Mouse tracking, highlight, copy (PR #23 merged)
+- [x] Selection: Smart selection — double/triple click, shift+click extend (PR #24 merged)
 
 ## What's Next
-- [ ] Terminal text selection (mouse drag, double/triple-click, copy)
+- [ ] File drag-and-drop to paste paths into terminal (PR #25 — in progress)
+- [ ] Inline terminal images (iTerm2/Kitty/Sixel)
 - [ ] Phase 10: Integration testing & polish
 
 ## Key Reference
