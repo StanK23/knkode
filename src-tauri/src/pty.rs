@@ -50,6 +50,18 @@ fn detect_cwd(_pid: u32) -> Option<String> {
     None
 }
 
+/// Emit a terminal render snapshot to the frontend.
+/// Returns `true` if the emit succeeded or there was nothing to emit,
+/// `false` if the Tauri event channel is broken.
+fn emit_snapshot(app: &tauri::AppHandle, term_state: &TerminalState, id: &str) -> bool {
+    if let Some(snapshot) = term_state.snapshot(id) {
+        app.emit("terminal:render", json!({ "id": id, "grid": snapshot }))
+            .is_ok()
+    } else {
+        true
+    }
+}
+
 fn pty_size(cols: u16, rows: u16) -> PtySize {
     PtySize {
         rows,
@@ -202,21 +214,16 @@ impl PtyManager {
         // state after a data burst ends. Without this, the last chunk in a burst
         // gets throttled and the reader blocks on read(), leaving the screen stale.
         {
-            let dirty = Arc::clone(&dirty);
-            let alive = Arc::clone(&alive);
+            let dirty_flush = Arc::clone(&dirty);
+            let alive_flush = Arc::clone(&alive);
             let term_state = Arc::clone(&self.terminal_state);
             let id_flush = id.clone();
             let app_flush = app.clone();
             std::thread::spawn(move || {
-                while alive.load(Ordering::Acquire) {
+                while alive_flush.load(Ordering::Relaxed) {
                     std::thread::sleep(RENDER_INTERVAL);
-                    if dirty.swap(false, Ordering::AcqRel) {
-                        if let Some(snapshot) = term_state.snapshot(&id_flush) {
-                            let _ = app_flush.emit(
-                                "terminal:render",
-                                json!({ "id": &id_flush, "grid": snapshot }),
-                            );
-                        }
+                    if dirty_flush.swap(false, Ordering::AcqRel) {
+                        emit_snapshot(&app_flush, &term_state, &id_flush);
                     }
                 }
             });
@@ -240,16 +247,8 @@ impl PtyManager {
 
                         if last_emit.elapsed() >= RENDER_INTERVAL {
                             dirty.store(false, Ordering::Release);
-                            if let Some(snapshot) = term_state.snapshot(&id_clone) {
-                                if app
-                                    .emit(
-                                        "terminal:render",
-                                        json!({ "id": &id_clone, "grid": snapshot }),
-                                    )
-                                    .is_err()
-                                {
-                                    break;
-                                }
+                            if !emit_snapshot(&app, &term_state, &id_clone) {
+                                break;
                             }
                             last_emit = Instant::now();
                         } else {
@@ -264,17 +263,11 @@ impl PtyManager {
                 }
             }
 
-            // Stop the flush thread
             alive.store(false, Ordering::Release);
 
             // Always emit a final snapshot so the screen shows the complete output
             // (the last chunk may have been throttled).
-            if let Some(snapshot) = term_state.snapshot(&id_clone) {
-                let _ = app.emit(
-                    "terminal:render",
-                    json!({ "id": &id_clone, "grid": snapshot }),
-                );
-            }
+            emit_snapshot(&app, &term_state, &id_clone);
 
             // PTY closed — get exit code and clean up
             // Remove only if this is still the same generation (prevents race on restart)
