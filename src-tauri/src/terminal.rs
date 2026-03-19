@@ -45,6 +45,7 @@ pub struct CellSnapshot {
 }
 
 #[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct GridSnapshot {
     pub rows: Vec<Vec<CellSnapshot>>,
     pub cursor_row: usize,
@@ -54,6 +55,11 @@ pub struct GridSnapshot {
     pub total_rows: usize,
     // TODO: populate from screen scrollback when scrollback support is added
     pub scrollback_rows: usize,
+    /// The terminal palette's default background color (hex string, e.g. "#000000").
+    /// The frontend uses this to distinguish "no custom background" cells from cells
+    /// with an explicit colored background — only the latter get drawn, leaving
+    /// default-bg cells transparent so PaneBackgroundEffects show through.
+    pub default_bg: String,
 }
 
 /// Manages one `wezterm-term::Terminal` per PTY session. Each terminal
@@ -196,6 +202,7 @@ impl TerminalState {
             cols: phys_cols,
             total_rows: phys_rows,
             scrollback_rows: 0,
+            default_bg: self.palette.background.to_rgb_string(),
         }
     }
 
