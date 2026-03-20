@@ -1,5 +1,6 @@
 import type React from "react";
 import { buildFontFamily } from "../data/theme-presets";
+import type { SidebarTheme } from "../shared/types";
 
 const HEX_RE = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
@@ -115,6 +116,16 @@ export type ThemeVariables = {
 	"--theme-glow": string;
 	"--font-family-ui": string;
 	"--font-size-ui": string;
+	"--sidebar-bg": string;
+	"--sidebar-glass": string;
+	"--sidebar-border": string;
+	"--sidebar-shadow": string;
+	"--sidebar-item-hover": string;
+	"--sidebar-item-active": string;
+	"--sidebar-item-radius": string;
+	"--sidebar-spacing": string;
+	"--sidebar-transition": string;
+	"--sidebar-accent-glow": string;
 } & React.CSSProperties;
 
 const MIN_UI_FONT_SIZE = 11;
@@ -128,6 +139,7 @@ export interface ThemeVarOptions {
 	fontSize?: number | undefined;
 	accent?: string | undefined;
 	glow?: string | undefined;
+	sidebar?: SidebarTheme | undefined;
 }
 
 /**
@@ -137,7 +149,7 @@ export interface ThemeVarOptions {
  * Returns an object suitable for React inline `style` — keys are CSS variable names.
  */
 export function generateThemeVariables(opts: ThemeVarOptions): ThemeVariables {
-	const { bg, fg, fontFamily, fontSize, accent: accentOverride, glow } = opts;
+	const { bg, fg, fontFamily, fontSize, accent: accentOverride, glow, sidebar } = opts;
 
 	// Safe fallbacks for missing or malformed colors to prevent app crashes
 	const safeBg = bg && isValidHex(bg) ? bg : "#1a1a2e";
@@ -184,6 +196,37 @@ export function generateThemeVariables(opts: ThemeVarOptions): ThemeVariables {
 			? Math.max(MIN_UI_FONT_SIZE, Math.min(MAX_UI_FONT_SIZE, fontSize - 1))
 			: DEFAULT_UI_FONT_SIZE;
 
+	// Sidebar — derive from sidebar config or auto-generate from theme colors
+	const sidebarBg =
+		sidebar?.background && isValidHex(sidebar.background) ? sidebar.background : sunken;
+	const sidebarGlass = Math.max(0, Math.min(20, sidebar?.glass ?? 0));
+	const sidebarBorderColor =
+		sidebar?.borderColor && isValidHex(sidebar.borderColor) ? sidebar.borderColor : edge;
+	const sidebarBorderStyle = sidebar?.borderStyle ?? "solid";
+	const sidebarBorder =
+		sidebarBorderStyle === "none"
+			? "none"
+			: sidebarBorderStyle === "glow"
+				? `1px solid ${sidebarBorderColor}`
+				: sidebarBorderStyle === "gradient"
+					? `1px solid ${accent}`
+					: `1px solid ${sidebarBorderColor}`;
+	const sidebarShadow =
+		sidebar?.shadow ??
+		(sidebarBorderStyle === "glow" && isValidHex(sidebarBorderColor)
+			? `1px 0 8px ${hexToRgba(sidebarBorderColor, 0.3)}`
+			: "none");
+	const sidebarItemHover =
+		sidebar?.itemHover && isValidHex(sidebar.itemHover) ? sidebar.itemHover : overlay;
+	const sidebarItemActive =
+		sidebar?.itemActive && isValidHex(sidebar.itemActive) ? sidebar.itemActive : overlayActive;
+	const sidebarItemRadius = Math.max(0, Math.min(8, sidebar?.itemRadius ?? 2));
+	const spacingMap = { compact: "0.75", default: "1", spacious: "1.25" } as const;
+	const sidebarSpacing = spacingMap[sidebar?.spacing ?? "default"];
+	const sidebarTransition = sidebar?.transition ?? "ease";
+	const sidebarAccentGlow =
+		sidebar?.accentGlow && isValidHex(accent) ? `0 0 6px ${hexToRgba(accent, 0.4)}` : "none";
+
 	return {
 		"--color-canvas": safeBg,
 		"--color-elevated": elevated,
@@ -200,5 +243,15 @@ export function generateThemeVariables(opts: ThemeVarOptions): ThemeVariables {
 		"--theme-glow": glowValue,
 		"--font-family-ui": buildFontFamily(fontFamily),
 		"--font-size-ui": `${uiFontSize}px`,
+		"--sidebar-bg": sidebarBg,
+		"--sidebar-glass": `${sidebarGlass}px`,
+		"--sidebar-border": sidebarBorder,
+		"--sidebar-shadow": sidebarShadow,
+		"--sidebar-item-hover": sidebarItemHover,
+		"--sidebar-item-active": sidebarItemActive,
+		"--sidebar-item-radius": `${sidebarItemRadius}px`,
+		"--sidebar-spacing": sidebarSpacing,
+		"--sidebar-transition": sidebarTransition,
+		"--sidebar-accent-glow": sidebarAccentGlow,
 	};
 }

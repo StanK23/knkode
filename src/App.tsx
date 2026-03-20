@@ -84,6 +84,7 @@ export function App() {
 					fontSize: t.fontSize,
 					accent: t.accent ?? preset?.accent,
 					glow: t.glow ?? preset?.glow,
+					sidebar: preset?.sidebar,
 				}),
 				themeFailed: false,
 			};
