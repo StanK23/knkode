@@ -37,9 +37,11 @@ interface StoreState {
 	 *  Prevents double-creation on remount.
 	 *  IMPORTANT: Always create a new Set on mutation — Zustand uses reference equality. */
 	activePtyIds: Set<string>;
-	/** Current git branch per pane. Ephemeral runtime state — not persisted to disk. */
+	/** Current git branch per pane. Hydrated from PaneConfig.lastBranch on init,
+	 *  updated live by CwdTracker events and persisted back to pane config. */
 	paneBranches: Record<string, string | null>;
-	/** Current PR info per pane. Ephemeral runtime state — not persisted to disk. */
+	/** Current PR info per pane. Hydrated from PaneConfig.lastPr on init,
+	 *  updated live by CwdTracker events and persisted back to pane config. */
 	panePrs: Record<string, PrInfo | null>;
 	/** Current agent status per pane. Ephemeral runtime state. */
 	paneAgentStatuses: Record<string, AgentStatus>;
@@ -87,11 +89,9 @@ interface StoreState {
 	) => void;
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void;
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void;
-	/** Update git branch for a pane. No workspaceId needed — branch state is a flat
-	 *  ephemeral map (not persisted inside workspace objects like cwd). */
+	/** Update git branch for a pane and persist to PaneConfig.lastBranch. */
 	updatePaneBranch: (paneId: string, branch: string | null) => void;
-	/** Update PR info for a pane. No workspaceId needed — PR state is a flat
-	 *  ephemeral map (not persisted inside workspace objects). */
+	/** Update PR info for a pane and persist to PaneConfig.lastPr. */
 	updatePanePr: (paneId: string, pr: PrInfo | null) => void;
 	/** Update agent status for a pane. */
 	updatePaneAgentStatus: (
@@ -249,6 +249,17 @@ export const useStore = create<StoreState>((set, get) => ({
 			const initialVisited = appState.activeWorkspaceId ? [appState.activeWorkspaceId] : [];
 			const activeWs = workspaces.find((w) => w.id === appState.activeWorkspaceId);
 			const initialFocusedPaneId = activeWs ? (Object.keys(activeWs.panes)[0] ?? null) : null;
+
+			// Hydrate branch/PR from persisted pane configs for instant sidebar rendering
+			const paneBranches: Record<string, string | null> = {};
+			const panePrs: Record<string, PrInfo | null> = {};
+			for (const ws of workspaces) {
+				for (const [paneId, config] of Object.entries(ws.panes)) {
+					if (config.lastBranch !== undefined) paneBranches[paneId] = config.lastBranch;
+					if (config.lastPr !== undefined) panePrs[paneId] = config.lastPr;
+				}
+			}
+
 			set({
 				workspaces,
 				appState,
@@ -258,6 +269,8 @@ export const useStore = create<StoreState>((set, get) => ({
 				visitedWorkspaceIds: initialVisited,
 				focusedPaneId: initialFocusedPaneId,
 				focusGeneration: initialFocusedPaneId ? 1 : 0,
+				paneBranches,
+				panePrs,
 			});
 		} catch (err) {
 			console.error("[store] Failed to initialize:", err);

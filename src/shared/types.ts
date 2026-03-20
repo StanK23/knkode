@@ -176,6 +176,10 @@ export interface PaneConfig {
 	readonly cwd: string;
 	readonly startupCommand: string | null;
 	readonly themeOverride: Partial<PaneTheme> | null;
+	/** Last known git branch — persisted for instant sidebar rendering on startup. */
+	readonly lastBranch?: string | null;
+	/** Last known PR info — persisted for instant sidebar rendering on startup. */
+	readonly lastPr?: PrInfo | null;
 }
 
 export type SplitDirection = "horizontal" | "vertical";

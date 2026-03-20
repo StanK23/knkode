@@ -18,7 +18,6 @@ import {
 	isLayoutBranch,
 } from "../shared/types";
 import { reorderArray } from "../utils/array";
-import { COLOR_DANGER, DEFAULT_ACCENT_DARK } from "../utils/colors";
 import { isValidCwd } from "../utils/validation";
 import {
 	createLayoutFromPreset,
@@ -27,17 +26,6 @@ import {
 	replaceLeafInTree,
 	updateSizesAtPath,
 } from "./layout-tree";
-
-export const WORKSPACE_COLORS = [
-	DEFAULT_ACCENT_DARK,
-	COLOR_DANGER,
-	"#2ecc71",
-	"#f39c12",
-	"#3498db",
-	"#9b59b6",
-	"#1abc9c",
-	"#e67e22",
-] as const;
 
 export function defaultTheme(): PaneTheme {
 	return {
@@ -78,6 +66,24 @@ function customLayout(tree: LayoutNode): { type: "custom"; tree: LayoutNode } {
 	return { type: "custom" as const, tree };
 }
 
+/** Persist a partial PaneConfig update to disk without triggering a store re-render.
+ *  Fire-and-forget — used for caching git info so it's available on next startup. */
+function persistPaneField(
+	state: WorkspacePaneState,
+	paneId: string,
+	updates: Partial<PaneConfig>,
+): void {
+	const ws = state.workspaces.find((w) => paneId in w.panes);
+	if (!ws || !ws.panes[paneId]) return;
+	const updated: Workspace = {
+		...ws,
+		panes: { ...ws.panes, [paneId]: { ...ws.panes[paneId]!, ...updates } },
+	};
+	window.api.saveWorkspace(updated).catch((err) => {
+		console.warn("[store] persistPaneField: save failed", err);
+	});
+}
+
 /** Find a workspace, apply a transformation, and return the merged partial state.
  *  Persistence is fire-and-forget (errors are logged, not propagated).
  *  The updater receives the found workspace and current state.
@@ -116,7 +122,7 @@ interface WorkspacePaneState {
 	paneBranches: Record<string, string | null>;
 	panePrs: Record<string, PrInfo | null>;
 	killPtys: (paneIds: string[]) => void;
-	createWorkspace: (name: string, color: string, preset: LayoutPreset) => Promise<Workspace>;
+	createWorkspace: (name: string, preset: LayoutPreset) => Promise<Workspace>;
 }
 
 /** Zustand slice creator for workspace CRUD and pane manipulation actions. Spread into the main store. */
@@ -129,12 +135,11 @@ export function createWorkspacePaneSlice(
 	get: () => WorkspacePaneState,
 ) {
 	return {
-		createWorkspace: async (name: string, color: string, preset: LayoutPreset) => {
+		createWorkspace: async (name: string, preset: LayoutPreset) => {
 			const { layout, panes } = createLayoutFromPreset(preset, get().homeDir);
 			const workspace: Workspace = {
 				id: crypto.randomUUID(),
 				name,
-				color,
 				theme: defaultTheme(),
 				layout,
 				panes,
@@ -160,10 +165,8 @@ export function createWorkspacePaneSlice(
 
 		createDefaultWorkspace: async () => {
 			const state = get();
-			const colorIndex = state.workspaces.length % WORKSPACE_COLORS.length;
 			return state.createWorkspace(
 				`Workspace ${state.workspaces.length + 1}`,
-				WORKSPACE_COLORS[colorIndex]!,
 				"single",
 			);
 		},
@@ -203,7 +206,6 @@ export function createWorkspacePaneSlice(
 			const workspace: Workspace = {
 				id: crypto.randomUUID(),
 				name: `${source.name} (copy)`,
-				color: source.color,
 				theme: { ...source.theme },
 				layout:
 					source.layout.type === "preset"
@@ -595,6 +597,8 @@ export function createWorkspacePaneSlice(
 		updatePaneBranch: (paneId: string, branch: string | null) => {
 			set((state) => {
 				if (state.paneBranches[paneId] === branch) return {};
+				// Persist to pane config for instant rendering on next startup
+				persistPaneField(state, paneId, { lastBranch: branch });
 				return { paneBranches: { ...state.paneBranches, [paneId]: branch } };
 			});
 		},
@@ -609,6 +613,7 @@ export function createWorkspacePaneSlice(
 				) {
 					return {};
 				}
+				persistPaneField(state, paneId, { lastPr: pr });
 				return { panePrs: { ...state.panePrs, [paneId]: pr } };
 			});
 		},
