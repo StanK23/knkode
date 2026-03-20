@@ -4,6 +4,7 @@ interface SidebarWorkspaceHeaderProps {
 	workspace: Workspace;
 	isActive: boolean;
 	isCollapsed: boolean;
+	paneCount: number;
 	onToggleCollapse: () => void;
 	onActivate: () => void;
 }
@@ -12,28 +13,33 @@ export function SidebarWorkspaceHeader({
 	workspace,
 	isActive,
 	isCollapsed,
+	paneCount,
 	onToggleCollapse,
 	onActivate,
 }: SidebarWorkspaceHeaderProps) {
-	const paneCount = Object.keys(workspace.panes).length;
-
 	return (
 		<button
 			type="button"
+			title={`${workspace.name} (click to ${isCollapsed ? "expand" : "collapse"}, Shift+click to activate)`}
 			onClick={(e) => {
-				// Shift+click activates the workspace without toggling collapse
+				// Shift+click activates the workspace without toggling collapse.
+				// Normal click on a non-active workspace activates + expands;
+				// normal click on active workspace toggles collapse.
 				if (e.shiftKey) {
 					onActivate();
+				} else if (!isActive) {
+					onActivate();
+					if (isCollapsed) onToggleCollapse();
 				} else {
 					onToggleCollapse();
 				}
 			}}
-			className={`flex items-center gap-2 w-full px-3 py-1.5 text-left cursor-pointer border-none rounded-sm transition-colors duration-200 ${
+			className={`flex items-center gap-2 w-full px-3 py-1.5 text-left cursor-pointer border-none border-l-[3px] rounded-sm transition-colors duration-200 ${
 				isActive
 					? "bg-overlay-active text-content"
-					: "bg-transparent text-content-secondary hover:bg-overlay hover:text-content"
+					: "bg-transparent border-transparent text-content-secondary hover:bg-overlay hover:text-content"
 			}`}
-			style={isActive ? { borderLeft: `3px solid ${workspace.color}` } : { borderLeft: "3px solid transparent" }}
+			style={isActive ? { borderColor: workspace.color } : undefined}
 		>
 			{/* Collapse chevron */}
 			<svg
@@ -61,9 +67,7 @@ export function SidebarWorkspaceHeader({
 			/>
 
 			{/* Workspace name */}
-			<span className="text-[11px] font-medium truncate flex-1 min-w-0">
-				{workspace.name}
-			</span>
+			<span className="text-[11px] font-medium truncate flex-1 min-w-0">{workspace.name}</span>
 
 			{/* Pane count badge */}
 			{paneCount > 1 && (
