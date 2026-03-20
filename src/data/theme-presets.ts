@@ -1,4 +1,4 @@
-import { type AnsiColors, effectMul, type PaneTheme } from "../shared/types";
+import { type AnsiColors, effectMul, type PaneTheme, type SidebarTheme } from "../shared/types";
 import { hexToRgba, isValidHex, resolveBackground } from "../utils/colors";
 
 export type ThemePreset = Pick<
@@ -20,6 +20,7 @@ export type ThemePreset = Pick<
 	Partial<Pick<PaneTheme, "fontFamily" | "fontSize" | "lineHeight" | "statusBarPosition">> & {
 		name: string;
 		decoration?: string;
+		sidebar?: SidebarTheme;
 	};
 
 /** Tango-based ANSI palette used by the Default Dark preset. */

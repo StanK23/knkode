@@ -123,6 +123,33 @@ export interface PaneTheme {
 	readonly statusBarPosition?: "top" | "bottom";
 }
 
+/** Sidebar appearance config — themes define these to give the sidebar a distinct personality.
+ *  All fields optional; sensible defaults are derived from the workspace theme colors. */
+export interface SidebarTheme {
+	/** Override sidebar background. Default: derived sunken surface. */
+	readonly background?: string;
+	/** Backdrop-filter blur in px (0–20). Creates frosted glass effect. Default: 0. */
+	readonly glass?: number;
+	/** Right border style. Default: "solid". */
+	readonly borderStyle?: "solid" | "gradient" | "glow" | "none";
+	/** Border/glow color override. Default: derived from edge or accent. */
+	readonly borderColor?: string;
+	/** Item hover background override. Default: derived overlay. */
+	readonly itemHover?: string;
+	/** Active/selected item background override. Default: derived overlay-active. */
+	readonly itemActive?: string;
+	/** Border radius on interactive items (0–8px). Default: 2. */
+	readonly itemRadius?: number;
+	/** Box-shadow on sidebar container. Default: "none". */
+	readonly shadow?: string;
+	/** Glow effect on active workspace accent indicator. Default: false. */
+	readonly accentGlow?: boolean;
+	/** Vertical spacing density. Default: "default". */
+	readonly spacing?: "compact" | "default" | "spacious";
+	/** CSS transition-timing-function for hover/active transitions. Default: "ease". */
+	readonly transition?: string;
+}
+
 export interface PaneConfig {
 	readonly label: string;
 	readonly cwd: string;
