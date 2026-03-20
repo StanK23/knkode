@@ -17,6 +17,18 @@ export function isValidGradient(value: string): boolean {
 	return GRADIENT_RE.test(value);
 }
 
+/** Allowlist for CSS transition-timing-function values. */
+const TIMING_FN_RE = /^(ease|linear|ease-in|ease-out|ease-in-out|cubic-bezier\([\d.,\s]+\))$/i;
+function isValidTimingFn(value: string): boolean {
+	return TIMING_FN_RE.test(value);
+}
+
+/** Allowlist for CSS box-shadow values — digits, units, hex/rgba colors, commas, spaces. */
+const BOX_SHADOW_RE = /^[\w\s,().#/%+-]+$/;
+function isValidBoxShadow(value: string): boolean {
+	return value === "none" || BOX_SHADOW_RE.test(value);
+}
+
 /** Default accent color for dark themes. */
 export const DEFAULT_ACCENT_DARK = "#6c63ff";
 /** Default accent color for light themes. */
@@ -128,6 +140,9 @@ export type ThemeVariables = {
 	"--sidebar-accent-glow": string;
 } & React.CSSProperties;
 
+/** Sidebar spacing density multiplier — hoisted to avoid per-call allocation. */
+const SPACING_MAP = { compact: "0.75", default: "1", spacious: "1.25" } as const;
+
 const MIN_UI_FONT_SIZE = 11;
 const MAX_UI_FONT_SIZE = 15;
 const DEFAULT_UI_FONT_SIZE = 13;
@@ -197,33 +212,34 @@ export function generateThemeVariables(opts: ThemeVarOptions): ThemeVariables {
 			: DEFAULT_UI_FONT_SIZE;
 
 	// Sidebar — derive from sidebar config or auto-generate from theme colors
-	const sidebarBg =
-		sidebar?.background && isValidHex(sidebar.background) ? sidebar.background : sunken;
 	const sidebarGlass = Math.max(0, Math.min(20, sidebar?.glass ?? 0));
+	const sidebarBgHex =
+		sidebar?.background && isValidHex(sidebar.background) ? sidebar.background : sunken;
+	// When glass blur is active, make sidebar semi-transparent so blur is visible
+	const sidebarBg = sidebarGlass > 0 ? hexToRgba(sidebarBgHex, 0.75) : sidebarBgHex;
 	const sidebarBorderColor =
 		sidebar?.borderColor && isValidHex(sidebar.borderColor) ? sidebar.borderColor : edge;
 	const sidebarBorderStyle = sidebar?.borderStyle ?? "solid";
 	const sidebarBorder =
 		sidebarBorderStyle === "none"
 			? "none"
-			: sidebarBorderStyle === "glow"
-				? `1px solid ${sidebarBorderColor}`
-				: sidebarBorderStyle === "gradient"
-					? `1px solid ${accent}`
-					: `1px solid ${sidebarBorderColor}`;
+			: sidebarBorderStyle === "gradient"
+				? `1px solid ${accent}`
+				: `1px solid ${sidebarBorderColor}`;
 	const sidebarShadow =
-		sidebar?.shadow ??
-		(sidebarBorderStyle === "glow" && isValidHex(sidebarBorderColor)
-			? `1px 0 8px ${hexToRgba(sidebarBorderColor, 0.3)}`
-			: "none");
+		sidebar?.shadow && isValidBoxShadow(sidebar.shadow)
+			? sidebar.shadow
+			: sidebarBorderStyle === "glow" && isValidHex(sidebarBorderColor)
+				? `1px 0 8px ${hexToRgba(sidebarBorderColor, 0.3)}`
+				: "none";
 	const sidebarItemHover =
 		sidebar?.itemHover && isValidHex(sidebar.itemHover) ? sidebar.itemHover : overlay;
 	const sidebarItemActive =
 		sidebar?.itemActive && isValidHex(sidebar.itemActive) ? sidebar.itemActive : overlayActive;
 	const sidebarItemRadius = Math.max(0, Math.min(8, sidebar?.itemRadius ?? 2));
-	const spacingMap = { compact: "0.75", default: "1", spacious: "1.25" } as const;
-	const sidebarSpacing = spacingMap[sidebar?.spacing ?? "default"];
-	const sidebarTransition = sidebar?.transition ?? "ease";
+	const sidebarSpacing = SPACING_MAP[sidebar?.spacing ?? "default"];
+	const sidebarTransition =
+		sidebar?.transition && isValidTimingFn(sidebar.transition) ? sidebar.transition : "ease";
 	const sidebarAccentGlow =
 		sidebar?.accentGlow && isValidHex(accent) ? `0 0 6px ${hexToRgba(accent, 0.4)}` : "none";
 

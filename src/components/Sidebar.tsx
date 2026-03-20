@@ -351,21 +351,11 @@ function CollapsedView({
 						onClick={() => onActivate(ws.id)}
 						title={ws.name}
 						aria-label={`Switch to ${ws.name}`}
-						onMouseEnter={(e) => {
-							if (!isActive) e.currentTarget.style.background = "var(--sidebar-item-hover)";
-						}}
-						onMouseLeave={(e) => {
-							if (!isActive) e.currentTarget.style.background = "transparent";
-						}}
-						className={`flex items-center w-full px-2.5 py-1.5 border-none cursor-pointer transition-colors duration-200 ${
+						className={`sidebar-item flex items-center w-full px-2.5 border-none cursor-pointer ${
 							isActive
-								? "text-content font-medium"
+								? "sidebar-item-active text-content font-medium"
 								: "bg-transparent text-content-muted hover:text-content"
 						}`}
-						style={{
-							borderRadius: "var(--sidebar-item-radius)",
-							...(isActive ? { background: "var(--sidebar-item-active)" } : undefined),
-						}}
 					>
 						<span className="text-[10px] truncate min-w-0">{ws.name}</span>
 					</button>

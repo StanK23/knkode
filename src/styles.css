@@ -213,6 +213,26 @@
 			box-shadow 0.3s var(--sidebar-transition);
 	}
 
+	/* Interactive sidebar items — workspace headers, pane entries, collapsed items.
+	   Uses CSS variables for hover/active/radius so each theme controls the feel. */
+	.sidebar-item {
+		border-radius: var(--sidebar-item-radius);
+		padding-top: calc(6px * var(--sidebar-spacing));
+		padding-bottom: calc(6px * var(--sidebar-spacing));
+		transition: background 0.2s var(--sidebar-transition),
+			box-shadow 0.2s var(--sidebar-transition);
+	}
+	.sidebar-item:hover {
+		background: var(--sidebar-item-hover);
+	}
+	.sidebar-item-active {
+		background: var(--sidebar-item-active);
+		box-shadow: var(--sidebar-accent-glow);
+	}
+	.sidebar-item-active:hover {
+		background: var(--sidebar-item-active);
+	}
+
 	/* Shared interactive elements */
 	.btn-ghost {
 		@apply bg-transparent border-none cursor-pointer text-[11px] px-1 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none;

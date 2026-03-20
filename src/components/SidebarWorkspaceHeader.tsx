@@ -50,9 +50,6 @@ export function SidebarWorkspaceHeader({
 				title={`${workspace.name} (click to ${isCollapsed ? "expand" : "collapse"}, Shift+click to activate)`}
 				onClick={(e) => {
 					if (isEditing) return;
-					// Shift+click activates the workspace without toggling collapse.
-					// Normal click on a non-active workspace activates + expands;
-					// normal click on active workspace toggles collapse.
 					if (e.shiftKey) {
 						onActivate();
 					} else if (!isActive) {
@@ -63,23 +60,12 @@ export function SidebarWorkspaceHeader({
 					}
 				}}
 				onContextMenu={ctx.open}
-				onMouseEnter={(e) => {
-					if (!isActive) e.currentTarget.style.background = "var(--sidebar-item-hover)";
-				}}
-				onMouseLeave={(e) => {
-					if (!isActive) e.currentTarget.style.background = "transparent";
-				}}
-				className={`flex items-center gap-2 w-full px-3 py-1.5 text-left cursor-pointer border-none border-l-[3px] transition-colors duration-200 ${
+				className={`sidebar-item flex items-center gap-2 w-full px-3 text-left cursor-pointer border-none border-l-[3px] ${
 					isActive
-						? "text-content"
+						? "sidebar-item-active text-content"
 						: "bg-transparent border-transparent text-content-secondary hover:text-content"
 				}`}
-				style={{
-					borderRadius: "var(--sidebar-item-radius)",
-					...(isActive
-						? { background: "var(--sidebar-item-active)", borderColor: workspace.color }
-						: undefined),
-				}}
+				style={isActive ? { borderColor: workspace.color } : undefined}
 			>
 				{/* Collapse chevron */}
 				<svg
