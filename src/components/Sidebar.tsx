@@ -102,7 +102,7 @@ export function Sidebar({ onOpenSettings, onOpenHotkeys }: SidebarProps) {
 
 	return (
 		<div
-			className="flex flex-col bg-sunken border-r border-edge shrink-0 overflow-hidden select-none"
+			className="flex flex-col shrink-0 overflow-hidden select-none sidebar-themed"
 			style={{ width: sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH }}
 			onMouseDown={handleBarMouseDown}
 		>
@@ -351,11 +351,21 @@ function CollapsedView({
 						onClick={() => onActivate(ws.id)}
 						title={ws.name}
 						aria-label={`Switch to ${ws.name}`}
-						className={`flex items-center w-full px-2.5 py-1.5 border-none cursor-pointer rounded-sm transition-colors duration-200 ${
+						onMouseEnter={(e) => {
+							if (!isActive) e.currentTarget.style.background = "var(--sidebar-item-hover)";
+						}}
+						onMouseLeave={(e) => {
+							if (!isActive) e.currentTarget.style.background = "transparent";
+						}}
+						className={`flex items-center w-full px-2.5 py-1.5 border-none cursor-pointer transition-colors duration-200 ${
 							isActive
-								? "bg-overlay-active text-content font-medium"
-								: "bg-transparent text-content-muted hover:bg-overlay hover:text-content"
+								? "text-content font-medium"
+								: "bg-transparent text-content-muted hover:text-content"
 						}`}
+						style={{
+							borderRadius: "var(--sidebar-item-radius)",
+							...(isActive ? { background: "var(--sidebar-item-active)" } : undefined),
+						}}
 					>
 						<span className="text-[10px] truncate min-w-0">{ws.name}</span>
 					</button>

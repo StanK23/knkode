@@ -63,12 +63,23 @@ export function SidebarWorkspaceHeader({
 					}
 				}}
 				onContextMenu={ctx.open}
-				className={`flex items-center gap-2 w-full px-3 py-1.5 text-left cursor-pointer border-none border-l-[3px] rounded-sm transition-colors duration-200 ${
+				onMouseEnter={(e) => {
+					if (!isActive) e.currentTarget.style.background = "var(--sidebar-item-hover)";
+				}}
+				onMouseLeave={(e) => {
+					if (!isActive) e.currentTarget.style.background = "transparent";
+				}}
+				className={`flex items-center gap-2 w-full px-3 py-1.5 text-left cursor-pointer border-none border-l-[3px] transition-colors duration-200 ${
 					isActive
-						? "bg-overlay-active text-content"
-						: "bg-transparent border-transparent text-content-secondary hover:bg-overlay hover:text-content"
+						? "text-content"
+						: "bg-transparent border-transparent text-content-secondary hover:text-content"
 				}`}
-				style={isActive ? { borderColor: workspace.color } : undefined}
+				style={{
+					borderRadius: "var(--sidebar-item-radius)",
+					...(isActive
+						? { background: "var(--sidebar-item-active)", borderColor: workspace.color }
+						: undefined),
+				}}
 			>
 				{/* Collapse chevron */}
 				<svg

@@ -50,11 +50,21 @@ export function SidebarPaneEntry({
 				onClick={onClick}
 				onContextMenu={ctx.open}
 				data-pane-id={paneId}
-				className={`flex flex-col gap-0.5 w-full text-left pl-7 pr-3 py-1 border-none cursor-pointer rounded-sm transition-colors duration-200 ${
+				onMouseEnter={(e) => {
+					if (!isFocused) e.currentTarget.style.background = "var(--sidebar-item-hover)";
+				}}
+				onMouseLeave={(e) => {
+					if (!isFocused) e.currentTarget.style.background = "transparent";
+				}}
+				className={`flex flex-col gap-0.5 w-full text-left pl-7 pr-3 py-1 border-none cursor-pointer transition-colors duration-200 ${
 					isFocused
-						? "bg-overlay text-content"
-						: "bg-transparent text-content-muted hover:bg-overlay/50 hover:text-content-secondary"
+						? "text-content"
+						: "bg-transparent text-content-muted hover:text-content-secondary"
 				}`}
+				style={{
+					borderRadius: "var(--sidebar-item-radius)",
+					...(isFocused ? { background: "var(--sidebar-item-hover)" } : undefined),
+				}}
 			>
 				{/* Pane label + branch + PR */}
 				<div className="flex items-center gap-1.5 min-w-0">

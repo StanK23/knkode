@@ -198,6 +198,21 @@
 		@apply bg-sunken border border-edge rounded-sm text-content text-[11px] py-0.5 px-2 cursor-pointer shrink-0 hover:bg-overlay;
 	}
 
+	/* ── Sidebar theming ─────────────────────────────────────────── */
+
+	/* Container — applies background, glass blur, border, and shadow from
+	   CSS variables set by generateThemeVariables(). */
+	.sidebar-themed {
+		background: var(--sidebar-bg);
+		backdrop-filter: blur(var(--sidebar-glass));
+		-webkit-backdrop-filter: blur(var(--sidebar-glass));
+		border-right: var(--sidebar-border);
+		box-shadow: var(--sidebar-shadow);
+		transition: background 0.3s var(--sidebar-transition),
+			border-color 0.3s var(--sidebar-transition),
+			box-shadow 0.3s var(--sidebar-transition);
+	}
+
 	/* Shared interactive elements */
 	.btn-ghost {
 		@apply bg-transparent border-none cursor-pointer text-[11px] px-1 focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none;
