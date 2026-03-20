@@ -118,8 +118,8 @@
 	/* Layout dimensions */
 	--spacing-tab: 38px;
 	--spacing-header: 28px;
-	--spacing-traffic: 0; /* overridden to 90px on macOS via App.tsx for traffic lights */
-	--spacing-caption: 0; /* overridden to 138px on Windows via App.tsx for caption buttons */
+	--spacing-traffic: 0; /* overridden on macOS via App.tsx for traffic lights */
+	--spacing-caption: 0; /* overridden on Windows via App.tsx for caption buttons */
 
 	/* Mechanical spring easing — quick attack, soft settle */
 	--ease-mechanical: cubic-bezier(0.2, 0.8, 0.2, 1);
