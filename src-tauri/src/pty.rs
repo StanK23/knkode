@@ -1,4 +1,6 @@
-use crate::terminal::{TerminalState, DEFAULT_COLS, DEFAULT_ROWS};
+use crate::terminal::{
+    TerminalState, DEFAULT_CELL_PIXEL_HEIGHT, DEFAULT_CELL_PIXEL_WIDTH, DEFAULT_COLS, DEFAULT_ROWS,
+};
 use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
 use serde_json::json;
 use std::collections::HashMap;
@@ -123,8 +125,15 @@ impl PtyManager {
         let generation = self.next_generation.fetch_add(1, Ordering::Relaxed);
 
         let pty_system = native_pty_system();
+        let default_pw = (DEFAULT_COLS * DEFAULT_CELL_PIXEL_WIDTH) as u16;
+        let default_ph = (DEFAULT_ROWS * DEFAULT_CELL_PIXEL_HEIGHT) as u16;
         let pair = pty_system
-            .openpty(pty_size(DEFAULT_COLS as u16, DEFAULT_ROWS as u16, 0, 0))
+            .openpty(pty_size(
+                DEFAULT_COLS as u16,
+                DEFAULT_ROWS as u16,
+                default_pw,
+                default_ph,
+            ))
             .map_err(|e| format!("Failed to open PTY: {e}"))?;
 
         let shell = std::env::var("SHELL").unwrap_or_else(|_| {
@@ -202,8 +211,13 @@ impl PtyManager {
 
         // Create terminal state AFTER successful session insert to avoid orphaned
         // terminal entries if sessions lock is poisoned
-        self.terminal_state
-            .create(&id, DEFAULT_COLS, DEFAULT_ROWS, 0, 0);
+        self.terminal_state.create(
+            &id,
+            DEFAULT_COLS,
+            DEFAULT_ROWS,
+            default_pw as usize,
+            default_ph as usize,
+        );
 
         // Shared flags between reader and flush threads.
         // `dirty`: set when terminal state advances but no snapshot was emitted (throttled).

@@ -12,6 +12,13 @@ const DEFAULT_DPI: u32 = 96;
 pub const DEFAULT_COLS: usize = 80;
 pub const DEFAULT_ROWS: usize = 24;
 
+/// Estimated cell pixel dimensions for initial PTY creation (before the first
+/// frontend resize sends real measurements). wezterm-term divides pixel_width by
+/// cols to get cell_pixel_width — a zero value causes division-by-zero when
+/// placing images. These defaults are overwritten on the first resize event.
+pub const DEFAULT_CELL_PIXEL_WIDTH: usize = 8;
+pub const DEFAULT_CELL_PIXEL_HEIGHT: usize = 16;
+
 /// Maximum image payload size in bytes (width * height * 4 for RGBA, raw bytes for EncodedFile).
 /// Prevents DoS from malicious escape sequences with enormous images.
 const MAX_IMAGE_BYTES: u64 = 50 * 1024 * 1024; // 50 MB
@@ -29,6 +36,10 @@ struct TermConfig;
 impl tattoy_wezterm_term::config::TerminalConfiguration for TermConfig {
     fn color_palette(&self) -> ColorPalette {
         ColorPalette::default()
+    }
+
+    fn enable_kitty_graphics(&self) -> bool {
+        true
     }
 }
 
