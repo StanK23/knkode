@@ -1,7 +1,7 @@
 # HANDOFF — knkode-v2
 
 ## Current State
-PR #30 merged — sidebar theming system with per-preset visual personalities. Each of 10 theme presets now has a distinct sidebar variant (Classic: Default/Gruvbox/Nord/Solarized; Identity: Vaporwave/Ocean/Sunset/Forest; Minimal: Minimal/Zen). Type-safe dispatch via `ThemePresetName` union + `toPresetName()` coercion. Git info (branch/PR) persisted in `PaneConfig.lastBranch`/`lastPr` to eliminate sidebar layout shift on startup. `AgentStatusIndicator` extracted as shared component. `SidebarVariables` type extracted for type-safe CSS variable generation. Review-hardened: 14 agents, all findings addressed.
+PR #31 merged — tech debt sweep (quick wins). SettingsPanel: 15 useState → useReducer with typed actions, useMemo effects derived from EFFECT_STATE_KEY, stable `update` callback, simplified deps/refs. Pane: React.memo + stabilized PaneArea callbacks. Pane chrome: extracted shared LabelButton with a11y (Enter key, rename hint title) across 9 variants. Review-hardened: 9 agents, all findings addressed. Next: ThemeRegistry strategy pattern (PR 2) and pane chrome factory extension (PR 3).
 
 ## What's Done
 - [x] Tauri 2 project scaffolded (React 19 + TypeScript 5.9 + Vite 6 + Tailwind CSS 4.2)
@@ -38,6 +38,7 @@ PR #30 merged — sidebar theming system with per-preset visual personalities. E
 - [x] Workspace sidebar — tree-style mission control (PR #28 merged)
 - [x] Sidebar controls & context menus (PR #29 merged)
 - [x] Per-workspace sidebar theming with per-preset personalities (PR #30 merged)
+- [x] Tech debt: useReducer, React.memo, a11y buttons, LabelButton extraction, callback stabilization (PR #31 merged)
 - [ ] Agent activity state detection (animated indicator, cross-workspace notifications)
 - [ ] Phase 10: Integration testing & polish
 
