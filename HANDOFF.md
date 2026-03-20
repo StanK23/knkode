@@ -40,7 +40,7 @@ Phase 9 complete — all frontend code ported. App shell fully functional with d
 - V1 codebase: `/Users/sfory/dev/knkode/`
 
 ## Active Reviews
-None
+PR #27 — review complete, all 16 findings addressed
 
 ## Known Issues
 - DMG bundling fails (macOS code signing) — not blocking for dev
