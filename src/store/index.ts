@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type {
+	AgentStatus,
 	AppState,
 	DropPosition,
 	LayoutPreset,
@@ -15,7 +16,6 @@ import {
 	createWorkspacePaneSlice,
 	defaultTheme,
 	persistAppState,
-	WORKSPACE_COLORS,
 } from "./workspace-pane-actions";
 
 interface StoreState {
@@ -37,10 +37,14 @@ interface StoreState {
 	 *  Prevents double-creation on remount.
 	 *  IMPORTANT: Always create a new Set on mutation — Zustand uses reference equality. */
 	activePtyIds: Set<string>;
-	/** Current git branch per pane. Ephemeral runtime state — not persisted to disk. */
+	/** Current git branch per pane. Hydrated from PaneConfig.lastBranch on init,
+	 *  updated live by CwdTracker events and persisted back to pane config. */
 	paneBranches: Record<string, string | null>;
-	/** Current PR info per pane. Ephemeral runtime state — not persisted to disk. */
+	/** Current PR info per pane. Hydrated from PaneConfig.lastPr on init,
+	 *  updated live by CwdTracker events and persisted back to pane config. */
 	panePrs: Record<string, PrInfo | null>;
+	/** Current agent status per pane. Ephemeral runtime state. */
+	paneAgentStatuses: Record<string, AgentStatus>;
 	/** Workspace IDs with collapsed sections in the sidebar. Ephemeral — not persisted.
 	 *  IMPORTANT: Always create a new Set on mutation — Zustand uses reference equality. */
 	collapsedSidebarSections: ReadonlySet<string>;
@@ -56,7 +60,7 @@ interface StoreState {
 	/** Remove a single pane ID from activePtyIds (e.g. on natural PTY exit). */
 	removePtyId: (paneId: string) => void;
 	init: () => Promise<void>;
-	createWorkspace: (name: string, color: string, preset: LayoutPreset) => Promise<Workspace>;
+	createWorkspace: (name: string, preset: LayoutPreset) => Promise<Workspace>;
 	createDefaultWorkspace: () => Promise<Workspace>;
 	updateWorkspace: (workspace: Workspace) => Promise<void>;
 	duplicateWorkspace: (id: string) => Promise<Workspace | null>;
@@ -85,12 +89,15 @@ interface StoreState {
 	) => void;
 	updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => void;
 	updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => void;
-	/** Update git branch for a pane. No workspaceId needed — branch state is a flat
-	 *  ephemeral map (not persisted inside workspace objects like cwd). */
+	/** Update git branch for a pane and persist to PaneConfig.lastBranch. */
 	updatePaneBranch: (paneId: string, branch: string | null) => void;
-	/** Update PR info for a pane. No workspaceId needed — PR state is a flat
-	 *  ephemeral map (not persisted inside workspace objects). */
+	/** Update PR info for a pane and persist to PaneConfig.lastPr. */
 	updatePanePr: (paneId: string, pr: PrInfo | null) => void;
+	/** Update agent status for a pane. */
+	updatePaneAgentStatus: (
+		paneId: string,
+		status: AgentStatus,
+	) => void;
 	/** Persist pixel sizes as percentages at a given tree path.
 	 *  `path` is an array of child indices from the root to the target branch node.
 	 *  An empty array `[]` targets the root node itself.
@@ -123,6 +130,7 @@ export const useStore = create<StoreState>((set, get) => ({
 	activePtyIds: new Set(),
 	paneBranches: {},
 	panePrs: {},
+	paneAgentStatuses: {},
 	collapsedSidebarSections: new Set(),
 
 	setFocusedPane: (paneId) =>
@@ -141,6 +149,10 @@ export const useStore = create<StoreState>((set, get) => ({
 		if (next.has(workspaceId)) next.delete(workspaceId);
 		else next.add(workspaceId);
 		set({ collapsedSidebarSections: next });
+	},
+
+	updatePaneAgentStatus: (paneId, status) => {
+		set((state) => ({ paneAgentStatuses: { ...state.paneAgentStatuses, [paneId]: status } }));
 	},
 
 	ensurePty: (paneId, cwd, startupCommand) => {
@@ -209,7 +221,6 @@ export const useStore = create<StoreState>((set, get) => ({
 				const defaultWorkspace: Workspace = {
 					id: crypto.randomUUID(),
 					name: "Default",
-					color: WORKSPACE_COLORS[0]!,
 					theme: defaultTheme(),
 					layout,
 					panes,
@@ -238,6 +249,17 @@ export const useStore = create<StoreState>((set, get) => ({
 			const initialVisited = appState.activeWorkspaceId ? [appState.activeWorkspaceId] : [];
 			const activeWs = workspaces.find((w) => w.id === appState.activeWorkspaceId);
 			const initialFocusedPaneId = activeWs ? (Object.keys(activeWs.panes)[0] ?? null) : null;
+
+			// Hydrate branch/PR from persisted pane configs for instant sidebar rendering
+			const paneBranches: Record<string, string | null> = {};
+			const panePrs: Record<string, PrInfo | null> = {};
+			for (const ws of workspaces) {
+				for (const [paneId, config] of Object.entries(ws.panes)) {
+					if (config.lastBranch !== undefined) paneBranches[paneId] = config.lastBranch;
+					if (config.lastPr !== undefined) panePrs[paneId] = config.lastPr;
+				}
+			}
+
 			set({
 				workspaces,
 				appState,
@@ -247,6 +269,8 @@ export const useStore = create<StoreState>((set, get) => ({
 				visitedWorkspaceIds: initialVisited,
 				focusedPaneId: initialFocusedPaneId,
 				focusGeneration: initialFocusedPaneId ? 1 : 0,
+				paneBranches,
+				panePrs,
 			});
 		} catch (err) {
 			console.error("[store] Failed to initialize:", err);
@@ -271,4 +295,3 @@ export {
 	getFirstPaneId,
 	getPaneIdsInOrder,
 } from "./layout-tree";
-export { WORKSPACE_COLORS } from "./workspace-pane-actions";

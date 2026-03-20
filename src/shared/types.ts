@@ -8,6 +8,9 @@ export const DEFAULT_PANE_OPACITY = 1;
 /** Minimum pane background opacity. UI clamps to [MIN_PANE_OPACITY, 1]. */
 export const MIN_PANE_OPACITY = 0.05;
 
+/** Agent activity status for a terminal pane. */
+export type AgentStatus = "idle" | "in_progress" | "input_required";
+
 export const CURSOR_STYLES = ["block", "underline", "bar"] as const;
 export type CursorStyle = (typeof CURSOR_STYLES)[number];
 /** Cursor shape from terminal state (DECSCUSR). "default" = no TUI override. */
@@ -123,11 +126,60 @@ export interface PaneTheme {
 	readonly statusBarPosition?: "top" | "bottom";
 }
 
+/** Sidebar appearance config — themes define these to give the sidebar a distinct personality.
+ *  All fields optional; sensible defaults are derived from the workspace theme colors. */
+export interface SidebarTheme {
+	/** Override sidebar background. Default: derived sunken surface. */
+	readonly background?: string;
+	/** Backdrop-filter blur in px (0–20). Creates frosted glass effect. Default: 0. */
+	readonly glass?: number;
+	/** Right border style. Default: "solid". */
+	readonly borderStyle?: "solid" | "gradient" | "glow" | "none";
+	/** Border/glow color override. Default: derived from edge. */
+	readonly borderColor?: string;
+	/** Item hover background override. Default: derived overlay. */
+	readonly itemHover?: string;
+	/** Active/selected item background override. Default: derived overlay-active. */
+	readonly itemActive?: string;
+	/** Border radius on interactive items (0–8px). Default: 2. */
+	readonly itemRadius?: number;
+	/** Box-shadow on sidebar container. Default: "none". */
+	readonly shadow?: string;
+	/** Glow effect on active workspace accent indicator. Default: false. */
+	readonly accentGlow?: boolean;
+	/** Vertical spacing density. Default: "default". */
+	readonly spacing?: "compact" | "default" | "spacious";
+	/** CSS transition-timing-function for hover/active transitions. Default: "ease". */
+	readonly transition?: string;
+
+	// ── Section card styling ──────────────────────────────────────
+	/** Text transform on workspace headers. Default: "none". */
+	readonly textTransform?: "none" | "uppercase";
+	/** Letter spacing on workspace headers in em. Default: 0. */
+	readonly letterSpacing?: number;
+	/** Font weight on workspace headers. Default: "medium". */
+	readonly headerWeight?: "normal" | "medium" | "bold";
+	/** Separator between workspace sections. Default: "solid". */
+	readonly separatorStyle?: "solid" | "dashed" | "gradient" | "glow" | "none";
+	/** Separator color override. Default: derived from edge. */
+	readonly separatorColor?: string;
+	/** Workspace section card background. Default: "transparent". */
+	readonly cardBg?: string;
+	/** Workspace card border color. "none" for no border. Default: "none". */
+	readonly cardBorder?: string;
+	/** Workspace card border radius (0–12px). Default: 0. */
+	readonly cardRadius?: number;
+}
+
 export interface PaneConfig {
 	readonly label: string;
 	readonly cwd: string;
 	readonly startupCommand: string | null;
 	readonly themeOverride: Partial<PaneTheme> | null;
+	/** Last known git branch — persisted for instant sidebar rendering on startup. */
+	readonly lastBranch?: string | null;
+	/** Last known PR info — persisted for instant sidebar rendering on startup. */
+	readonly lastPr?: PrInfo | null;
 }
 
 export type SplitDirection = "horizontal" | "vertical";
@@ -159,7 +211,6 @@ export type WorkspaceLayout =
 export interface Workspace {
 	readonly id: string;
 	readonly name: string;
-	readonly color: string;
 	readonly theme: PaneTheme;
 	readonly layout: WorkspaceLayout;
 	readonly panes: Record<string, PaneConfig>;
@@ -303,6 +354,7 @@ export interface KnkodeApi {
 	saveSnippets(snippets: Snippet[]): Promise<void>;
 
 	// PTY
+	trackPaneGit(id: string, cwd: string): Promise<void>;
 	createPty(id: string, cwd: string, startupCommand: string | null): Promise<void>;
 	writePty(id: string, data: string): Promise<void>;
 	resizePty(

@@ -1,5 +1,6 @@
 import type React from "react";
 import { buildFontFamily } from "../data/theme-presets";
+import type { SidebarTheme } from "../shared/types";
 
 const HEX_RE = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
@@ -14,6 +15,18 @@ export function isValidHex(hex: string): boolean {
 const GRADIENT_RE = /^(repeating-)?(linear|radial|conic)-gradient\([\s,\w#().%\d/-]+\)$/i;
 export function isValidGradient(value: string): boolean {
 	return GRADIENT_RE.test(value);
+}
+
+/** Allowlist for CSS transition-timing-function values. */
+const TIMING_FN_RE = /^(ease|linear|ease-in|ease-out|ease-in-out|cubic-bezier\([\d.,\s]+\))$/i;
+function isValidTimingFn(value: string): boolean {
+	return TIMING_FN_RE.test(value);
+}
+
+/** Allowlist for CSS box-shadow values — numeric offsets, rgba/hsla colors, inset keyword. */
+const BOX_SHADOW_RE = /^[0-9a-z\s,#.%+-]+(rgba?\([\d\s,.]+\)|hsla?\([\d\s,.%]+\))?[0-9a-z\s,#.%+-]*$/i;
+function isValidBoxShadow(value: string): boolean {
+	return value === "none" || BOX_SHADOW_RE.test(value);
 }
 
 /** Default accent color for dark themes. */
@@ -115,7 +128,38 @@ export type ThemeVariables = {
 	"--theme-glow": string;
 	"--font-family-ui": string;
 	"--font-size-ui": string;
-} & React.CSSProperties;
+} & SidebarVariables &
+	React.CSSProperties;
+
+type SidebarVariables = {
+	"--sidebar-bg": string;
+	"--sidebar-glass": string;
+	"--sidebar-border": string;
+	"--sidebar-shadow": string;
+	"--sidebar-item-hover": string;
+	"--sidebar-item-active": string;
+	"--sidebar-item-radius": string;
+	"--sidebar-spacing": string;
+	"--sidebar-transition": string;
+	"--sidebar-accent-glow": string;
+	"--sidebar-text-transform": string;
+	"--sidebar-letter-spacing": string;
+	"--sidebar-header-weight": string;
+	"--sidebar-card-bg": string;
+	"--sidebar-card-border": string;
+	"--sidebar-card-radius": string;
+};
+
+/** Sidebar spacing density multipliers. */
+const SPACING_MAP = { compact: "0.75", default: "1", spacious: "1.25" } as const;
+
+/** Header font-weight lookup. */
+const HEADER_WEIGHT_MAP = { bold: "700", normal: "400", medium: "500" } as const;
+
+/** Return a validated hex color or the fallback. */
+function validHexOr(value: string | undefined, fallback: string): string {
+	return value && isValidHex(value) ? value : fallback;
+}
 
 const MIN_UI_FONT_SIZE = 11;
 const MAX_UI_FONT_SIZE = 15;
@@ -128,6 +172,7 @@ export interface ThemeVarOptions {
 	fontSize?: number | undefined;
 	accent?: string | undefined;
 	glow?: string | undefined;
+	sidebar?: SidebarTheme | undefined;
 }
 
 /**
@@ -137,7 +182,7 @@ export interface ThemeVarOptions {
  * Returns an object suitable for React inline `style` — keys are CSS variable names.
  */
 export function generateThemeVariables(opts: ThemeVarOptions): ThemeVariables {
-	const { bg, fg, fontFamily, fontSize, accent: accentOverride, glow } = opts;
+	const { bg, fg, fontFamily, fontSize, accent: accentOverride, glow, sidebar } = opts;
 
 	// Safe fallbacks for missing or malformed colors to prevent app crashes
 	const safeBg = bg && isValidHex(bg) ? bg : "#1a1a2e";
@@ -184,6 +229,14 @@ export function generateThemeVariables(opts: ThemeVarOptions): ThemeVariables {
 			? Math.max(MIN_UI_FONT_SIZE, Math.min(MAX_UI_FONT_SIZE, fontSize - 1))
 			: DEFAULT_UI_FONT_SIZE;
 
+	const sidebarVars = generateSidebarVariables(sidebar, {
+		sunken,
+		edge,
+		accent,
+		overlay,
+		overlayActive,
+	});
+
 	return {
 		"--color-canvas": safeBg,
 		"--color-elevated": elevated,
@@ -200,5 +253,67 @@ export function generateThemeVariables(opts: ThemeVarOptions): ThemeVariables {
 		"--theme-glow": glowValue,
 		"--font-family-ui": buildFontFamily(fontFamily),
 		"--font-size-ui": `${uiFontSize}px`,
+		...sidebarVars,
+	} satisfies ThemeVariables;
+}
+
+/** Derive sidebar CSS variables from SidebarTheme config and palette colors. */
+function generateSidebarVariables(
+	sidebar: SidebarTheme | undefined,
+	palette: { sunken: string; edge: string; accent: string; overlay: string; overlayActive: string },
+): SidebarVariables {
+	const { sunken, edge, accent, overlay, overlayActive } = palette;
+
+	const glass = Math.max(0, Math.min(20, sidebar?.glass ?? 0));
+	const bgHex = validHexOr(sidebar?.background, sunken);
+	const bg = glass > 0 ? hexToRgba(bgHex, 0.75) : bgHex;
+	const borderColor = validHexOr(sidebar?.borderColor, edge);
+
+	const borderStyle = sidebar?.borderStyle ?? "solid";
+	let border: string;
+	switch (borderStyle) {
+		case "none":
+			border = "none";
+			break;
+		case "gradient":
+			border = `1px solid ${accent}`;
+			break;
+		default:
+			border = `1px solid ${borderColor}`;
+	}
+
+	let shadow: string;
+	if (sidebar?.shadow && isValidBoxShadow(sidebar.shadow)) {
+		shadow = sidebar.shadow;
+	} else if (borderStyle === "glow" && isValidHex(borderColor)) {
+		shadow = `1px 0 8px ${hexToRgba(borderColor, 0.3)}`;
+	} else {
+		shadow = "none";
+	}
+
+	const transition =
+		sidebar?.transition && isValidTimingFn(sidebar.transition) ? sidebar.transition : "ease";
+	const textTransform = sidebar?.textTransform === "uppercase" ? "uppercase" : "none";
+
+	return {
+		"--sidebar-bg": bg,
+		"--sidebar-glass": `${glass}px`,
+		"--sidebar-border": border,
+		"--sidebar-shadow": shadow,
+		"--sidebar-item-hover": validHexOr(sidebar?.itemHover, overlay),
+		"--sidebar-item-active": validHexOr(sidebar?.itemActive, overlayActive),
+		"--sidebar-item-radius": `${Math.max(0, Math.min(8, sidebar?.itemRadius ?? 2))}px`,
+		"--sidebar-spacing": SPACING_MAP[sidebar?.spacing ?? "default"],
+		"--sidebar-transition": transition,
+		"--sidebar-accent-glow":
+			sidebar?.accentGlow && isValidHex(accent) ? `0 0 6px ${hexToRgba(accent, 0.4)}` : "none",
+		"--sidebar-text-transform": textTransform,
+		"--sidebar-letter-spacing": `${Math.max(0, Math.min(0.3, sidebar?.letterSpacing ?? 0))}em`,
+		"--sidebar-header-weight": HEADER_WEIGHT_MAP[sidebar?.headerWeight ?? "medium"],
+		"--sidebar-card-bg": validHexOr(sidebar?.cardBg, "transparent"),
+		"--sidebar-card-border": sidebar?.cardBorder && isValidHex(sidebar.cardBorder)
+			? `1px solid ${sidebar.cardBorder}`
+			: "none",
+		"--sidebar-card-radius": `${Math.max(0, Math.min(12, sidebar?.cardRadius ?? 0))}px`,
 	};
 }
