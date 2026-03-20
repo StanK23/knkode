@@ -126,7 +126,7 @@
 	--sidebar-letter-spacing: 0em;
 	--sidebar-header-weight: 500;
 	--sidebar-separator: 1px solid var(--color-edge);
-	--sidebar-card-bg: transparent;
+	--sidebar-card-bg: var(--color-overlay);
 	--sidebar-card-border: none;
 	--sidebar-card-radius: 0px;
 
@@ -220,8 +220,7 @@
 			box-shadow 0.3s var(--sidebar-transition);
 	}
 
-	/* Interactive sidebar items — workspace headers, pane entries, collapsed items.
-	   Uses CSS variables for hover/active/radius so each theme controls the feel. */
+	/* Interactive sidebar items — workspace headers, pane entries, collapsed items. */
 	.sidebar-item {
 		border-radius: var(--sidebar-item-radius);
 		padding-top: calc(6px * var(--sidebar-spacing));
@@ -232,25 +231,36 @@
 	.sidebar-item:hover {
 		background: var(--sidebar-item-hover);
 	}
-	.sidebar-item-active {
-		background: var(--sidebar-item-active);
-		box-shadow: var(--sidebar-accent-glow);
-	}
-	.sidebar-item-active:hover {
-		background: var(--sidebar-item-active);
-	}
 
-	/* Workspace section card — wraps header + pane list into a visual card. */
+	/* Workspace section card — wraps each workspace into a visually distinct card. */
 	.sidebar-card {
 		background: var(--sidebar-card-bg);
 		border: var(--sidebar-card-border);
 		border-radius: var(--sidebar-card-radius);
-		margin: 2px 4px;
+		border-left: 3px solid transparent;
+		margin: 6px 6px;
+		padding: 4px;
 		transition: background 0.3s var(--sidebar-transition),
-			border-color 0.3s var(--sidebar-transition);
+			border-color 0.3s var(--sidebar-transition),
+			box-shadow 0.3s var(--sidebar-transition);
 	}
 	.sidebar-card-active {
 		box-shadow: var(--sidebar-accent-glow);
+	}
+
+	/* Focused pane — left accent bar indicator. */
+	.sidebar-pane-focused {
+		position: relative;
+	}
+	.sidebar-pane-focused::before {
+		content: "";
+		position: absolute;
+		left: 0;
+		top: 25%;
+		bottom: 25%;
+		width: 2px;
+		border-radius: 1px;
+		background: var(--color-accent);
 	}
 
 	/* Workspace header text treatment — text-transform and letter-spacing from theme. */
@@ -260,11 +270,12 @@
 		font-weight: var(--sidebar-header-weight);
 	}
 
-	/* Separator between workspace sections. */
+	/* Separator between workspace sections — hidden by default since cards create
+	   their own separation; themes can enable if desired. */
 	.sidebar-separator {
 		border: none;
 		border-top: var(--sidebar-separator);
-		margin: 2px 8px;
+		margin: 0 8px;
 	}
 
 	/* Shared interactive elements */

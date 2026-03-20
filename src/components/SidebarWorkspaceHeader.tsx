@@ -60,12 +60,11 @@ export function SidebarWorkspaceHeader({
 					}
 				}}
 				onContextMenu={ctx.open}
-				className={`sidebar-item flex items-center gap-2 w-full px-3 text-left cursor-pointer border-none border-l-[3px] ${
+				className={`sidebar-item flex items-center gap-2 w-full px-3 text-left cursor-pointer border-none ${
 					isActive
-						? "sidebar-item-active text-content"
-						: "bg-transparent border-transparent text-content-secondary hover:text-content"
+						? "text-content"
+						: "bg-transparent text-content-secondary hover:text-content"
 				}`}
-				style={isActive ? { borderColor: workspace.color } : undefined}
 			>
 				{/* Collapse chevron */}
 				<svg

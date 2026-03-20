@@ -52,7 +52,7 @@ export function SidebarPaneEntry({
 				data-pane-id={paneId}
 				className={`sidebar-item flex flex-col gap-0.5 w-full text-left pl-7 pr-3 border-none cursor-pointer ${
 					isFocused
-						? "sidebar-item-active text-content"
+						? "sidebar-pane-focused text-content"
 						: "bg-transparent text-content-muted hover:text-content-secondary"
 				}`}
 			>
