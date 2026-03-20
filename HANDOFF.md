@@ -1,7 +1,7 @@
 # HANDOFF — knkode-v2
 
 ## Current State
-PR #31 merged — tech debt sweep (quick wins). SettingsPanel: 15 useState → useReducer with typed actions, useMemo effects derived from EFFECT_STATE_KEY, stable `update` callback, simplified deps/refs. Pane: React.memo + stabilized PaneArea callbacks. Pane chrome: extracted shared LabelButton with a11y (Enter key, rename hint title) across 9 variants. Review-hardened: 9 agents, all findings addressed. Next: ThemeRegistry strategy pattern (PR 2) and pane chrome factory extension (PR 3).
+PR #32 merged — ThemeRegistry strategy pattern + tracker dedup + stale PR fix. Replaced 4 switch×16 with `VARIANT_REGISTRY` Record lookup (compile-time exhaustive). Replaced 16 individual Collapsed components with token-driven `CollapsedButton` + decorator factories. Tracker: per-cycle repo-root caching deduplicates git/gh subprocess calls across panes sharing same repo. Store: stopped persisting/hydrating stale PR data. Review-hardened: 8 agents, all findings addressed.
 
 ## What's Done
 - [x] Tauri 2 project scaffolded (React 19 + TypeScript 5.9 + Vite 6 + Tailwind CSS 4.2)
@@ -39,6 +39,7 @@ PR #31 merged — tech debt sweep (quick wins). SettingsPanel: 15 useState → u
 - [x] Sidebar controls & context menus (PR #29 merged)
 - [x] Per-workspace sidebar theming with per-preset personalities (PR #30 merged)
 - [x] Tech debt: useReducer, React.memo, a11y buttons, LabelButton extraction, callback stabilization (PR #31 merged)
+- [x] Tech debt: ThemeRegistry strategy pattern, collapsed variant dedup, tracker repo-root caching, stale PR fix (PR #32 merged)
 - [ ] Agent activity state detection (animated indicator, cross-workspace notifications)
 - [ ] Phase 10: Integration testing & polish
 
@@ -52,6 +53,6 @@ None
 ## Known Issues
 - wezterm-term resolved: using `tattoy-wezterm-term` 0.1.0-fork.5 (fork published on crates.io)
 - wezterm-term selection module disabled (`// mod selection; FIXME: port to render layer`) — selection implemented on frontend (PRs #22-24)
-- ThemeRegistry.tsx (1200+ lines) has genuinely different structural patterns per theme variant — future refactor tracked in knktx note
+- Pane-chrome registry uses Map + registerVariant() side-effect pattern; sidebar uses Record literal — should converge on one pattern
 - CSS sidebar variables pipeline (`generateSidebarVariables()`) largely dead code — variant components use hardcoded styles instead
 - TUI apps (claude, gemini) hide system cursor and draw their own via reverse-video text — cursor style setting has no effect inside TUI apps (fundamental limitation)
