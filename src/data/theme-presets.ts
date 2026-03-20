@@ -78,6 +78,14 @@ export const THEME_PRESETS = [
 			brightCyan: "#a4ffff",
 			brightWhite: "#ffffff",
 		},
+
+		sidebar: {
+			glass: 4,
+			borderStyle: "glow",
+			borderColor: "#6272a4",
+			accentGlow: true,
+			itemRadius: 4,
+		},
 	},
 	{
 		name: "Tokyo Night",
@@ -104,6 +112,12 @@ export const THEME_PRESETS = [
 			brightCyan: "#7dcfff",
 			brightWhite: "#c0caf5",
 		},
+
+		sidebar: {
+			background: "#16161e",
+			borderStyle: "solid",
+			spacing: "compact",
+		},
 	},
 	{
 		name: "Nord",
@@ -128,6 +142,14 @@ export const THEME_PRESETS = [
 			brightMagenta: "#b48ead",
 			brightCyan: "#8fbcbb",
 			brightWhite: "#eceff4",
+		},
+
+		sidebar: {
+			glass: 6,
+			borderStyle: "none",
+			itemRadius: 6,
+			spacing: "spacious",
+			transition: "cubic-bezier(0.22, 1, 0.36, 1)",
 		},
 	},
 	{
@@ -155,6 +177,15 @@ export const THEME_PRESETS = [
 			brightCyan: "#94e2d5",
 			brightWhite: "#a6adc8",
 		},
+
+		sidebar: {
+			glass: 3,
+			borderStyle: "glow",
+			borderColor: "#45475a",
+			accentGlow: true,
+			itemRadius: 4,
+			spacing: "spacious",
+		},
 	},
 	{
 		name: "Gruvbox",
@@ -179,6 +210,14 @@ export const THEME_PRESETS = [
 			brightMagenta: "#d3869b",
 			brightCyan: "#8ec07c",
 			brightWhite: "#ebdbb2",
+		},
+
+		sidebar: {
+			background: "#1d2021",
+			borderStyle: "solid",
+			borderColor: "#3c3836",
+			itemRadius: 0,
+			spacing: "compact",
 		},
 	},
 	{
@@ -205,6 +244,14 @@ export const THEME_PRESETS = [
 			brightCyan: "#a1efe4",
 			brightWhite: "#f9f8f5",
 		},
+
+		sidebar: {
+			background: "#1e1f1c",
+			borderStyle: "solid",
+			borderColor: "#3e3d32",
+			itemRadius: 0,
+			spacing: "compact",
+		},
 	},
 	{
 		name: "Everforest",
@@ -229,6 +276,11 @@ export const THEME_PRESETS = [
 			brightMagenta: "#d699b6",
 			brightCyan: "#83c092",
 			brightWhite: "#e4dcd4",
+		},
+
+		sidebar: {
+			borderStyle: "solid",
+			itemRadius: 4,
 		},
 	},
 	// ── Identity themes (brand/aesthetic identity, always have accent + glow) ──
@@ -267,6 +319,16 @@ export const THEME_PRESETS = [
 			brightCyan: "#66ffaa",
 			brightWhite: "#ccffcc",
 		},
+
+		sidebar: {
+			background: "#050505",
+			borderStyle: "glow",
+			borderColor: "#00ff41",
+			itemRadius: 0,
+			spacing: "compact",
+			accentGlow: true,
+			transition: "linear",
+		},
 	},
 	{
 		name: "Cyberpunk",
@@ -302,6 +364,15 @@ export const THEME_PRESETS = [
 			brightCyan: "#76f4f8",
 			brightWhite: "#ffffff",
 		},
+
+		sidebar: {
+			glass: 8,
+			borderStyle: "gradient",
+			shadow: "2px 0 12px rgba(255, 42, 109, 0.2)",
+			accentGlow: true,
+			itemRadius: 2,
+			transition: "cubic-bezier(0.4, 0, 0.2, 1)",
+		},
 	},
 	{
 		name: "Solana",
@@ -335,6 +406,13 @@ export const THEME_PRESETS = [
 			brightMagenta: "#daa6ff",
 			brightCyan: "#33e6c0",
 			brightWhite: "#f5f5ff",
+		},
+
+		sidebar: {
+			glass: 6,
+			borderStyle: "gradient",
+			accentGlow: true,
+			itemRadius: 4,
 		},
 	},
 	{
@@ -372,6 +450,15 @@ export const THEME_PRESETS = [
 			brightCyan: "#e8b040",
 			brightWhite: "#fff2d5",
 		},
+
+		sidebar: {
+			background: "#080500",
+			borderStyle: "solid",
+			borderColor: "#3d2800",
+			itemRadius: 0,
+			spacing: "compact",
+			transition: "linear",
+		},
 	},
 	{
 		name: "Vaporwave",
@@ -408,6 +495,15 @@ export const THEME_PRESETS = [
 			brightCyan: "#67e8f9",
 			brightWhite: "#ffffff",
 		},
+
+		sidebar: {
+			glass: 10,
+			borderStyle: "gradient",
+			accentGlow: true,
+			itemRadius: 6,
+			spacing: "spacious",
+			transition: "cubic-bezier(0.22, 1, 0.36, 1)",
+		},
 	},
 	{
 		name: "Ocean",
@@ -442,6 +538,13 @@ export const THEME_PRESETS = [
 			brightMagenta: "#5aa0cc",
 			brightCyan: "#44d8f0",
 			brightWhite: "#d0eff8",
+		},
+
+		sidebar: {
+			glass: 8,
+			borderStyle: "none",
+			shadow: "1px 0 16px rgba(0, 200, 255, 0.12)",
+			itemRadius: 4,
 		},
 	},
 	{
@@ -479,6 +582,13 @@ export const THEME_PRESETS = [
 			brightCyan: "#ffb070",
 			brightWhite: "#fff0d8",
 		},
+
+		sidebar: {
+			glass: 4,
+			borderStyle: "glow",
+			borderColor: "#4d2418",
+			itemRadius: 4,
+		},
 	},
 	{
 		name: "Arctic",
@@ -513,6 +623,15 @@ export const THEME_PRESETS = [
 			brightMagenta: "#98b8d8",
 			brightCyan: "#68d8ee",
 			brightWhite: "#f0f8ff",
+		},
+
+		sidebar: {
+			glass: 12,
+			borderStyle: "none",
+			shadow: "1px 0 12px rgba(72, 200, 224, 0.08)",
+			itemRadius: 6,
+			spacing: "spacious",
+			transition: "cubic-bezier(0.22, 1, 0.36, 1)",
 		},
 	},
 ] as const satisfies readonly ThemePreset[];

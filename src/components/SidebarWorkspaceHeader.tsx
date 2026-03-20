@@ -108,9 +108,7 @@ export function SidebarWorkspaceHeader({
 						className="bg-elevated border border-accent rounded-sm text-content text-[11px] font-medium py-px px-1 outline-none flex-1 min-w-0"
 					/>
 				) : (
-					<span className="text-[11px] font-medium truncate flex-1 min-w-0">
-						{workspace.name}
-					</span>
+					<span className="text-[11px] font-medium truncate flex-1 min-w-0">{workspace.name}</span>
 				)}
 
 				{/* Pane count badge */}
@@ -168,9 +166,7 @@ export function SidebarWorkspaceHeader({
 										key={c}
 										aria-label={`Color ${c}`}
 										className={`size-4.5 rounded-full border-none cursor-pointer p-0 ${
-											c === workspace.color
-												? "outline-2 outline-content outline-offset-1"
-												: ""
+											c === workspace.color ? "outline-2 outline-content outline-offset-1" : ""
 										}`}
 										style={{ background: c }}
 										onClick={(e) => {

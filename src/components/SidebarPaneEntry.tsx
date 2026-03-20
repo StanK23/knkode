@@ -74,9 +74,7 @@ export function SidebarPaneEntry({
 					{branch && (
 						<span className="text-[10px] text-accent truncate max-w-[80px]">{branch}</span>
 					)}
-					{pr && (
-						<span className="text-[10px] text-accent font-medium shrink-0">#{pr.number}</span>
-					)}
+					{pr && <span className="text-[10px] text-accent font-medium shrink-0">#{pr.number}</span>}
 				</div>
 
 				{/* CWD */}
