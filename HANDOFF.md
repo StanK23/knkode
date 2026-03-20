@@ -1,7 +1,7 @@
 # HANDOFF — knkode-v2
 
 ## Current State
-Phase 9 complete — all frontend code ported. App shell fully functional with drag-and-drop, terminal rendering, and all 17 pane chrome variants. PR #26 merged — inline terminal image rendering via iTerm2, Kitty, and Sixel protocols. Images are extracted from wezterm-term cells, sent as base64 PNG over IPC, cached as ImageBitmaps with LRU eviction, and rendered in a two-layer canvas pass (below-text + above-text by z-index).
+Phase 9 complete — all frontend code ported. App shell fully functional with drag-and-drop, terminal rendering, and all 17 pane chrome variants. PR #27 merged — Windows compatibility and cross-platform hardening (PowerShell shell selection, caption button spacing, secure shell quoting, cross-platform CWD detection, font fallback fixes). Release workflow ready — tag `v*` to trigger macOS universal + Windows NSIS builds.
 
 ## What's Done
 - [x] Tauri 2 project scaffolded (React 19 + TypeScript 5.9 + Vite 6 + Tailwind CSS 4.2)
@@ -33,6 +33,8 @@ Phase 9 complete — all frontend code ported. App shell fully functional with d
 ## What's Next
 - [x] File drag-and-drop to paste paths into terminal (PR #25 merged)
 - [x] Inline terminal images (iTerm2/Kitty/Sixel) (PR #26 merged)
+- [x] Windows compat & cross-platform hardening (PR #27 merged)
+- [x] Release workflow — macOS universal + Windows NSIS on tag push
 - [ ] Phase 10: Integration testing & polish
 
 ## Key Reference
@@ -40,10 +42,9 @@ Phase 9 complete — all frontend code ported. App shell fully functional with d
 - V1 codebase: `/Users/sfory/dev/knkode/`
 
 ## Active Reviews
-PR #27 — review complete, all 16 findings addressed
+None
 
 ## Known Issues
-- DMG bundling fails (macOS code signing) — not blocking for dev
 - wezterm-term resolved: using `tattoy-wezterm-term` 0.1.0-fork.5 (fork published on crates.io)
 - wezterm-term selection module disabled (`// mod selection; FIXME: port to render layer`) — must implement selection on frontend
 - TUI apps (claude, gemini) hide system cursor and draw their own via reverse-video text — cursor style setting has no effect inside TUI apps (fundamental limitation)
