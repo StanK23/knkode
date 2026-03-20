@@ -168,6 +168,7 @@ export interface Workspace {
 export interface AppState {
 	readonly openWorkspaceIds: readonly string[];
 	readonly activeWorkspaceId: string | null;
+	readonly sidebarCollapsed: boolean;
 	readonly windowBounds: {
 		readonly x: number;
 		readonly y: number;
