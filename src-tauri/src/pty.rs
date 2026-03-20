@@ -46,8 +46,18 @@ fn detect_cwd(pid: u32) -> Option<String> {
     None
 }
 
-// TODO: Linux support via `/proc/<pid>/cwd` (readlink)
-#[cfg(not(target_os = "macos"))]
+/// Detect the CWD of a child process on Linux via `/proc/<pid>/cwd` symlink.
+#[cfg(target_os = "linux")]
+fn detect_cwd(pid: u32) -> Option<String> {
+    std::fs::read_link(format!("/proc/{pid}/cwd"))
+        .ok()
+        .and_then(|p| p.to_str().map(|s| s.to_string()))
+}
+
+// Windows CWD detection requires NtQueryInformationProcess (ntapi crate) or
+// the `windows` crate — not worth the dependency for now. Falls back to
+// initial CWD which is set at PTY creation time.
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
 fn detect_cwd(_pid: u32) -> Option<String> {
     None
 }
@@ -136,17 +146,17 @@ impl PtyManager {
             ))
             .map_err(|e| format!("Failed to open PTY: {e}"))?;
 
-        let shell = std::env::var("SHELL").unwrap_or_else(|_| {
-            if cfg!(windows) {
-                "powershell.exe".to_string()
-            } else {
-                "/bin/sh".to_string()
-            }
-        });
+        let shell = if cfg!(windows) {
+            // On Windows, always use PowerShell — ignore SHELL env var which may
+            // leak from WSL or Git Bash and point to a POSIX shell.
+            std::env::var("COMSPEC").unwrap_or_else(|_| "powershell.exe".to_string())
+        } else {
+            std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string())
+        };
 
         let mut cmd = CommandBuilder::new(&shell);
         if !cfg!(windows) {
-            cmd.arg("-l");
+            cmd.arg("-l"); // login shell flag — POSIX only
         }
         cmd.cwd(&cwd);
         cmd.env("TERM", "xterm-256color");
