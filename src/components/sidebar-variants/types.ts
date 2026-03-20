@@ -1,4 +1,4 @@
-import type React from "react";
+import type { ComponentType, ReactNode } from "react";
 import type { AgentStatus, PrInfo } from "../../shared/types";
 
 // Base props for visual rendering
@@ -23,4 +23,28 @@ export interface BasePaneEntryProps {
 	onClick: () => void;
 	onContextMenu: (e: React.MouseEvent) => void;
 	paneId: string;
+}
+
+export interface CollapsedVariantProps {
+	name: string;
+	isActive: boolean;
+	onClick: () => void;
+}
+
+export interface WrapperTokens {
+	base: string;
+	active: string;
+	inactive: string;
+}
+
+export interface ThemeVariantConfig {
+	wrapper: WrapperTokens;
+	Header: ComponentType<BaseWorkspaceHeaderProps>;
+	Entry: ComponentType<BasePaneEntryProps>;
+	Collapsed: ComponentType<CollapsedVariantProps>;
+}
+
+export interface WrapperProps {
+	isActive: boolean;
+	children: ReactNode;
 }
