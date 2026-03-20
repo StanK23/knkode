@@ -17,6 +17,7 @@ const PANE_NAV_DELTAS: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1 }
  * - Mod+Shift+]: next workspace tab
  * - Mod+Alt/Option+Left/Right: cycle focus to prev/next pane in layout order
  * - Mod+,: toggle settings panel
+ * - Mod+B: toggle sidebar collapse
  * - Mod+1-9: focus pane by index
  * - Mod+Down: scroll focused terminal to bottom
  * - Mod+Up: scroll focused terminal to top
@@ -124,6 +125,13 @@ export function useKeyboardShortcuts({ toggleSettings }: ShortcutOptions = {}) {
 			if (e.key === "," && toggleSettings) {
 				e.preventDefault();
 				toggleSettings();
+				return;
+			}
+
+			// Mod+B — toggle sidebar collapse
+			if (e.key === "b" && !e.shiftKey) {
+				e.preventDefault();
+				state.toggleSidebar();
 				return;
 			}
 
