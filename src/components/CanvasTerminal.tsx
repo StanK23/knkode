@@ -892,6 +892,8 @@ export function CanvasTerminal({
 		// Reset blink timer on grid change (keystroke makes cursor fully visible)
 		blinkStart.current = performance.now();
 		cursorOpacity.current = CURSOR_MAX_OPACITY;
+		// Clear stale link hover — grid content may have shifted under the highlight
+		linkHoverRef.current = null;
 		draw();
 
 		// Ingest any new images from this snapshot. If new images were decoded,
@@ -1115,8 +1117,18 @@ export function CanvasTerminal({
 				const linkUrl = rowCells?.[cell.col]?.link;
 				if (linkUrl) {
 					e.preventDefault();
-					window.api.openExternal(linkUrl).catch((err) => {
-						console.error("[CanvasTerminal] openExternal failed:", err);
+					window.api.openExternal(linkUrl).catch(() => {
+						// Brief visual feedback: flash link cells without accent to signal rejection
+						const hover = linkHoverRef.current;
+						if (hover) {
+							linkHoverRef.current = null;
+							drawRef.current();
+							// Restore after a beat so the user sees the flash
+							setTimeout(() => {
+								linkHoverRef.current = hover;
+								drawRef.current();
+							}, 150);
+						}
 					});
 					return;
 				}
