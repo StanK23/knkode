@@ -1,6 +1,6 @@
 import type { PrInfo } from "../../shared/types";
 import { registerVariant } from ".";
-import { type SeparatorAnimation, ActivitySeparator, FOCUS_VIS, FolderIcon, LabelButton, LeafIcon, PrBadge } from "./shared";
+import { type SeparatorAnimation, FOCUS_VIS, FolderIcon, LabelButton, LeafIcon, PrBadge, getSepClass, getSepVars } from "./shared";
 import type { FrameProps, PaneVariant, ScrollButtonProps, VariantTheme } from "./types";
 
 export type StyleFn = (theme: VariantTheme, isFocused: boolean) => React.CSSProperties;
@@ -67,8 +67,16 @@ export interface VariantConfig {
 		/** Wrap action buttons (excluding snippet trigger) in a hover-reveal container. */
 		hoverRevealActions?: { className: string };
 	};
-	/** Activity separator animation style. Defaults to "scan". */
-	separatorAnimation?: SeparatorAnimation;
+	/** Activity animation on the status bar border when agent is active.
+	 *  `gradient` is the CSS gradient/color to sweep across the border.
+	 *  `animation` selects the keyframe style (default: "scan").
+	 *  When omitted, falls back to a single-color scan using accent. */
+	activity?: {
+		gradient: (theme: VariantTheme) => string;
+		animation?: SeparatorAnimation;
+		/** Duration in seconds (default: 3). */
+		duration?: number;
+	};
 	/** Wrapper div around children (terminal content) for padding/spacing. */
 	content?: { className: string };
 	scrollButton: {
@@ -171,15 +179,29 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 			</>
 		);
 
+		// Build activity CSS class + custom properties for the header's border animation
+		const sepClass = getSepClass(agentStatus, isBottom);
+		const sepStyle =
+			agentStatus !== "idle"
+				? getSepVars(
+						config.activity?.gradient(theme) ??
+							`linear-gradient(90deg, transparent 0%, ${theme.glow ?? theme.accent} 50%, transparent 100%)`,
+						theme.glow ?? theme.accent,
+						config.activity?.animation ?? "scan",
+						config.activity?.duration ?? 3,
+					)
+				: {};
+
 		const header = (
 			<div
 				{...headerProps}
-				className={`${headerProps.className || ""} flex items-center shrink-0 select-none transition-colors duration-200 ${sb.className}`}
+				className={`${headerProps.className || ""} flex items-center shrink-0 select-none transition-colors duration-200 ${sb.className} ${sepClass}`}
 				style={{
 					...headerProps.style,
 					height: sb.height,
 					...sb.style(theme, isFocused),
 					...sb.borderImage?.(theme, isFocused),
+					...sepStyle,
 				}}
 			>
 				{isEditing ? (
@@ -261,20 +283,10 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 			</div>
 		);
 
-		const separator = (
-			<ActivitySeparator
-				status={agentStatus}
-				color={theme.glow ?? theme.accent}
-				{...(config.separatorAnimation ? { animation: config.separatorAnimation } : {})}
-			/>
-		);
-
 		return (
 			<>
 				{!isBottom && header}
-				{!isBottom && separator}
 				{config.content ? <div className={config.content.className}>{children}</div> : children}
-				{isBottom && separator}
 				{isBottom && header}
 			</>
 		);

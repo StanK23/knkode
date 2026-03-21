@@ -115,91 +115,32 @@ export function LabelButton({
  *  - shimmer: fast sparkle sweep (Matrix, Solana) */
 export type SeparatorAnimation = "scan" | "dual-scan" | "wave" | "ember" | "shimmer";
 
-/** Separator between status bar and terminal content.
- *  Always renders at fixed height to prevent layout shift.
- *  Idle: subtle theme-colored line. Active: themed scanning animation.
- *  Attention: static glowing bar. */
-export function ActivitySeparator({
-	status,
-	color,
-	animation = "scan",
-}: {
-	status: AgentStatus;
-	color: string;
-	animation?: SeparatorAnimation;
-}) {
-	const style: React.CSSProperties = { height: 3 };
-
-	if (status === "idle") {
-		// Subtle static line — always present, no layout shift
-		style.background = color;
-		style.opacity = 0.15;
-	} else if (status === "attention") {
-		// Attention — static colored bar with glow
-		style.background = color;
-		style.opacity = 0.7;
-		style.boxShadow = `0 0 6px ${color}88`;
-	} else {
-		// Active — themed animation
-		Object.assign(style, getAnimationStyles(animation, color));
-	}
-
-	return (
-		<div
-			role="status"
-			aria-label={
-				status === "active"
-					? "Agent is active"
-					: status === "attention"
-						? "Agent needs attention"
-						: undefined
-			}
-			className="w-full shrink-0 motion-reduce:animate-none"
-			style={style}
-		/>
-	);
+/** Build CSS custom property values for the sep-active/sep-attention ::after overlay.
+ *  These are spread onto the header div's inline style. The ::after pseudo-element
+ *  in styles.css reads them to render the animated border overlay. */
+export function getSepVars(
+	gradient: string,
+	glowColor: string,
+	animation: SeparatorAnimation = "scan",
+	duration = 3,
+	borderHeight = 2,
+): React.CSSProperties {
+	return {
+		"--sep-bg": gradient,
+		"--sep-glow": `${glowColor}88`,
+		"--sep-h": `${borderHeight}px`,
+		"--sep-anim": `activity-${animation}`,
+		"--sep-dur": `${duration}s`,
+	} as React.CSSProperties;
 }
 
-/** Build CSS styles for each animation type. */
-function getAnimationStyles(animation: SeparatorAnimation, color: string): React.CSSProperties {
-	switch (animation) {
-		case "scan":
-			return {
-				background: `linear-gradient(90deg, transparent 0%, ${color} 50%, transparent 100%)`,
-				backgroundSize: "200% 100%",
-				animation: "activity-scan 3s linear infinite",
-				opacity: 0.9,
-				boxShadow: `0 0 4px ${color}66`,
-			};
-		case "dual-scan":
-			return {
-				background: `linear-gradient(90deg, transparent 0%, ${color} 30%, transparent 50%, ${color}88 70%, transparent 100%)`,
-				backgroundSize: "200% 100%",
-				animation: "activity-dual-scan 3.5s linear infinite",
-				opacity: 0.9,
-				boxShadow: `0 0 6px ${color}66`,
-			};
-		case "wave":
-			return {
-				background: `linear-gradient(90deg, ${color}66, ${color}, ${color}66)`,
-				animation: "activity-wave 3s ease-in-out infinite",
-				boxShadow: `0 0 4px ${color}44`,
-			};
-		case "ember":
-			return {
-				background: `linear-gradient(90deg, ${color}88, ${color}, ${color}88)`,
-				animation: "activity-ember 3s ease-in-out infinite",
-				boxShadow: `0 0 6px ${color}44`,
-			};
-		case "shimmer":
-			return {
-				background: `linear-gradient(90deg, ${color}44 0%, ${color} 20%, ${color}ff 25%, ${color}44 45%, ${color} 70%, ${color}44 100%)`,
-				backgroundSize: "200% 100%",
-				animation: "activity-shimmer 2.5s linear infinite",
-				opacity: 0.9,
-				boxShadow: `0 0 6px ${color}88`,
-			};
-	}
+/** Build the CSS class string for the header based on agent status and border position.
+ *  Returns empty string for idle (no overlay). */
+export function getSepClass(status: AgentStatus, isBottom: boolean): string {
+	if (status === "idle") return "";
+	const type = status === "active" ? "sep-active" : "sep-attention";
+	const edge = isBottom ? "top" : "bottom";
+	return `${type} ${type}-${edge}`;
 }
 
 /** Clickable PR badge — shared structure, per-variant styling via className/style/children. */

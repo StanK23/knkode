@@ -39,7 +39,10 @@ createAndRegisterVariant("Everforest", {
 		},
 		snippet: { label: ">_" },
 	},
-	separatorAnimation: "wave",
+	activity: {
+		gradient: (theme) => `linear-gradient(90deg, ${theme.accent}66, ${theme.accent}, ${theme.accent}66)`,
+		animation: "wave",
+	},
 	scrollButton: {
 		className: "bottom-3 left-1/4 right-1/4 h-7 rounded text-[11px] hover:brightness-110",
 		style: (theme) => ({

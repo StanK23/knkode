@@ -1,4 +1,4 @@
-import { ActivitySeparator, FOCUS_VIS, FolderIcon, GitIcon, LabelButton, PrBadge } from "./shared";
+import { FOCUS_VIS, FolderIcon, GitIcon, LabelButton, PrBadge, getSepClass, getSepVars } from "./shared";
 import type { FrameProps, PaneVariant, ScrollButtonProps } from "./types";
 
 // DefaultVariant intentionally uses Tailwind semantic classes (bg-elevated, text-accent, etc.)
@@ -26,14 +26,22 @@ function Frame({
 	agentStatus,
 }: FrameProps) {
 	const isBottom = theme.statusBarPosition === "bottom";
+	const sepClass = getSepClass(agentStatus, isBottom);
+	const sepStyle =
+		agentStatus !== "idle"
+			? getSepVars(
+					`linear-gradient(90deg, transparent 0%, ${theme.accent} 50%, transparent 100%)`,
+					theme.accent,
+				)
+			: {};
 
 	const header = (
 		<div
 			{...headerProps}
 			className={`${headerProps.className || ""} flex items-center gap-2 px-2 text-[11px] shrink-0 select-none transition-colors duration-200 ${
 				isFocused ? "bg-elevated border-b border-accent" : "bg-sunken border-b border-edge"
-			} ${isBottom ? "border-b-0 border-t" : ""}`}
-			style={{ ...headerProps.style, height: 30 }}
+			} ${isBottom ? "border-b-0 border-t" : ""} ${sepClass}`}
+			style={{ ...headerProps.style, height: 30, ...sepStyle }}
 		>
 			{isEditing ? (
 				<input
@@ -113,16 +121,10 @@ function Frame({
 		</div>
 	);
 
-	const separator = (
-		<ActivitySeparator status={agentStatus} color={theme.accent} />
-	);
-
 	return (
 		<>
 			{!isBottom && header}
-			{!isBottom && separator}
 			{children}
-			{isBottom && separator}
 			{isBottom && header}
 		</>
 	);
