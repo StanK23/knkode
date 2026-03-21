@@ -139,14 +139,14 @@ function Frame({
 
 			{!isBottom && header}
 			{!isBottom && (
-				<ActivitySeparator status={agentStatus} color={theme.accent} />
+				<ActivitySeparator status={agentStatus} color={theme.accent} animation="shimmer" />
 			)}
 
 			{/* Terminal Content */}
 			<div className="relative z-10 flex-1 w-full min-h-0 bg-transparent">{children}</div>
 
 			{isBottom && (
-				<ActivitySeparator status={agentStatus} color={theme.accent} />
+				<ActivitySeparator status={agentStatus} color={theme.accent} animation="shimmer" />
 			)}
 			{isBottom && header}
 		</div>

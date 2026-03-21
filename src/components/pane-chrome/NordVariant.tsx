@@ -28,6 +28,7 @@ createAndRegisterVariant("Nord", {
 		},
 		snippet: { label: ">_" },
 	},
+	separatorAnimation: "wave",
 	scrollButton: {
 		className:
 			"bottom-3 left-1/3 right-1/3 h-7 text-[10px] tracking-wide opacity-60 hover:opacity-100",

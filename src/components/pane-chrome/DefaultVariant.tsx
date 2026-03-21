@@ -114,7 +114,7 @@ function Frame({
 	);
 
 	const separator = (
-		<ActivitySeparator status={agentStatus} color="var(--accent)" />
+		<ActivitySeparator status={agentStatus} color={theme.accent} />
 	);
 
 	return (

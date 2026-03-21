@@ -38,6 +38,7 @@ createAndRegisterVariant("Sunset", {
 		},
 		snippet: { label: ">_" },
 	},
+	separatorAnimation: "ember",
 	scrollButton: {
 		className: "bottom-3 left-1/4 right-1/4 h-8 rounded-full text-xs hover:brightness-110",
 		style: (theme) => ({

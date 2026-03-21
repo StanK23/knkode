@@ -107,32 +107,102 @@ export function LabelButton({
 	);
 }
 
+/** Activity separator animation style.
+ *  - scan: single bright band sweeping L→R (default, most themes)
+ *  - dual-scan: two bands sweeping in opposite directions (Cyberpunk, Vaporwave)
+ *  - wave: gentle opacity pulse (Nord, Catppuccin, Everforest)
+ *  - ember: warm glow brighten/fade (Amber, Sunset, Gruvbox)
+ *  - shimmer: fast sparkle sweep (Matrix, Solana) */
+export type SeparatorAnimation = "scan" | "dual-scan" | "wave" | "ember" | "shimmer";
+
 /** Animated separator between status bar and terminal content.
- *  Shows a pulsing gradient line when agent is active, a static
+ *  Shows a themed scanning gradient when agent is active, a static
  *  attention line when agent needs attention, nothing when idle. */
 export function ActivitySeparator({
 	status,
 	color,
+	animation = "scan",
 }: {
 	status: AgentStatus;
 	color: string;
+	animation?: SeparatorAnimation;
 }) {
 	if (status === "idle") return null;
 
 	const isActive = status === "active";
+
+	if (!isActive) {
+		// Attention — static colored bar with glow
+		return (
+			<div
+				role="status"
+				aria-label="Agent needs attention"
+				className="w-full shrink-0"
+				style={{
+					height: 3,
+					background: color,
+					opacity: 0.7,
+					boxShadow: `0 0 6px ${color}88`,
+				}}
+			/>
+		);
+	}
+
+	// Active — themed animation
+	const styles = getAnimationStyles(animation, color);
 	return (
 		<div
 			role="status"
-			aria-label={isActive ? "Agent is active" : "Agent needs attention"}
-			className={`w-full h-0.5 shrink-0 ${isActive ? "animate-pulse motion-reduce:animate-none" : ""}`}
+			aria-label="Agent is active"
+			className="w-full shrink-0 motion-reduce:animate-none"
 			style={{
-				background: isActive
-					? `linear-gradient(90deg, transparent, ${color}, transparent)`
-					: color,
-				opacity: isActive ? 0.8 : 0.6,
+				height: 3,
+				...styles,
 			}}
 		/>
 	);
+}
+
+/** Build CSS styles for each animation type. */
+function getAnimationStyles(animation: SeparatorAnimation, color: string): React.CSSProperties {
+	switch (animation) {
+		case "scan":
+			return {
+				background: `linear-gradient(90deg, transparent 0%, ${color} 50%, transparent 100%)`,
+				backgroundSize: "200% 100%",
+				animation: "activity-scan 2s linear infinite",
+				opacity: 0.9,
+				boxShadow: `0 0 4px ${color}66`,
+			};
+		case "dual-scan":
+			return {
+				background: `linear-gradient(90deg, transparent 0%, ${color} 30%, transparent 50%, ${color}88 70%, transparent 100%)`,
+				backgroundSize: "200% 100%",
+				animation: "activity-dual-scan 1.8s linear infinite",
+				opacity: 0.9,
+				boxShadow: `0 0 6px ${color}66`,
+			};
+		case "wave":
+			return {
+				background: `linear-gradient(90deg, ${color}66, ${color}, ${color}66)`,
+				animation: "activity-wave 2.5s ease-in-out infinite",
+				boxShadow: `0 0 4px ${color}44`,
+			};
+		case "ember":
+			return {
+				background: `linear-gradient(90deg, ${color}88, ${color}, ${color}88)`,
+				animation: "activity-ember 2s ease-in-out infinite",
+				boxShadow: `0 0 6px ${color}44`,
+			};
+		case "shimmer":
+			return {
+				background: `linear-gradient(90deg, ${color}44 0%, ${color} 20%, ${color}ff 25%, ${color}44 45%, ${color} 70%, ${color}44 100%)`,
+				backgroundSize: "200% 100%",
+				animation: "activity-shimmer 1.2s linear infinite",
+				opacity: 0.9,
+				boxShadow: `0 0 6px ${color}88`,
+			};
+	}
 }
 
 /** Clickable PR badge — shared structure, per-variant styling via className/style/children. */

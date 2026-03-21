@@ -55,6 +55,7 @@ createAndRegisterVariant("Amber", {
 		},
 		snippet: { label: "[CMD]" },
 	},
+	separatorAnimation: "ember",
 	content: { className: "px-1" },
 	scrollButton: {
 		className:

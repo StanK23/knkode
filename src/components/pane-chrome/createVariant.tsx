@@ -1,6 +1,6 @@
 import type { PrInfo } from "../../shared/types";
 import { registerVariant } from ".";
-import { ActivitySeparator, FOCUS_VIS, FolderIcon, LabelButton, LeafIcon, PrBadge } from "./shared";
+import { type SeparatorAnimation, ActivitySeparator, FOCUS_VIS, FolderIcon, LabelButton, LeafIcon, PrBadge } from "./shared";
 import type { FrameProps, PaneVariant, ScrollButtonProps, VariantTheme } from "./types";
 
 export type StyleFn = (theme: VariantTheme, isFocused: boolean) => React.CSSProperties;
@@ -67,6 +67,8 @@ export interface VariantConfig {
 		/** Wrap action buttons (excluding snippet trigger) in a hover-reveal container. */
 		hoverRevealActions?: { className: string };
 	};
+	/** Activity separator animation style. Defaults to "scan". */
+	separatorAnimation?: SeparatorAnimation;
 	/** Wrapper div around children (terminal content) for padding/spacing. */
 	content?: { className: string };
 	scrollButton: {
@@ -263,6 +265,7 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 			<ActivitySeparator
 				status={agentStatus}
 				color={theme.glow ?? theme.accent}
+				{...(config.separatorAnimation ? { animation: config.separatorAnimation } : {})}
 			/>
 		);
 
