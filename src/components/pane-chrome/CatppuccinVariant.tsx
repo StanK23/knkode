@@ -38,6 +38,10 @@ createAndRegisterVariant("Catppuccin", {
 		},
 		snippet: { label: ">_" },
 	},
+	activity: {
+		gradient: (theme) => `linear-gradient(90deg, ${theme.accent}66, ${theme.accent}, ${theme.accent}66)`,
+		animation: "wave",
+	},
 	scrollButton: {
 		className: "bottom-3 left-1/4 right-1/4 h-8 rounded-xl text-xs hover:brightness-110",
 		style: (theme) => ({

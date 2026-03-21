@@ -299,6 +299,117 @@
 		animation: panel-in 0.3s var(--ease-mechanical) forwards;
 	}
 
+	/* ── Activity separator animations ────────────────────────────── */
+
+	/* Animated overlay on the status bar border. Uses CSS custom properties
+	   set on the header div: --sep-bg (gradient/color), --sep-h (border height),
+	   --sep-anim (keyframe name), --sep-dur (duration), --sep-glow (glow color).
+	   Sits directly on the existing border — no extra layout space. */
+	.sep-active {
+		position: relative;
+	}
+	.sep-active::after {
+		content: "";
+		position: absolute;
+		left: 0;
+		right: 0;
+		height: var(--sep-h, 1px);
+		z-index: 30;
+		background: var(--sep-bg);
+		background-size: 200% 100%;
+		box-shadow: 0 0 6px var(--sep-glow, transparent);
+		animation: var(--sep-anim, activity-scan) var(--sep-dur, 3s) linear infinite;
+	}
+	/* Position ::after on the outer border edge (negative offset = border width) */
+	.sep-active-bottom::after { bottom: calc(-1 * var(--sep-h, 1px)); }
+	.sep-active-top::after { top: calc(-1 * var(--sep-h, 1px)); }
+
+	/* Attention — static glow on the border, no sweep */
+	.sep-attention {
+		position: relative;
+	}
+	.sep-attention::after {
+		content: "";
+		position: absolute;
+		left: 0;
+		right: 0;
+		height: var(--sep-h, 1px);
+		z-index: 30;
+		background: var(--sep-bg);
+		box-shadow: 0 0 8px var(--sep-glow, transparent);
+		opacity: 0.8;
+	}
+	.sep-attention-bottom::after { bottom: calc(-1 * var(--sep-h, 1px)); }
+	.sep-attention-top::after { top: calc(-1 * var(--sep-h, 1px)); }
+
+	/* scan — single bright band sweeping left to right */
+	@keyframes activity-scan {
+		0% { background-position: 200% 0; }
+		100% { background-position: -200% 0; }
+	}
+	/* dual-scan — two bands sweeping left to right */
+	@keyframes activity-dual-scan {
+		0% { background-position: 200% 0; }
+		100% { background-position: -200% 0; }
+	}
+	/* wave — gentle oscillating opacity pulse */
+	@keyframes activity-wave {
+		0%, 100% { opacity: 0.5; }
+		50% { opacity: 1; }
+	}
+	/* ember — warm glow that brightens and fades */
+	@keyframes activity-ember {
+		0%, 100% { opacity: 0.5; filter: brightness(0.8); }
+		50% { opacity: 1; filter: brightness(1.3); }
+	}
+	/* shimmer — fast sparkle sweep left to right */
+	@keyframes activity-shimmer {
+		0% { background-position: 200% 0; }
+		100% { background-position: -200% 0; }
+	}
+
+	/* ── Sidebar pane status indicators (right side) ──────────────── */
+
+	/* Active pane — animated right accent bar */
+	.sidebar-pane-active {
+		position: relative;
+	}
+	.sidebar-pane-active::after {
+		content: "";
+		position: absolute;
+		right: 0;
+		top: 15%;
+		bottom: 15%;
+		width: 2px;
+		border-radius: 1px;
+		background: var(--color-accent);
+		animation: sidebar-active-pulse 1.5s ease-in-out infinite;
+	}
+	@keyframes sidebar-active-pulse {
+		0%, 100% { opacity: 0.4; box-shadow: none; }
+		50% { opacity: 1; box-shadow: 0 0 6px var(--color-accent); }
+	}
+
+	/* Attention pane — animated right danger bar */
+	.sidebar-pane-attention {
+		position: relative;
+	}
+	.sidebar-pane-attention::after {
+		content: "";
+		position: absolute;
+		right: 0;
+		top: 10%;
+		bottom: 10%;
+		width: 3px;
+		border-radius: 1px;
+		background: var(--color-danger);
+		animation: sidebar-attention-pulse 0.8s ease-in-out infinite;
+	}
+	@keyframes sidebar-attention-pulse {
+		0%, 100% { opacity: 0.5; box-shadow: none; }
+		50% { opacity: 1; box-shadow: 0 0 8px var(--color-danger); }
+	}
+
 	/* ── Identity theme effects ───────────────────────────────────── */
 
 	/* Pulsing glow — the box-shadow is set via inline style in PaneEffects.tsx.
@@ -331,7 +442,9 @@
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.animate-panel-in {
+		.animate-panel-in,
+		.animate-ping,
+		.animate-spin {
 			animation: none;
 		}
 		.settings-input,
@@ -344,6 +457,11 @@
 		.pane-scanline,
 		.pane-noise {
 			display: none;
+		}
+		.sidebar-pane-active::after,
+		.sidebar-pane-attention::after,
+		.sep-active::after {
+			animation: none;
 		}
 	}
 }

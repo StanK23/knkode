@@ -127,7 +127,20 @@ export const useStore = create<StoreState>((set, get) => ({
 	collapsedSidebarSections: new Set(),
 
 	setFocusedPane: (paneId) =>
-		set((state) => ({ focusedPaneId: paneId, focusGeneration: state.focusGeneration + 1 })),
+		set((state) => {
+			// Clear attention when user focuses a pane (acknowledges the notification)
+			if (paneId && state.paneAgentStatuses[paneId] === "attention") {
+				return {
+					focusedPaneId: paneId,
+					focusGeneration: state.focusGeneration + 1,
+					paneAgentStatuses: { ...state.paneAgentStatuses, [paneId]: "idle" },
+				};
+			}
+			return {
+				focusedPaneId: paneId,
+				focusGeneration: state.focusGeneration + 1,
+			};
+		}),
 
 	toggleSidebar: () => {
 		const { appState } = get();
@@ -145,7 +158,10 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 
 	updatePaneAgentStatus: (paneId, status) => {
-		set((state) => ({ paneAgentStatuses: { ...state.paneAgentStatuses, [paneId]: status } }));
+		set((state) => {
+			if (state.paneAgentStatuses[paneId] === status) return {};
+			return { paneAgentStatuses: { ...state.paneAgentStatuses, [paneId]: status } };
+		});
 	},
 
 	ensurePty: (paneId, cwd, startupCommand) => {

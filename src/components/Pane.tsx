@@ -81,6 +81,7 @@ export const Pane = memo(function Pane({
 	const [grid, setGrid] = useState<GridSnapshot | null>(null);
 	const [ptyError, setPtyError] = useState(false);
 	const homeDir = useStore((s) => s.homeDir);
+	const agentStatus = useStore((s) => s.paneAgentStatuses[paneId] ?? "idle");
 
 	// --- Scrollback state ---
 	// scrollOffset: rows from bottom (0 = live viewport, >0 = scrolled into scrollback)
@@ -383,6 +384,7 @@ export const Pane = memo(function Pane({
 					isFocused={isFocused}
 					canClose={canClose}
 					theme={variantTheme}
+					agentStatus={agentStatus}
 					onSplitVertical={() => onSplitVertical(paneId)}
 					onSplitHorizontal={() => onSplitHorizontal(paneId)}
 					onClose={() => onClose(paneId)}

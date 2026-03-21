@@ -8,6 +8,7 @@ import { isMac, MACOS_SIDEBAR_TOP_INSET, modKey } from "../utils/platform";
 import { SidebarPaneEntry } from "./SidebarPaneEntry";
 import { SidebarWorkspaceHeader } from "./SidebarWorkspaceHeader";
 
+import { AttentionDot } from "./sidebar-variants/AgentStatusIndicator";
 import {
 	CollapsedWorkspaceVariant,
 	WorkspaceSectionWrapper,
@@ -41,10 +42,26 @@ export function Sidebar({ onOpenSettings, onOpenHotkeys }: SidebarProps) {
 
 	const handleBarMouseDown = useWindowDrag();
 
+	const paneAgentStatuses = useStore((s) => s.paneAgentStatuses);
+
 	const activePreset = useMemo(() => {
 		const active = workspaces.find((w) => w.id === activeWorkspaceId);
 		return toPresetName(active?.theme.preset);
 	}, [workspaces, activeWorkspaceId]);
+
+	/** Workspace IDs where at least one pane has attention status. */
+	const attentionWorkspaceIds = useMemo(() => {
+		const ids = new Set<string>();
+		for (const ws of workspaces) {
+			for (const paneId of Object.keys(ws.panes)) {
+				if (paneAgentStatuses[paneId] === "attention") {
+					ids.add(ws.id);
+					break;
+				}
+			}
+		}
+		return ids;
+	}, [workspaces, paneAgentStatuses]);
 
 	const [actionError, setActionError] = useState<string | null>(null);
 	const errorTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -126,6 +143,7 @@ export function Sidebar({ onOpenSettings, onOpenHotkeys }: SidebarProps) {
 					<CollapsedView
 						workspaces={openWorkspaces}
 						activeWorkspaceId={activeWorkspaceId}
+						attentionWorkspaceIds={attentionWorkspaceIds}
 						onActivate={setActiveWorkspace}
 					/>
 				) : (
@@ -139,18 +157,23 @@ export function Sidebar({ onOpenSettings, onOpenHotkeys }: SidebarProps) {
 							return (
 								<div key={ws.id}>
 									<WorkspaceSectionWrapper preset={activePreset} isActive={isActive}>
-										<SidebarWorkspaceHeader
-											workspace={ws}
-											preset={activePreset}
-											isActive={isActive}
-											isCollapsed={isSectionCollapsed}
-											paneCount={paneIds.length}
-											onToggleCollapse={() => toggleSidebarSection(ws.id)}
-											onActivate={() => setActiveWorkspace(ws.id)}
-											onRename={(name) => updateWorkspaceField(ws.id, { name })}
-											onDuplicate={() => handleDuplicate(ws.id)}
-											onClose={() => closeWorkspaceTab(ws.id)}
-										/>
+										<div className="relative">
+											<SidebarWorkspaceHeader
+												workspace={ws}
+												preset={activePreset}
+												isActive={isActive}
+												isCollapsed={isSectionCollapsed}
+												paneCount={paneIds.length}
+												onToggleCollapse={() => toggleSidebarSection(ws.id)}
+												onActivate={() => setActiveWorkspace(ws.id)}
+												onRename={(name) => updateWorkspaceField(ws.id, { name })}
+												onDuplicate={() => handleDuplicate(ws.id)}
+												onClose={() => closeWorkspaceTab(ws.id)}
+											/>
+											{isSectionCollapsed && attentionWorkspaceIds.has(ws.id) && (
+												<AttentionDot size="h-2 w-2" className="absolute top-1/2 -translate-y-1/2 right-2 pointer-events-none" />
+											)}
+										</div>
 										{!isSectionCollapsed && (
 											<div className="flex flex-col pb-1">
 												{paneIds.map((paneId) => {
@@ -344,10 +367,12 @@ export function Sidebar({ onOpenSettings, onOpenHotkeys }: SidebarProps) {
 function CollapsedView({
 	workspaces,
 	activeWorkspaceId,
+	attentionWorkspaceIds,
 	onActivate,
 }: {
 	workspaces: Workspace[];
 	activeWorkspaceId: string | null;
+	attentionWorkspaceIds: ReadonlySet<string>;
 	onActivate: (id: string) => void;
 }) {
 	const activePreset = toPresetName(
@@ -359,7 +384,7 @@ function CollapsedView({
 			{workspaces.map((ws) => {
 				const isActive = ws.id === activeWorkspaceId;
 				return (
-					<div key={ws.id}>
+					<div key={ws.id} className="relative">
 						<WorkspaceSectionWrapper preset={activePreset} isActive={isActive}>
 							<CollapsedWorkspaceVariant
 								preset={activePreset}
@@ -368,6 +393,9 @@ function CollapsedView({
 								onClick={() => onActivate(ws.id)}
 							/>
 						</WorkspaceSectionWrapper>
+						{attentionWorkspaceIds.has(ws.id) && !isActive && (
+							<AttentionDot size="h-2 w-2" className="absolute top-1 right-1" />
+						)}
 					</div>
 				);
 			})}
