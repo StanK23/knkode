@@ -18,8 +18,8 @@ interface WorkspaceTabPanelProps {
 	homeDir: string;
 	currentPreset: LayoutPreset | null;
 	onLayoutChange: (preset: LayoutPreset) => void;
-	statusBarPosition: "top" | "bottom";
-	onStatusBarPositionChange: (pos: "top" | "bottom") => void;
+	statusBarPosition: StatusBarPosition;
+	onStatusBarPositionChange: (pos: StatusBarPosition) => void;
 	onPaneUpdate: (paneId: string, updates: Partial<PaneConfig>) => void;
 	hidden?: boolean;
 }
