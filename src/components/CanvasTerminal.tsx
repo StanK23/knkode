@@ -16,7 +16,7 @@ import {
 	DEFAULT_FONT_SIZE,
 	DEFAULT_LINE_HEIGHT,
 } from "../shared/types";
-import { isMac } from "../utils/platform";
+import { isMac, isModKeyHeld } from "../utils/platform";
 
 export interface CanvasTerminalProps {
 	readonly grid: GridSnapshot | null;
@@ -1111,7 +1111,7 @@ export function CanvasTerminal({
 			if (!snap) return;
 
 			// Cmd+click (Mac) or Ctrl+click (other) on a link → open externally
-			const modHeld = isMac ? e.metaKey : e.ctrlKey;
+			const modHeld = isModKeyHeld(e);
 			if (modHeld) {
 				const rowCells = snap.rows[cell.row];
 				const linkUrl = rowCells?.[cell.col]?.link;
@@ -1290,7 +1290,7 @@ export function CanvasTerminal({
 	/** Update link hover state based on current mouse position + modifier. */
 	const handleMouseMove = useCallback(
 		(e: React.MouseEvent) => {
-			const modHeld = isMac ? e.metaKey : e.ctrlKey;
+			const modHeld = isModKeyHeld(e);
 			modKeyHeldRef.current = modHeld;
 			if (!modHeld) {
 				clearLinkHover();
@@ -1331,7 +1331,7 @@ export function CanvasTerminal({
 	// Track modifier key release to clear link hover (keyup fires on the container)
 	useEffect(() => {
 		const onKeyChange = (e: KeyboardEvent) => {
-			const modHeld = isMac ? e.metaKey : e.ctrlKey;
+			const modHeld = isModKeyHeld(e);
 			if (modKeyHeldRef.current && !modHeld) {
 				modKeyHeldRef.current = false;
 				clearLinkHover();
@@ -1362,6 +1362,7 @@ export function CanvasTerminal({
 			onPaste={handlePaste}
 			onMouseDown={handleMouseDown}
 			onMouseMove={handleMouseMove}
+			onMouseLeave={clearLinkHover}
 		>
 			<canvas ref={canvasRef} className="block" />
 		</div>
