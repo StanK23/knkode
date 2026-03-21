@@ -286,13 +286,20 @@ impl PtyManager {
                 match reader.read(&mut buf) {
                     Ok(0) => break,
                     Ok(n) => {
-                        // Record output timestamp for activity detection
-                        if let Ok(mut times) = output_times.lock() {
-                            times.insert(id_clone.clone(), Instant::now());
-                        }
                         term_state.advance_only(&id_clone, &buf[..n]);
 
                         if last_emit.elapsed() >= RENDER_INTERVAL {
+                            // Record output timestamp for activity detection.
+                            // Throttled to ~60fps — sub-16ms precision is irrelevant
+                            // given the 2-second idle threshold polled every 3 seconds.
+                            let mut times = output_times.lock().unwrap_or_else(|e| e.into_inner());
+                            if let Some(t) = times.get_mut(&id_clone) {
+                                *t = Instant::now();
+                            } else {
+                                times.insert(id_clone.clone(), Instant::now());
+                            }
+                            drop(times);
+
                             dirty.store(false, Ordering::Release);
                             if !emit_snapshot(&app, &term_state, &id_clone) {
                                 break;
@@ -336,9 +343,10 @@ impl PtyManager {
             let exit_code: i64 = if let Some(mut session) = removed {
                 term_state.remove(&id_clone);
                 // Clean up output timestamp so poll_activity doesn't evaluate a dead pane
-                if let Ok(mut times) = output_times.lock() {
-                    times.remove(&id_clone);
-                }
+                output_times
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .remove(&id_clone);
                 session
                     .child
                     .wait()
@@ -412,9 +420,10 @@ impl PtyManager {
             let _ = session.child.kill();
         }
         self.terminal_state.remove(id);
-        if let Ok(mut times) = self.last_output_at.lock() {
-            times.remove(id);
-        }
+        self.last_output_at
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(id);
         Ok(())
     }
 
@@ -425,9 +434,10 @@ impl PtyManager {
             let _ = session.child.kill();
         }
         self.terminal_state.remove_all();
-        if let Ok(mut times) = self.last_output_at.lock() {
-            times.clear();
-        }
+        self.last_output_at
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
     }
 
     /// Get the current working directory for a pane.
@@ -443,16 +453,16 @@ impl PtyManager {
         pid.and_then(detect_cwd).or(Some(fallback))
     }
 
-    /// Returns elapsed milliseconds since last PTY output for each active pane.
-    /// The CwdTracker polls this to detect idle vs active agents.
-    pub fn get_output_ages_ms(&self) -> HashMap<String, u64> {
+    /// Returns elapsed time since last PTY output for each pane that has produced output.
+    /// The CwdTracker polls this once per cycle to detect idle vs active agents.
+    pub fn get_output_ages(&self) -> HashMap<String, Duration> {
         let times = self
             .last_output_at
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         times
             .iter()
-            .map(|(id, instant)| (id.clone(), instant.elapsed().as_millis() as u64))
+            .map(|(id, instant)| (id.clone(), instant.elapsed()))
             .collect()
     }
 
