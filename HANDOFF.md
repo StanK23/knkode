@@ -43,6 +43,7 @@ PR #36 merged — Agent activity state detection. Rust PTY backend tracks output
 - [x] Tech debt: Pane chrome factory extension — migrate Amber, Ocean, TokyoNight to createVariant (PR #34 merged)
 - [x] Fix: scroll race, unified context menus, sidebar branch layout, dev port (PR #35 merged)
 - [x] Agent activity state detection — animated separator, sidebar indicators, 5 animation styles (PR #36 merged)
+- [ ] Clickable URLs in terminal — see `docs/plans/2026-03-22-clickable-urls-plan.md`
 - [ ] Phase 10: Integration testing & polish
 
 ## Key Reference
