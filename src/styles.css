@@ -320,10 +320,9 @@
 		box-shadow: 0 0 6px var(--sep-glow, transparent);
 		animation: var(--sep-anim, activity-scan) var(--sep-dur, 3s) linear infinite;
 	}
-	/* Bottom border → overlay at bottom edge */
-	.sep-active-bottom::after { bottom: 0; }
-	/* Top border → overlay at top edge */
-	.sep-active-top::after { top: 0; }
+	/* Position ::after on the outer border edge (negative offset = border width) */
+	.sep-active-bottom::after { bottom: calc(-1 * var(--sep-h, 1px)); }
+	.sep-active-top::after { top: calc(-1 * var(--sep-h, 1px)); }
 
 	/* Attention — static glow on the border, no sweep */
 	.sep-attention {
@@ -340,8 +339,8 @@
 		box-shadow: 0 0 8px var(--sep-glow, transparent);
 		opacity: 0.8;
 	}
-	.sep-attention-bottom::after { bottom: 0; }
-	.sep-attention-top::after { top: 0; }
+	.sep-attention-bottom::after { bottom: calc(-1 * var(--sep-h, 1px)); }
+	.sep-attention-top::after { top: calc(-1 * var(--sep-h, 1px)); }
 
 	/* scan — single bright band sweeping left to right */
 	@keyframes activity-scan {
