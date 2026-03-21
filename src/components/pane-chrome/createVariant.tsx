@@ -1,6 +1,6 @@
 import type { PrInfo } from "../../shared/types";
 import { registerVariant } from ".";
-import { FOCUS_VIS, FolderIcon, LabelButton, LeafIcon, PrBadge } from "./shared";
+import { ActivitySeparator, FOCUS_VIS, FolderIcon, LabelButton, LeafIcon, PrBadge } from "./shared";
 import type { FrameProps, PaneVariant, ScrollButtonProps, VariantTheme } from "./types";
 
 export type StyleFn = (theme: VariantTheme, isFocused: boolean) => React.CSSProperties;
@@ -105,6 +105,7 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 		isFocused,
 		canClose,
 		theme,
+		agentStatus,
 		onSplitVertical,
 		onSplitHorizontal,
 		onClose,
@@ -258,10 +259,20 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 			</div>
 		);
 
+		const separator = (
+			<ActivitySeparator
+				status={agentStatus}
+				color={theme.glow ?? theme.accent}
+				isBottom={isBottom}
+			/>
+		);
+
 		return (
 			<>
 				{!isBottom && header}
+				{!isBottom && separator}
 				{config.content ? <div className={config.content.className}>{children}</div> : children}
+				{isBottom && separator}
 				{isBottom && header}
 			</>
 		);

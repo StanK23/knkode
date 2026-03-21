@@ -1,4 +1,4 @@
-import { FOCUS_VIS, FolderIcon, GitIcon, LabelButton, PrBadge } from "./shared";
+import { ActivitySeparator, FOCUS_VIS, FolderIcon, GitIcon, LabelButton, PrBadge } from "./shared";
 import type { FrameProps, PaneVariant, ScrollButtonProps } from "./types";
 
 // DefaultVariant intentionally uses Tailwind semantic classes (bg-elevated, text-accent, etc.)
@@ -23,6 +23,7 @@ function Frame({
 	headerProps,
 	contextMenu,
 	theme,
+	agentStatus,
 }: FrameProps) {
 	const isBottom = theme.statusBarPosition === "bottom";
 
@@ -112,10 +113,16 @@ function Frame({
 		</div>
 	);
 
+	const separator = (
+		<ActivitySeparator status={agentStatus} color="var(--accent)" isBottom={isBottom} />
+	);
+
 	return (
 		<>
 			{!isBottom && header}
+			{!isBottom && separator}
 			{children}
+			{isBottom && separator}
 			{isBottom && header}
 		</>
 	);

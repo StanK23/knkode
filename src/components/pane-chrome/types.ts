@@ -1,5 +1,5 @@
 import type { RefObject } from "react";
-import type { PrInfo } from "../../shared/types";
+import type { AgentStatus, PrInfo } from "../../shared/types";
 
 /** Runtime theme colors available to every variant. Constructed by buildVariantTheme(). */
 export interface VariantTheme {
@@ -47,6 +47,8 @@ export interface FrameProps extends StatusBarProps {
 	children: React.ReactNode;
 	headerProps: React.HTMLAttributes<HTMLDivElement>;
 	contextMenu: React.ReactNode;
+	/** Current agent activity state for this pane. */
+	agentStatus: AgentStatus;
 }
 
 /** Props passed to every ScrollButton variant component. */

@@ -1,6 +1,6 @@
 /** Shared constants and utilities for pane-chrome variant components. */
 
-import type { PrInfo } from "../../shared/types";
+import type { AgentStatus, PrInfo } from "../../shared/types";
 import { DEFAULT_ACCENT_DARK, isValidHex } from "../../utils/colors";
 import type { VariantTheme } from "./types";
 
@@ -104,6 +104,36 @@ export function LabelButton({
 		>
 			{children}
 		</button>
+	);
+}
+
+/** Animated separator between status bar and terminal content.
+ *  Shows a pulsing gradient line when agent is active, a static
+ *  attention line when agent needs attention, nothing when idle. */
+export function ActivitySeparator({
+	status,
+	color,
+	isBottom,
+}: {
+	status: AgentStatus;
+	color: string;
+	isBottom?: boolean;
+}) {
+	if (status === "idle") return null;
+
+	const isActive = status === "active";
+	return (
+		<div
+			className={`w-full shrink-0 ${isActive ? "animate-pulse" : ""}`}
+			style={{
+				height: 2,
+				background: isActive
+					? `linear-gradient(90deg, transparent, ${color}, transparent)`
+					: color,
+				opacity: isActive ? 0.8 : 0.6,
+				order: isBottom ? -1 : undefined,
+			}}
+		/>
 	);
 }
 

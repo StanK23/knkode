@@ -1,5 +1,5 @@
 import { registerVariant } from ".";
-import { FOCUS_VIS, FolderIcon, LabelButton, PrBadge, resolveGlow } from "./shared";
+import { ActivitySeparator, FOCUS_VIS, FolderIcon, LabelButton, PrBadge, resolveGlow } from "./shared";
 import type { FrameProps, PaneVariant, ScrollButtonProps } from "./types";
 
 function Frame({
@@ -22,6 +22,7 @@ function Frame({
 	children,
 	headerProps,
 	contextMenu,
+	agentStatus,
 }: FrameProps) {
 	const glowColor = resolveGlow(theme);
 	const c1 = theme.accent;
@@ -147,11 +148,17 @@ function Frame({
 	return (
 		<div className="relative flex flex-col h-full w-full bg-transparent overflow-hidden">
 			{!isBottom && header}
+			{!isBottom && (
+				<ActivitySeparator status={agentStatus} color={c1} isBottom={false} />
+			)}
 
 			<div className={`relative z-10 flex-1 w-full min-h-0 ${isBottom ? "mb-1" : "mt-1"}`}>
 				{children}
 			</div>
 
+			{isBottom && (
+				<ActivitySeparator status={agentStatus} color={c1} isBottom />
+			)}
 			{isBottom && header}
 		</div>
 	);

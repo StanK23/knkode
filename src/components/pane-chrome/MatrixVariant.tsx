@@ -1,5 +1,5 @@
 import { registerVariant } from ".";
-import { FOCUS_VIS, LabelButton, PrBadge, resolveGlow } from "./shared";
+import { ActivitySeparator, FOCUS_VIS, LabelButton, PrBadge, resolveGlow } from "./shared";
 import type { FrameProps, PaneVariant, ScrollButtonProps } from "./types";
 
 function Frame({
@@ -22,6 +22,7 @@ function Frame({
 	children,
 	headerProps,
 	contextMenu,
+	agentStatus,
 }: FrameProps) {
 	const fg = isFocused ? theme.accent : theme.foreground;
 	const glowColor = resolveGlow(theme);
@@ -137,10 +138,16 @@ function Frame({
 			/>
 
 			{!isBottom && header}
+			{!isBottom && (
+				<ActivitySeparator status={agentStatus} color={theme.accent} isBottom={false} />
+			)}
 
 			{/* Terminal Content */}
 			<div className="relative z-10 flex-1 w-full min-h-0 bg-transparent">{children}</div>
 
+			{isBottom && (
+				<ActivitySeparator status={agentStatus} color={theme.accent} isBottom />
+			)}
 			{isBottom && header}
 		</div>
 	);
