@@ -19,7 +19,7 @@ createAndRegisterVariant("Tokyo Night", {
 		},
 		editInput: {
 			className: "border font-light text-[10px] py-px px-1 w-20",
-			style: (theme) => ({ borderColor: theme.accent, color: theme.foreground }),
+			style: (theme, _isFocused) => ({ borderColor: theme.accent, color: theme.foreground }),
 		},
 		cwd: {
 			className: "opacity-35 text-[10px]",
@@ -31,11 +31,11 @@ createAndRegisterVariant("Tokyo Night", {
 		pr: {
 			className:
 				"bg-transparent text-[10px] font-light px-0.5 leading-none opacity-60 hover:opacity-100 transition-opacity",
-			style: (theme) => ({ color: theme.accent }),
+			style: (theme, _isFocused) => ({ color: theme.accent }),
 		},
 		action: {
 			className: "text-[10px] px-0.5 leading-none",
-			style: (theme) => ({ color: theme.foreground }),
+			style: (theme, _isFocused) => ({ color: theme.foreground }),
 		},
 		snippet: { label: ">_" },
 		hoverRevealActions: {

@@ -18,7 +18,7 @@ createAndRegisterVariant("Ocean", {
 		},
 		editInput: {
 			className: "border rounded-sm font-light text-[11px] py-px px-1 w-20",
-			style: (theme) => ({ borderColor: theme.accent, color: theme.foreground }),
+			style: (theme, _isFocused) => ({ borderColor: theme.accent, color: theme.foreground }),
 		},
 		cwd: {
 			className: "opacity-50",
@@ -34,14 +34,14 @@ createAndRegisterVariant("Ocean", {
 		},
 		pr: {
 			className: "text-[10px] px-2 py-px rounded-md hover:brightness-110 transition-all",
-			style: (theme) => ({
+			style: (theme, _isFocused) => ({
 				backgroundColor: `${theme.accent}22`,
 				color: theme.foreground,
 			}),
 		},
 		action: {
 			className: "text-[11px] px-0.5 leading-none",
-			style: (theme) => ({ color: theme.accent }),
+			style: (theme, _isFocused) => ({ color: theme.accent }),
 		},
 		snippet: { label: ">_" },
 		hoverRevealActions: {

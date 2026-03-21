@@ -9,7 +9,7 @@ export type ThemeFn = (theme: VariantTheme) => React.CSSProperties;
 export interface VariantConfig {
 	statusBar: {
 		height: number;
-		/** Base Tailwind classes for the status bar container (gap, px, text size, font weight, etc.) */
+		/** Tailwind classes for the status bar container. */
 		className: string;
 		/** Inline styles for the status bar container. */
 		style: StyleFn;
@@ -54,20 +54,20 @@ export interface VariantConfig {
 		pr: {
 			className: string;
 			style: StyleFn;
-			/** Custom PR content (e.g. `[PR#123]`). Omit for default `#N`. */
+			/** Custom PR content rendered inside PrBadge. Omit to show default "#N" text. */
 			format?: (pr: PrInfo) => React.ReactNode;
 		};
 		action: {
 			className: string;
 			style: StyleFn;
 			/** Custom action button labels. Defaults: splitV ┃, splitH ━, close ✕ */
-			labels?: { splitV?: string; splitH?: string; close?: string };
+			labels?: Partial<Record<"splitV" | "splitH" | "close", string>>;
 		};
 		snippet: { label: string };
 		/** Wrap action buttons (excluding snippet trigger) in a hover-reveal container. */
 		hoverRevealActions?: { className: string };
 	};
-	/** Wrapper around terminal content for padding/spacing. */
+	/** Wrapper div around children (terminal content) for padding/spacing. */
 	content?: { className: string };
 	scrollButton: {
 		className: string;
@@ -78,7 +78,8 @@ export interface VariantConfig {
 
 /** Create and register a pane-chrome variant from a style configuration.
  *  Covers single-row Frame layouts — use a custom implementation
- *  for variants that need entirely custom DOM structure. */
+ *  for variants that need entirely custom DOM structure.
+ *  Returns the created PaneVariant. */
 export function createAndRegisterVariant(name: string, config: VariantConfig): PaneVariant {
 	const { statusBar: sb, scrollButton: scr } = config;
 	const hasSep = sb.separator != null;
@@ -119,13 +120,16 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 		const actionStyle = sb.action.style(theme, isFocused);
 		const isBottom = theme.statusBarPosition === "bottom";
 		const displayCwd = sb.cwd.transform ? sb.cwd.transform(cwd) : cwd;
-		const cwdStyle: React.CSSProperties = {
-			...sb.cwd.style?.(theme),
-			...(sb.cwd.maskImage
-				? { maskImage: sb.cwd.maskImage, WebkitMaskImage: sb.cwd.maskImage }
-				: {}),
-			...sb.cwd.gradientText?.(theme, isFocused),
-		};
+		const cwdStyle: React.CSSProperties =
+			sb.cwd.maskImage || sb.cwd.gradientText
+				? {
+						...sb.cwd.style?.(theme),
+						...(sb.cwd.maskImage
+							? { maskImage: sb.cwd.maskImage, WebkitMaskImage: sb.cwd.maskImage }
+							: {}),
+						...sb.cwd.gradientText?.(theme, isFocused),
+					}
+				: (sb.cwd.style?.(theme) ?? {});
 
 		const actions = (
 			<>
