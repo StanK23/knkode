@@ -14,6 +14,10 @@ const POLL_INTERVAL: Duration = Duration::from_secs(3);
 /// If no PTY output for this long, consider the pane idle. Set below POLL_INTERVAL
 /// so that the worst-case detection lag is POLL_INTERVAL + ACTIVITY_IDLE_THRESHOLD (~5s).
 const ACTIVITY_IDLE_THRESHOLD: Duration = Duration::from_millis(2000);
+/// Suppress activity detection for this long after a pane is first tracked.
+/// Prevents shell startup output (prompt, rc files) from triggering false
+/// "attention" indicators on unfocused panes at app launch.
+const ACTIVITY_WARMUP: Duration = Duration::from_secs(5);
 const PR_REFRESH_INTERVAL: Duration = Duration::from_secs(60);
 const TOOL_RETRY_INTERVAL: Duration = Duration::from_secs(300);
 const MAX_PR_TITLE_LEN: usize = 256;
@@ -45,6 +49,9 @@ struct PaneState {
     pr_last_checked: Instant,
     /// Whether this pane was classified as active in the last poll cycle.
     active: bool,
+    /// When this pane was first tracked. Activity detection is suppressed
+    /// during [`ACTIVITY_WARMUP`] to ignore shell startup output.
+    tracked_at: Instant,
 }
 
 /// Per-pane CWD, git branch, and PR status tracker.
@@ -98,6 +105,7 @@ impl CwdTracker {
                         pr: None,
                         pr_last_checked: Instant::now() - PR_REFRESH_INTERVAL,
                         active: false,
+                        tracked_at: Instant::now(),
                     },
                 );
             }
@@ -410,6 +418,11 @@ fn poll_activity(
                 .is_some_and(|age| *age < ACTIVITY_IDLE_THRESHOLD);
 
             if let Some(state) = panes_guard.get_mut(pane_id) {
+                // Skip activity detection during warmup — shell startup
+                // output would cause false "attention" on unfocused panes.
+                if state.tracked_at.elapsed() < ACTIVITY_WARMUP {
+                    continue;
+                }
                 if now_active != state.active {
                     state.active = now_active;
                     transitions.push((pane_id, now_active));
