@@ -10,6 +10,7 @@ import {
 	type GridSnapshot,
 	MAX_UNFOCUSED_DIM,
 	type PaneConfig,
+	type PaneRenameDetail,
 	type PaneScrollDetail,
 	type PaneTheme,
 	type PrInfo,
@@ -252,6 +253,17 @@ export const Pane = memo(function Pane({
 		onUpdateConfig(paneId, { label }),
 	);
 
+	// Listen for pane:rename events dispatched by sidebar context menu
+	useEffect(() => {
+		const handler = (e: Event) => {
+			const { paneId: targetId } = (e as CustomEvent<PaneRenameDetail>).detail;
+			if (targetId !== paneId) return;
+			startEditing();
+		};
+		window.addEventListener("pane:rename", handler);
+		return () => window.removeEventListener("pane:rename", handler);
+	}, [paneId, startEditing]);
+
 	const handleContextMenu = useCallback((e: React.MouseEvent) => {
 		e.preventDefault();
 		setContextPos({ x: e.clientX, y: e.clientY });
@@ -462,7 +474,6 @@ export const Pane = memo(function Pane({
 					paneId={paneId}
 					workspaceId={workspaceId}
 					config={config}
-					workspaceTheme={workspaceTheme}
 					canClose={canClose}
 					anchorPos={contextPos}
 					onUpdateConfig={(updates) => onUpdateConfig(paneId, updates)}
