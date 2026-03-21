@@ -36,8 +36,8 @@ export interface CanvasTerminalProps {
 	readonly selectionColor?: string | undefined;
 	/** Pane ID used by getSelectionText IPC. */
 	readonly paneId: string;
-	/** Theme accent color for link hover highlight. Falls back to foreground cursor color. */
-	readonly accentColor?: string | undefined;
+	/** Theme accent color for link hover highlight. Falls back to cursorColor prop. */
+	readonly accentColor?: string;
 }
 
 /** Smooth cursor blink — full cycle duration (fade out → fade in). */
@@ -1335,7 +1335,7 @@ export function CanvasTerminal({
 		[cellAtPixel, clearLinkHover],
 	);
 
-	// Track modifier key release to clear link hover (keyup fires on the container)
+	// Track modifier key release to clear link hover via window-level listeners
 	useEffect(() => {
 		const onKeyChange = (e: KeyboardEvent) => {
 			const modHeld = isModKeyHeld(e);
