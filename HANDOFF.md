@@ -1,7 +1,7 @@
 # HANDOFF — knkode-v2
 
 ## Current State
-PR #34 merged — Pane chrome factory extension. Extended `createVariant` with new config options (borderImage, transform, maskImage, gradientText, hoverRevealActions, content, pr.format, action.labels, showSeparatorBeforeBranch) and migrated Amber, Ocean, TokyoNight from hand-written components to declarative factory configs (-317 lines net). Review-hardened: 10 agents, all 16 findings addressed (5 must-fix, 7 suggestions, 4 nitpicks). StyleFn consistency applied across all 11 factory variants.
+PR #35 merged — Scroll race fix, unified context menus, sidebar branch layout, dev port change. Review-hardened: 9 agents, 15 findings (4 must-fix, 6 suggestions, 5 nitpicks), 12 fixed, 2 skipped (out of scope). Key fixes: deduplicated drag utilities (getDropZone, DRAG_THRESHOLD, suppressNextClick), extracted pane event constants, replaced comma operator anti-pattern, added CWD validation warning.
 
 ## What's Done
 - [x] Tauri 2 project scaffolded (React 19 + TypeScript 5.9 + Vite 6 + Tailwind CSS 4.2)
@@ -41,6 +41,7 @@ PR #34 merged — Pane chrome factory extension. Extended `createVariant` with n
 - [x] Tech debt: useReducer, React.memo, a11y buttons, LabelButton extraction, callback stabilization (PR #31 merged)
 - [x] Tech debt: ThemeRegistry strategy pattern, collapsed variant dedup, tracker repo-root caching, stale PR fix (PR #32 merged)
 - [x] Tech debt: Pane chrome factory extension — migrate Amber, Ocean, TokyoNight to createVariant (PR #34 merged)
+- [x] Fix: scroll race, unified context menus, sidebar branch layout, dev port (PR #35 merged)
 - [ ] Agent activity state detection (animated indicator, cross-workspace notifications)
 - [ ] Phase 10: Integration testing & polish
 
@@ -49,6 +50,7 @@ PR #34 merged — Pane chrome factory extension. Extended `createVariant` with n
 - V1 codebase: `/Users/sfory/dev/knkode/`
 
 ## Active Reviews
+
 None
 
 ## Known Issues
