@@ -519,15 +519,25 @@ fn run_cli(
     cwd: &str,
     augmented_path: &str,
 ) -> ToolOutcome<std::process::Output> {
-    let result = Command::new(tool)
-        .args(args)
+    let mut cmd = Command::new(tool);
+    cmd.args(args)
         .current_dir(cwd)
         .env("PATH", augmented_path)
         .env("GIT_TERMINAL_PROMPT", "0")
         .env("GH_PROMPT_DISABLED", "1")
         .env_remove("GIT_DIR")
         .env_remove("GIT_WORK_TREE")
-        .output();
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+
+    // Prevent visible console windows on Windows for background CLI calls
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+
+    let result = cmd.output();
 
     match result {
         Ok(output) => ToolOutcome::Success(output),

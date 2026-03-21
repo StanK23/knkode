@@ -167,7 +167,7 @@ impl PtyManager {
         } else {
             std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string())
         };
-        eprintln!("[pty] Using shell: {shell}");
+        eprintln!("[pty] Creating session {id} with shell: {shell}, cwd: {cwd}");
 
         let mut cmd = CommandBuilder::new(&shell);
         if !cfg!(windows) {
@@ -183,6 +183,10 @@ impl PtyManager {
             .slave
             .spawn_command(cmd)
             .map_err(|e| format!("Failed to spawn shell: {e}"))?;
+        eprintln!(
+            "[pty] Shell spawned for {id}, pid: {:?}",
+            child.process_id()
+        );
 
         let writer = pair
             .master
@@ -235,6 +239,7 @@ impl PtyManager {
             initial_cwd: cwd.clone(),
         };
         self.lock_sessions()?.insert(id.clone(), session);
+        eprintln!("[pty] Session stored for {id}");
 
         // Create terminal state AFTER successful session insert to avoid orphaned
         // terminal entries if sessions lock is poisoned
@@ -245,6 +250,7 @@ impl PtyManager {
             default_pw as usize,
             default_ph as usize,
         );
+        eprintln!("[pty] Terminal state created for {id}");
 
         // Shared flags between reader and flush threads.
         // `dirty`: set when terminal state advances but no snapshot was emitted (throttled).
@@ -280,12 +286,21 @@ impl PtyManager {
         let term_state = Arc::clone(&self.terminal_state);
         let output_times = Arc::clone(&self.last_output_at);
         std::thread::spawn(move || {
+            eprintln!("[pty] Reader thread started for {id_clone}");
             let mut buf = [0u8; READ_BUFFER_SIZE];
             let mut last_emit = Instant::now() - RENDER_INTERVAL; // emit first frame immediately
+            let mut total_bytes: usize = 0;
             loop {
                 match reader.read(&mut buf) {
-                    Ok(0) => break,
+                    Ok(0) => {
+                        eprintln!("[pty] Reader EOF for {id_clone} (total bytes: {total_bytes})");
+                        break;
+                    }
                     Ok(n) => {
+                        total_bytes += n;
+                        if total_bytes == n {
+                            eprintln!("[pty] First read for {id_clone}: {n} bytes");
+                        }
                         term_state.advance_only(&id_clone, &buf[..n]);
 
                         if last_emit.elapsed() >= RENDER_INTERVAL {
