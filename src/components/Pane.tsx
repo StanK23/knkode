@@ -126,6 +126,8 @@ export const Pane = memo(function Pane({
 			if (rafIdRef.current === 0) {
 				rafIdRef.current = requestAnimationFrame(() => {
 					rafIdRef.current = 0;
+					// Re-check: user may have scrolled between event and RAF execution
+					if (isScrolledRef.current) return;
 					const latest = pendingGridRef.current;
 					if (latest) {
 						pendingGridRef.current = null;
@@ -197,6 +199,8 @@ export const Pane = memo(function Pane({
 			scrollbarTimerRef.current = setTimeout(() => setScrollbarVisible(false), 2000);
 
 			pendingScrollDelta.current += deltaLines;
+			// Mark scrolled immediately to prevent render-RAF from pushing to bottom
+			if (deltaLines > 0) isScrolledRef.current = true;
 			if (scrollRafId.current !== 0) return;
 
 			scrollRafId.current = requestAnimationFrame(() => {
