@@ -12,7 +12,7 @@ createAndRegisterVariant("Sunset", {
 			boxShadow: isFocused ? `inset 0 1px 0 ${resolveGlow(theme)}22` : "none",
 		}),
 		separator: "│",
-		separatorOpacity: "opacity-20",
+		separatorClassName: "opacity-20",
 		separatorStyle: (theme) => ({ color: theme.accent }),
 		editInput: {
 			className: "border rounded-sm text-[11px] py-px px-1 w-20",

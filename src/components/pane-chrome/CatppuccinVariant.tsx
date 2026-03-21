@@ -9,7 +9,7 @@ createAndRegisterVariant("Catppuccin", {
 			borderBottom: `1px solid ${isFocused ? theme.accent : `${theme.accent}33`}`,
 		}),
 		separator: "·",
-		separatorOpacity: "opacity-25",
+		separatorClassName: "opacity-25",
 		editInput: {
 			className: "border rounded-md text-[11px] py-px px-1 w-20",
 			style: (theme) => ({ borderColor: theme.accent, color: theme.foreground }),

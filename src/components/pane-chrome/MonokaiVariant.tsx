@@ -9,7 +9,7 @@ createAndRegisterVariant("Monokai", {
 			borderBottom: `1px solid ${isFocused ? theme.accent : `${theme.foreground}22`}`,
 		}),
 		separator: "|",
-		separatorOpacity: "opacity-30",
+		separatorClassName: "opacity-30",
 		editInput: {
 			className: "border rounded-sm text-[11px] py-px px-1 w-20",
 			style: (theme) => ({ borderColor: theme.accent, color: theme.foreground }),

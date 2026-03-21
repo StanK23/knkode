@@ -49,6 +49,7 @@ createAndRegisterVariant("Ocean", {
 				"flex items-center gap-0.5 opacity-0 hover:opacity-70 focus-within:opacity-70 has-[:focus-visible]:opacity-70 transition-opacity duration-200",
 		},
 	},
+	content: { className: "px-2" },
 	scrollButton: {
 		className: "bottom-6 right-6 z-30 w-9 h-9 rounded-full text-sm hover:brightness-110",
 		style: (theme) => {

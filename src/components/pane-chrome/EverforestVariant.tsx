@@ -9,7 +9,7 @@ createAndRegisterVariant("Everforest", {
 			borderBottom: `1px solid ${isFocused ? `${theme.accent}66` : `${theme.accent}22`}`,
 		}),
 		separator: "·",
-		separatorOpacity: "opacity-30",
+		separatorClassName: "opacity-30",
 		editInput: {
 			className: "border rounded text-[11px] py-px px-1 w-20",
 			style: (theme) => ({ borderColor: theme.accent, color: theme.foreground }),

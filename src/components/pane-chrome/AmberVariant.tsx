@@ -20,10 +20,14 @@ createAndRegisterVariant("Amber", {
 			};
 		},
 		separator: "│",
-		separatorOpacity: "mx-2 opacity-40",
+		separatorClassName: "mx-2 opacity-40",
+		showSeparatorBeforeBranch: true,
 		editInput: {
 			className: "border font-mono uppercase text-[10px] py-px px-1 w-20",
-			style: (theme) => ({ borderColor: theme.accent, color: theme.accent }),
+			style: (theme, isFocused) => ({
+				borderColor: theme.accent,
+				color: isFocused ? theme.accent : theme.foreground,
+			}),
 		},
 		label: { className: "font-bold" },
 		cwd: {
@@ -33,7 +37,6 @@ createAndRegisterVariant("Amber", {
 		},
 		branch: {
 			className: "opacity-80 font-bold",
-			style: () => ({}),
 			format: (b) => `BR: ${b.toUpperCase()}`,
 		},
 		pr: {
@@ -52,6 +55,7 @@ createAndRegisterVariant("Amber", {
 		},
 		snippet: { label: "[CMD]" },
 	},
+	content: { className: "px-1" },
 	scrollButton: {
 		className:
 			"bottom-6 left-6 right-6 z-30 h-7 text-[10px] font-mono uppercase tracking-widest hover:brightness-125",

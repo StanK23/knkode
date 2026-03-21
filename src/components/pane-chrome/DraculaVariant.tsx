@@ -9,7 +9,7 @@ createAndRegisterVariant("Dracula", {
 			borderBottom: `1px solid ${isFocused ? theme.accent : `${theme.accent}33`}`,
 		}),
 		separator: "│",
-		separatorOpacity: "opacity-20",
+		separatorClassName: "opacity-20",
 		separatorStyle: (theme) => ({ color: theme.accent }),
 		showSeparatorAfterLabel: false,
 		editInput: {

@@ -10,7 +10,7 @@ createAndRegisterVariant("Arctic", {
 			borderBottom: `1px solid ${isFocused ? `${theme.accent}44` : `${theme.accent}22`}`,
 		}),
 		separator: "│",
-		separatorOpacity: "opacity-20",
+		separatorClassName: "opacity-20",
 		separatorStyle: (theme) => ({ color: theme.accent }),
 		editInput: {
 			className: "border tracking-wider font-light text-[10px] py-px px-1 w-20",
