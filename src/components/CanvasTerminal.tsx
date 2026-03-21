@@ -467,12 +467,11 @@ export function CanvasTerminal({
 	const selectionActiveRef = useRef(false);
 
 	// Link hover state — tracked to draw accent underline on Cmd+hover
-	/** Currently hovered link URL (null when not hovering a link with modifier held). */
-	const hoveredLinkRef = useRef<string | null>(null);
-	/** Viewport row of the hovered link. */
-	const hoveredLinkRowRef = useRef(-1);
-	/** Column range [start, end] of the hovered link in the viewport row. */
-	const hoveredLinkColsRef = useRef<[number, number]>([-1, -1]);
+	const linkHoverRef = useRef<{
+		url: string;
+		row: number;
+		cols: [number, number];
+	} | null>(null);
 	/** Whether the platform modifier key (Cmd/Ctrl) is currently held. */
 	const modKeyHeldRef = useRef(false);
 
@@ -708,10 +707,9 @@ export function CanvasTerminal({
 		}
 
 		// Draw link hover highlight — accent-colored text + underline on Cmd+hover
-		const linkUrl = hoveredLinkRef.current;
-		const linkRow = hoveredLinkRowRef.current;
-		const [linkStart, linkEnd] = hoveredLinkColsRef.current;
-		if (linkUrl && linkRow >= 0 && linkRow < snap.rows.length && linkStart >= 0) {
+		const linkHover = linkHoverRef.current;
+		if (linkHover && linkHover.row >= 0 && linkHover.row < snap.rows.length) {
+			const { row: linkRow, cols: [linkStart, linkEnd] } = linkHover;
 			const linkColor = accentColor ?? cursorColor;
 			const rowCells = snap.rows[linkRow];
 			if (rowCells) {
@@ -1277,10 +1275,8 @@ export function CanvasTerminal({
 
 	/** Clear link hover state and redraw if needed. */
 	const clearLinkHover = useCallback(() => {
-		if (hoveredLinkRef.current) {
-			hoveredLinkRef.current = null;
-			hoveredLinkRowRef.current = -1;
-			hoveredLinkColsRef.current = [-1, -1];
+		if (linkHoverRef.current) {
+			linkHoverRef.current = null;
 			const container = containerRef.current;
 			if (container) container.style.cursor = "";
 			drawRef.current();
@@ -1313,14 +1309,13 @@ export function CanvasTerminal({
 			}
 
 			// Already hovering this exact link — skip redraw
-			if (hoveredLinkRef.current === linkUrl && hoveredLinkRowRef.current === cell.row) {
+			const prev = linkHoverRef.current;
+			if (prev && prev.url === linkUrl && prev.row === cell.row) {
 				return;
 			}
 
 			const [start, end] = findLinkExtent(rowCells, cell.col, linkUrl);
-			hoveredLinkRef.current = linkUrl;
-			hoveredLinkRowRef.current = cell.row;
-			hoveredLinkColsRef.current = [start, end];
+			linkHoverRef.current = { url: linkUrl, row: cell.row, cols: [start, end] };
 			const container = containerRef.current;
 			if (container) container.style.cursor = "pointer";
 			drawRef.current();
