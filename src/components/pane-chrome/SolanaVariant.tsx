@@ -1,5 +1,5 @@
 import { registerVariant } from ".";
-import { FOCUS_VIS, FolderIcon, LabelButton, PrBadge, resolveGlow } from "./shared";
+import { FOCUS_VIS, FolderIcon, LabelButton, PrBadge, getSepClass, getSepVars, resolveGlow } from "./shared";
 import type { FrameProps, PaneVariant, ScrollButtonProps } from "./types";
 
 function Frame({
@@ -22,16 +22,28 @@ function Frame({
 	children,
 	headerProps,
 	contextMenu,
+	agentStatus,
 }: FrameProps) {
 	const glowColor = resolveGlow(theme);
 	const c1 = theme.accent;
 	const c2 = glowColor;
 	const isBottom = theme.statusBarPosition === "bottom";
+	const sepClass = getSepClass(agentStatus, isBottom);
+	const isAnimating = agentStatus !== "idle";
+	const sepStyle = isAnimating
+		? getSepVars(
+				`linear-gradient(90deg, ${c1}44, ${c1}, ${c2}, ${c1}44)`,
+				c1,
+				"shimmer",
+				2.5,
+				2,
+			)
+		: {};
 
 	const header = (
 		<div
 			{...headerProps}
-			className={`${headerProps.className || ""} relative z-20 flex items-center gap-2 px-3 py-1 text-[11px] font-medium shrink-0 select-none transition-all duration-200`}
+			className={`${headerProps.className || ""} relative z-20 flex items-center gap-2 px-3 py-1 text-[11px] font-medium shrink-0 select-none transition-[opacity,background,box-shadow] duration-200 ${sepClass}`}
 			style={{
 				...headerProps.style,
 				height: 30,
@@ -42,6 +54,8 @@ function Frame({
 				borderImage: isFocused
 					? `linear-gradient(90deg, ${c1}, ${c2}) 1`
 					: `linear-gradient(90deg, ${c1}33, ${c2}33) 1`,
+				...sepStyle,
+				...(isAnimating ? { borderImage: "none", borderColor: "transparent" } : {}),
 			}}
 		>
 			{isEditing ? (

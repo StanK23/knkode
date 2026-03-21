@@ -11,6 +11,13 @@ use tauri::Emitter;
 /// Polling interval for CWD/branch/PR detection. Effective cycle time accounts
 /// for processing duration so the interval stays consistent.
 const POLL_INTERVAL: Duration = Duration::from_secs(3);
+/// If no PTY output for this long, consider the pane idle. Set below POLL_INTERVAL
+/// so that the worst-case detection lag is POLL_INTERVAL + ACTIVITY_IDLE_THRESHOLD (~5s).
+const ACTIVITY_IDLE_THRESHOLD: Duration = Duration::from_millis(2000);
+/// Suppress activity detection for this long after a pane is first tracked.
+/// Prevents shell startup output (prompt, rc files) from triggering false
+/// "attention" indicators on unfocused panes at app launch.
+const ACTIVITY_WARMUP: Duration = Duration::from_secs(5);
 const PR_REFRESH_INTERVAL: Duration = Duration::from_secs(60);
 const TOOL_RETRY_INTERVAL: Duration = Duration::from_secs(300);
 const MAX_PR_TITLE_LEN: usize = 256;
@@ -40,6 +47,11 @@ struct PaneState {
     branch: Option<String>,
     pr: Option<PrInfo>,
     pr_last_checked: Instant,
+    /// Whether this pane was classified as active in the last poll cycle.
+    active: bool,
+    /// When this pane was first tracked. Activity detection is suppressed
+    /// during [`ACTIVITY_WARMUP`] to ignore shell startup output.
+    tracked_at: Instant,
 }
 
 /// Per-pane CWD, git branch, and PR status tracker.
@@ -92,6 +104,8 @@ impl CwdTracker {
                         branch: None,
                         pr: None,
                         pr_last_checked: Instant::now() - PR_REFRESH_INTERVAL,
+                        active: false,
+                        tracked_at: Instant::now(),
                     },
                 );
             }
@@ -142,12 +156,12 @@ impl CwdTracker {
                     // Prevents duplicate git/gh calls when multiple panes share a repo.
                     let mut repo_cache: HashMap<String, RepoCacheEntry> = HashMap::new();
 
-                    for pane_id in pane_ids {
+                    for pane_id in &pane_ids {
                         if !running.load(Ordering::SeqCst) {
                             break;
                         }
                         poll_pane(
-                            &pane_id,
+                            pane_id,
                             &panes,
                             &pty_manager,
                             &app,
@@ -155,6 +169,9 @@ impl CwdTracker {
                             &mut repo_cache,
                         );
                     }
+
+                    // Activity detection — check output ages for all panes in one pass
+                    poll_activity(&pane_ids, &panes, &pty_manager, &app);
 
                     let elapsed = cycle_start.elapsed();
                     if elapsed < POLL_INTERVAL {
@@ -305,7 +322,7 @@ fn poll_pane(
 
     // PR detection — deduplicated per repo root
     let should_check_pr = branch_changed
-        || with_pane_mut(panes, pane_id, |s| {
+        || with_pane(panes, pane_id, |s| {
             s.pr_last_checked.elapsed() >= PR_REFRESH_INTERVAL
         })
         .unwrap_or(false);
@@ -370,7 +387,7 @@ fn poll_pane(
         };
 
         let current_num = pr.as_ref().map(|p| p.number);
-        let last_num = with_pane_mut(panes, pane_id, |s| s.pr.as_ref().map(|p| p.number)).flatten();
+        let last_num = with_pane(panes, pane_id, |s| s.pr.as_ref().map(|p| p.number)).flatten();
         if current_num != last_num {
             let _ = app.emit("pty:pr-changed", json!({ "paneId": pane_id, "pr": pr }));
             with_pane_mut(panes, pane_id, |s| {
@@ -382,9 +399,58 @@ fn poll_pane(
     }
 }
 
+/// Check PTY output ages and emit activity-changed events on state transitions.
+/// Called once per polling cycle; fetches the bulk output-age map internally.
+fn poll_activity(
+    pane_ids: &[String],
+    panes: &Mutex<HashMap<String, PaneState>>,
+    pty_manager: &PtyManager,
+    app: &tauri::AppHandle,
+) {
+    let ages = pty_manager.get_output_ages();
+
+    // Acquire the panes lock once, collect all transitions, then emit outside the lock.
+    let mut transitions: Vec<(&str, bool)> = Vec::new();
+    if let Ok(mut panes_guard) = panes.lock() {
+        for pane_id in pane_ids {
+            let now_active = ages
+                .get(pane_id)
+                .is_some_and(|age| *age < ACTIVITY_IDLE_THRESHOLD);
+
+            if let Some(state) = panes_guard.get_mut(pane_id) {
+                // Skip activity detection during warmup — shell startup
+                // output would cause false "attention" on unfocused panes.
+                if state.tracked_at.elapsed() < ACTIVITY_WARMUP {
+                    continue;
+                }
+                if now_active != state.active {
+                    state.active = now_active;
+                    transitions.push((pane_id, now_active));
+                }
+            }
+        }
+    }
+
+    for (pane_id, active) in transitions {
+        let _ = app.emit(
+            "pty:activity-changed",
+            json!({ "paneId": pane_id, "active": active }),
+        );
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/// Read a single pane's state under the lock. Returns `None` if the lock
+/// is poisoned or the pane is absent.
+fn with_pane<F, R>(panes: &Mutex<HashMap<String, PaneState>>, pane_id: &str, f: F) -> Option<R>
+where
+    F: FnOnce(&PaneState) -> R,
+{
+    panes.lock().ok().and_then(|p| p.get(pane_id).map(f))
+}
 
 /// Mutate a single pane's state under the lock. Returns `None` if the lock
 /// is poisoned or the pane is absent.

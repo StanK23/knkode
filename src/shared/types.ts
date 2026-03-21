@@ -8,8 +8,12 @@ export const DEFAULT_PANE_OPACITY = 1;
 /** Minimum pane background opacity. UI clamps to [MIN_PANE_OPACITY, 1]. */
 export const MIN_PANE_OPACITY = 0.05;
 
-/** Agent activity status for a terminal pane. */
-export type AgentStatus = "idle" | "in_progress" | "input_required";
+/** Agent activity status for a terminal pane.
+ *  - idle: no recent PTY output
+ *  - active: PTY output within the last 2 seconds
+ *  - attention: agent went idle while user was on a different pane */
+export const AGENT_STATUSES = ["idle", "active", "attention"] as const;
+export type AgentStatus = (typeof AGENT_STATUSES)[number];
 
 export const CURSOR_STYLES = ["block", "underline", "bar"] as const;
 export type CursorStyle = (typeof CURSOR_STYLES)[number];
@@ -394,4 +398,5 @@ export interface KnkodeApi {
 	onPtyCwdChanged(cb: (paneId: string, cwd: string) => void): Unsubscribe;
 	onPtyBranchChanged(cb: (paneId: string, branch: string | null) => void): Unsubscribe;
 	onPtyPrChanged(cb: (paneId: string, pr: PrInfo | null) => void): Unsubscribe;
+	onPtyActivityChanged(cb: (paneId: string, active: boolean) => void): Unsubscribe;
 }

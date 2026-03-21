@@ -1,5 +1,5 @@
 import { registerVariant } from ".";
-import { FOCUS_VIS, LabelButton, PrBadge, resolveGlow } from "./shared";
+import { FOCUS_VIS, LabelButton, PrBadge, getSepClass, getSepVars, resolveGlow } from "./shared";
 import type { FrameProps, PaneVariant, ScrollButtonProps } from "./types";
 
 function Frame({
@@ -22,6 +22,7 @@ function Frame({
 	children,
 	headerProps,
 	contextMenu,
+	agentStatus,
 }: FrameProps) {
 	const glowColor = resolveGlow(theme);
 	const c1 = theme.accent;
@@ -32,11 +33,21 @@ function Frame({
 	const activeC2 = isFocused ? c2 : `${c2}88`;
 
 	const isBottom = theme.statusBarPosition === "bottom";
+	const sepClass = getSepClass(agentStatus, isBottom);
+	const isAnimating = agentStatus !== "idle";
+	const sepStyle = isAnimating
+		? getSepVars(
+				`linear-gradient(90deg, transparent, ${c1}, ${c2}, transparent)`,
+				c1,
+				"dual-scan",
+				3.5,
+			)
+		: {};
 
 	const header = (
 		<div
 			{...headerProps}
-			className={`${headerProps.className || ""} w-full flex items-center gap-2 px-4 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest shrink-0 select-none transition-all duration-300 z-20`}
+			className={`${headerProps.className || ""} w-full flex items-center gap-2 px-4 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest shrink-0 select-none transition-[opacity,background,box-shadow] duration-300 z-20 ${sepClass}`}
 			style={{
 				...headerProps.style,
 				height: 32,
@@ -46,6 +57,8 @@ function Frame({
 				borderBottom: isBottom ? "none" : `1px solid ${activeC1}88`,
 				background: `linear-gradient(90deg, ${activeC1}26 0%, ${activeC2}14 100%), #0d0221`,
 				boxShadow: isFocused ? `0 ${isBottom ? "-1px" : "1px"} 8px ${glowColor}44` : "none",
+				...sepStyle,
+				...(isAnimating ? { borderColor: "transparent" } : {}),
 			}}
 		>
 			{isEditing ? (

@@ -1,6 +1,6 @@
 /** Shared constants and utilities for pane-chrome variant components. */
 
-import type { PrInfo } from "../../shared/types";
+import type { AgentStatus, PrInfo } from "../../shared/types";
 import { DEFAULT_ACCENT_DARK, isValidHex } from "../../utils/colors";
 import type { VariantTheme } from "./types";
 
@@ -105,6 +105,42 @@ export function LabelButton({
 			{children}
 		</button>
 	);
+}
+
+/** Activity separator animation style.
+ *  - scan: single bright band sweeping L→R (default, most themes)
+ *  - dual-scan: two bands sweeping in opposite directions (Cyberpunk, Vaporwave)
+ *  - wave: gentle opacity pulse (Nord, Catppuccin, Everforest)
+ *  - ember: warm glow brighten/fade (Amber, Sunset, Gruvbox)
+ *  - shimmer: fast sparkle sweep (Matrix, Solana) */
+export type SeparatorAnimation = "scan" | "dual-scan" | "wave" | "ember" | "shimmer";
+
+/** Build CSS custom property values for the sep-active/sep-attention ::after overlay.
+ *  These are spread onto the header div's inline style. The ::after pseudo-element
+ *  in styles.css reads them to render the animated border overlay. */
+export function getSepVars(
+	gradient: string,
+	glowColor: string,
+	animation: SeparatorAnimation = "scan",
+	duration = 3,
+	borderHeight = 1,
+): React.CSSProperties {
+	return {
+		"--sep-bg": gradient,
+		"--sep-glow": `${glowColor}88`,
+		"--sep-h": `${borderHeight}px`,
+		"--sep-anim": `activity-${animation}`,
+		"--sep-dur": `${duration}s`,
+	} as React.CSSProperties;
+}
+
+/** Build the CSS class string for the header based on agent status and border position.
+ *  Returns empty string for idle (no overlay). */
+export function getSepClass(status: AgentStatus, isBottom: boolean): string {
+	if (status === "idle") return "";
+	const type = status === "active" ? "sep-active" : "sep-attention";
+	const edge = isBottom ? "top" : "bottom";
+	return `${type} ${type}-${edge}`;
 }
 
 /** Clickable PR badge — shared structure, per-variant styling via className/style/children. */

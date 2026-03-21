@@ -19,6 +19,7 @@ export function App() {
 	const updatePaneCwd = useStore((s) => s.updatePaneCwd);
 	const updatePaneBranch = useStore((s) => s.updatePaneBranch);
 	const updatePanePr = useStore((s) => s.updatePanePr);
+	const updatePaneAgentStatus = useStore((s) => s.updatePaneAgentStatus);
 	const visitedWorkspaceIds = useStore((s) => s.visitedWorkspaceIds);
 
 	const [showSettings, setShowSettings] = useState(false);
@@ -61,8 +62,8 @@ export function App() {
 		}
 	}, [initialized, openWorkspaceIds]);
 
-	// Listen for backend PTY events (CWD, git branch, PR status).
-	// Unified into a single effect to avoid three identical subscribe/lookup patterns.
+	// Listen for backend PTY events (CWD, git branch, PR status, activity state).
+	// Unified into a single effect to avoid four identical subscribe/lookup patterns.
 	useEffect(() => {
 		const findWs = (paneId: string) =>
 			useStore.getState().workspaces.find((w) => paneId in w.panes);
@@ -80,9 +81,20 @@ export function App() {
 				const ws = findWs(paneId);
 				if (ws) updatePanePr(paneId, pr);
 			}),
+			window.api.onPtyActivityChanged((paneId, active) => {
+				const ws = findWs(paneId);
+				if (!ws) return;
+				if (active) {
+					updatePaneAgentStatus(paneId, "active");
+				} else {
+					// Went idle — if pane is focused, stay idle; otherwise → attention
+					const { focusedPaneId } = useStore.getState();
+					updatePaneAgentStatus(paneId, focusedPaneId === paneId ? "idle" : "attention");
+				}
+			}),
 		];
 		return () => unsubs.forEach((fn) => fn());
-	}, [updatePaneCwd, updatePaneBranch, updatePanePr]);
+	}, [updatePaneCwd, updatePaneBranch, updatePanePr, updatePaneAgentStatus]);
 
 	// Must be above early returns to satisfy React's rules of hooks.
 	// Returns { vars, failed } so we can show a fallback indicator on failure.

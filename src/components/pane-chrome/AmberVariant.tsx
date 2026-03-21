@@ -55,6 +55,10 @@ createAndRegisterVariant("Amber", {
 		},
 		snippet: { label: "[CMD]" },
 	},
+	activity: {
+		gradient: (theme) => `linear-gradient(90deg, ${theme.accent}88, ${theme.accent}, ${theme.accent}88)`,
+		animation: "ember",
+	},
 	content: { className: "px-1" },
 	scrollButton: {
 		className:

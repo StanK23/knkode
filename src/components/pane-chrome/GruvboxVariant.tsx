@@ -46,6 +46,10 @@ createAndRegisterVariant("Gruvbox", {
 		},
 		snippet: { label: ">_" },
 	},
+	activity: {
+		gradient: (theme) => `linear-gradient(90deg, ${theme.accent}88, ${theme.accent}, ${theme.accent}88)`,
+		animation: "ember",
+	},
 	scrollButton: {
 		className: "bottom-3 left-3 right-3 h-7 text-[11px] hover:brightness-110",
 		style: (theme) => ({

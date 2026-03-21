@@ -44,20 +44,29 @@ export function SidebarPaneEntry({
 		window.dispatchEvent(new CustomEvent(PANE_RENAME_EVENT, { detail: { paneId } }));
 	}, [paneId]);
 
+	const statusClass =
+		agentStatus === "active"
+			? "sidebar-pane-active"
+			: agentStatus === "attention"
+				? "sidebar-pane-attention"
+				: "";
+
 	return (
 		<>
-			<PaneEntryVariant
-				preset={preset}
-				paneId={paneId}
-				label={config.label}
-				cwd={shortCwd}
-				branch={branch}
-				pr={pr}
-				agentStatus={agentStatus}
-				isFocused={isFocused}
-				onClick={onClick}
-				onContextMenu={ctx.open}
-			/>
+			<div className={statusClass}>
+				<PaneEntryVariant
+					preset={preset}
+					paneId={paneId}
+					label={config.label}
+					cwd={shortCwd}
+					branch={branch}
+					pr={pr}
+					agentStatus={agentStatus}
+					isFocused={isFocused}
+					onClick={onClick}
+					onContextMenu={ctx.open}
+				/>
+			</div>
 
 			{ctx.isOpen && (
 				<PaneContextMenu
