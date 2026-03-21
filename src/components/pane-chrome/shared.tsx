@@ -113,25 +113,23 @@ export function LabelButton({
 export function ActivitySeparator({
 	status,
 	color,
-	isBottom,
 }: {
 	status: AgentStatus;
 	color: string;
-	isBottom?: boolean;
 }) {
 	if (status === "idle") return null;
 
 	const isActive = status === "active";
 	return (
 		<div
-			className={`w-full shrink-0 ${isActive ? "animate-pulse" : ""}`}
+			role="status"
+			aria-label={isActive ? "Agent is active" : "Agent needs attention"}
+			className={`w-full h-0.5 shrink-0 ${isActive ? "animate-pulse motion-reduce:animate-none" : ""}`}
 			style={{
-				height: 2,
 				background: isActive
 					? `linear-gradient(90deg, transparent, ${color}, transparent)`
 					: color,
 				opacity: isActive ? 0.8 : 0.6,
-				order: isBottom ? -1 : undefined,
 			}}
 		/>
 	);

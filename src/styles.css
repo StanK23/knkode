@@ -331,7 +331,9 @@
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.animate-panel-in {
+		.animate-panel-in,
+		.animate-ping,
+		.animate-spin {
 			animation: none;
 		}
 		.settings-input,

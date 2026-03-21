@@ -165,7 +165,7 @@ function Frame({
 		<div className="relative flex flex-col h-full w-full bg-transparent overflow-hidden">
 			{!isBottom && header}
 			{!isBottom && (
-				<ActivitySeparator status={agentStatus} color={c1} isBottom={false} />
+				<ActivitySeparator status={agentStatus} color={c1} />
 			)}
 
 			{/* Terminal Content */}
@@ -176,7 +176,7 @@ function Frame({
 			</div>
 
 			{isBottom && (
-				<ActivitySeparator status={agentStatus} color={c1} isBottom />
+				<ActivitySeparator status={agentStatus} color={c1} />
 			)}
 			{isBottom && header}
 		</div>

@@ -263,7 +263,6 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 			<ActivitySeparator
 				status={agentStatus}
 				color={theme.glow ?? theme.accent}
-				isBottom={isBottom}
 			/>
 		);
 
