@@ -1,7 +1,7 @@
 # HANDOFF — knkode-v2
 
 ## Current State
-PR #32 merged — ThemeRegistry strategy pattern + tracker dedup + stale PR fix. Replaced 4 switch×16 with `VARIANT_REGISTRY` Record lookup (compile-time exhaustive). Replaced 16 individual Collapsed components with token-driven `CollapsedButton` + decorator factories. Tracker: per-cycle repo-root caching deduplicates git/gh subprocess calls across panes sharing same repo. Store: stopped persisting/hydrating stale PR data. Review-hardened: 8 agents, all findings addressed.
+PR #34 merged — Pane chrome factory extension. Extended `createVariant` with new config options (borderImage, transform, maskImage, gradientText, hoverRevealActions, content, pr.format, action.labels, showSeparatorBeforeBranch) and migrated Amber, Ocean, TokyoNight from hand-written components to declarative factory configs (-317 lines net). Review-hardened: 10 agents, all 16 findings addressed (5 must-fix, 7 suggestions, 4 nitpicks). StyleFn consistency applied across all 11 factory variants.
 
 ## What's Done
 - [x] Tauri 2 project scaffolded (React 19 + TypeScript 5.9 + Vite 6 + Tailwind CSS 4.2)
@@ -40,7 +40,7 @@ PR #32 merged — ThemeRegistry strategy pattern + tracker dedup + stale PR fix.
 - [x] Per-workspace sidebar theming with per-preset personalities (PR #30 merged)
 - [x] Tech debt: useReducer, React.memo, a11y buttons, LabelButton extraction, callback stabilization (PR #31 merged)
 - [x] Tech debt: ThemeRegistry strategy pattern, collapsed variant dedup, tracker repo-root caching, stale PR fix (PR #32 merged)
-- [ ] Tech debt: Pane chrome factory extension — migrate Amber, Ocean, TokyoNight to createVariant (PR #34 open, review fixes applied)
+- [x] Tech debt: Pane chrome factory extension — migrate Amber, Ocean, TokyoNight to createVariant (PR #34 merged)
 - [ ] Agent activity state detection (animated indicator, cross-workspace notifications)
 - [ ] Phase 10: Integration testing & polish
 
@@ -49,11 +49,7 @@ PR #32 merged — ThemeRegistry strategy pattern + tracker dedup + stale PR fix.
 - V1 codebase: `/Users/sfory/dev/knkode/`
 
 ## Active Reviews
-
-### PR #34 — refactor: pane chrome factory extension — migrate Amber, Ocean, TokyoNight
-- State: `docs/reviews/PR-34/_state.json`
-- Agents: 10/10 completed
-- Phase: done — review fixes applied
+None
 
 ## Known Issues
 - wezterm-term resolved: using `tattoy-wezterm-term` 0.1.0-fork.5 (fork published on crates.io)
