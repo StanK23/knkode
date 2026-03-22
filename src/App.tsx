@@ -8,7 +8,8 @@ import { findPreset } from "./data/theme-presets";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useStore } from "./store";
 import { generateThemeVariables } from "./utils/colors";
-import { isWindows, WINDOWS_CAPTION_BUTTON_WIDTH } from "./utils/platform";
+import { isWindows } from "./utils/platform";
+import { WindowControls } from "./components/WindowControls";
 
 export function App() {
 	const initialized = useStore((s) => s.initialized);
@@ -150,12 +151,16 @@ export function App() {
 				className="flex flex-row h-full w-full relative"
 				style={{
 					...themeStyles,
-					...(isWindows && { "--spacing-caption": WINDOWS_CAPTION_BUTTON_WIDTH }),
 					color: "var(--color-content)",
 					fontFamily: "var(--font-family-ui)",
 					fontSize: "var(--font-size-ui)",
 				}}
 			>
+				{isWindows && (
+					<div className="absolute top-0 right-0 z-50">
+						<WindowControls />
+					</div>
+				)}
 				<Sidebar onOpenSettings={toggleSettings} onOpenHotkeys={() => setShowHotkeys(true)} />
 				<div className="flex flex-col flex-1 min-w-0">
 					{themeFailed && (
