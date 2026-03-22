@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { toPresetName } from "../data/theme-presets";
+import { type ThemePresetName, toPresetName } from "../data/theme-presets";
 import { useClickOutside } from "../hooks/useClickOutside";
 import { useDragReorder } from "../hooks/useDragReorder";
 import { useWindowDrag } from "../hooks/useWindowDrag";
@@ -17,6 +17,26 @@ import {
 
 /** px */ const SIDEBAR_WIDTH = 200;
 /** px — wide enough to contain macOS traffic lights (90px) and show truncated workspace names */ const SIDEBAR_COLLAPSED_WIDTH = 96;
+
+interface DragReorderProps {
+	dragFromIndex: number | null;
+	dragOverIndex: number | null;
+	onDragPointerDown: (e: React.PointerEvent, index: number) => void;
+}
+
+/** Compute className for a draggable workspace item based on drag state. */
+function dragItemClassName(dragFromIndex: number | null, dragOverIndex: number | null, index: number): string {
+	const isDragSource = dragFromIndex === index;
+	const isDropTarget = dragOverIndex === index && dragFromIndex !== null && dragFromIndex !== index;
+	return [
+		"transition-all duration-150",
+		dragFromIndex === null ? "cursor-grab" : "cursor-grabbing",
+		isDragSource && "opacity-40",
+		isDropTarget && "bg-accent/10",
+	]
+		.filter(Boolean)
+		.join(" ");
+}
 
 interface SidebarProps {
 	onOpenSettings: () => void;
@@ -155,6 +175,7 @@ export function Sidebar({ onOpenSettings, onOpenHotkeys }: SidebarProps) {
 					<CollapsedView
 						workspaces={openWorkspaces}
 						activeWorkspaceId={activeWorkspaceId}
+						activePreset={activePreset}
 						attentionWorkspaceIds={attentionWorkspaceIds}
 						onActivate={setActiveWorkspace}
 						dragFromIndex={dragFromIndex}
@@ -168,18 +189,16 @@ export function Sidebar({ onOpenSettings, onOpenHotkeys }: SidebarProps) {
 							const isSectionCollapsed = collapsedSections.has(ws.id);
 							const paneIds = getPaneIdsInOrder(ws.layout.tree);
 							const canClose = paneIds.length > 1;
-							const isDragSource = dragFromIndex === index;
-							const isDropTarget = dragOverIndex === index && dragFromIndex !== null && dragFromIndex !== index;
 
 							return (
 								<div
 									key={ws.id}
 									data-workspace-item
-									className={`transition-all duration-150 ${isDragSource ? "opacity-40" : ""} ${isDropTarget ? "bg-accent/10" : ""}`}
+									className={dragItemClassName(dragFromIndex, dragOverIndex, index)}
 								>
 									<WorkspaceSectionWrapper preset={activePreset} isActive={isActive}>
 										<div
-											className={`relative ${dragFromIndex === null ? "cursor-grab" : "cursor-grabbing"}`}
+											className="relative"
 											onPointerDown={(e) => handleWorkspaceDragPointerDown(e, index)}
 										>
 											<SidebarWorkspaceHeader
@@ -391,6 +410,7 @@ export function Sidebar({ onOpenSettings, onOpenHotkeys }: SidebarProps) {
 function CollapsedView({
 	workspaces,
 	activeWorkspaceId,
+	activePreset,
 	attentionWorkspaceIds,
 	onActivate,
 	dragFromIndex,
@@ -399,27 +419,19 @@ function CollapsedView({
 }: {
 	workspaces: Workspace[];
 	activeWorkspaceId: string | null;
+	activePreset: ThemePresetName;
 	attentionWorkspaceIds: ReadonlySet<string>;
 	onActivate: (id: string) => void;
-	dragFromIndex: number | null;
-	dragOverIndex: number | null;
-	onDragPointerDown: (e: React.PointerEvent, index: number) => void;
-}) {
-	const activePreset = toPresetName(
-		workspaces.find((w) => w.id === activeWorkspaceId)?.theme.preset,
-	);
-
+} & DragReorderProps) {
 	return (
 		<div data-workspace-list className="flex flex-col gap-1 py-1">
 			{workspaces.map((ws, index) => {
 				const isActive = ws.id === activeWorkspaceId;
-				const isDragSource = dragFromIndex === index;
-				const isDropTarget = dragOverIndex === index && dragFromIndex !== null && dragFromIndex !== index;
 				return (
 					<div
 						key={ws.id}
 						data-workspace-item
-						className={`transition-all duration-150 ${dragFromIndex === null ? "cursor-grab" : "cursor-grabbing"} ${isDragSource ? "opacity-40" : ""} ${isDropTarget ? "bg-accent/10" : ""}`}
+						className={dragItemClassName(dragFromIndex, dragOverIndex, index)}
 						onPointerDown={(e) => onDragPointerDown(e, index)}
 					>
 						<WorkspaceSectionWrapper preset={activePreset} isActive={isActive}>
