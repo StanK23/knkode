@@ -277,8 +277,8 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 	Cyberpunk: {
 		wrapper: {
 			base: "mb-3 overflow-hidden border-l-2 border-b",
-			active: "bg-[#0d0221] border-l-[#ff2a6d]/60 border-b-[#7a20a0]",
-			inactive: "bg-[#050014] border-l-[#5a1080] border-b-[#7a20a0]",
+			active: "bg-[#0d0221] border-l-[#ff2a6d]/60 border-b-[#ff2a6d]/60",
+			inactive: "bg-[#050014] border-l-[#5a1080] border-b-[#5a1080]",
 		},
 		collapsed: {
 			button:
