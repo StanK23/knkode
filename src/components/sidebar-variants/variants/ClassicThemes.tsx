@@ -46,7 +46,7 @@ export function DefaultDarkHeader({
 				</span>
 			)}
 			{attentionCount > 0 && (
-				<span className="text-[9px] leading-none px-1.5 py-0.5 rounded-sm bg-[#232946] shrink-0 border border-[#2a2f4a]">
+				<span title={`${attentionCount} pane(s) need attention`} className="text-[9px] leading-none px-1.5 py-0.5 rounded-sm bg-[#232946] shrink-0 border border-[#2a2f4a]">
 					{attentionCount}
 				</span>
 			)}
@@ -134,7 +134,7 @@ export function DraculaHeader({
 				</span>
 			)}
 			{attentionCount > 0 && (
-				<span className="text-[10px] leading-none font-bold px-1.5 py-0.5 rounded-full bg-[#bd93f9]/20 text-[#bd93f9] shrink-0">
+				<span title={`${attentionCount} pane(s) need attention`} className="text-[10px] leading-none font-bold px-1.5 py-0.5 rounded-full bg-[#bd93f9]/20 text-[#bd93f9] shrink-0">
 					{attentionCount}
 				</span>
 			)}
@@ -231,7 +231,7 @@ export function TokyoNightHeader({
 				</span>
 			)}
 			{attentionCount > 0 && (
-				<span className="text-[9px] leading-none px-1.5 py-0.5 rounded-sm bg-[#1a1b26] border border-[#292e42] text-[#7dcfff] shrink-0">
+				<span title={`${attentionCount} pane(s) need attention`} className="text-[9px] leading-none px-1.5 py-0.5 rounded-sm bg-[#1a1b26] border border-[#292e42] text-[#7dcfff] shrink-0">
 					{attentionCount}
 				</span>
 			)}
@@ -314,7 +314,7 @@ export function NordHeader({
 				</span>
 			)}
 			{attentionCount > 0 && (
-				<span className="text-[10px] leading-none px-1.5 py-0.5 rounded text-[#81a1c1] shrink-0">
+				<span title={`${attentionCount} pane(s) need attention`} className="text-[10px] leading-none px-1.5 py-0.5 rounded text-[#81a1c1] shrink-0">
 					{attentionCount}
 				</span>
 			)}
@@ -410,7 +410,7 @@ export function CatppuccinHeader({
 				</span>
 			)}
 			{attentionCount > 0 && (
-				<span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#cba6f7]/20 text-[#cba6f7] shrink-0">
+				<span title={`${attentionCount} pane(s) need attention`} className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#cba6f7]/20 text-[#cba6f7] shrink-0">
 					{attentionCount}
 				</span>
 			)}
@@ -509,7 +509,7 @@ export function GruvboxHeader({
 				</span>
 			)}
 			{attentionCount > 0 && (
-				<span className="font-mono text-[10px] text-[#83a598] shrink-0">({attentionCount})</span>
+				<span title={`${attentionCount} pane(s) need attention`} className="font-mono text-[10px] text-[#83a598] shrink-0">({attentionCount})</span>
 			)}
 		</button>
 	);
@@ -596,7 +596,7 @@ export function MonokaiHeader({
 				</span>
 			)}
 			{attentionCount > 0 && (
-				<span className="text-[10px] px-1.5 py-0.5 rounded bg-[#49483e] text-[#66d9ef] shrink-0">
+				<span title={`${attentionCount} pane(s) need attention`} className="text-[10px] px-1.5 py-0.5 rounded bg-[#49483e] text-[#66d9ef] shrink-0">
 					{attentionCount}
 				</span>
 			)}
@@ -678,7 +678,7 @@ export function EverforestHeader({
 				</span>
 			)}
 			{attentionCount > 0 && (
-				<span className="text-[10px] px-1.5 py-0.5 rounded text-[#d699b6] shrink-0">
+				<span title={`${attentionCount} pane(s) need attention`} className="text-[10px] px-1.5 py-0.5 rounded text-[#d699b6] shrink-0">
 					{attentionCount}
 				</span>
 			)}
