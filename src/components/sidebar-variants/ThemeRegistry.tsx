@@ -62,13 +62,6 @@ function diamond(size: string, activeClass: string, inactiveClass: string) {
 	);
 }
 
-function globe(size: string, activeClass: string, inactiveClass: string) {
-	return (isActive: boolean) => (
-		<div
-			className={`${size} rounded-full shrink-0 transition-all ${isActive ? activeClass : inactiveClass}`}
-		/>
-	);
-}
 
 function monokaiArrow(isActive: boolean) {
 	return (
@@ -378,7 +371,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 			inactive:
 				"bg-transparent text-[#d04830] border-transparent hover:text-[#f0d8b0] hover:bg-[#180c0a]",
 			label: "sidebar-header text-[12px] font-bold tracking-wide truncate",
-			decorator: globe(
+			decorator: dot(
 				"w-3 h-3",
 				"bg-gradient-to-b from-[#e8a040] to-[#e04028] shadow-[0_0_10px_rgba(232,160,64,0.5)]",
 				"bg-[#4d2418]",
