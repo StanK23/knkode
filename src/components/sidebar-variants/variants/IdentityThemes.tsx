@@ -33,7 +33,14 @@ export function MatrixHeader({
 			) : (
 				<span className="sidebar-header text-[12px] truncate flex-1 min-w-0">{name}</span>
 			)}
-			{attentionCount > 0 && <span title={`${attentionCount} pane(s) need attention`} className="text-[10px] shrink-0 opacity-80">{attentionCount}</span>}
+			{attentionCount > 0 && (
+				<span
+					title={`${attentionCount} pane(s) need attention`}
+					className="text-[10px] shrink-0 opacity-80"
+				>
+					{attentionCount}
+				</span>
+			)}
 		</button>
 	);
 }
@@ -238,7 +245,10 @@ export function SolanaHeader({
 				</span>
 			)}
 			{attentionCount > 0 && (
-				<span title={`${attentionCount} pane(s) need attention`} className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#14f195]/20 text-[#14f195] shrink-0">
+				<span
+					title={`${attentionCount} pane(s) need attention`}
+					className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#14f195]/20 text-[#14f195] shrink-0"
+				>
 					{attentionCount}
 				</span>
 			)}
@@ -333,7 +343,12 @@ export function AmberHeader({
 				<span className="sidebar-header text-[12px] font-bold truncate flex-1 min-w-0">{name}</span>
 			)}
 			{attentionCount > 0 && (
-				<span title={`${attentionCount} pane(s) need attention`} className="text-[10px] px-1 border border-[#b37a00] shrink-0">{attentionCount}</span>
+				<span
+					title={`${attentionCount} pane(s) need attention`}
+					className="text-[10px] px-1 border border-[#b37a00] shrink-0"
+				>
+					{attentionCount}
+				</span>
 			)}
 		</button>
 	);
@@ -423,7 +438,10 @@ export function VaporwaveHeader({
 				</span>
 			)}
 			{attentionCount > 0 && (
-				<span title={`${attentionCount} pane(s) need attention`} className="text-[10px] px-1.5 bg-[#ff2d95]/20 text-[#ff2d95] rounded-sm shrink-0 font-bold">
+				<span
+					title={`${attentionCount} pane(s) need attention`}
+					className="text-[10px] px-1.5 bg-[#ff2d95]/20 text-[#ff2d95] rounded-sm shrink-0 font-bold"
+				>
 					{attentionCount}
 				</span>
 			)}
@@ -532,7 +550,10 @@ export function OceanHeader({
 				</span>
 			)}
 			{attentionCount > 0 && (
-				<span title={`${attentionCount} pane(s) need attention`} className="text-[10px] px-2 rounded-full bg-[#00e5b0]/20 text-[#00e5b0] shrink-0">
+				<span
+					title={`${attentionCount} pane(s) need attention`}
+					className="text-[10px] px-2 rounded-full bg-[#00e5b0]/20 text-[#00e5b0] shrink-0"
+				>
 					{attentionCount}
 				</span>
 			)}
@@ -578,9 +599,7 @@ export function OceanEntry({
 			{(branch || pr) && (
 				<div className="flex items-center gap-2 min-w-0 w-full">
 					{branch && (
-						<span className="text-[9px] text-[#4dd8e0] truncate min-w-0 flex-1">
-							{branch}
-						</span>
+						<span className="text-[9px] text-[#4dd8e0] truncate min-w-0 flex-1">{branch}</span>
 					)}
 					{pr && (
 						<span className="text-[9px] text-[#00e5b0] bg-[#00e5b0]/10 px-1 rounded-sm shrink-0 ml-auto">
@@ -635,7 +654,10 @@ export function SunsetHeader({
 				</span>
 			)}
 			{attentionCount > 0 && (
-				<span title={`${attentionCount} pane(s) need attention`} className="text-[10px] px-1.5 rounded-sm bg-[#b83820] text-[#fff0d8] shrink-0 font-bold">
+				<span
+					title={`${attentionCount} pane(s) need attention`}
+					className="text-[10px] px-1.5 rounded-sm bg-[#b83820] text-[#fff0d8] shrink-0 font-bold"
+				>
 					{attentionCount}
 				</span>
 			)}
@@ -681,9 +703,7 @@ export function SunsetEntry({
 			{(branch || pr) && (
 				<div className="flex items-center gap-2 min-w-0 w-full">
 					{branch && (
-						<span className="text-[9px] text-[#f0b048] truncate min-w-0 flex-1">
-							{branch}
-						</span>
+						<span className="text-[9px] text-[#f0b048] truncate min-w-0 flex-1">{branch}</span>
 					)}
 					{pr && <span className="text-[9px] text-[#ffc040] shrink-0 ml-auto">#{pr.number}</span>}
 				</div>
@@ -742,7 +762,10 @@ export function ArcticHeader({
 				</span>
 			)}
 			{attentionCount > 0 && (
-				<span title={`${attentionCount} pane(s) need attention`} className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#a0e0f8]/20 text-[#a0e0f8] shrink-0 font-medium">
+				<span
+					title={`${attentionCount} pane(s) need attention`}
+					className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#a0e0f8]/20 text-[#a0e0f8] shrink-0 font-medium"
+				>
 					{attentionCount}
 				</span>
 			)}
