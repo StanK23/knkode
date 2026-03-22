@@ -74,6 +74,8 @@ export function Sidebar({ onOpenSettings, onOpenHotkeys }: SidebarProps) {
 		itemSelector: "[data-workspace-item]",
 	});
 
+	const [liveMessage, setLiveMessage] = useState("");
+
 	const paneAgentStatuses = useStore((s) => s.paneAgentStatuses);
 
 	const activePreset = useMemo(() => {
@@ -107,6 +109,24 @@ export function Sidebar({ onOpenSettings, onOpenHotkeys }: SidebarProps) {
 			})
 			.filter((w): w is Workspace => w !== undefined);
 	}, [openWorkspaceIds, workspaces]);
+
+	const handleKeyboardReorder = useCallback(
+		(e: React.KeyboardEvent, index: number) => {
+			if (!e.altKey) return;
+			if (e.key === "ArrowUp" && index > 0) {
+				e.preventDefault();
+				reorderWorkspaceTabs(index, index - 1);
+				const name = openWorkspaces[index]?.name ?? "Workspace";
+				setLiveMessage(`Moved ${name} to position ${index}`);
+			} else if (e.key === "ArrowDown" && index < openWorkspaces.length - 1) {
+				e.preventDefault();
+				reorderWorkspaceTabs(index, index + 1);
+				const name = openWorkspaces[index]?.name ?? "Workspace";
+				setLiveMessage(`Moved ${name} to position ${index + 2}`);
+			}
+		},
+		[reorderWorkspaceTabs, openWorkspaces],
+	);
 
 	const closedWorkspaces = useMemo(
 		() => workspaces.filter((w) => !openWorkspaceIds.includes(w.id)),
@@ -178,12 +198,13 @@ export function Sidebar({ onOpenSettings, onOpenHotkeys }: SidebarProps) {
 						activePreset={activePreset}
 						attentionWorkspaceIds={attentionWorkspaceIds}
 						onActivate={setActiveWorkspace}
+						onKeyboardReorder={handleKeyboardReorder}
 						dragFromIndex={dragFromIndex}
 						dragOverIndex={dragOverIndex}
 						onDragPointerDown={handleWorkspaceDragPointerDown}
 					/>
 				) : (
-					<div data-workspace-list className="flex flex-col gap-1 py-1">
+					<div data-workspace-list role="list" className="flex flex-col gap-1 py-1">
 						{openWorkspaces.map((ws, index) => {
 							const isActive = ws.id === activeWorkspaceId;
 							const isSectionCollapsed = collapsedSections.has(ws.id);
@@ -193,13 +214,18 @@ export function Sidebar({ onOpenSettings, onOpenHotkeys }: SidebarProps) {
 							return (
 								<div
 									key={ws.id}
+									role="listitem"
 									data-workspace-item
+									aria-roledescription="reorderable workspace"
 									className={dragItemClassName(dragFromIndex, dragOverIndex, index)}
 								>
 									<WorkspaceSectionWrapper preset={activePreset} isActive={isActive}>
 										<div
 											className="relative"
+											aria-label={`Reorder ${ws.name}, item ${index + 1} of ${openWorkspaces.length}. Use Alt+Arrow keys`}
+											tabIndex={0}
 											onPointerDown={(e) => handleWorkspaceDragPointerDown(e, index)}
+											onKeyDown={(e) => handleKeyboardReorder(e, index)}
 										>
 											<SidebarWorkspaceHeader
 												workspace={ws}
@@ -403,6 +429,11 @@ export function Sidebar({ onOpenSettings, onOpenHotkeys }: SidebarProps) {
 					{actionError}
 				</span>
 			)}
+
+			{/* Screen reader live region for drag reorder announcements */}
+			<span className="sr-only" aria-live="polite">
+				{liveMessage}
+			</span>
 		</div>
 	);
 }
@@ -413,6 +444,7 @@ function CollapsedView({
 	activePreset,
 	attentionWorkspaceIds,
 	onActivate,
+	onKeyboardReorder,
 	dragFromIndex,
 	dragOverIndex,
 	onDragPointerDown,
@@ -422,17 +454,23 @@ function CollapsedView({
 	activePreset: ThemePresetName;
 	attentionWorkspaceIds: ReadonlySet<string>;
 	onActivate: (id: string) => void;
+	onKeyboardReorder: (e: React.KeyboardEvent, index: number) => void;
 } & DragReorderProps) {
 	return (
-		<div data-workspace-list className="flex flex-col gap-1 py-1">
+		<div data-workspace-list role="list" className="flex flex-col gap-1 py-1">
 			{workspaces.map((ws, index) => {
 				const isActive = ws.id === activeWorkspaceId;
 				return (
 					<div
 						key={ws.id}
+						role="listitem"
 						data-workspace-item
+						aria-roledescription="reorderable workspace"
+						aria-label={`Reorder ${ws.name}, item ${index + 1} of ${workspaces.length}. Use Alt+Arrow keys`}
+						tabIndex={0}
 						className={dragItemClassName(dragFromIndex, dragOverIndex, index)}
 						onPointerDown={(e) => onDragPointerDown(e, index)}
+						onKeyDown={(e) => onKeyboardReorder(e, index)}
 					>
 						<WorkspaceSectionWrapper preset={activePreset} isActive={isActive}>
 							<div className="relative">
