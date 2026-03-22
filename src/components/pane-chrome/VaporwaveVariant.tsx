@@ -54,15 +54,17 @@ function Frame({
 				opacity: activeOpacity,
 				borderBottom: isBottom ? "none" : "3px solid transparent",
 				borderTop: isBottom ? "3px solid transparent" : "none",
-				borderImage: isFocused
-					? `linear-gradient(90deg, ${c1}, ${c2}, ${c3}) 1`
-					: `linear-gradient(90deg, ${c1}44, ${c2}44, ${c3}44) 1`,
 				backgroundColor: "#0a0015dd",
 				backdropFilter: "blur(4px)",
 				...sepStyle,
 				...(isAnimating
 					? { borderImage: "none", borderColor: "transparent" }
-					: { borderColor: "transparent" }),
+					: {
+							borderImage: isFocused
+								? `linear-gradient(90deg, ${c1}, ${c2}, ${c3}) 1`
+								: `linear-gradient(90deg, ${c1}44, ${c2}44, ${c3}44) 1`,
+							borderColor: "transparent",
+						}),
 			}}
 		>
 			{isEditing ? (
