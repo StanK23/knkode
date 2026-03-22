@@ -207,7 +207,7 @@ export function SolanaHeader({
 			type="button"
 			onClick={onClick}
 			onContextMenu={onContextMenu}
-			className={`sidebar-item flex items-center gap-2 w-[calc(100%-12px)] mx-[6px] px-3 py-2 text-left cursor-pointer rounded-full transition-all backdrop-blur-sm ${
+			className={`sidebar-item flex items-center gap-2 w-[calc(100%-12px)] mx-[6px] px-3 py-2 text-left cursor-pointer rounded-xl transition-all backdrop-blur-sm ${
 				isActive
 					? "text-[#f5f5ff] bg-gradient-to-r from-[#9945ff]/40 to-[#14f195]/20 shadow-[0_0_12px_rgba(153,69,255,0.3)]"
 					: "bg-[#0f0f24]/80 text-[#b380ff] hover:text-[#e0e0f0] hover:bg-[#1e1e3d]"
@@ -229,7 +229,7 @@ export function SolanaHeader({
 					{...inputProps}
 					maxLength={64}
 					onClick={(e) => e.stopPropagation()}
-					className="sidebar-header bg-[#0c0c1d] border border-[#14f195] rounded-full text-[#e0e0f0] text-[12px] py-px px-2 outline-none flex-1 min-w-0"
+					className="sidebar-header bg-[#0c0c1d] border border-[#14f195] rounded-lg text-[#e0e0f0] text-[12px] py-px px-2 outline-none flex-1 min-w-0"
 				/>
 			) : (
 				<span className="sidebar-header text-[12px] font-semibold truncate flex-1 min-w-0">

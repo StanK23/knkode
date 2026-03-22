@@ -193,10 +193,11 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 					config.activity?.duration ?? 3,
 				)
 			: {};
-		// Hide original border when ::after is active — prevents double separator
+		// Border is always transparent — the wrapper/pseudo-element handles visible borders.
+		// When animating, also clear borderImage so the ::after gradient isn't doubled.
 		const borderClear: React.CSSProperties = isAnimating
 			? { borderImage: "none", borderColor: "transparent" }
-			: {};
+			: { borderColor: "transparent" };
 
 		const header = (
 			<div

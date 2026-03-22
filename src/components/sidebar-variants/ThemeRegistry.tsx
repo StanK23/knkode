@@ -62,13 +62,6 @@ function diamond(size: string, activeClass: string, inactiveClass: string) {
 	);
 }
 
-function globe(size: string, activeClass: string, inactiveClass: string) {
-	return (isActive: boolean) => (
-		<div
-			className={`${size} rounded-full shrink-0 transition-all ${isActive ? activeClass : inactiveClass}`}
-		/>
-	);
-}
 
 function monokaiArrow(isActive: boolean) {
 	return (
@@ -127,8 +120,8 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 	"Default Dark": {
 		wrapper: {
 			base: "mb-2 border-b transition-colors",
-			active: "border-[#2a2f4a] bg-[#232946]/50",
-			inactive: "border-[#2a2f4a] bg-[#0f1626]",
+			active: "border-[#4a5280] bg-[#232946]/50",
+			inactive: "border-[#3a4070] bg-[#0f1626]",
 		},
 		collapsed: {
 			button:
@@ -144,7 +137,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 		wrapper: {
 			base: "mb-2 mx-1 rounded-lg overflow-hidden transition-all duration-300",
 			active: "bg-[#282a36] shadow-md border border-[#bd93f9]",
-			inactive: "bg-[#1e1f29] border border-transparent",
+			inactive: "bg-[#1e1f29] border border-[#44475a]/60",
 		},
 		collapsed: {
 			button:
@@ -161,7 +154,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 		wrapper: {
 			base: "mb-2 overflow-hidden transition-all",
 			active: "bg-[#1a1b26] border-l-2 border-[#7aa2f7]",
-			inactive: "bg-[#16161e] border-l-2 border-transparent",
+			inactive: "bg-[#16161e] border-l-2 border-[#3b4261]",
 		},
 		collapsed: {
 			button:
@@ -176,9 +169,9 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 	},
 	Nord: {
 		wrapper: {
-			base: "mb-2 mx-2 rounded-md overflow-hidden transition-all duration-300",
-			active: "bg-[#2e3440] shadow-sm",
-			inactive: "bg-[#242933]",
+			base: "mb-2 mx-2 rounded-md overflow-hidden transition-all duration-300 border",
+			active: "bg-[#2e3440] shadow-sm border-[#5e81ac]/40",
+			inactive: "bg-[#242933] border-[#3b4252]",
 		},
 		collapsed: {
 			button:
@@ -192,9 +185,9 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 	},
 	Catppuccin: {
 		wrapper: {
-			base: "mb-3 mx-1.5 rounded-xl overflow-hidden transition-all duration-300",
-			active: "bg-[#1e1e2e] shadow-sm border border-[#313244]",
-			inactive: "bg-[#11111b]",
+			base: "mb-3 mx-1.5 rounded-xl overflow-hidden transition-all duration-300 border",
+			active: "bg-[#1e1e2e] shadow-sm border-[#313244]",
+			inactive: "bg-[#11111b] border-[#313244]/70",
 		},
 		collapsed: {
 			button:
@@ -243,9 +236,9 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 	},
 	Everforest: {
 		wrapper: {
-			base: "mb-2 rounded-md overflow-hidden",
-			active: "bg-[#2d353b] border border-[#3d474d]",
-			inactive: "bg-[#232a2e]",
+			base: "mb-2 rounded-md overflow-hidden border",
+			active: "bg-[#2d353b] border-[#3d474d]",
+			inactive: "bg-[#232a2e] border-[#3d474d]/70",
 		},
 		collapsed: {
 			button:
@@ -260,7 +253,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 	},
 	Matrix: {
 		wrapper: {
-			base: "mb-2 border border-[#00ff41]/20",
+			base: "mb-2 border border-[#00ff41]/35",
 			active: "bg-[#0a0a0a] shadow-[0_0_10px_rgba(0,255,65,0.1)]",
 			inactive: "bg-black",
 		},
@@ -276,9 +269,9 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 	},
 	Cyberpunk: {
 		wrapper: {
-			base: "mb-3 overflow-hidden",
-			active: "bg-[#0d0221]",
-			inactive: "bg-[#050014]",
+			base: "mb-3 overflow-hidden border-l-2 border-b",
+			active: "bg-[#0d0221] border-l-[#ff2a6d]/60 border-b-[#ff2a6d]/60",
+			inactive: "bg-[#050014] border-l-[#5a1080] border-b-[#5a1080]",
 		},
 		collapsed: {
 			button:
@@ -296,9 +289,9 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 	},
 	Solana: {
 		wrapper: {
-			base: "mb-2 mx-1.5 rounded-2xl overflow-hidden transition-all duration-300",
-			active: "bg-[#0c0c1d] shadow-[0_0_15px_rgba(153,69,255,0.15)] border border-[#1e1e3d]",
-			inactive: "bg-[#050510] border border-transparent",
+			base: "mb-2 mx-1.5 rounded-2xl overflow-hidden transition-all duration-300 border",
+			active: "bg-[#0c0c1d] shadow-[0_0_15px_rgba(153,69,255,0.15)] border-[#1e1e3d]",
+			inactive: "bg-[#050510] border-[#35356a]",
 		},
 		collapsed: {
 			button:
@@ -314,7 +307,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 	},
 	Amber: {
 		wrapper: {
-			base: "mb-2 border border-[#3d2800]",
+			base: "mb-2 border border-[#5c3d00]",
 			active: "bg-[#0c0800]",
 			inactive: "bg-black",
 		},
@@ -332,9 +325,9 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 	},
 	Vaporwave: {
 		wrapper: {
-			base: "mb-3 mx-1 rounded-md overflow-hidden",
-			active: "bg-[#0a0015] shadow-[0_0_10px_rgba(255,113,206,0.15)] border border-[#2d1b4e]",
-			inactive: "bg-[#05000a] border border-transparent",
+			base: "mb-3 mx-1 rounded-md overflow-hidden border",
+			active: "bg-[#0a0015] shadow-[0_0_10px_rgba(255,113,206,0.15)] border-[#2d1b4e]",
+			inactive: "bg-[#05000a] border-[#2d1b4e]",
 		},
 		collapsed: {
 			button:
@@ -351,9 +344,9 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 	},
 	Ocean: {
 		wrapper: {
-			base: "mb-2 mx-1 rounded-2xl overflow-hidden",
-			active: "bg-[#020b14] shadow-[0_0_15px_rgba(0,200,255,0.1)] border border-[#0a2838]",
-			inactive: "bg-[#01050a] border border-transparent",
+			base: "mb-2 mx-1 rounded-2xl overflow-hidden border",
+			active: "bg-[#020b14] shadow-[0_0_15px_rgba(0,200,255,0.1)] border-[#0a2838]",
+			inactive: "bg-[#01050a] border-[#144a65]",
 		},
 		collapsed: {
 			button:
@@ -367,9 +360,9 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 	},
 	Sunset: {
 		wrapper: {
-			base: "mb-2",
-			active: "bg-[#110808]",
-			inactive: "bg-[#0a0505]",
+			base: "mb-2 border-l-2 border-b",
+			active: "bg-[#110808] border-l-[#e04028]/50 border-b-[#9a4530]",
+			inactive: "bg-[#0a0505] border-l-[#7a3525] border-b-[#9a4530]",
 		},
 		collapsed: {
 			button:
@@ -378,7 +371,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 			inactive:
 				"bg-transparent text-[#d04830] border-transparent hover:text-[#f0d8b0] hover:bg-[#180c0a]",
 			label: "sidebar-header text-[12px] font-bold tracking-wide truncate",
-			decorator: globe(
+			decorator: dot(
 				"w-3 h-3",
 				"bg-gradient-to-b from-[#e8a040] to-[#e04028] shadow-[0_0_10px_rgba(232,160,64,0.5)]",
 				"bg-[#4d2418]",
@@ -389,9 +382,9 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 	},
 	Arctic: {
 		wrapper: {
-			base: "mb-2 mx-1 rounded-lg overflow-hidden",
-			active: "bg-[#050d18] border border-[#1e3550] shadow-sm",
-			inactive: "bg-[#02060c] border border-transparent",
+			base: "mb-2 mx-1 rounded-lg overflow-hidden border",
+			active: "bg-[#050d18] border-[#1e3550] shadow-sm",
+			inactive: "bg-[#02060c] border-[#1e3550]/70",
 		},
 		collapsed: {
 			button:

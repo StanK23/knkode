@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { toPresetName } from "../data/theme-presets";
+import { type ThemePresetName, toPresetName } from "../data/theme-presets";
 import { useClickOutside } from "../hooks/useClickOutside";
+import { useDragReorder } from "../hooks/useDragReorder";
 import { useWindowDrag } from "../hooks/useWindowDrag";
 import type { Workspace } from "../shared/types";
 import { getPaneIdsInOrder, useStore } from "../store";
@@ -16,6 +17,30 @@ import {
 
 /** px */ const SIDEBAR_WIDTH = 200;
 /** px — wide enough to contain macOS traffic lights (90px) and show truncated workspace names */ const SIDEBAR_COLLAPSED_WIDTH = 96;
+
+interface DragReorderProps {
+	dragFromIndex: number | null;
+	dragOverIndex: number | null;
+	onDragPointerDown: (e: React.PointerEvent, index: number) => void;
+}
+
+/** Compute className for a draggable workspace item based on drag state. */
+function dragItemClassName(
+	dragFromIndex: number | null,
+	dragOverIndex: number | null,
+	index: number,
+): string {
+	const isDragSource = dragFromIndex === index;
+	const isDropTarget = dragOverIndex === index && dragFromIndex !== null && dragFromIndex !== index;
+	return [
+		"transition-all duration-150",
+		dragFromIndex === null ? "cursor-grab" : "cursor-grabbing",
+		isDragSource && "opacity-40",
+		isDropTarget && "bg-accent/10",
+	]
+		.filter(Boolean)
+		.join(" ");
+}
 
 interface SidebarProps {
 	onOpenSettings: () => void;
@@ -39,8 +64,21 @@ export function Sidebar({ onOpenSettings, onOpenHotkeys }: SidebarProps) {
 	const updateWorkspace = useStore((s) => s.updateWorkspace);
 	const duplicateWorkspace = useStore((s) => s.duplicateWorkspace);
 	const closePane = useStore((s) => s.closePane);
+	const reorderWorkspaceTabs = useStore((s) => s.reorderWorkspaceTabs);
 
 	const handleBarMouseDown = useWindowDrag();
+
+	const {
+		dragFromIndex,
+		dragOverIndex,
+		handlePointerDown: handleWorkspaceDragPointerDown,
+	} = useDragReorder({
+		onReorder: reorderWorkspaceTabs,
+		containerSelector: "[data-workspace-list]",
+		itemSelector: "[data-workspace-item]",
+	});
+
+	const [liveMessage, setLiveMessage] = useState("");
 
 	const paneAgentStatuses = useStore((s) => s.paneAgentStatuses);
 
@@ -75,6 +113,24 @@ export function Sidebar({ onOpenSettings, onOpenHotkeys }: SidebarProps) {
 			})
 			.filter((w): w is Workspace => w !== undefined);
 	}, [openWorkspaceIds, workspaces]);
+
+	const handleKeyboardReorder = useCallback(
+		(e: React.KeyboardEvent, index: number) => {
+			if (!e.altKey) return;
+			if (e.key === "ArrowUp" && index > 0) {
+				e.preventDefault();
+				reorderWorkspaceTabs(index, index - 1);
+				const name = openWorkspaces[index]?.name ?? "Workspace";
+				setLiveMessage(`Moved ${name} to position ${index}`);
+			} else if (e.key === "ArrowDown" && index < openWorkspaces.length - 1) {
+				e.preventDefault();
+				reorderWorkspaceTabs(index, index + 1);
+				const name = openWorkspaces[index]?.name ?? "Workspace";
+				setLiveMessage(`Moved ${name} to position ${index + 2}`);
+			}
+		},
+		[reorderWorkspaceTabs, openWorkspaces],
+	);
 
 	const closedWorkspaces = useMemo(
 		() => workspaces.filter((w) => !openWorkspaceIds.includes(w.id)),
@@ -143,21 +199,38 @@ export function Sidebar({ onOpenSettings, onOpenHotkeys }: SidebarProps) {
 					<CollapsedView
 						workspaces={openWorkspaces}
 						activeWorkspaceId={activeWorkspaceId}
+						activePreset={activePreset}
 						attentionWorkspaceIds={attentionWorkspaceIds}
 						onActivate={setActiveWorkspace}
+						onKeyboardReorder={handleKeyboardReorder}
+						dragFromIndex={dragFromIndex}
+						dragOverIndex={dragOverIndex}
+						onDragPointerDown={handleWorkspaceDragPointerDown}
 					/>
 				) : (
-					<div className="flex flex-col py-1">
-						{openWorkspaces.map((ws) => {
+					<ul data-workspace-list className="flex flex-col gap-1 py-1 list-none m-0 p-0">
+						{openWorkspaces.map((ws, index) => {
 							const isActive = ws.id === activeWorkspaceId;
 							const isSectionCollapsed = collapsedSections.has(ws.id);
 							const paneIds = getPaneIdsInOrder(ws.layout.tree);
 							const canClose = paneIds.length > 1;
 
 							return (
-								<div key={ws.id}>
+								<li
+									key={ws.id}
+									data-workspace-item
+									aria-roledescription="reorderable workspace"
+									aria-label={`${ws.name}, item ${index + 1} of ${openWorkspaces.length}. Use Alt+Arrow keys to reorder`}
+									// biome-ignore lint/a11y/noNoninteractiveTabindex: focusable for keyboard reorder (Alt+Arrow)
+									tabIndex={0}
+									className={dragItemClassName(dragFromIndex, dragOverIndex, index)}
+									onKeyDown={(e) => handleKeyboardReorder(e, index)}
+								>
 									<WorkspaceSectionWrapper preset={activePreset} isActive={isActive}>
-										<div className="relative">
+										<div
+											className="relative"
+											onPointerDown={(e) => handleWorkspaceDragPointerDown(e, index)}
+										>
 											<SidebarWorkspaceHeader
 												workspace={ws}
 												preset={activePreset}
@@ -171,7 +244,10 @@ export function Sidebar({ onOpenSettings, onOpenHotkeys }: SidebarProps) {
 												onClose={() => closeWorkspaceTab(ws.id)}
 											/>
 											{isSectionCollapsed && attentionWorkspaceIds.has(ws.id) && (
-												<AttentionDot size="h-2 w-2" className="absolute top-1/2 -translate-y-1/2 right-2 pointer-events-none" />
+												<AttentionDot
+													size="h-2 w-2"
+													className="absolute top-1/2 -translate-y-1/2 right-2 pointer-events-none"
+												/>
 											)}
 										</div>
 										{!isSectionCollapsed && (
@@ -196,10 +272,10 @@ export function Sidebar({ onOpenSettings, onOpenHotkeys }: SidebarProps) {
 											</div>
 										)}
 									</WorkspaceSectionWrapper>
-								</div>
+								</li>
 							);
 						})}
-					</div>
+					</ul>
 				)}
 			</div>
 
@@ -360,6 +436,11 @@ export function Sidebar({ onOpenSettings, onOpenHotkeys }: SidebarProps) {
 					{actionError}
 				</span>
 			)}
+
+			{/* Screen reader live region for drag reorder announcements */}
+			<span className="sr-only" aria-live="polite">
+				{liveMessage}
+			</span>
 		</div>
 	);
 }
@@ -367,38 +448,56 @@ export function Sidebar({ onOpenSettings, onOpenHotkeys }: SidebarProps) {
 function CollapsedView({
 	workspaces,
 	activeWorkspaceId,
+	activePreset,
 	attentionWorkspaceIds,
 	onActivate,
+	onKeyboardReorder,
+	dragFromIndex,
+	dragOverIndex,
+	onDragPointerDown,
 }: {
 	workspaces: Workspace[];
 	activeWorkspaceId: string | null;
+	activePreset: ThemePresetName;
 	attentionWorkspaceIds: ReadonlySet<string>;
 	onActivate: (id: string) => void;
-}) {
-	const activePreset = toPresetName(
-		workspaces.find((w) => w.id === activeWorkspaceId)?.theme.preset,
-	);
-
+	onKeyboardReorder: (e: React.KeyboardEvent, index: number) => void;
+} & DragReorderProps) {
 	return (
-		<div className="flex flex-col py-1">
-			{workspaces.map((ws) => {
+		<ul data-workspace-list className="flex flex-col gap-1 py-1 list-none m-0 p-0">
+			{workspaces.map((ws, index) => {
 				const isActive = ws.id === activeWorkspaceId;
 				return (
-					<div key={ws.id} className="relative">
+					<li
+						key={ws.id}
+						data-workspace-item
+						aria-roledescription="reorderable workspace"
+						aria-label={`${ws.name}, item ${index + 1} of ${workspaces.length}. Use Alt+Arrow keys to reorder`}
+						// biome-ignore lint/a11y/noNoninteractiveTabindex: focusable for keyboard reorder (Alt+Arrow)
+						tabIndex={0}
+						className={dragItemClassName(dragFromIndex, dragOverIndex, index)}
+						onPointerDown={(e) => onDragPointerDown(e, index)}
+						onKeyDown={(e) => onKeyboardReorder(e, index)}
+					>
 						<WorkspaceSectionWrapper preset={activePreset} isActive={isActive}>
-							<CollapsedWorkspaceVariant
-								preset={activePreset}
-								name={ws.name}
-								isActive={isActive}
-								onClick={() => onActivate(ws.id)}
-							/>
+							<div className="relative">
+								<CollapsedWorkspaceVariant
+									preset={activePreset}
+									name={ws.name}
+									isActive={isActive}
+									onClick={() => onActivate(ws.id)}
+								/>
+								{attentionWorkspaceIds.has(ws.id) && !isActive && (
+									<AttentionDot
+										size="h-2 w-2"
+										className="absolute top-1/2 -translate-y-1/2 right-1 pointer-events-none"
+									/>
+								)}
+							</div>
 						</WorkspaceSectionWrapper>
-						{attentionWorkspaceIds.has(ws.id) && !isActive && (
-							<AttentionDot size="h-2 w-2" className="absolute top-1 right-1" />
-						)}
-					</div>
+					</li>
 				);
 			})}
-		</div>
+		</ul>
 	);
 }
