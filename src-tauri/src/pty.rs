@@ -73,38 +73,86 @@ fn detect_cwd(_pid: u32) -> Option<String> {
     None
 }
 
-/// Check if a shell process has a foreground child (i.e., a command is running).
-/// Returns `Some(true)` if a foreground child exists, `Some(false)` if idle.
+/// Check foreground process status for multiple shell PIDs in a single `ps` call.
 ///
-/// On macOS, `ps -o stat=` includes `+` when the process is in the terminal's
-/// foreground process group. If the shell has `+`, it's the foreground — idle.
-/// If `+` is absent, another process group has taken the foreground — active.
+/// A single `ps -o pid=,stat= -p pid1,pid2,...` invocation replaces per-pane
+/// fork+exec, reducing O(N) subprocesses to O(1) per poll cycle.
+///
+/// Returns a map from PID to `true` (foreground child running) / `false` (idle).
+/// PIDs where detection fails (exited, not found) are omitted.
 #[cfg(target_os = "macos")]
-fn has_foreground_child(pid: u32) -> Option<bool> {
+fn check_foreground_batch(pids: &[(String, u32)]) -> HashMap<u32, bool> {
     use std::process::Command;
-    let output = Command::new("ps")
-        .args(["-o", "stat=", "-p", &pid.to_string()])
+
+    if pids.is_empty() {
+        return HashMap::new();
+    }
+
+    let pid_args: Vec<String> = pids.iter().map(|(_, pid)| pid.to_string()).collect();
+    let pid_list = pid_args.join(",");
+
+    let output = match Command::new("ps")
+        .args(["-o", "pid=,stat=", "-p", &pid_list])
         .stderr(std::process::Stdio::null())
         .output()
-        .ok()?;
+    {
+        Ok(o) => o,
+        Err(e) => {
+            eprintln!("[pty] ps command failed: {e} — foreground detection unavailable");
+            return HashMap::new();
+        }
+    };
+
     if !output.status.success() {
-        return None;
+        return HashMap::new();
     }
-    let stat = String::from_utf8_lossy(&output.stdout);
+
+    // Parse lines like "  1234 S+  " — each has PID and STAT columns.
     // '+' in STAT = process is in the foreground process group.
     // Shell has '+' → shell is foreground → no child running (idle).
-    Some(!stat.contains('+'))
+    let mut result = HashMap::with_capacity(pids.len());
+    for line in output.stdout.split(|&b| b == b'\n') {
+        let line = line.trim_ascii();
+        if line.is_empty() {
+            continue;
+        }
+        // Split on whitespace: first token is PID, rest is STAT
+        if let Some(space_pos) = line.iter().position(|&b| b == b' ' || b == b'\t') {
+            if let Ok(pid) = std::str::from_utf8(&line[..space_pos])
+                .unwrap_or("")
+                .parse::<u32>()
+            {
+                let stat_field = &line[space_pos..];
+                // '+' present in STAT bytes → shell is foreground → idle (no child)
+                result.insert(pid, !stat_field.contains(&b'+'));
+            }
+        }
+    }
+    result
 }
 
-/// Check if a shell process has a foreground child on Linux.
+/// Check foreground process status on Linux by reading `/proc/<pid>/stat`.
 ///
-/// Reads `/proc/<pid>/stat` and compares field 5 (pgrp) against field 8 (tpgid).
-/// If tpgid != pgrp, another process group owns the terminal foreground.
+/// No subprocess is spawned — each PID is checked via procfs.
+/// Compares field 5 (pgrp) against field 8 (tpgid): if tpgid != pgrp,
+/// another process group owns the terminal foreground.
 #[cfg(target_os = "linux")]
-fn has_foreground_child(pid: u32) -> Option<bool> {
+fn check_foreground_batch(pids: &[(String, u32)]) -> HashMap<u32, bool> {
+    let mut result = HashMap::with_capacity(pids.len());
+    for &(_, pid) in pids {
+        if let Some(has_child) = check_foreground_single_linux(pid) {
+            result.insert(pid, has_child);
+        }
+    }
+    result
+}
+
+#[cfg(target_os = "linux")]
+fn check_foreground_single_linux(pid: u32) -> Option<bool> {
     let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
     // Format: pid (comm) state ppid pgrp session tty_nr tpgid ...
     // (comm) can contain spaces/parens, so skip past the closing ')'.
+    // + 2 skips the ") " (close-paren + space) separator before the fields.
     let after_comm = stat.rfind(')')? + 2;
     let fields: Vec<&str> = stat.get(after_comm..)?.split_whitespace().collect();
     // After ')': state(0) ppid(1) pgrp(2) session(3) tty_nr(4) tpgid(5)
@@ -113,16 +161,17 @@ fn has_foreground_child(pid: u32) -> Option<bool> {
     Some(tpgid != pgrp)
 }
 
-/// Windows: foreground process group detection is not straightforward with ConPTY.
-/// Returns `None` — the tracker falls back to output-age heuristics on Windows.
+/// Windows: foreground process group detection is not available with ConPTY.
+/// Activity detection on Windows requires a separate heuristic (not yet implemented).
 #[cfg(target_os = "windows")]
-fn has_foreground_child(_pid: u32) -> Option<bool> {
-    None
+fn check_foreground_batch(_pids: &[(String, u32)]) -> HashMap<u32, bool> {
+    HashMap::new()
 }
 
+/// Unsupported platform — foreground detection unavailable.
 #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
-fn has_foreground_child(_pid: u32) -> Option<bool> {
-    None
+fn check_foreground_batch(_pids: &[(String, u32)]) -> HashMap<u32, bool> {
+    HashMap::new()
 }
 
 /// Emit a terminal render snapshot to the frontend.
@@ -627,17 +676,26 @@ impl PtyManager {
     /// OS-level checks to avoid blocking PTY operations.
     pub fn get_foreground_statuses(&self) -> HashMap<String, bool> {
         let pids: Vec<(String, u32)> = {
-            let sessions = self.sessions.lock().unwrap_or_else(|e| e.into_inner());
+            let sessions = match self.lock_sessions() {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("[pty] {e} — skipping foreground detection");
+                    return HashMap::new();
+                }
+            };
             sessions
                 .iter()
                 .filter_map(|(id, session)| session.platform.pid().map(|pid| (id.clone(), pid)))
                 .collect()
         };
 
-        let mut result = HashMap::with_capacity(pids.len());
-        for (id, pid) in pids {
-            if let Some(has_child) = has_foreground_child(pid) {
-                result.insert(id, has_child);
+        let by_pid = check_foreground_batch(&pids);
+
+        // Map back from PID-keyed results to pane-ID-keyed results
+        let mut result = HashMap::with_capacity(by_pid.len());
+        for (id, pid) in &pids {
+            if let Some(&has_child) = by_pid.get(pid) {
+                result.insert(id.clone(), has_child);
             }
         }
         result
