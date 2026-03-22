@@ -164,51 +164,71 @@ fn check_foreground_single_linux(pid: u32) -> Option<bool> {
 /// Windows: check if shell processes have child processes via process snapshot.
 /// ConPTY has no foreground process group concept, so we check the process tree
 /// instead — if the shell has any child process, a command is running.
+///
+/// Note: Windows reuses PIDs aggressively. If a shell exits and its PID is
+/// reassigned, stale `th32ParentProcessID` entries may cause brief false positives.
 #[cfg(target_os = "windows")]
 fn check_foreground_batch(pids: &[(String, u32)]) -> HashMap<u32, bool> {
-    use std::collections::HashSet;
-    use winapi::um::handleapi::CloseHandle;
+    use winapi::um::handleapi::{CloseHandle, INVALID_HANDLE_VALUE};
     use winapi::um::tlhelp32::{
-        CreateToolhelp32Snapshot, Process32First, Process32Next, PROCESSENTRY32, TH32CS_SNAPPROCESS,
+        CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
+        TH32CS_SNAPPROCESS,
     };
 
     if pids.is_empty() {
         return HashMap::new();
     }
 
-    let shell_pids: HashSet<u32> = pids.iter().map(|(_, pid)| *pid).collect();
+    // Pre-fill result with false (idle) for every shell PID; flip to true during walk
+    let mut result: HashMap<u32, bool> = HashMap::with_capacity(pids.len());
+    for &(_, pid) in pids {
+        result.insert(pid, false);
+    }
 
-    // Snapshot all processes and find which shell PIDs have children
-    let mut parent_pids_with_children: HashSet<u32> = HashSet::new();
+    // RAII guard so the snapshot handle is closed even on panic
+    struct SnapshotGuard(winapi::um::winnt::HANDLE);
+    impl Drop for SnapshotGuard {
+        fn drop(&mut self) {
+            unsafe {
+                CloseHandle(self.0);
+            }
+        }
+    }
+
+    // SAFETY: CreateToolhelp32Snapshot returns INVALID_HANDLE_VALUE or a valid
+    // handle. PROCESSENTRY32W is safely zeroable (all-integer + fixed-size array).
+    // The SnapshotGuard ensures CloseHandle is called exactly once.
     unsafe {
         let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-        if snapshot == winapi::um::handleapi::INVALID_HANDLE_VALUE {
-            eprintln!("[pty] CreateToolhelp32Snapshot failed — foreground detection unavailable");
-            return HashMap::new();
+        if snapshot == INVALID_HANDLE_VALUE {
+            eprintln!(
+                "[pty] CreateToolhelp32Snapshot failed ({}) — foreground detection unavailable",
+                std::io::Error::last_os_error()
+            );
+            return result;
         }
+        let _guard = SnapshotGuard(snapshot);
 
-        let mut entry: PROCESSENTRY32 = std::mem::zeroed();
-        entry.dwSize = std::mem::size_of::<PROCESSENTRY32>() as u32;
+        let mut entry: PROCESSENTRY32W = std::mem::zeroed();
+        entry.dwSize = std::mem::size_of::<PROCESSENTRY32W>() as u32;
 
-        if Process32First(snapshot, &mut entry) != 0 {
+        if Process32FirstW(snapshot, &mut entry) != 0 {
             loop {
-                // If this process's parent is one of our shell PIDs, mark it
-                if shell_pids.contains(&entry.th32ParentProcessID) {
-                    parent_pids_with_children.insert(entry.th32ParentProcessID);
+                if let Some(active) = result.get_mut(&entry.th32ParentProcessID) {
+                    *active = true;
                 }
-                if Process32Next(snapshot, &mut entry) == 0 {
+                if Process32NextW(snapshot, &mut entry) == 0 {
                     break;
                 }
             }
+        } else {
+            eprintln!(
+                "[pty] Process32FirstW failed ({}) — activity detection may be inaccurate",
+                std::io::Error::last_os_error()
+            );
         }
-        CloseHandle(snapshot);
     }
 
-    // Map results: shell has children → active, no children → idle
-    let mut result = HashMap::with_capacity(pids.len());
-    for &(_, pid) in pids {
-        result.insert(pid, parent_pids_with_children.contains(&pid));
-    }
     result
 }
 
@@ -756,7 +776,7 @@ impl PtyManager {
     /// Returns foreground process status for each active session.
     /// `true` = a foreground child process is running (command in progress).
     /// `false` = shell is in foreground (idle, waiting for input).
-    /// Sessions where detection fails (Windows, or process exited) are omitted.
+    /// Sessions where detection fails (process exited, snapshot error) are omitted.
     ///
     /// Collects PIDs under the sessions lock, then releases it before running
     /// OS-level checks to avoid blocking PTY operations.
