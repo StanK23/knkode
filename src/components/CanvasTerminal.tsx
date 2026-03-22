@@ -513,7 +513,8 @@ export function CanvasTerminal({
 		if (!ctx) return;
 
 		const dpr = dprRef.current;
-		const scaledSize = fontSize * dpr;
+		const safeFontSize = fontSize > 0 && Number.isFinite(fontSize) ? fontSize : DEFAULT_FONT_SIZE;
+		const scaledSize = safeFontSize * dpr;
 		ctx.font = `${scaledSize}px ${fontFamily}`;
 		const metrics = ctx.measureText("M");
 
@@ -785,6 +786,7 @@ export function CanvasTerminal({
 				const dpr = window.devicePixelRatio || 1;
 				dprRef.current = dpr;
 				const rect = container.getBoundingClientRect();
+				if (rect.width <= 0 || rect.height <= 0) return;
 				const w = Math.floor(rect.width * dpr);
 				const h = Math.floor(rect.height * dpr);
 
@@ -1361,7 +1363,7 @@ export function CanvasTerminal({
 		// biome-ignore lint/a11y/useSemanticElements: canvas terminal cannot be a native textarea
 		<div
 			ref={containerRef}
-			className="overflow-hidden outline-none select-none min-h-0 min-w-0"
+			className="absolute inset-2 overflow-hidden outline-none select-none"
 			tabIndex={0}
 			role="textbox"
 			aria-label="Terminal"

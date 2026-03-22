@@ -293,7 +293,7 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 		return (
 			<>
 				{!isBottom && header}
-				{config.content ? <div className={config.content.className}>{children}</div> : children}
+				{config.content ? <div className={`flex-1 min-h-0 ${config.content.className}`}>{children}</div> : children}
 				{isBottom && header}
 			</>
 		);
