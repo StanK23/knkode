@@ -161,7 +161,7 @@ export function Sidebar({ onOpenSettings, onOpenHotkeys }: SidebarProps) {
 						onDragPointerDown={handleWorkspaceDragPointerDown}
 					/>
 				) : (
-					<div data-workspace-list className="flex flex-col py-1">
+					<div data-workspace-list className="flex flex-col gap-1 py-1">
 						{openWorkspaces.map((ws, index) => {
 							const isActive = ws.id === activeWorkspaceId;
 							const isSectionCollapsed = collapsedSections.has(ws.id);
@@ -409,7 +409,7 @@ function CollapsedView({
 	);
 
 	return (
-		<div data-workspace-list className="flex flex-col py-1">
+		<div data-workspace-list className="flex flex-col gap-1 py-1">
 			{workspaces.map((ws, index) => {
 				const isActive = ws.id === activeWorkspaceId;
 				const isDragSource = dragFromIndex === index;
