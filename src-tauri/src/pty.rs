@@ -59,12 +59,128 @@ fn detect_cwd(pid: u32) -> Option<String> {
         })
 }
 
-/// Windows CWD detection requires NtQueryInformationProcess (ntapi crate) or
-/// the `windows` crate — not worth the dependency for now. Falls back to
-/// initial CWD which is set at PTY creation time.
+/// Detect the CWD of a child process on Windows by reading the process's PEB
+/// (Process Environment Block) via `NtQueryInformationProcess` + `ReadProcessMemory`.
+///
+/// Offsets are for 64-bit processes (Windows 11 is 64-bit only):
+///   PEB + 0x20 → ProcessParameters (RTL_USER_PROCESS_PARAMETERS*)
+///   ProcessParameters + 0x38 → CurrentDirectory.DosPath (UNICODE_STRING)
 #[cfg(target_os = "windows")]
-fn detect_cwd(_pid: u32) -> Option<String> {
-    None
+fn detect_cwd(pid: u32) -> Option<String> {
+    use std::mem;
+    use std::ptr;
+    use winapi::shared::minwindef::FALSE;
+    use winapi::shared::ntdef::HANDLE;
+    use winapi::um::handleapi::CloseHandle;
+    use winapi::um::memoryapi::ReadProcessMemory;
+    use winapi::um::processthreadsapi::OpenProcess;
+    use winapi::um::winnt::{PROCESS_QUERY_INFORMATION, PROCESS_VM_READ};
+
+    // NtQueryInformationProcess is not exposed by winapi 0.3 — declare manually.
+    #[repr(C)]
+    struct ProcessBasicInformation {
+        reserved1: *mut std::ffi::c_void,
+        peb_base_address: *mut std::ffi::c_void,
+        reserved2: [*mut std::ffi::c_void; 2],
+        unique_process_id: usize,
+        reserved3: *mut std::ffi::c_void,
+    }
+
+    extern "system" {
+        fn NtQueryInformationProcess(
+            process_handle: HANDLE,
+            process_information_class: u32,
+            process_information: *mut std::ffi::c_void,
+            process_information_length: u32,
+            return_length: *mut u32,
+        ) -> i32;
+    }
+
+    struct HandleGuard(HANDLE);
+    impl Drop for HandleGuard {
+        fn drop(&mut self) {
+            unsafe { CloseHandle(self.0); }
+        }
+    }
+
+    /// Read `size` bytes from `address` in the target process.
+    unsafe fn read_mem(handle: HANDLE, address: usize, buf: &mut [u8]) -> bool {
+        ReadProcessMemory(
+            handle,
+            address as *const _,
+            buf.as_mut_ptr() as *mut _,
+            buf.len(),
+            ptr::null_mut(),
+        ) != FALSE
+    }
+
+    unsafe {
+        let handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
+        if handle.is_null() {
+            return None;
+        }
+        let _guard = HandleGuard(handle);
+
+        // Step 1: Get PEB address via NtQueryInformationProcess
+        let mut pbi: ProcessBasicInformation = mem::zeroed();
+        let mut ret_len: u32 = 0;
+        let status = NtQueryInformationProcess(
+            handle,
+            0, // ProcessBasicInformation
+            &mut pbi as *mut _ as *mut std::ffi::c_void,
+            mem::size_of::<ProcessBasicInformation>() as u32,
+            &mut ret_len,
+        );
+        if status != 0 {
+            return None;
+        }
+        let peb_addr = pbi.peb_base_address as usize;
+
+        // Step 2: Read ProcessParameters pointer from PEB + 0x20
+        let mut buf = [0u8; 8];
+        if !read_mem(handle, peb_addr + 0x20, &mut buf) {
+            return None;
+        }
+        let params_ptr = usize::from_ne_bytes(buf);
+
+        // Step 3: Read CurrentDirectory.DosPath (UNICODE_STRING) at ProcessParameters + 0x38
+        // UNICODE_STRING layout (64-bit): Length(u16) + MaxLength(u16) + pad(4) + Buffer(u64)
+        let mut us_buf = [0u8; 16];
+        if !read_mem(handle, params_ptr + 0x38, &mut us_buf) {
+            return None;
+        }
+        let length = u16::from_ne_bytes([us_buf[0], us_buf[1]]) as usize;
+        let buffer_ptr = usize::from_ne_bytes([
+            us_buf[8], us_buf[9], us_buf[10], us_buf[11],
+            us_buf[12], us_buf[13], us_buf[14], us_buf[15],
+        ]);
+
+        if length == 0 || buffer_ptr == 0 {
+            return None;
+        }
+
+        // Step 4: Read the wide-character path string
+        let mut path_buf = vec![0u8; length];
+        if !read_mem(handle, buffer_ptr, &mut path_buf) {
+            return None;
+        }
+
+        // Convert from UTF-16LE to String
+        let wide: Vec<u16> = path_buf
+            .chunks_exact(2)
+            .map(|c| u16::from_ne_bytes([c[0], c[1]]))
+            .collect();
+        let path = String::from_utf16_lossy(&wide);
+
+        // Strip trailing backslash (e.g. "C:\Users\foo\" → "C:\Users\foo")
+        // but keep root paths like "C:\" intact.
+        let trimmed = path.trim_end_matches('\\');
+        if trimmed.len() >= 3 {
+            Some(trimmed.to_string())
+        } else {
+            Some(path)
+        }
+    }
 }
 
 /// Catch-all for platforms without CWD detection (FreeBSD, etc.).
