@@ -49,25 +49,6 @@ Every project needs a different terminal setup — build watcher, dev server, lo
 
 **Persistent.** Config stored as JSON in `~/.knkode/`. Atomic writes (temp + rename) so crashes don't corrupt state.
 
-## Keyboard shortcuts
-
-`Cmd` on macOS, `Ctrl` on Windows/Linux.
-
-| Action | Shortcut |
-|---|---|
-| Split side-by-side | `Mod+D` |
-| Split stacked | `Mod+Shift+D` |
-| Close pane | `Mod+W` |
-| Close workspace tab | `Mod+Shift+W` |
-| New workspace | `Mod+T` |
-| Prev / next workspace | `Mod+Shift+[ / ]` |
-| Prev / next pane | `Mod+Alt+Left / Right` |
-| Focus pane by number | `Mod+1-9` |
-| Scroll to top / bottom | `Mod+Up / Down` |
-| Toggle sidebar | `Mod+B` |
-| Settings | `Mod+,` |
-| Keyboard shortcuts | `Mod+/` |
-
 ## Development
 
 Requires [Rust](https://rustup.rs), Node.js >= 18, and [bun](https://bun.sh).
