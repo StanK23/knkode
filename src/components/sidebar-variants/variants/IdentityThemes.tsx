@@ -1,4 +1,4 @@
-import type { BasePaneEntryProps, BaseWorkspaceHeaderProps } from "../types";
+import type { BasePaneEntryProps, BaseWorkspaceHeaderProps, BaseWorkspaceGitInfoProps } from "../types";
 
 // --- Matrix ---
 export function MatrixHeader({
@@ -715,5 +715,269 @@ export function ArcticEntry({
 				<span className="text-[9px] truncate flex-1 text-right font-mono opacity-60">{title}</span>
 			)}
 		</button>
+	);
+}
+
+export function MatrixGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
+	if (!cwd && !branch && !pr) return null;
+	return (
+		<div className="px-3 pb-2 pt-1">
+			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#000000] border border-[#003300]">
+				{cwd && (
+					<div className="text-[10px] text-[#005500] truncate font-mono tracking-tight" title={cwd}>
+						{cwd}
+					</div>
+				)}
+				{(branch || pr) && (
+					<div className="flex items-center justify-between gap-2">
+						{branch && (
+							<div className="flex items-center gap-1.5 min-w-0">
+								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#005500] shrink-0">
+									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
+									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
+								</svg>
+								<span className="text-[10px] font-medium text-[#00ff41] truncate tracking-wide">{branch}</span>
+							</div>
+						)}
+						{pr && (
+							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#003300] text-[#00ff41] shrink-0">
+								#{pr.number}
+							</div>
+						)}
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
+export function CyberpunkGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
+	if (!cwd && !branch && !pr) return null;
+	return (
+		<div className="px-3 pb-2 pt-1">
+			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#000000]/50 border border-[#ff003c]/30">
+				{cwd && (
+					<div className="text-[10px] text-[#ff003c] truncate font-mono tracking-tight" title={cwd}>
+						{cwd}
+					</div>
+				)}
+				{(branch || pr) && (
+					<div className="flex items-center justify-between gap-2">
+						{branch && (
+							<div className="flex items-center gap-1.5 min-w-0">
+								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#ff003c] shrink-0">
+									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
+									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
+								</svg>
+								<span className="text-[10px] font-medium text-[#f3e600] truncate tracking-wide">{branch}</span>
+							</div>
+						)}
+						{pr && (
+							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#00ffff]/20 text-[#00ffff] shrink-0">
+								#{pr.number}
+							</div>
+						)}
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
+export function SolanaGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
+	if (!cwd && !branch && !pr) return null;
+	return (
+		<div className="px-3 pb-2 pt-1">
+			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#14f195]/10 border border-[#14f195]/30">
+				{cwd && (
+					<div className="text-[10px] text-[#9945ff] truncate font-mono tracking-tight" title={cwd}>
+						{cwd}
+					</div>
+				)}
+				{(branch || pr) && (
+					<div className="flex items-center justify-between gap-2">
+						{branch && (
+							<div className="flex items-center gap-1.5 min-w-0">
+								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#9945ff] shrink-0">
+									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
+									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
+								</svg>
+								<span className="text-[10px] font-medium text-[#14f195] truncate tracking-wide">{branch}</span>
+							</div>
+						)}
+						{pr && (
+							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#14f195]/20 text-[#14f195] shrink-0">
+								#{pr.number}
+							</div>
+						)}
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
+export function AmberGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
+	if (!cwd && !branch && !pr) return null;
+	return (
+		<div className="px-3 pb-2 pt-1">
+			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#1a0f00]/50 border border-[#ffb000]/30">
+				{cwd && (
+					<div className="text-[10px] text-[#b36b00] truncate font-mono tracking-tight" title={cwd}>
+						{cwd}
+					</div>
+				)}
+				{(branch || pr) && (
+					<div className="flex items-center justify-between gap-2">
+						{branch && (
+							<div className="flex items-center gap-1.5 min-w-0">
+								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#b36b00] shrink-0">
+									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
+									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
+								</svg>
+								<span className="text-[10px] font-medium text-[#ffb000] truncate tracking-wide">{branch}</span>
+							</div>
+						)}
+						{pr && (
+							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#ffb000]/20 text-[#ffb000] shrink-0">
+								#{pr.number}
+							</div>
+						)}
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
+export function VaporwaveGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
+	if (!cwd && !branch && !pr) return null;
+	return (
+		<div className="px-3 pb-2 pt-1">
+			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#2b1b3d]/50 border border-[#ff71ce]/30">
+				{cwd && (
+					<div className="text-[10px] text-[#ff71ce] truncate font-mono tracking-tight" title={cwd}>
+						{cwd}
+					</div>
+				)}
+				{(branch || pr) && (
+					<div className="flex items-center justify-between gap-2">
+						{branch && (
+							<div className="flex items-center gap-1.5 min-w-0">
+								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#ff71ce] shrink-0">
+									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
+									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
+								</svg>
+								<span className="text-[10px] font-medium text-[#01cdfe] truncate tracking-wide">{branch}</span>
+							</div>
+						)}
+						{pr && (
+							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#01cdfe]/20 text-[#01cdfe] shrink-0">
+								#{pr.number}
+							</div>
+						)}
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
+export function OceanGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
+	if (!cwd && !branch && !pr) return null;
+	return (
+		<div className="px-3 pb-2 pt-1">
+			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#0f172a]/50 border border-[#38bdf8]/30">
+				{cwd && (
+					<div className="text-[10px] text-[#0ea5e9] truncate font-mono tracking-tight" title={cwd}>
+						{cwd}
+					</div>
+				)}
+				{(branch || pr) && (
+					<div className="flex items-center justify-between gap-2">
+						{branch && (
+							<div className="flex items-center gap-1.5 min-w-0">
+								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#0ea5e9] shrink-0">
+									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
+									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
+								</svg>
+								<span className="text-[10px] font-medium text-[#38bdf8] truncate tracking-wide">{branch}</span>
+							</div>
+						)}
+						{pr && (
+							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#38bdf8]/20 text-[#38bdf8] shrink-0">
+								#{pr.number}
+							</div>
+						)}
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
+export function SunsetGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
+	if (!cwd && !branch && !pr) return null;
+	return (
+		<div className="px-3 pb-2 pt-1">
+			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#2a1b18]/50 border border-[#f97316]/30">
+				{cwd && (
+					<div className="text-[10px] text-[#f97316] truncate font-mono tracking-tight" title={cwd}>
+						{cwd}
+					</div>
+				)}
+				{(branch || pr) && (
+					<div className="flex items-center justify-between gap-2">
+						{branch && (
+							<div className="flex items-center gap-1.5 min-w-0">
+								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#f97316] shrink-0">
+									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
+									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
+								</svg>
+								<span className="text-[10px] font-medium text-[#fdba74] truncate tracking-wide">{branch}</span>
+							</div>
+						)}
+						{pr && (
+							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#f97316]/20 text-[#fdba74] shrink-0">
+								#{pr.number}
+							</div>
+						)}
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
+export function ArcticGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
+	if (!cwd && !branch && !pr) return null;
+	return (
+		<div className="px-3 pb-2 pt-1">
+			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#ffffff]/10 border border-[#94a3b8]/30">
+				{cwd && (
+					<div className="text-[10px] text-[#94a3b8] truncate font-mono tracking-tight" title={cwd}>
+						{cwd}
+					</div>
+				)}
+				{(branch || pr) && (
+					<div className="flex items-center justify-between gap-2">
+						{branch && (
+							<div className="flex items-center gap-1.5 min-w-0">
+								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#94a3b8] shrink-0">
+									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
+									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
+								</svg>
+								<span className="text-[10px] font-medium text-[#e2e8f0] truncate tracking-wide">{branch}</span>
+							</div>
+						)}
+						{pr && (
+							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#38bdf8]/20 text-[#38bdf8] shrink-0">
+								#{pr.number}
+							</div>
+						)}
+					</div>
+				)}
+			</div>
+		</div>
 	);
 }

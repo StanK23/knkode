@@ -5,7 +5,7 @@ import type {
 	MouseEvent,
 	ReactNode,
 } from "react";
-import type { AgentStatus } from "../../shared/types";
+import type { AgentStatus, PrInfo } from "../../shared/types";
 
 // Base props for visual rendering
 export interface BaseWorkspaceHeaderProps {
@@ -56,9 +56,16 @@ export interface CollapsedTokens {
 	decorator?: (isActive: boolean) => ReactNode;
 }
 
+export interface BaseWorkspaceGitInfoProps {
+	cwd: string | null;
+	branch: string | null;
+	pr: PrInfo | null;
+}
+
 export interface ThemeVariantConfig {
 	wrapper: WrapperTokens;
 	collapsed: CollapsedTokens;
 	Header: ComponentType<BaseWorkspaceHeaderProps>;
 	Entry: ComponentType<BasePaneEntryProps>;
+	GitInfo: ComponentType<BaseWorkspaceGitInfoProps>;
 }
