@@ -1,4 +1,8 @@
-import type { BasePaneEntryProps, BaseWorkspaceHeaderProps, BaseWorkspaceGitInfoProps } from "../types";
+import type {
+	BasePaneEntryProps,
+	BaseWorkspaceGitInfoProps,
+	BaseWorkspaceHeaderProps,
+} from "../types";
 
 // --- Matrix ---
 export function MatrixHeader({
@@ -62,16 +66,14 @@ export function MatrixEntry({
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			data-pane-id={paneId}
-			className={`sidebar-item flex items-center gap-1.5 w-full text-left pl-6 pr-2 py-2 border-none cursor-pointer transition-none font-mono uppercase ${
+			className={`sidebar-item flex items-center gap-1.5 w-full text-left pl-6 pr-2 py-2 border-b border-b-[#00ff41]/10 cursor-pointer transition-none font-mono uppercase ${
 				isFocused
-					? "sidebar-pane-focused text-[#00ff41] bg-[#00ff41]/10 border-l-2 border-[#00ff41]"
-					: "bg-transparent text-[#009933] hover:text-[#00ff41] border-l-2 border-transparent hover:bg-[#00ff41]/5"
+					? "sidebar-pane-focused text-[#00ff41] bg-[#00ff41]/10 border-l-2 border-l-[#00ff41]"
+					: "bg-transparent text-[#009933] hover:text-[#00ff41] border-l-2 border-l-transparent hover:bg-[#00ff41]/5"
 			}`}
 		>
 			<span className="text-[11px] font-bold truncate shrink">{label}</span>
-			{agentStatus === "active" && (
-				<span className="w-2 h-3 bg-[#00ff41] animate-pulse shrink-0" />
-			)}
+			{agentStatus === "active" && <span className="w-2 h-3 bg-[#00ff41] animate-pulse shrink-0" />}
 			{agentStatus === "attention" && (
 				<span className="w-2 h-3 bg-red-500 animate-pulse shrink-0" />
 			)}
@@ -151,10 +153,10 @@ export function CyberpunkEntry({
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			data-pane-id={paneId}
-			className={`sidebar-item flex items-center gap-1.5 w-[calc(100%-8px)] mx-1 mt-1 text-left pl-4 pr-2 py-1.5 cursor-pointer transition-all font-mono border-b uppercase ${
+			className={`sidebar-item flex items-center gap-1.5 w-[calc(100%-8px)] mx-1 mt-1 text-left pl-4 pr-2 py-1.5 cursor-pointer transition-all font-mono border-b border-b-[#ff2a6d]/15 uppercase ${
 				isFocused
-					? "sidebar-pane-focused text-[#05d9e8] bg-[#2a0550]/50 border-[#ff2a6d]"
-					: "bg-transparent text-[#b967ff] hover:text-[#f0e6ff] hover:bg-[#130228] border-transparent"
+					? "sidebar-pane-focused text-[#05d9e8] bg-[#2a0550]/50"
+					: "bg-transparent text-[#b967ff] hover:text-[#f0e6ff] hover:bg-[#130228]"
 			}`}
 		>
 			{agentStatus === "active" && (
@@ -245,10 +247,10 @@ export function SolanaEntry({
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			data-pane-id={paneId}
-			className={`sidebar-item flex items-center gap-1.5 w-[calc(100%-12px)] mx-[6px] mt-1 text-left pl-8 pr-3 py-2 cursor-pointer rounded-2xl transition-all border relative ${
+			className={`sidebar-item flex items-center gap-1.5 w-[calc(100%-12px)] mx-[6px] mt-1 text-left pl-8 pr-3 py-2 cursor-pointer rounded-2xl transition-all border-b border-b-[#9945ff]/10 relative ${
 				isFocused
-					? "sidebar-pane-focused text-[#f5f5ff] bg-[#1e1e3d]/60 border-[#9945ff]/50"
-					: "bg-transparent text-[#a6adc8] hover:text-[#e0e0f0] border-transparent hover:bg-[#0f0f24]"
+					? "sidebar-pane-focused text-[#f5f5ff] bg-[#1e1e3d]/60"
+					: "bg-transparent text-[#a6adc8] hover:text-[#e0e0f0] hover:bg-[#0f0f24]"
 			}`}
 		>
 			{agentStatus === "active" && (
@@ -297,7 +299,9 @@ export function AmberHeader({
 						className="sidebar-header bg-[#080500] border border-[#ffb000] text-[#ffb000] text-[11px] py-px px-1 outline-none flex-1 min-w-0 font-mono uppercase"
 					/>
 				) : (
-					<span className="sidebar-header text-[12px] font-bold truncate flex-1 min-w-0">{name}</span>
+					<span className="sidebar-header text-[12px] font-bold truncate flex-1 min-w-0">
+						{name}
+					</span>
 				)}
 				{attentionCount > 0 && (
 					<span
@@ -327,7 +331,7 @@ export function AmberEntry({
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			data-pane-id={paneId}
-			className={`sidebar-item flex items-center gap-1.5 w-full text-left pl-6 pr-3 py-1.5 border-none cursor-pointer transition-none font-mono uppercase ${
+			className={`sidebar-item flex items-center gap-1.5 w-full text-left pl-6 pr-3 py-1.5 border-b border-b-[#5c3d00]/20 cursor-pointer transition-none font-mono uppercase ${
 				isFocused
 					? "sidebar-pane-focused text-[#ffe0a0] bg-[#2a1c00]"
 					: "bg-transparent text-[#b37a00] hover:text-[#ffb000] hover:bg-[#0c0900]"
@@ -335,9 +339,13 @@ export function AmberEntry({
 		>
 			<span className="shrink-0">{isFocused ? "▶" : " "}</span>
 			<span className="text-[11px] font-bold truncate shrink">{label}</span>
-			{agentStatus === "active" && <span className="text-[9px] animate-pulse shrink-0">WAIT...</span>}
+			{agentStatus === "active" && (
+				<span className="text-[9px] animate-pulse shrink-0">WAIT...</span>
+			)}
 			{agentStatus === "attention" && (
-				<span className="text-[9px] animate-pulse bg-[#ffb000] text-black px-1 shrink-0">INPUT</span>
+				<span className="text-[9px] animate-pulse bg-[#ffb000] text-black px-1 shrink-0">
+					INPUT
+				</span>
 			)}
 			{agentStatus !== "idle" && title && (
 				<span className="text-[9px] truncate flex-1 text-right opacity-70">{title}</span>
@@ -414,10 +422,10 @@ export function VaporwaveEntry({
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			data-pane-id={paneId}
-			className={`sidebar-item flex items-center gap-1.5 w-full text-left pl-6 pr-3 py-2 border-none cursor-pointer transition-all font-sans ${
+			className={`sidebar-item flex items-center gap-1.5 w-full text-left pl-6 pr-3 py-2 border-b border-b-[#2d1b4e]/30 cursor-pointer transition-all font-sans ${
 				isFocused
-					? "sidebar-pane-focused text-[#ffffff] bg-gradient-to-r from-[#7b2fff]/30 to-transparent border-l-2 border-[#ff71ce]"
-					: "bg-transparent text-[#ff9de2] hover:text-[#f0d0ff] hover:bg-[#100024] border-l-2 border-transparent"
+					? "sidebar-pane-focused text-[#ffffff] bg-gradient-to-r from-[#7b2fff]/30 to-transparent border-l-2 border-l-[#ff71ce]"
+					: "bg-transparent text-[#ff9de2] hover:text-[#f0d0ff] hover:bg-[#100024] border-l-2 border-l-transparent"
 			}`}
 		>
 			{agentStatus === "active" && (
@@ -510,7 +518,7 @@ export function OceanEntry({
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			data-pane-id={paneId}
-			className={`sidebar-item flex items-center gap-1.5 w-[calc(100%-8px)] mx-1 mt-1 text-left pl-8 pr-3 py-2 border-none cursor-pointer rounded-xl transition-all duration-300 relative ${
+			className={`sidebar-item flex items-center gap-1.5 w-[calc(100%-8px)] mx-1 mt-1 text-left pl-8 pr-3 py-2 border-b border-b-[#0a2838]/30 cursor-pointer rounded-xl transition-all duration-300 relative ${
 				isFocused
 					? "sidebar-pane-focused text-[#b0d8e8] bg-[#0a2838]"
 					: "bg-transparent text-[#44d8f0] hover:text-[#b0d8e8] hover:bg-[#051218]"
@@ -600,7 +608,7 @@ export function SunsetEntry({
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			data-pane-id={paneId}
-			className={`sidebar-item flex items-center gap-1.5 w-full text-left pl-7 pr-3 py-1.5 border-none cursor-pointer transition-all ${
+			className={`sidebar-item flex items-center gap-1.5 w-full text-left pl-7 pr-3 py-1.5 border-b border-b-[#9a4530]/15 cursor-pointer transition-all ${
 				isFocused
 					? "sidebar-pane-focused text-[#f0d0a0] bg-[#301810]"
 					: "bg-transparent text-[#e87858] hover:text-[#f0d8b0] hover:bg-[#180c0a]"
@@ -698,7 +706,7 @@ export function ArcticEntry({
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			data-pane-id={paneId}
-			className={`sidebar-item flex items-center gap-1.5 w-[calc(100%-8px)] mx-1 mt-1 text-left pl-7 pr-3 py-2 border-none cursor-pointer rounded-md transition-all ${
+			className={`sidebar-item flex items-center gap-1.5 w-[calc(100%-8px)] mx-1 mt-1 text-left pl-7 pr-3 py-2 border-b border-b-[#1e3550]/20 cursor-pointer rounded-md transition-all ${
 				isFocused
 					? "sidebar-pane-focused text-[#f0f8ff] bg-[#1e3550]/50"
 					: "bg-transparent text-[#68d8ee] hover:text-[#c8e4f0] hover:bg-[#1e3550]/20"
@@ -721,32 +729,26 @@ export function ArcticEntry({
 export function MatrixGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!cwd && !branch && !pr) return null;
 	return (
-		<div className="px-3 pb-2 pt-1">
-			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#000000] border border-[#003300]">
-				{cwd && (
-					<div className="text-[10px] text-[#005500] truncate font-mono tracking-tight" title={cwd}>
-						{cwd}
-					</div>
-				)}
-				{(branch || pr) && (
-					<div className="flex items-center justify-between gap-2">
-						{branch && (
-							<div className="flex items-center gap-1.5 min-w-0">
-								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#005500] shrink-0">
-									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
-									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
-								</svg>
-								<span className="text-[10px] font-medium text-[#00ff41] truncate tracking-wide">{branch}</span>
-							</div>
-						)}
-						{pr && (
-							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#003300] text-[#00ff41] shrink-0">
-								#{pr.number}
-							</div>
-						)}
-					</div>
-				)}
-			</div>
+		<div className="bg-[#020802] border-t border-b border-[#00ff41]/15 px-3 py-1">
+			{cwd && (
+				<div className="text-[9px] text-[#006622] truncate font-mono uppercase" title={cwd}>
+					{cwd}
+				</div>
+			)}
+			{(branch || pr) && (
+				<div className="flex items-center gap-2">
+					{branch && (
+						<span className="text-[9px] text-[#00ff41] font-mono uppercase truncate min-w-0">
+							&gt; {branch}
+						</span>
+					)}
+					{pr && (
+						<span className="text-[9px] font-mono uppercase border border-[#00ff41]/40 px-1 shrink-0">
+							[PR:{pr.number}]
+						</span>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
@@ -754,32 +756,31 @@ export function MatrixGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 export function CyberpunkGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!cwd && !branch && !pr) return null;
 	return (
-		<div className="px-3 pb-2 pt-1">
-			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#000000]/50 border border-[#ff003c]/30">
-				{cwd && (
-					<div className="text-[10px] text-[#ff003c] truncate font-mono tracking-tight" title={cwd}>
-						{cwd}
-					</div>
-				)}
-				{(branch || pr) && (
-					<div className="flex items-center justify-between gap-2">
-						{branch && (
-							<div className="flex items-center gap-1.5 min-w-0">
-								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#ff003c] shrink-0">
-									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
-									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
-								</svg>
-								<span className="text-[10px] font-medium text-[#f3e600] truncate tracking-wide">{branch}</span>
-							</div>
-						)}
-						{pr && (
-							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#00ffff]/20 text-[#00ffff] shrink-0">
-								#{pr.number}
-							</div>
-						)}
-					</div>
-				)}
-			</div>
+		<div
+			className="bg-[#130228]/80 border-t border-[#ff2a6d]/30 px-4 py-1.5"
+			style={{
+				clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%)",
+			}}
+		>
+			{cwd && (
+				<div className="text-[9px] text-[#b967ff]/60 font-mono uppercase truncate" title={cwd}>
+					{cwd}
+				</div>
+			)}
+			{(branch || pr) && (
+				<div className="flex items-center gap-2">
+					{branch && (
+						<span className="text-[9px] text-[#05d9e8] font-bold font-mono uppercase truncate min-w-0">
+							{branch}
+						</span>
+					)}
+					{pr && (
+						<span className="text-[9px] bg-[#fef08a] text-[#0d0221] font-bold px-1 shrink-0">
+							#{pr.number}
+						</span>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
@@ -787,32 +788,36 @@ export function CyberpunkGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps)
 export function SolanaGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!cwd && !branch && !pr) return null;
 	return (
-		<div className="px-3 pb-2 pt-1">
-			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#14f195]/10 border border-[#14f195]/30">
-				{cwd && (
-					<div className="text-[10px] text-[#9945ff] truncate font-mono tracking-tight" title={cwd}>
-						{cwd}
-					</div>
-				)}
-				{(branch || pr) && (
-					<div className="flex items-center justify-between gap-2">
-						{branch && (
-							<div className="flex items-center gap-1.5 min-w-0">
-								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#9945ff] shrink-0">
-									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
-									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
-								</svg>
-								<span className="text-[10px] font-medium text-[#14f195] truncate tracking-wide">{branch}</span>
-							</div>
-						)}
-						{pr && (
-							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#14f195]/20 text-[#14f195] shrink-0">
-								#{pr.number}
-							</div>
-						)}
-					</div>
-				)}
-			</div>
+		<div className="bg-gradient-to-r from-[#9945ff]/8 to-[#14f195]/5 px-5 py-2">
+			{cwd && (
+				<div className="text-[10px] text-[#b380ff]/50 truncate" title={cwd}>
+					{cwd}
+				</div>
+			)}
+			{(branch || pr) && (
+				<div className="flex items-center gap-2">
+					{branch && (
+						<div className="flex items-center gap-1 min-w-0">
+							<svg
+								width="8"
+								height="8"
+								viewBox="0 0 16 16"
+								fill="currentColor"
+								className="text-[#33e6c0] shrink-0"
+							>
+								<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
+								<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
+							</svg>
+							<span className="text-[10px] text-[#33e6c0] font-medium truncate">{branch}</span>
+						</div>
+					)}
+					{pr && (
+						<span className="text-[9px] bg-[#9945ff]/20 text-[#c77dff] rounded-md font-bold px-1.5 py-0.5 shrink-0">
+							#{pr.number}
+						</span>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
@@ -820,32 +825,26 @@ export function SolanaGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 export function AmberGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!cwd && !branch && !pr) return null;
 	return (
-		<div className="px-3 pb-2 pt-1">
-			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#1a0f00]/50 border border-[#ffb000]/30">
-				{cwd && (
-					<div className="text-[10px] text-[#b36b00] truncate font-mono tracking-tight" title={cwd}>
-						{cwd}
-					</div>
-				)}
-				{(branch || pr) && (
-					<div className="flex items-center justify-between gap-2">
-						{branch && (
-							<div className="flex items-center gap-1.5 min-w-0">
-								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#b36b00] shrink-0">
-									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
-									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
-								</svg>
-								<span className="text-[10px] font-medium text-[#ffb000] truncate tracking-wide">{branch}</span>
-							</div>
-						)}
-						{pr && (
-							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#ffb000]/20 text-[#ffb000] shrink-0">
-								#{pr.number}
-							</div>
-						)}
-					</div>
-				)}
-			</div>
+		<div className="bg-[#0c0800]/60 border-t border-b border-[#5c3d00]/40 px-3 py-1">
+			{cwd && (
+				<div className="text-[9px] text-[#b37a00]/70 truncate font-mono uppercase" title={cwd}>
+					{cwd}
+				</div>
+			)}
+			{(branch || pr) && (
+				<div className="flex items-center gap-2">
+					{branch && (
+						<span className="text-[9px] text-[#ffb000] font-mono font-bold uppercase truncate min-w-0">
+							[{branch}]
+						</span>
+					)}
+					{pr && (
+						<span className="text-[9px] text-[#ffb000] font-mono uppercase shrink-0">
+							PR:{pr.number}
+						</span>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
@@ -853,32 +852,36 @@ export function AmberGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 export function VaporwaveGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!cwd && !branch && !pr) return null;
 	return (
-		<div className="px-3 pb-2 pt-1">
-			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#2b1b3d]/50 border border-[#ff71ce]/30">
-				{cwd && (
-					<div className="text-[10px] text-[#ff71ce] truncate font-mono tracking-tight" title={cwd}>
-						{cwd}
-					</div>
-				)}
-				{(branch || pr) && (
-					<div className="flex items-center justify-between gap-2">
-						{branch && (
-							<div className="flex items-center gap-1.5 min-w-0">
-								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#ff71ce] shrink-0">
-									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
-									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
-								</svg>
-								<span className="text-[10px] font-medium text-[#01cdfe] truncate tracking-wide">{branch}</span>
-							</div>
-						)}
-						{pr && (
-							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#01cdfe]/20 text-[#01cdfe] shrink-0">
-								#{pr.number}
-							</div>
-						)}
-					</div>
-				)}
-			</div>
+		<div className="bg-gradient-to-r from-[#100024]/60 to-[#220050]/40 border-t border-[#01cdfe]/15 px-4 py-1.5">
+			{cwd && (
+				<div className="text-[9px] text-[#a855f7]/60 font-mono truncate" title={cwd}>
+					{cwd}
+				</div>
+			)}
+			{(branch || pr) && (
+				<div className="flex items-center gap-2">
+					{branch && (
+						<div className="flex items-center gap-1 min-w-0">
+							<svg
+								width="8"
+								height="8"
+								viewBox="0 0 16 16"
+								fill="currentColor"
+								className="text-[#05ffa1] shrink-0"
+							>
+								<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
+								<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
+							</svg>
+							<span className="text-[9px] text-[#05ffa1] italic truncate">{branch}</span>
+						</div>
+					)}
+					{pr && (
+						<span className="text-[9px] bg-[#01cdfe]/15 text-[#01cdfe] font-bold px-1.5 py-0.5 shrink-0">
+							#{pr.number}
+						</span>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
@@ -886,32 +889,36 @@ export function VaporwaveGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps)
 export function OceanGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!cwd && !branch && !pr) return null;
 	return (
-		<div className="px-3 pb-2 pt-1">
-			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#0f172a]/50 border border-[#38bdf8]/30">
-				{cwd && (
-					<div className="text-[10px] text-[#0ea5e9] truncate font-mono tracking-tight" title={cwd}>
-						{cwd}
-					</div>
-				)}
-				{(branch || pr) && (
-					<div className="flex items-center justify-between gap-2">
-						{branch && (
-							<div className="flex items-center gap-1.5 min-w-0">
-								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#0ea5e9] shrink-0">
-									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
-									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
-								</svg>
-								<span className="text-[10px] font-medium text-[#38bdf8] truncate tracking-wide">{branch}</span>
-							</div>
-						)}
-						{pr && (
-							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#38bdf8]/20 text-[#38bdf8] shrink-0">
-								#{pr.number}
-							</div>
-						)}
-					</div>
-				)}
-			</div>
+		<div className="bg-[#020b14]/60 border-t border-[#0a2838]/60 px-4 py-2">
+			{cwd && (
+				<div className="text-[10px] text-[#2890b8]/50 truncate" title={cwd}>
+					{cwd}
+				</div>
+			)}
+			{(branch || pr) && (
+				<div className="flex items-center gap-2">
+					{branch && (
+						<div className="flex items-center gap-1 min-w-0">
+							<svg
+								width="8"
+								height="8"
+								viewBox="0 0 16 16"
+								fill="currentColor"
+								className="text-[#4dd8e0] shrink-0"
+							>
+								<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
+								<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
+							</svg>
+							<span className="text-[10px] text-[#4dd8e0] truncate">{branch}</span>
+						</div>
+					)}
+					{pr && (
+						<span className="text-[9px] text-[#00e5b0] bg-[#00e5b0]/10 rounded-sm px-1.5 py-0.5 shrink-0">
+							#{pr.number}
+						</span>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
@@ -919,32 +926,32 @@ export function OceanGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 export function SunsetGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!cwd && !branch && !pr) return null;
 	return (
-		<div className="px-3 pb-2 pt-1">
-			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#2a1b18]/50 border border-[#f97316]/30">
-				{cwd && (
-					<div className="text-[10px] text-[#f97316] truncate font-mono tracking-tight" title={cwd}>
-						{cwd}
-					</div>
-				)}
-				{(branch || pr) && (
-					<div className="flex items-center justify-between gap-2">
-						{branch && (
-							<div className="flex items-center gap-1.5 min-w-0">
-								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#f97316] shrink-0">
-									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
-									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
-								</svg>
-								<span className="text-[10px] font-medium text-[#fdba74] truncate tracking-wide">{branch}</span>
-							</div>
-						)}
-						{pr && (
-							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#f97316]/20 text-[#fdba74] shrink-0">
-								#{pr.number}
-							</div>
-						)}
-					</div>
-				)}
-			</div>
+		<div className="bg-gradient-to-r from-[#e04028]/8 to-transparent border-t border-[#9a4530]/30 px-4 py-1.5">
+			{cwd && (
+				<div className="text-[10px] text-[#d04830]/50 font-mono truncate" title={cwd}>
+					{cwd}
+				</div>
+			)}
+			{(branch || pr) && (
+				<div className="flex items-center gap-2">
+					{branch && (
+						<div className="flex items-center gap-1 min-w-0">
+							<svg
+								width="8"
+								height="8"
+								viewBox="0 0 16 16"
+								fill="currentColor"
+								className="text-[#f0b048] shrink-0"
+							>
+								<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
+								<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
+							</svg>
+							<span className="text-[10px] text-[#f0b048] truncate">{branch}</span>
+						</div>
+					)}
+					{pr && <span className="text-[9px] text-[#ffc040] font-bold shrink-0">#{pr.number}</span>}
+				</div>
+			)}
 		</div>
 	);
 }
@@ -952,32 +959,32 @@ export function SunsetGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 export function ArcticGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!cwd && !branch && !pr) return null;
 	return (
-		<div className="px-3 pb-2 pt-1">
-			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#ffffff]/10 border border-[#94a3b8]/30">
-				{cwd && (
-					<div className="text-[10px] text-[#94a3b8] truncate font-mono tracking-tight" title={cwd}>
-						{cwd}
-					</div>
-				)}
-				{(branch || pr) && (
-					<div className="flex items-center justify-between gap-2">
-						{branch && (
-							<div className="flex items-center gap-1.5 min-w-0">
-								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#94a3b8] shrink-0">
-									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
-									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
-								</svg>
-								<span className="text-[10px] font-medium text-[#e2e8f0] truncate tracking-wide">{branch}</span>
-							</div>
-						)}
-						{pr && (
-							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#38bdf8]/20 text-[#38bdf8] shrink-0">
-								#{pr.number}
-							</div>
-						)}
-					</div>
-				)}
-			</div>
+		<div className="bg-[#050d18]/40 backdrop-blur-sm border-t border-[#1e3550]/40 px-4 py-2">
+			{cwd && (
+				<div className="text-[10px] text-[#78b8d0]/40 font-mono truncate" title={cwd}>
+					{cwd}
+				</div>
+			)}
+			{(branch || pr) && (
+				<div className="flex items-center gap-2">
+					{branch && (
+						<div className="flex items-center gap-1 min-w-0">
+							<svg
+								width="8"
+								height="8"
+								viewBox="0 0 16 16"
+								fill="currentColor"
+								className="text-[#a0e0f8] shrink-0"
+							>
+								<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
+								<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
+							</svg>
+							<span className="text-[10px] text-[#a0e0f8] truncate">{branch}</span>
+						</div>
+					)}
+					{pr && <span className="text-[9px] text-[#48c8e0] shrink-0">#{pr.number}</span>}
+				</div>
+			)}
 		</div>
 	);
 }

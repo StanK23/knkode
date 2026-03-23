@@ -71,7 +71,7 @@ export function DefaultDarkEntry({
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			data-pane-id={paneId}
-			className={`sidebar-item flex items-center gap-1.5 w-full text-left pl-7 pr-3 py-1.5 border-none cursor-pointer transition-colors duration-150 ${isFocused ? "sidebar-pane-focused text-[#e0e0e0] border-l-2 border-[#6c63ff]" : "bg-transparent text-[#5a6380] hover:text-[#8892b0] border-l-2 border-transparent"}`}
+			className={`sidebar-item flex items-center gap-1.5 w-full text-left pl-7 pr-3 py-1.5 border-none border-b border-[#2a2f4a]/30 cursor-pointer transition-colors duration-150 ${isFocused ? "sidebar-pane-focused text-[#e0e0e0] border-l-2 border-[#6c63ff]" : "bg-transparent text-[#5a6380] hover:text-[#8892b0] border-l-2 border-transparent"}`}
 		>
 			<AgentStatusIndicator status={agentStatus} />
 			<span className={`text-[11px] truncate shrink ${isFocused ? "font-semibold" : ""}`}>
@@ -156,7 +156,7 @@ export function DraculaEntry({
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			data-pane-id={paneId}
-			className={`sidebar-item flex items-center gap-1.5 w-[calc(100%-8px)] mx-1 mt-1 text-left pl-6 pr-2 py-1.5 border-none cursor-pointer rounded-md transition-all ${isFocused ? "sidebar-pane-focused text-[#f8f8f2] bg-[#44475a]/30" : "bg-transparent text-[#6272a4] hover:text-[#f8f8f2] hover:bg-[#44475a]/10"}`}
+			className={`sidebar-item flex items-center gap-1.5 w-[calc(100%-8px)] mx-1 mt-1 text-left pl-6 pr-2 py-1.5 border-none border-b border-[#44475a]/30 cursor-pointer rounded-md transition-all ${isFocused ? "sidebar-pane-focused text-[#f8f8f2] bg-[#44475a]/30" : "bg-transparent text-[#6272a4] hover:text-[#f8f8f2] hover:bg-[#44475a]/10"}`}
 		>
 			<AgentStatusIndicator status={agentStatus} />
 			<span className="text-[11px] truncate shrink font-medium">{label}</span>
@@ -228,7 +228,7 @@ export function TokyoNightEntry({
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			data-pane-id={paneId}
-			className={`sidebar-item flex items-center gap-1.5 w-full text-left pl-6 pr-3 py-1.5 border-none cursor-pointer transition-all ${isFocused ? "sidebar-pane-focused text-[#c0caf5] border-l-2 border-[#bb9af7] bg-[#1f2335]/80" : "bg-transparent text-[#565f89] hover:text-[#a9b1d6] border-l-2 border-transparent hover:bg-[#1f2335]/30"}`}
+			className={`sidebar-item flex items-center gap-1.5 w-full text-left pl-6 pr-3 py-1.5 border-none border-b border-[#292e42]/40 cursor-pointer transition-all ${isFocused ? "sidebar-pane-focused text-[#c0caf5] border-l-2 border-[#bb9af7] bg-[#1f2335]/80" : "bg-transparent text-[#565f89] hover:text-[#a9b1d6] border-l-2 border-transparent hover:bg-[#1f2335]/30"}`}
 		>
 			<AgentStatusIndicator status={agentStatus} />
 			<span className="text-[11px] truncate shrink">{label}</span>
@@ -308,7 +308,7 @@ export function NordEntry({
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			data-pane-id={paneId}
-			className={`sidebar-item flex items-center gap-1.5 w-full text-left pl-8 pr-4 py-2 border-none cursor-pointer transition-all ${isFocused ? "sidebar-pane-focused text-[#eceff4] bg-[#434c5e]" : "bg-transparent text-[#d8dee9] hover:text-[#eceff4] hover:bg-[#3b4252]"}`}
+			className={`sidebar-item flex items-center gap-1.5 w-full text-left pl-8 pr-4 py-2 border-none border-b border-[#3b4252]/30 cursor-pointer transition-all ${isFocused ? "sidebar-pane-focused text-[#eceff4] bg-[#434c5e]" : "bg-transparent text-[#d8dee9] hover:text-[#eceff4] hover:bg-[#3b4252]"}`}
 		>
 			{isFocused && <span className="w-1.5 h-1.5 rounded-full bg-[#88c0d0] shrink-0" />}
 			<AgentStatusIndicator status={agentStatus} />
@@ -392,7 +392,7 @@ export function CatppuccinEntry({
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			data-pane-id={paneId}
-			className={`sidebar-item flex items-center gap-1.5 w-[calc(100%-12px)] mx-[6px] mt-1 text-left pl-7 pr-3 py-1.5 border-none cursor-pointer rounded-lg transition-all ${isFocused ? "sidebar-pane-focused text-[#cdd6f4] bg-[#45475a]" : "bg-transparent text-[#a6adc8] hover:text-[#cdd6f4] hover:bg-[#313244]"}`}
+			className={`sidebar-item flex items-center gap-1.5 w-[calc(100%-12px)] mx-[6px] mt-1 text-left pl-7 pr-3 py-1.5 border-none border-b border-[#313244]/30 cursor-pointer rounded-lg transition-all ${isFocused ? "sidebar-pane-focused text-[#cdd6f4] bg-[#45475a]" : "bg-transparent text-[#a6adc8] hover:text-[#cdd6f4] hover:bg-[#313244]"}`}
 		>
 			<AgentStatusIndicator status={agentStatus} />
 			<span className="text-[11px] font-medium truncate shrink">{label}</span>
@@ -460,7 +460,7 @@ export function GruvboxEntry({
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			data-pane-id={paneId}
-			className={`sidebar-item flex items-center gap-1.5 w-full text-left pl-6 pr-2 py-1.5 border-none cursor-pointer transition-none font-mono text-[11px] ${isFocused ? "sidebar-pane-focused text-[#ebdbb2] bg-[#504945]" : "bg-transparent text-[#928374] hover:text-[#a89984] hover:bg-[#3c3836]"}`}
+			className={`sidebar-item flex items-center gap-1.5 w-full text-left pl-6 pr-2 py-1.5 border-none border-b border-[#3c3836]/40 cursor-pointer transition-none font-mono text-[11px] ${isFocused ? "sidebar-pane-focused text-[#ebdbb2] bg-[#504945]" : "bg-transparent text-[#928374] hover:text-[#a89984] hover:bg-[#3c3836]"}`}
 		>
 			<span className="shrink-0">{isFocused ? "->" : "  "}</span>
 			<AgentStatusIndicator status={agentStatus} gruvbox />
@@ -537,7 +537,7 @@ export function MonokaiEntry({
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			data-pane-id={paneId}
-			className={`sidebar-item flex items-center gap-1.5 w-full text-left pl-7 pr-3 py-1.5 border-none cursor-pointer transition-colors ${isFocused ? "sidebar-pane-focused text-[#f8f8f2] border-l-[3px] border-[#f92672] bg-[#3e3d32]/80" : "bg-transparent text-[#75715e] hover:text-[#f8f8f2] border-l-[3px] border-transparent hover:bg-[#3e3d32]/30"}`}
+			className={`sidebar-item flex items-center gap-1.5 w-full text-left pl-7 pr-3 py-1.5 border-none border-b border-[#3e3d32]/30 cursor-pointer transition-colors ${isFocused ? "sidebar-pane-focused text-[#f8f8f2] border-l-[3px] border-[#f92672] bg-[#3e3d32]/80" : "bg-transparent text-[#75715e] hover:text-[#f8f8f2] border-l-[3px] border-transparent hover:bg-[#3e3d32]/30"}`}
 		>
 			<AgentStatusIndicator status={agentStatus} />
 			<span className="text-[11px] truncate shrink italic">{label}</span>
@@ -607,7 +607,7 @@ export function EverforestEntry({
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			data-pane-id={paneId}
-			className={`sidebar-item flex items-center gap-1.5 w-full text-left pl-6 pr-3 py-2 border-none cursor-pointer transition-colors ${isFocused ? "sidebar-pane-focused text-[#d3c6aa] bg-[#3a454a]" : "bg-transparent text-[#9da9a0] hover:text-[#d3c6aa] hover:bg-[#343f44]"}`}
+			className={`sidebar-item flex items-center gap-1.5 w-full text-left pl-6 pr-3 py-2 border-none border-b border-[#3d474d]/25 cursor-pointer transition-colors ${isFocused ? "sidebar-pane-focused text-[#d3c6aa] bg-[#3a454a]" : "bg-transparent text-[#9da9a0] hover:text-[#d3c6aa] hover:bg-[#343f44]"}`}
 		>
 			<AgentStatusIndicator status={agentStatus} />
 			<span className="text-[11px] truncate shrink">{label}</span>
@@ -621,32 +621,30 @@ export function EverforestEntry({
 export function DefaultDarkGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!cwd && !branch && !pr) return null;
 	return (
-		<div className="px-3 pb-2 pt-1">
-			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#16213e]/50 border border-[#2a2f4a]">
-				{cwd && (
-					<div className="text-[10px] text-[#5a6380] truncate font-mono tracking-tight" title={cwd}>
-						{cwd}
-					</div>
-				)}
-				{(branch || pr) && (
-					<div className="flex items-center justify-between gap-2">
-						{branch && (
-							<div className="flex items-center gap-1.5 min-w-0">
-								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#5a6380] shrink-0">
-									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
-									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
-								</svg>
-								<span className="text-[10px] font-medium text-[#8892b0] truncate tracking-wide">{branch}</span>
-							</div>
-						)}
-						{pr && (
-							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#232946] text-[#e0e0e0] shrink-0">
-								#{pr.number}
-							</div>
-						)}
-					</div>
-				)}
-			</div>
+		<div className="border-t border-[#2a2f4a] bg-[#16213e]/20 px-4 py-1.5">
+			{cwd && (
+				<div className="text-[10px] text-[#5a6380] font-mono truncate" title={cwd}>
+					{cwd}
+				</div>
+			)}
+			{(branch || pr) && (
+				<div className="flex items-center justify-between gap-2">
+					{branch && (
+						<div className="flex items-center gap-1 min-w-0">
+							<svg width="8" height="8" viewBox="0 0 16 16" fill="currentColor" className="text-[#5a6380] shrink-0">
+								<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
+								<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
+							</svg>
+							<span className="text-[10px] font-medium text-[#8892b0] truncate">{branch}</span>
+						</div>
+					)}
+					{pr && (
+						<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#232946] text-[#e0e0e0] shrink-0">
+							#{pr.number}
+						</div>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
@@ -654,32 +652,30 @@ export function DefaultDarkGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProp
 export function DraculaGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!cwd && !branch && !pr) return null;
 	return (
-		<div className="px-3 pb-2 pt-1">
-			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#282a36]/50 border border-[#44475a]">
-				{cwd && (
-					<div className="text-[10px] text-[#6272a4] truncate font-mono tracking-tight" title={cwd}>
-						{cwd}
-					</div>
-				)}
-				{(branch || pr) && (
-					<div className="flex items-center justify-between gap-2">
-						{branch && (
-							<div className="flex items-center gap-1.5 min-w-0">
-								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#6272a4] shrink-0">
-									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
-									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
-								</svg>
-								<span className="text-[10px] font-medium text-[#f8f8f2] truncate tracking-wide">{branch}</span>
-							</div>
-						)}
-						{pr && (
-							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#bd93f9]/20 text-[#bd93f9] shrink-0">
-								#{pr.number}
-							</div>
-						)}
-					</div>
-				)}
-			</div>
+		<div className="border-l-2 border-[#ff79c6] bg-[#282a36]/40 px-4 py-1.5">
+			{cwd && (
+				<div className="text-[10px] text-[#6272a4] font-mono truncate" title={cwd}>
+					{cwd}
+				</div>
+			)}
+			{(branch || pr) && (
+				<div className="flex items-center justify-between gap-2">
+					{branch && (
+						<div className="flex items-center gap-1 min-w-0">
+							<svg width="8" height="8" viewBox="0 0 16 16" fill="currentColor" className="text-[#6272a4] shrink-0">
+								<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
+								<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
+							</svg>
+							<span className="text-[10px] font-medium text-[#50fa7b] truncate">{branch}</span>
+						</div>
+					)}
+					{pr && (
+						<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#bd93f9]/20 text-[#bd93f9] shrink-0">
+							#{pr.number}
+						</div>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
@@ -687,32 +683,30 @@ export function DraculaGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 export function TokyoNightGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!cwd && !branch && !pr) return null;
 	return (
-		<div className="px-3 pb-2 pt-1">
-			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#1a1b26]/50 border border-[#292e42]">
-				{cwd && (
-					<div className="text-[10px] text-[#565f89] truncate font-mono tracking-tight" title={cwd}>
-						{cwd}
-					</div>
-				)}
-				{(branch || pr) && (
-					<div className="flex items-center justify-between gap-2">
-						{branch && (
-							<div className="flex items-center gap-1.5 min-w-0">
-								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#565f89] shrink-0">
-									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
-									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
-								</svg>
-								<span className="text-[10px] font-medium text-[#a9b1d6] truncate tracking-wide">{branch}</span>
-							</div>
-						)}
-						{pr && (
-							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#1f2335] text-[#7dcfff] shrink-0">
-								#{pr.number}
-							</div>
-						)}
-					</div>
-				)}
-			</div>
+		<div className="border-l-2 border-[#7aa2f7]/50 bg-[#1a1b26]/60 px-4 py-1.5">
+			{cwd && (
+				<div className="text-[10px] text-[#3b4261] font-mono truncate" title={cwd}>
+					{cwd}
+				</div>
+			)}
+			{(branch || pr) && (
+				<div className="flex items-center justify-between gap-2">
+					{branch && (
+						<div className="flex items-center gap-1 min-w-0">
+							<svg width="8" height="8" viewBox="0 0 16 16" fill="currentColor" className="text-[#3b4261] shrink-0">
+								<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
+								<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
+							</svg>
+							<span className="text-[10px] font-medium text-[#9ece6a] truncate">{branch}</span>
+						</div>
+					)}
+					{pr && (
+						<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#292e42] text-[#7dcfff] shrink-0">
+							#{pr.number}
+						</div>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
@@ -720,32 +714,30 @@ export function TokyoNightGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps
 export function NordGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!cwd && !branch && !pr) return null;
 	return (
-		<div className="px-3 pb-2 pt-1">
-			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#2e3440]/50 border border-[#3b4252]">
-				{cwd && (
-					<div className="text-[10px] text-[#4c566a] truncate font-mono tracking-tight" title={cwd}>
-						{cwd}
-					</div>
-				)}
-				{(branch || pr) && (
-					<div className="flex items-center justify-between gap-2">
-						{branch && (
-							<div className="flex items-center gap-1.5 min-w-0">
-								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#4c566a] shrink-0">
-									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
-									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
-								</svg>
-								<span className="text-[10px] font-medium text-[#d8dee9] truncate tracking-wide">{branch}</span>
-							</div>
-						)}
-						{pr && (
-							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#3b4252] text-[#81a1c1] shrink-0">
-								#{pr.number}
-							</div>
-						)}
-					</div>
-				)}
-			</div>
+		<div className="border-t border-[#3b4252]/60 bg-[#2e3440]/40 px-5 py-2">
+			{cwd && (
+				<div className="text-[10px] text-[#4c566a] font-mono truncate" title={cwd}>
+					{cwd}
+				</div>
+			)}
+			{(branch || pr) && (
+				<div className="flex items-center justify-between gap-2">
+					{branch && (
+						<div className="flex items-center gap-1 min-w-0">
+							<svg width="8" height="8" viewBox="0 0 16 16" fill="currentColor" className="text-[#4c566a] shrink-0">
+								<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
+								<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
+							</svg>
+							<span className="text-[10px] font-medium text-[#a3be8c] truncate">{branch}</span>
+						</div>
+					)}
+					{pr && (
+						<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] text-[#ebcb8b] shrink-0">
+							#{pr.number}
+						</div>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
@@ -753,32 +745,30 @@ export function NordGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 export function CatppuccinGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!cwd && !branch && !pr) return null;
 	return (
-		<div className="px-3 pb-2 pt-1">
-			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#1e1e2e]/50 border border-[#313244]">
-				{cwd && (
-					<div className="text-[10px] text-[#7f849c] truncate font-mono tracking-tight" title={cwd}>
-						{cwd}
-					</div>
-				)}
-				{(branch || pr) && (
-					<div className="flex items-center justify-between gap-2">
-						{branch && (
-							<div className="flex items-center gap-1.5 min-w-0">
-								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#7f849c] shrink-0">
-									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
-									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
-								</svg>
-								<span className="text-[10px] font-medium text-[#bac2de] truncate tracking-wide">{branch}</span>
-							</div>
-						)}
-						{pr && (
-							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#cba6f7]/20 text-[#cba6f7] shrink-0">
-								#{pr.number}
-							</div>
-						)}
-					</div>
-				)}
-			</div>
+		<div className="bg-[#181825]/60 px-4 py-1.5">
+			{cwd && (
+				<div className="text-[10px] text-[#6c7086] font-mono truncate" title={cwd}>
+					{cwd}
+				</div>
+			)}
+			{(branch || pr) && (
+				<div className="flex items-center justify-between gap-2">
+					{branch && (
+						<div className="flex items-center gap-1 min-w-0">
+							<svg width="8" height="8" viewBox="0 0 16 16" fill="currentColor" className="text-[#6c7086] shrink-0">
+								<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
+								<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
+							</svg>
+							<span className="text-[10px] font-medium text-[#a6e3a1] truncate">{branch}</span>
+						</div>
+					)}
+					{pr && (
+						<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#cba6f7]/15 text-[#cba6f7] shrink-0">
+							#{pr.number}
+						</div>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
@@ -786,32 +776,30 @@ export function CatppuccinGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps
 export function GruvboxGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!cwd && !branch && !pr) return null;
 	return (
-		<div className="px-3 pb-2 pt-1">
-			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#282828]/50 border border-[#3c3836]">
-				{cwd && (
-					<div className="text-[10px] text-[#928374] truncate font-mono tracking-tight" title={cwd}>
-						{cwd}
-					</div>
-				)}
-				{(branch || pr) && (
-					<div className="flex items-center justify-between gap-2">
-						{branch && (
-							<div className="flex items-center gap-1.5 min-w-0">
-								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#928374] shrink-0">
-									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
-									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
-								</svg>
-								<span className="text-[10px] font-medium text-[#a89984] truncate tracking-wide">{branch}</span>
-							</div>
-						)}
-						{pr && (
-							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#3c3836] text-[#83a598] shrink-0">
-								#{pr.number}
-							</div>
-						)}
-					</div>
-				)}
-			</div>
+		<div className="bg-[#1d2021]/60 px-3 py-1">
+			{cwd && (
+				<div className="font-mono text-[10px] text-[#928374] truncate" title={cwd}>
+					{cwd}
+				</div>
+			)}
+			{(branch || pr) && (
+				<div className="flex items-center justify-between gap-2">
+					{branch && (
+						<div className="flex items-center gap-1 min-w-0">
+							<svg width="8" height="8" viewBox="0 0 16 16" fill="currentColor" className="text-[#928374] shrink-0">
+								<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
+								<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
+							</svg>
+							<span className="font-mono text-[10px] text-[#b8bb26] truncate">[{branch}]</span>
+						</div>
+					)}
+					{pr && (
+						<span className="font-mono text-[9px] text-[#fabd2f] shrink-0">
+							#{pr.number}
+						</span>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
@@ -819,32 +807,30 @@ export function GruvboxGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 export function MonokaiGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!cwd && !branch && !pr) return null;
 	return (
-		<div className="px-3 pb-2 pt-1">
-			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#272822]/50 border border-[#3e3d32]">
-				{cwd && (
-					<div className="text-[10px] text-[#75715e] truncate font-mono tracking-tight" title={cwd}>
-						{cwd}
-					</div>
-				)}
-				{(branch || pr) && (
-					<div className="flex items-center justify-between gap-2">
-						{branch && (
-							<div className="flex items-center gap-1.5 min-w-0">
-								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#75715e] shrink-0">
-									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
-									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
-								</svg>
-								<span className="text-[10px] font-medium text-[#f8f8f2] truncate tracking-wide">{branch}</span>
-							</div>
-						)}
-						{pr && (
-							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#49483e] text-[#66d9ef] shrink-0">
-								#{pr.number}
-							</div>
-						)}
-					</div>
-				)}
-			</div>
+		<div className="bg-[#272822]/60 border-t border-[#3e3d32] px-4 py-1.5">
+			{cwd && (
+				<div className="text-[10px] text-[#75715e] italic font-mono truncate" title={cwd}>
+					{cwd}
+				</div>
+			)}
+			{(branch || pr) && (
+				<div className="flex items-center justify-between gap-2">
+					{branch && (
+						<div className="flex items-center gap-1 min-w-0">
+							<svg width="8" height="8" viewBox="0 0 16 16" fill="currentColor" className="text-[#75715e] shrink-0">
+								<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
+								<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
+							</svg>
+							<span className="text-[10px] font-medium text-[#e6db74] truncate">{branch}</span>
+						</div>
+					)}
+					{pr && (
+						<span className="text-[9px] font-bold text-[#ae81ff] shrink-0">
+							#{pr.number}
+						</span>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
@@ -852,32 +838,30 @@ export function MonokaiGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 export function EverforestGitInfo({ cwd, branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!cwd && !branch && !pr) return null;
 	return (
-		<div className="px-3 pb-2 pt-1">
-			<div className="flex flex-col gap-1.5 px-2.5 py-2 rounded-md bg-[#2d353b]/50 border border-[#3d474d]">
-				{cwd && (
-					<div className="text-[10px] text-[#859289] truncate font-mono tracking-tight" title={cwd}>
-						{cwd}
-					</div>
-				)}
-				{(branch || pr) && (
-					<div className="flex items-center justify-between gap-2">
-						{branch && (
-							<div className="flex items-center gap-1.5 min-w-0">
-								<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[#859289] shrink-0">
-									<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
-									<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
-								</svg>
-								<span className="text-[10px] font-medium text-[#d3c6aa] truncate tracking-wide">{branch}</span>
-							</div>
-						)}
-						{pr && (
-							<div className="text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] bg-[#3a454a] text-[#d699b6] shrink-0">
-								#{pr.number}
-							</div>
-						)}
-					</div>
-				)}
-			</div>
+		<div className="bg-[#272e33]/50 border-t border-[#3d474d]/60 px-4 py-2">
+			{cwd && (
+				<div className="text-[10px] text-[#859289] font-mono truncate" title={cwd}>
+					{cwd}
+				</div>
+			)}
+			{(branch || pr) && (
+				<div className="flex items-center justify-between gap-2">
+					{branch && (
+						<div className="flex items-center gap-1 min-w-0">
+							<svg width="8" height="8" viewBox="0 0 16 16" fill="currentColor" className="text-[#859289] shrink-0">
+								<path d="M11.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM9 5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4.5 8a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2 10.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z" />
+								<path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h1V4H7A3.5 3.5 0 0 0 3.5 7.5v2h1v-2z" />
+							</svg>
+							<span className="text-[10px] font-medium text-[#83c092] truncate">{branch}</span>
+						</div>
+					)}
+					{pr && (
+						<span className="text-[9px] font-bold text-[#dbbc7f] shrink-0">
+							#{pr.number}
+						</span>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
