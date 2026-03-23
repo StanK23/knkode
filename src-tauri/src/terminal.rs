@@ -29,6 +29,10 @@ const MAX_IMAGE_BYTES: u64 = 50 * 1024 * 1024; // 50 MB
 /// IPC payload growth from a malicious program emitting thousands of images.
 const MAX_IMAGES_PER_FRAME: usize = 64;
 
+/// Maximum terminal title length in characters. Prevents IPC bloat from
+/// malicious OSC sequences setting multi-megabyte titles.
+const MAX_TITLE_LEN: usize = 4096;
+
 /// Minimal config for wezterm-term. The `TerminalConfiguration` trait has 15+
 /// methods with sensible defaults (scrollback sizing, unicode version, etc.).
 /// Per-pane color palettes are applied separately at snapshot time — see `set_colors`.
@@ -250,7 +254,7 @@ fn build_palette(ansi: &AnsiThemeColors, foreground: &str, background: &str) -> 
 ///
 /// Each terminal has its own `ColorPalette` so themes are applied per-pane.
 ///
-/// Lock ordering: `terminals` → `palettes` → `sent_image_hashes`.
+/// Lock ordering: `terminals` → `palettes` → `sent_image_hashes` → `last_titles`.
 /// Never acquire these locks in a different order to prevent deadlocks.
 pub struct TerminalState {
     terminals: Mutex<HashMap<String, Terminal>>,
@@ -261,6 +265,9 @@ pub struct TerminalState {
     /// Per-session set of image hashes already sent to the frontend.
     /// Prevents re-sending the same image data on every snapshot frame.
     sent_image_hashes: Mutex<HashMap<String, HashSet<[u8; 32]>>>,
+    /// Last-seen terminal title per pane (OSC 1/2). Used to detect title
+    /// changes between snapshot cycles.
+    last_titles: Mutex<HashMap<String, String>>,
     default_palette: Arc<ColorPalette>,
     config: Arc<dyn TerminalConfiguration + Send + Sync>,
 }
@@ -372,6 +379,7 @@ impl TerminalState {
             terminals: Mutex::new(HashMap::new()),
             palettes: Mutex::new(HashMap::new()),
             sent_image_hashes: Mutex::new(HashMap::new()),
+            last_titles: Mutex::new(HashMap::new()),
             default_palette: Arc::new(ColorPalette::default()),
             config: Arc::new(TermConfig),
         }
@@ -439,12 +447,14 @@ impl TerminalState {
     }
 
     /// Take a snapshot of the current visible grid (bottom of scrollback) for the
-    /// frontend to render.
+    /// Take a snapshot and check for terminal title changes in a single lock
+    /// acquisition. Returns `(GridSnapshot, Option<title>)` where the title
+    /// is `Some` when it differs from the previously observed value (or on
+    /// first observation for a new pane).
     ///
-    /// Lock ordering: acquires `terminals` then `palettes` (via `get_palette`).
-    /// All code paths must follow this order to prevent deadlocks.
-    pub fn snapshot(&self, id: &str) -> Option<GridSnapshot> {
-        self.snapshot_at_offset(id, 0)
+    /// Lock ordering: terminals → palettes → sent_image_hashes → last_titles.
+    pub fn snapshot_and_title(&self, id: &str) -> Option<(GridSnapshot, Option<String>)> {
+        self.snapshot_and_title_at_offset(id, 0)
     }
 
     /// Take a snapshot at a given scroll offset (rows from bottom).
@@ -479,6 +489,42 @@ impl TerminalState {
             scroll_offset,
             session_hashes,
         ))
+    }
+
+    /// Like `snapshot_at_offset` but also reads the terminal title under the
+    /// same `terminals` lock, avoiding a second lock acquisition on the hot path.
+    ///
+    /// Lock ordering: terminals → palettes → sent_image_hashes → last_titles.
+    fn snapshot_and_title_at_offset(
+        &self,
+        id: &str,
+        scroll_offset: usize,
+    ) -> Option<(GridSnapshot, Option<String>)> {
+        let terminals = match self.lock_terminals() {
+            Ok(t) => t,
+            Err(e) => {
+                eprintln!("[terminal] snapshot lock failed for {id}: {e}");
+                return None;
+            }
+        };
+        let terminal = match terminals.get(id) {
+            Some(t) => t,
+            None => return None,
+        };
+        // Read title while terminals lock is held — avoids a second lock acquisition.
+        // detect_title_change only allocates when the title actually changed.
+        let title_changed = self.detect_title_change(id, terminal.get_title());
+        let palette = self.get_palette(id);
+        let mut sent_hashes = match self.lock_sent_hashes() {
+            Ok(h) => h,
+            Err(e) => {
+                eprintln!("[terminal] snapshot sent_hashes lock failed for {id}: {e}");
+                return None;
+            }
+        };
+        let session_hashes = sent_hashes.entry(id.to_string()).or_default();
+        let grid = Self::snapshot_with_palette(terminal, &palette, scroll_offset, session_hashes);
+        Some((grid, title_changed))
     }
 
     /// Extract text from a cell range. Row indices are absolute physical rows
@@ -597,6 +643,13 @@ impl TerminalState {
             }
             Err(e) => eprintln!("[terminal] remove sent_image_hashes lock failed for {id}: {e}"),
         }
+        // Clean up last title for this pane
+        match self.lock_last_titles() {
+            Ok(mut titles) => {
+                titles.remove(id);
+            }
+            Err(e) => eprintln!("[terminal] remove last_titles lock failed for {id}: {e}"),
+        }
         // Palette intentionally NOT removed — survives pane restart.
         // Cleaned up in remove_all() on app shutdown.
     }
@@ -616,6 +669,10 @@ impl TerminalState {
             Ok(mut hashes) => hashes.clear(),
             Err(e) => eprintln!("[terminal] remove_all sent_image_hashes lock failed: {e}"),
         }
+        match self.lock_last_titles() {
+            Ok(mut titles) => titles.clear(),
+            Err(e) => eprintln!("[terminal] remove_all last_titles lock failed: {e}"),
+        }
     }
 
     /// Get the palette for a terminal, falling back to the default.
@@ -631,6 +688,29 @@ impl TerminalState {
                 Arc::clone(&self.default_palette)
             }
         }
+    }
+
+    /// Compare a terminal title against the last-seen value for this pane.
+    /// Returns `Some(truncated_title)` if changed, `None` if unchanged.
+    /// On first call for a new pane, always returns `Some` (no prior value).
+    ///
+    /// Truncates titles to `MAX_TITLE_LEN` chars to prevent IPC bloat from
+    /// malicious OSC sequences. Only acquires `last_titles` lock — caller
+    /// provides the title from an already-held `terminals` lock.
+    fn detect_title_change(&self, id: &str, title: &str) -> Option<String> {
+        let mut last_titles = match self.lock_last_titles() {
+            Ok(t) => t,
+            Err(e) => {
+                eprintln!("[terminal] last_titles lock failed for {id}: {e}");
+                return None;
+            }
+        };
+        if last_titles.get(id).is_some_and(|last| last == title) {
+            return None;
+        }
+        let truncated: String = title.chars().take(MAX_TITLE_LEN).collect();
+        last_titles.insert(id.to_string(), truncated.clone());
+        Some(truncated)
     }
 
     fn snapshot_with_palette(
@@ -858,5 +938,11 @@ impl TerminalState {
         self.sent_image_hashes
             .lock()
             .map_err(|e| format!("Sent image hashes lock poisoned: {e}"))
+    }
+
+    fn lock_last_titles(&self) -> Result<MutexGuard<'_, HashMap<String, String>>, String> {
+        self.last_titles
+            .lock()
+            .map_err(|e| format!("Last titles lock poisoned: {e}"))
     }
 }
