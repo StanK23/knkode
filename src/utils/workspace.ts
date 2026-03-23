@@ -1,15 +1,15 @@
 /**
- * Pick the majority value from a map of pane IDs → values.
+ * Pick the majority value from a pane ID → value map.
  * If tied, the focused pane's value wins. If the focused pane isn't in the
- * set, falls back to the first pane's value (by insertion order).
+ * set or isn't a winner, returns the first pane's value (by key insertion order).
  *
- * Returns null when the map is empty.
+ * Returns null when the map has no keys or all values are null.
  */
 export function majorityOrFocused(
 	values: Record<string, string | null>,
-	paneIds: string[],
 	focusedPaneId: string | null,
 ): string | null {
+	const paneIds = Object.keys(values);
 	if (paneIds.length === 0) return null;
 
 	// Count occurrences of each non-null value
@@ -34,7 +34,7 @@ export function majorityOrFocused(
 	}
 
 	// Single winner — done
-	if (winners.length === 1) return winners[0] ?? null;
+	if (winners.length === 1) return winners[0] as string;
 
 	// Tie — focused pane breaks it
 	if (focusedPaneId) {
@@ -42,11 +42,12 @@ export function majorityOrFocused(
 		if (focusedValue != null && winners.includes(focusedValue)) return focusedValue;
 	}
 
-	// Focused pane not in workspace or not a winner — return first pane's value
+	// Focused pane not in set or not a winner — return first pane's winning value
 	for (const pid of paneIds) {
 		const v = values[pid];
 		if (v != null && winners.includes(v)) return v;
 	}
 
-	return winners[0] ?? null;
+	// Unreachable: counts was built from paneIds, so at least one pane has a winning value
+	return winners[0] as string;
 }
