@@ -61,14 +61,15 @@ export function keyEventToAnsi(e: KeyboardEvent): string | null {
 	// Ctrl+C without Shift is ambiguous: if text is selected it should copy,
 	// otherwise it should send SIGINT (\x03). We return null so the caller
 	// (handleKeyDown) can decide based on selection state.
+	// Use e.code (physical key) for clipboard shortcuts so they work
+	// regardless of keyboard layout / system language (e.key is locale-dependent).
 	if (!isMac && e.ctrlKey && !e.altKey) {
-		const k = e.key.toLowerCase();
 		// Ctrl+Shift+C → always copy
-		if (k === "c" && e.shiftKey) return null;
+		if (e.code === "KeyC" && e.shiftKey) return null;
 		// Ctrl+C → caller handles (copy if selection, SIGINT if not)
-		if (k === "c") return null;
+		if (e.code === "KeyC") return null;
 		// Ctrl+V / Ctrl+Shift+V → paste from clipboard
-		if (k === "v") return PASTE_SENTINEL;
+		if (e.code === "KeyV") return PASTE_SENTINEL;
 	}
 
 	// --- Shift+Enter → literal newline (LF) instead of CR ---
@@ -78,17 +79,19 @@ export function keyEventToAnsi(e: KeyboardEvent): string | null {
 	if (e.shiftKey && !e.ctrlKey && !e.metaKey && (e.key === "ArrowLeft" || e.key === "ArrowRight"))
 		return null;
 
-	// Ctrl+key: a-z maps to 0x01-0x1A; also handles Ctrl+[ ] \ and Space
+	// Ctrl+key: a-z maps to 0x01-0x1A; also handles Ctrl+[ ] \ and Space.
+	// Use e.code (physical key) for a-z so Ctrl+C sends \x03 regardless of
+	// keyboard layout. Bracket/backslash use e.key since they are layout-dependent.
 	if (e.ctrlKey && !e.altKey && !e.metaKey) {
-		if (e.key.length === 1) {
-			const code = e.key.toLowerCase().charCodeAt(0);
-			if (code >= 0x61 && code <= 0x7a) {
-				return String.fromCharCode(code - 0x60);
+		if (e.code.startsWith("Key") && e.code.length === 4) {
+			const letter = e.code.charCodeAt(3); // A=65 … Z=90
+			if (letter >= 65 && letter <= 90) {
+				return String.fromCharCode(letter - 64);
 			}
-			if (e.key === "[") return "\x1b";
-			if (e.key === "\\") return "\x1c";
-			if (e.key === "]") return "\x1d";
 		}
+		if (e.key === "[") return "\x1b";
+		if (e.key === "\\") return "\x1c";
+		if (e.key === "]") return "\x1d";
 		if (e.key === " ") return "\x00";
 	}
 

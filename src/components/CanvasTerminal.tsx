@@ -1004,9 +1004,11 @@ export function CanvasTerminal({
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
 			// Copy shortcut: Cmd+C (macOS) or Ctrl+C (Windows/Linux)
+			// Use e.code (physical key) instead of e.key (locale-dependent) so
+			// shortcuts work regardless of keyboard layout / system language.
 			const isCopy = isMac
-				? e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "c"
-				: e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey && e.key.toLowerCase() === "c";
+				? e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && e.code === "KeyC"
+				: e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey && e.code === "KeyC";
 
 			if (isCopy) {
 				const anchor = selectionAnchorRef.current;

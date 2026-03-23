@@ -24,12 +24,24 @@ const MAX_PR_TITLE_LEN: usize = 256;
 const MAX_LOG_MSG_LEN: usize = 200;
 const MAX_LOGGED_ERRORS: usize = 64;
 
-/// Extra PATH directories for subprocess calls. Tauri launched from Dock/Spotlight
-/// inherits a minimal PATH — Homebrew/Linuxbrew tools are invisible without this.
+/// Extra PATH directories for subprocess calls (Unix).
+/// Tauri launched from Dock/Spotlight inherits a minimal PATH —
+/// Homebrew/Linuxbrew tools are invisible without this.
+#[cfg(not(target_os = "windows"))]
 const EXTRA_PATH_DIRS: &[&str] = &[
     "/opt/homebrew/bin",
     "/usr/local/bin",
     "/home/linuxbrew/.linuxbrew/bin",
+];
+
+/// Extra PATH directories for subprocess calls (Windows).
+/// Tauri launched from Start Menu / desktop shortcut may not include
+/// Git or GitHub CLI in its PATH.
+#[cfg(target_os = "windows")]
+const EXTRA_PATH_DIRS: &[&str] = &[
+    "C:\\Program Files\\Git\\cmd",
+    "C:\\Program Files (x86)\\Git\\cmd",
+    "C:\\Program Files\\GitHub CLI",
 ];
 
 #[derive(Clone, Serialize)]
@@ -97,17 +109,24 @@ impl CwdTracker {
     pub fn track_pane(&self, pane_id: String, initial_cwd: String) {
         match self.panes.lock() {
             Ok(mut panes) => {
-                panes.insert(
-                    pane_id,
-                    PaneState {
-                        cwd: initial_cwd,
-                        branch: None,
-                        pr: None,
-                        pr_last_checked: Instant::now() - PR_REFRESH_INTERVAL,
-                        active: false,
-                        tracked_at: Instant::now(),
-                    },
-                );
+                if let Some(existing) = panes.get_mut(&pane_id) {
+                    // Pane already tracked — only update CWD, preserve branch/PR/activity
+                    // state so re-tracking (e.g. from context menu CWD change) doesn't
+                    // wipe cached data or restart warmup.
+                    existing.cwd = initial_cwd;
+                } else {
+                    panes.insert(
+                        pane_id,
+                        PaneState {
+                            cwd: initial_cwd,
+                            branch: None,
+                            pr: None,
+                            pr_last_checked: Instant::now() - PR_REFRESH_INTERVAL,
+                            active: false,
+                            tracked_at: Instant::now(),
+                        },
+                    );
+                }
             }
             Err(e) => eprintln!("[tracker] Failed to track pane — lock poisoned: {e}"),
         }
@@ -683,11 +702,14 @@ fn get_pr_status(
     }
 }
 
-/// Build an augmented PATH with extra directories for Homebrew/Linuxbrew.
-/// Cached for the lifetime of the polling thread.
+/// Build an augmented PATH with extra directories for tools like git/gh.
+/// Uses platform-specific separator and extra dirs. Cached for the
+/// lifetime of the polling thread.
 fn build_augmented_path() -> String {
     let current = std::env::var("PATH").unwrap_or_default();
-    let segments: HashSet<&str> = current.split(':').collect();
+    let sep = if cfg!(target_os = "windows") { ";" } else { ":" };
+
+    let segments: HashSet<&str> = current.split(sep).collect();
     let missing: Vec<&str> = EXTRA_PATH_DIRS
         .iter()
         .copied()
@@ -696,6 +718,6 @@ fn build_augmented_path() -> String {
     if missing.is_empty() {
         current
     } else {
-        format!("{}:{}", current, missing.join(":"))
+        format!("{}{}{}", current, sep, missing.join(sep))
     }
 }
