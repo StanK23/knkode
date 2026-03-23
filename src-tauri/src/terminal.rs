@@ -250,7 +250,7 @@ fn build_palette(ansi: &AnsiThemeColors, foreground: &str, background: &str) -> 
 ///
 /// Each terminal has its own `ColorPalette` so themes are applied per-pane.
 ///
-/// Lock ordering: `terminals` → `palettes` → `sent_image_hashes`.
+/// Lock ordering: `terminals` → `palettes` → `sent_image_hashes` → `last_titles`.
 /// Never acquire these locks in a different order to prevent deadlocks.
 pub struct TerminalState {
     terminals: Mutex<HashMap<String, Terminal>>,
@@ -261,8 +261,8 @@ pub struct TerminalState {
     /// Per-session set of image hashes already sent to the frontend.
     /// Prevents re-sending the same image data on every snapshot frame.
     sent_image_hashes: Mutex<HashMap<String, HashSet<[u8; 32]>>>,
-    /// Last-seen terminal title per pane (OSC 1/2). Used to detect changes
-    /// and emit `pty:title-changed` events only when the title actually differs.
+    /// Last-seen terminal title per pane (OSC 1/2). Used to detect title
+    /// changes between snapshot cycles.
     last_titles: Mutex<HashMap<String, String>>,
     default_palette: Arc<ColorPalette>,
     config: Arc<dyn TerminalConfiguration + Send + Sync>,
@@ -601,8 +601,8 @@ impl TerminalState {
             }
             Err(e) => eprintln!("[terminal] remove sent_image_hashes lock failed for {id}: {e}"),
         }
-        // Clean up last title for this session
-        match self.last_titles.lock() {
+        // Clean up last title for this pane
+        match self.lock_last_titles() {
             Ok(mut titles) => {
                 titles.remove(id);
             }
@@ -627,7 +627,7 @@ impl TerminalState {
             Ok(mut hashes) => hashes.clear(),
             Err(e) => eprintln!("[terminal] remove_all sent_image_hashes lock failed: {e}"),
         }
-        match self.last_titles.lock() {
+        match self.lock_last_titles() {
             Ok(mut titles) => titles.clear(),
             Err(e) => eprintln!("[terminal] remove_all last_titles lock failed: {e}"),
         }
@@ -902,5 +902,11 @@ impl TerminalState {
         self.sent_image_hashes
             .lock()
             .map_err(|e| format!("Sent image hashes lock poisoned: {e}"))
+    }
+
+    fn lock_last_titles(&self) -> Result<MutexGuard<'_, HashMap<String, String>>, String> {
+        self.last_titles
+            .lock()
+            .map_err(|e| format!("Last titles lock poisoned: {e}"))
     }
 }
