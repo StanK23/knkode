@@ -42,10 +42,12 @@ export function useUpdateChecker(): [UpdateState, UpdateActions] {
 
 	const updateRef = useRef<Update | null>(null);
 	const lastProgressUpdate = useRef(0);
+	const checkingRef = useRef(false);
 
 	const doCheck = useCallback(async () => {
-		// Guard against concurrent checks
-		if (state.status === "checking" || state.status === "downloading") return;
+		// Guard against concurrent checks using a ref to avoid dependency on state
+		if (checkingRef.current) return;
+		checkingRef.current = true;
 
 		setState((s) => ({ ...s, status: "checking", error: null, dismissed: false }));
 		try {
@@ -72,8 +74,10 @@ export function useUpdateChecker(): [UpdateState, UpdateActions] {
 				status: "error",
 				error: formatError(err),
 			}));
+		} finally {
+			checkingRef.current = false;
 		}
-	}, [state.status]);
+	}, []);
 
 	const installUpdate = useCallback(async () => {
 		const update = updateRef.current;
@@ -139,11 +143,12 @@ export function useUpdateChecker(): [UpdateState, UpdateActions] {
 		setState((s) => ({ ...s, dismissed: true }));
 	}, []);
 
-	// Delay initial check so the UI settles and first paint is not interrupted
+	// Check once on mount after UI settles
 	useEffect(() => {
 		const timer = setTimeout(doCheck, 3000);
 		return () => clearTimeout(timer);
-	}, [doCheck]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
 	// Listen for menu "Check for Updates" event (emitted from Rust on macOS)
 	useEffect(() => {
@@ -151,7 +156,8 @@ export function useUpdateChecker(): [UpdateState, UpdateActions] {
 			doCheck();
 		});
 		return unsub;
-	}, [doCheck]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
 	return [state, { checkForUpdate: doCheck, installUpdate, restartApp, dismiss }];
 }
