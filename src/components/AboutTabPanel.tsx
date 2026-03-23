@@ -15,11 +15,7 @@ interface AboutTabPanelProps {
 	hidden?: boolean;
 }
 
-export function AboutTabPanel({
-	updateState,
-	updateActions,
-	hidden,
-}: AboutTabPanelProps) {
+export function AboutTabPanel({ updateState, updateActions, hidden }: AboutTabPanelProps) {
 	const [appVersion, setAppVersion] = useState<string | null>(null);
 	const [linkError, setLinkError] = useState<string | null>(null);
 
@@ -52,22 +48,14 @@ export function AboutTabPanel({
 			<SettingsSection label="App">
 				<div className="flex items-baseline gap-2">
 					<span className="text-sm font-semibold text-content">knkode</span>
-					{appVersion && (
-						<span className="text-xs text-content-muted">v{appVersion}</span>
-					)}
+					{appVersion && <span className="text-xs text-content-muted">v{appVersion}</span>}
 				</div>
-				<p className="text-xs text-content-muted m-0">
-					Terminal workspace manager
-				</p>
+				<p className="text-xs text-content-muted m-0">Terminal workspace manager</p>
 			</SettingsSection>
 
 			{/* Update section */}
 			<SettingsSection label="Updates">
-				<UpdateStatusContent
-					state={updateState}
-					actions={updateActions}
-					variant="full"
-				/>
+				<UpdateStatusContent state={updateState} actions={updateActions} variant="full" />
 			</SettingsSection>
 
 			{/* Links */}
@@ -93,9 +81,7 @@ export function AboutTabPanel({
 							</span>
 						</button>
 					</div>
-					{linkError && (
-						<span className="text-[10px] text-danger">{linkError}</span>
-					)}
+					{linkError && <span className="text-[10px] text-danger">{linkError}</span>}
 				</div>
 			</SettingsSection>
 		</div>

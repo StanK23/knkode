@@ -36,11 +36,7 @@ interface UpdateStatusContentProps {
 	variant: Variant;
 }
 
-export function UpdateStatusContent({
-	state,
-	actions,
-	variant,
-}: UpdateStatusContentProps) {
+export function UpdateStatusContent({ state, actions, variant }: UpdateStatusContentProps) {
 	const btn = BTN_STYLES[variant];
 	const text = TEXT[variant];
 	const { status } = state;
@@ -86,11 +82,7 @@ export function UpdateStatusContent({
 							Install
 						</button>
 						{variant === "compact" && (
-							<button
-								type="button"
-								onClick={actions.dismiss}
-								className={`flex-1 ${btn.secondary}`}
-							>
+							<button type="button" onClick={actions.dismiss} className={`flex-1 ${btn.secondary}`}>
 								Later
 							</button>
 						)}
@@ -139,9 +131,7 @@ export function UpdateStatusContent({
 		case "error":
 			return (
 				<>
-					<p className={`${text.danger} mb-1.5`}>
-						{state.error ?? "Update check failed"}
-					</p>
+					<p className={`${text.danger} mb-1.5`}>{state.error ?? "Update check failed"}</p>
 					<div className="flex gap-1.5">
 						<button
 							type="button"
@@ -151,11 +141,7 @@ export function UpdateStatusContent({
 							Retry
 						</button>
 						{variant === "compact" && (
-							<button
-								type="button"
-								onClick={actions.dismiss}
-								className={`flex-1 ${btn.secondary}`}
-							>
+							<button type="button" onClick={actions.dismiss} className={`flex-1 ${btn.secondary}`}>
 								Dismiss
 							</button>
 						)}

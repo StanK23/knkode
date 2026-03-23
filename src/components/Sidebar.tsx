@@ -50,7 +50,12 @@ interface SidebarProps {
 	onOpenHotkeys: () => void;
 }
 
-export function Sidebar({ updateState, updateActions, onOpenSettings, onOpenHotkeys }: SidebarProps) {
+export function Sidebar({
+	updateState,
+	updateActions,
+	onOpenSettings,
+	onOpenHotkeys,
+}: SidebarProps) {
 	const workspaces = useStore((s) => s.workspaces);
 	const openWorkspaceIds = useStore((s) => s.appState.openWorkspaceIds);
 	const activeWorkspaceId = useStore((s) => s.appState.activeWorkspaceId);

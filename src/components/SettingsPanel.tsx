@@ -165,7 +165,12 @@ function settingsReducer(state: SettingsState, action: SettingsAction): Settings
 
 // ── Component ─────────────────────────────────────────────────────
 
-export function SettingsPanel({ workspace, updateState, updateActions, onClose }: SettingsPanelProps) {
+export function SettingsPanel({
+	workspace,
+	updateState,
+	updateActions,
+	onClose,
+}: SettingsPanelProps) {
 	const updateWorkspace = useStore((s) => s.updateWorkspace);
 	const removeWorkspace = useStore((s) => s.removeWorkspace);
 	const updatePaneConfig = useStore((s) => s.updatePaneConfig);

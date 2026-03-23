@@ -448,9 +448,9 @@ pub struct PtyManager {
     sessions: Arc<Mutex<HashMap<String, PtySession>>>,
     next_generation: AtomicU64,
     terminal_state: Arc<TerminalState>,
-    /// Timestamp of last PTY output per pane. Updated by reader threads,
-    /// polled by CwdTracker to detect idle vs active agents.
-    last_output_at: Arc<Mutex<HashMap<String, Instant>>>,
+    /// Bytes of PTY output accumulated per pane since the last poll.
+    /// Reader threads add to the counter; the tracker reads and resets each cycle.
+    output_bytes: Arc<Mutex<HashMap<String, u64>>>,
 }
 
 impl PtyManager {
@@ -459,7 +459,7 @@ impl PtyManager {
             sessions: Arc::new(Mutex::new(HashMap::new())),
             next_generation: AtomicU64::new(1),
             terminal_state,
-            last_output_at: Arc::new(Mutex::new(HashMap::new())),
+            output_bytes: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -573,7 +573,7 @@ impl PtyManager {
         let id_clone = id.clone();
         let sessions_clone = Arc::clone(&self.sessions);
         let term_state = Arc::clone(&self.terminal_state);
-        let output_times = Arc::clone(&self.last_output_at);
+        let output_bytes = Arc::clone(&self.output_bytes);
         std::thread::spawn(move || {
             eprintln!("[pty] Reader thread started for {id_clone}");
             let mut buf = [0u8; READ_BUFFER_SIZE];
