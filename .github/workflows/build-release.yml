@@ -48,7 +48,9 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Updater signing — generates .sig files alongside updater bundles
+          # Updater signing — used by Tauri to sign updater bundles
+          # (requires createUpdaterArtifacts in tauri.conf.json).
+          # Applied to all platforms — both macOS and Windows need signing.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # macOS signing & notarization — identity auto-detected from certificate
@@ -97,53 +99,18 @@ jobs:
           echo "Release files:" && ls -lh release-files/
 
       - name: Generate latest.json for updater
-        run: |
-          TAG="${GITHUB_REF_NAME}"
-          node -e "
-            const fs = require('fs');
-            const path = require('path');
-            const dir = 'release-files';
-            const tag = '${TAG}';
-            const files = fs.readdirSync(dir);
-            const platforms = {};
-
-            // macOS — universal binary serves both architectures
-            const macSig = files.find(f => f.endsWith('.app.tar.gz.sig'));
-            const macBundle = files.find(f => f.endsWith('.app.tar.gz') && !f.endsWith('.sig'));
-            if (macSig && macBundle) {
-              const sig = fs.readFileSync(path.join(dir, macSig), 'utf8').trim();
-              const url = 'https://github.com/knkenko/knkode/releases/download/' + tag + '/' + macBundle;
-              platforms['darwin-aarch64'] = { signature: sig, url };
-              platforms['darwin-x86_64'] = { signature: sig, url };
-            }
-
-            // Windows
-            const winSig = files.find(f => f.endsWith('.nsis.zip.sig'));
-            const winBundle = files.find(f => f.endsWith('.nsis.zip') && !f.endsWith('.sig'));
-            if (winSig && winBundle) {
-              const sig = fs.readFileSync(path.join(dir, winSig), 'utf8').trim();
-              const url = 'https://github.com/knkenko/knkode/releases/download/' + tag + '/' + winBundle;
-              platforms['windows-x86_64'] = { signature: sig, url };
-            }
-
-            const latest = {
-              version: tag,
-              notes: '',
-              pub_date: new Date().toISOString(),
-              platforms
-            };
-
-            fs.writeFileSync(path.join(dir, 'latest.json'), JSON.stringify(latest, null, 2));
-            console.log('Generated latest.json with platforms:', Object.keys(platforms).join(', '));
-          "
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: node .github/scripts/generate-latest-json.mjs
 
       - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          TAG="${GITHUB_REF_NAME}"
-          if gh release view "$TAG" &>/dev/null; then
-            gh release upload "$TAG" release-files/* --clobber
+          if gh release view "$RELEASE_TAG" &>/dev/null; then
+            gh release upload "$RELEASE_TAG" release-files/* --clobber
           else
-            gh release create "$TAG" release-files/* --draft --generate-notes
+            gh release create "$RELEASE_TAG" release-files/* --draft --generate-notes
           fi
