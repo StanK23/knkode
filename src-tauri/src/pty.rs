@@ -19,6 +19,19 @@ const MAX_SESSIONS: usize = 64;
 /// chunk but only snapshots + emits at this cadence, preventing UI freezes.
 const RENDER_INTERVAL: Duration = Duration::from_millis(16);
 
+/// RAII guard for Windows HANDLEs — calls `CloseHandle` on drop.
+#[cfg(target_os = "windows")]
+struct WinHandle(winapi::shared::ntdef::HANDLE);
+
+#[cfg(target_os = "windows")]
+impl Drop for WinHandle {
+    fn drop(&mut self) {
+        unsafe {
+            winapi::um::handleapi::CloseHandle(self.0);
+        }
+    }
+}
+
 /// Detect the CWD of a child process by parsing `lsof -p PID -Fn` output.
 /// Scans for the `fcwd` file descriptor line, then reads the `n/path` line after it.
 /// Does not need PATH augmentation — `lsof` lives in `/usr/sbin` which is always
@@ -62,21 +75,25 @@ fn detect_cwd(pid: u32) -> Option<String> {
 /// Detect the CWD of a child process on Windows by reading the process's PEB
 /// (Process Environment Block) via `NtQueryInformationProcess` + `ReadProcessMemory`.
 ///
-/// Offsets are for 64-bit processes (Windows 11 is 64-bit only):
+/// Offsets are for 64-bit processes only. 32-bit Windows is not supported.
 ///   PEB + 0x20 → ProcessParameters (RTL_USER_PROCESS_PARAMETERS*)
 ///   ProcessParameters + 0x38 → CurrentDirectory.DosPath (UNICODE_STRING)
 #[cfg(target_os = "windows")]
+#[cfg(target_arch = "x86_64")]
 fn detect_cwd(pid: u32) -> Option<String> {
     use std::mem;
     use std::ptr;
     use winapi::shared::minwindef::FALSE;
     use winapi::shared::ntdef::HANDLE;
-    use winapi::um::handleapi::CloseHandle;
     use winapi::um::memoryapi::ReadProcessMemory;
     use winapi::um::processthreadsapi::OpenProcess;
     use winapi::um::winnt::{PROCESS_QUERY_INFORMATION, PROCESS_VM_READ};
 
+    /// Max CWD path length in bytes (extended-length paths: 32767 chars * 2 bytes).
+    const MAX_CWD_BYTES: usize = 65534;
+
     // NtQueryInformationProcess is not exposed by winapi 0.3 — declare manually.
+    // Links to ntdll.dll implicitly. Can be removed if migrating to the `windows` crate.
     #[repr(C)]
     struct ProcessBasicInformation {
         reserved1: *mut std::ffi::c_void,
@@ -96,14 +113,7 @@ fn detect_cwd(pid: u32) -> Option<String> {
         ) -> i32;
     }
 
-    struct HandleGuard(HANDLE);
-    impl Drop for HandleGuard {
-        fn drop(&mut self) {
-            unsafe { CloseHandle(self.0); }
-        }
-    }
-
-    /// Read `size` bytes from `address` in the target process.
+    /// Read `buf.len()` bytes from `address` in the target process.
     unsafe fn read_mem(handle: HANDLE, address: usize, buf: &mut [u8]) -> bool {
         ReadProcessMemory(
             handle,
@@ -117,9 +127,10 @@ fn detect_cwd(pid: u32) -> Option<String> {
     unsafe {
         let handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
         if handle.is_null() {
+            eprintln!("[pty] detect_cwd: OpenProcess failed for pid {pid}: {}", std::io::Error::last_os_error());
             return None;
         }
-        let _guard = HandleGuard(handle);
+        let _guard = WinHandle(handle);
 
         // Step 1: Get PEB address via NtQueryInformationProcess
         let mut pbi: ProcessBasicInformation = mem::zeroed();
@@ -132,55 +143,73 @@ fn detect_cwd(pid: u32) -> Option<String> {
             &mut ret_len,
         );
         if status != 0 {
+            eprintln!("[pty] detect_cwd: NtQueryInformationProcess failed for pid {pid}: NTSTATUS 0x{status:08X}");
             return None;
         }
         let peb_addr = pbi.peb_base_address as usize;
+        if peb_addr == 0 {
+            eprintln!("[pty] detect_cwd: PEB address is null for pid {pid}");
+            return None;
+        }
 
         // Step 2: Read ProcessParameters pointer from PEB + 0x20
         let mut buf = [0u8; 8];
         if !read_mem(handle, peb_addr + 0x20, &mut buf) {
+            eprintln!("[pty] detect_cwd: failed to read ProcessParameters for pid {pid}");
             return None;
         }
         let params_ptr = usize::from_ne_bytes(buf);
+        if params_ptr == 0 {
+            eprintln!("[pty] detect_cwd: ProcessParameters is null for pid {pid}");
+            return None;
+        }
 
         // Step 3: Read CurrentDirectory.DosPath (UNICODE_STRING) at ProcessParameters + 0x38
         // UNICODE_STRING layout (64-bit): Length(u16) + MaxLength(u16) + pad(4) + Buffer(u64)
         let mut us_buf = [0u8; 16];
         if !read_mem(handle, params_ptr + 0x38, &mut us_buf) {
+            eprintln!("[pty] detect_cwd: failed to read UNICODE_STRING for pid {pid}");
             return None;
         }
         let length = u16::from_ne_bytes([us_buf[0], us_buf[1]]) as usize;
-        let buffer_ptr = usize::from_ne_bytes([
-            us_buf[8], us_buf[9], us_buf[10], us_buf[11],
-            us_buf[12], us_buf[13], us_buf[14], us_buf[15],
-        ]);
+        let buffer_ptr = usize::from_ne_bytes(us_buf[8..16].try_into().unwrap());
 
-        if length == 0 || buffer_ptr == 0 {
+        // Validate: length must be even (UTF-16), non-zero, within bounds, and buffer non-null
+        if length == 0 || length % 2 != 0 || length > MAX_CWD_BYTES || buffer_ptr == 0 {
             return None;
         }
 
         // Step 4: Read the wide-character path string
         let mut path_buf = vec![0u8; length];
         if !read_mem(handle, buffer_ptr, &mut path_buf) {
+            eprintln!("[pty] detect_cwd: failed to read path buffer for pid {pid}");
             return None;
         }
 
-        // Convert from UTF-16LE to String
+        // Convert from UTF-16LE to String — fail on invalid UTF-16 rather than
+        // silently inserting replacement characters that produce garbled paths.
         let wide: Vec<u16> = path_buf
             .chunks_exact(2)
             .map(|c| u16::from_ne_bytes([c[0], c[1]]))
             .collect();
-        let path = String::from_utf16_lossy(&wide);
+        let path = String::from_utf16(&wide).ok()?;
 
         // Strip trailing backslash (e.g. "C:\Users\foo\" → "C:\Users\foo")
-        // but keep root paths like "C:\" intact.
+        // but keep root drive paths like "C:\" intact.
         let trimmed = path.trim_end_matches('\\');
-        if trimmed.len() >= 3 {
-            Some(trimmed.to_string())
-        } else {
+        if trimmed.ends_with(':') {
             Some(path)
+        } else {
+            Some(trimmed.to_string())
         }
     }
+}
+
+/// Fallback for 32-bit Windows (unsupported — PEB offsets differ).
+#[cfg(target_os = "windows")]
+#[cfg(not(target_arch = "x86_64"))]
+fn detect_cwd(_pid: u32) -> Option<String> {
+    None
 }
 
 /// Catch-all for platforms without CWD detection (FreeBSD, etc.).
@@ -285,7 +314,7 @@ fn check_foreground_single_linux(pid: u32) -> Option<bool> {
 /// reassigned, stale `th32ParentProcessID` entries may cause brief false positives.
 #[cfg(target_os = "windows")]
 fn check_foreground_batch(pids: &[(String, u32)]) -> HashMap<u32, bool> {
-    use winapi::um::handleapi::{CloseHandle, INVALID_HANDLE_VALUE};
+    use winapi::um::handleapi::INVALID_HANDLE_VALUE;
     use winapi::um::tlhelp32::{
         CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
         TH32CS_SNAPPROCESS,
@@ -301,19 +330,9 @@ fn check_foreground_batch(pids: &[(String, u32)]) -> HashMap<u32, bool> {
         result.insert(pid, false);
     }
 
-    // RAII guard so the snapshot handle is closed even on panic
-    struct SnapshotGuard(winapi::um::winnt::HANDLE);
-    impl Drop for SnapshotGuard {
-        fn drop(&mut self) {
-            unsafe {
-                CloseHandle(self.0);
-            }
-        }
-    }
-
     // SAFETY: CreateToolhelp32Snapshot returns INVALID_HANDLE_VALUE or a valid
     // handle. PROCESSENTRY32W is safely zeroable (all-integer + fixed-size array).
-    // The SnapshotGuard ensures CloseHandle is called exactly once.
+    // WinHandle ensures CloseHandle is called exactly once.
     unsafe {
         let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
         if snapshot == INVALID_HANDLE_VALUE {
@@ -323,7 +342,7 @@ fn check_foreground_batch(pids: &[(String, u32)]) -> HashMap<u32, bool> {
             );
             return result;
         }
-        let _guard = SnapshotGuard(snapshot);
+        let _guard = WinHandle(snapshot);
 
         let mut entry: PROCESSENTRY32W = std::mem::zeroed();
         entry.dwSize = std::mem::size_of::<PROCESSENTRY32W>() as u32;
@@ -865,8 +884,9 @@ impl PtyManager {
     }
 
     /// Get the current working directory for a pane.
-    /// On macOS uses `lsof`; on Linux reads `/proc/<pid>/cwd`.
-    /// Falls back to the initial CWD if detection fails or on Windows.
+    /// On macOS uses `lsof`; on Linux reads `/proc/<pid>/cwd`;
+    /// on Windows reads the process PEB via `NtQueryInformationProcess`.
+    /// Falls back to the initial CWD if detection fails.
     pub fn get_cwd(&self, id: &str) -> Option<String> {
         let sessions = self.lock_sessions().ok()?;
         let session = sessions.get(id)?;
