@@ -582,6 +582,10 @@ export function createWorkspacePaneSlice(
 					};
 				}),
 			);
+			// Notify the CWD tracker so branch/PR detection updates immediately
+			if (updates.cwd) {
+				window.api.trackPaneGit(paneId, updates.cwd).catch(() => {});
+			}
 		},
 
 		updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => {
