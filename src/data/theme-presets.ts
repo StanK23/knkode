@@ -51,6 +51,7 @@ export const THEME_PRESETS = [
 		foreground: "#e0e0e0",
 		fontFamily: "Cascadia Code",
 		accent: "#6c63ff",
+		selectionColor: "#6c63ff",
 		ansiColors: DEFAULT_ANSI,
 	},
 	{
@@ -60,6 +61,7 @@ export const THEME_PRESETS = [
 		fontFamily: "Fira Code",
 		accent: "#bd93f9",
 		glow: "#bd93f9",
+		selectionColor: "#bd93f9",
 		ansiColors: {
 			black: "#21222c",
 			red: "#ff5555",
@@ -99,6 +101,7 @@ export const THEME_PRESETS = [
 		fontFamily: "Fira Code",
 		accent: "#7aa2f7",
 		glow: "#7aa2f7",
+		selectionColor: "#7aa2f7",
 		ansiColors: {
 			black: "#15161e",
 			red: "#f7768e",
@@ -134,6 +137,7 @@ export const THEME_PRESETS = [
 		foreground: "#d8dee9",
 		fontFamily: "Victor Mono",
 		accent: "#88c0d0",
+		selectionColor: "#88c0d0",
 		ansiColors: {
 			black: "#3b4252",
 			red: "#bf616a",
@@ -173,6 +177,7 @@ export const THEME_PRESETS = [
 		fontFamily: "JetBrains Mono",
 		accent: "#cba6f7",
 		glow: "#cba6f7",
+		selectionColor: "#cba6f7",
 		ansiColors: {
 			black: "#45475a",
 			red: "#f38ba8",
@@ -212,6 +217,7 @@ export const THEME_PRESETS = [
 		foreground: "#ebdbb2",
 		fontFamily: "IBM Plex Mono",
 		accent: "#fe8019",
+		selectionColor: "#d79921",
 		ansiColors: {
 			black: "#282828",
 			red: "#cc241d",
@@ -250,6 +256,7 @@ export const THEME_PRESETS = [
 		foreground: "#f8f8f2",
 		fontFamily: "Source Code Pro",
 		accent: "#a6e22e",
+		selectionColor: "#49483e",
 		ansiColors: {
 			black: "#272822",
 			red: "#f92672",
@@ -288,6 +295,7 @@ export const THEME_PRESETS = [
 		foreground: "#d3c6aa",
 		fontFamily: "Hack",
 		accent: "#a7c080",
+		selectionColor: "#a7c080",
 		ansiColors: {
 			black: "#343f44",
 			red: "#e67e80",
@@ -770,6 +778,7 @@ const PRESET_FILL_KEYS = [
 	"lineHeight",
 	// Colors
 	"cursorColor",
+	"selectionColor",
 	"ansiColors",
 	// Effects
 	"gradientLevel",
