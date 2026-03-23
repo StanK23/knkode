@@ -48,8 +48,13 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             commands::log_scroll_debug,
         ])
         .setup(|app| {
-            let menu = menu::build_menu(app.handle())?;
-            app.set_menu(menu)?;
+            // On macOS the menu lives in the system menu bar — no extra space.
+            // On Windows it renders as a visible bar below the title bar, so skip it.
+            #[cfg(target_os = "macos")]
+            {
+                let menu = menu::build_menu(app.handle())?;
+                app.set_menu(menu)?;
+            }
             window::setup_window(app);
             Ok(())
         })

@@ -3,21 +3,24 @@ use serde_json::json;
 use std::sync::mpsc;
 use std::time::Duration;
 use tauri::Manager;
-use tauri::{WebviewUrl, WebviewWindowBuilder};
 
 const DEBOUNCE_MS: u64 = 500;
+// Must match minWidth/minHeight in tauri.conf.json
 const MIN_WINDOW_WIDTH: f64 = 600.0;
 const MIN_WINDOW_HEIGHT: f64 = 400.0;
 
-/// Create the main window programmatically with platform-conditional settings,
-/// apply effects, restore bounds, and show.
+/// Apply platform-specific window effects, restore saved bounds, and show.
+///
+/// Static config (titleBarStyle, trafficLightPosition, shadow, transparent)
+/// lives in `tauri.conf.json`. This function handles:
+/// - Platform-conditional effects (macOS translucency, Windows acrylic)
+/// - Window bounds restore from app-state.json
+/// - Bounds watcher (debounced save on resize/move)
+/// - Showing the window after setup completes
 pub fn setup_window(app: &tauri::App) {
-    let window = match create_window(app) {
-        Ok(w) => w,
-        Err(e) => {
-            eprintln!("[window] Failed to create main window: {e}");
-            return;
-        }
+    let Some(window) = app.get_webview_window("main") else {
+        eprintln!("[window] Main window not found during setup");
+        return;
     };
 
     apply_effects(&window);
@@ -27,30 +30,6 @@ pub fn setup_window(app: &tauri::App) {
     if let Err(e) = window.show() {
         eprintln!("[window] Failed to show window: {e}");
     }
-}
-
-/// Build the main window with platform-specific configuration.
-/// On macOS: transparent + overlay title bar + traffic light positioning.
-/// On Windows: opaque + standard decorations (no extended frame gap).
-fn create_window(app: &tauri::App) -> tauri::Result<tauri::WebviewWindow> {
-    let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
-        .title("knkode")
-        .inner_size(1200.0, 800.0)
-        .min_inner_size(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)
-        .decorations(true)
-        .visible(false)
-        .shadow(true);
-
-    #[cfg(target_os = "macos")]
-    {
-        builder = builder
-            .transparent(true)
-            .title_bar_style(tauri::TitleBarStyle::Overlay)
-            .hidden_title(true)
-            .traffic_light_position(tauri::LogicalPosition::new(17.0, 24.0));
-    }
-
-    builder.build()
 }
 
 /// Apply platform-specific window effects.
