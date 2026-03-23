@@ -41,8 +41,9 @@ interface StoreState {
 	panePrs: Record<string, PrInfo | null>;
 	/** Current agent status per pane. Ephemeral runtime state. */
 	paneAgentStatuses: Record<string, AgentStatus>;
-	/** Terminal title per pane (from OSC 1/2 escape sequences). Ephemeral runtime state. */
-	paneTitles: Record<string, string | null>;
+	/** Terminal title per pane (from terminal title escape sequences). Ephemeral runtime state.
+	 *  Values are never null — entries are deleted on pane removal via cleanPaneEphemeral. */
+	paneTitles: Record<string, string>;
 	/** Workspace IDs with collapsed sections in the sidebar. Ephemeral — not persisted.
 	 *  IMPORTANT: Always create a new Set on mutation — Zustand uses reference equality. */
 	collapsedSidebarSections: ReadonlySet<string>;
@@ -170,9 +171,14 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 
 	updatePaneTitle: (paneId, title) => {
+		// Strip control characters (C0/C1) and clamp length for defense-in-depth.
+		// Rust backend truncates to 4096; we clamp tighter for UI display.
+		const MAX_TITLE = 512;
+		const sanitized = title.replace(/[\x00-\x1f\x7f-\x9f]/g, "").slice(0, MAX_TITLE);
+		if (!sanitized) return;
 		set((state) => {
-			if (state.paneTitles[paneId] === title) return {};
-			return { paneTitles: { ...state.paneTitles, [paneId]: title } };
+			if (state.paneTitles[paneId] === sanitized) return {};
+			return { paneTitles: { ...state.paneTitles, [paneId]: sanitized } };
 		});
 	},
 

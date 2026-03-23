@@ -49,14 +49,14 @@ function cleanPaneEphemeral(
 		paneBranches: Record<string, string | null>;
 		panePrs: Record<string, PrInfo | null>;
 		paneAgentStatuses: Record<string, AgentStatus>;
-		paneTitles: Record<string, string | null>;
+		paneTitles: Record<string, string>;
 	},
 	paneIds: string[],
 ): {
 	paneBranches: Record<string, string | null>;
 	panePrs: Record<string, PrInfo | null>;
 	paneAgentStatuses: Record<string, AgentStatus>;
-	paneTitles: Record<string, string | null>;
+	paneTitles: Record<string, string>;
 } {
 	const paneBranches = { ...state.paneBranches };
 	const panePrs = { ...state.panePrs };
@@ -137,7 +137,7 @@ interface WorkspacePaneState {
 	paneBranches: Record<string, string | null>;
 	panePrs: Record<string, PrInfo | null>;
 	paneAgentStatuses: Record<string, AgentStatus>;
-	paneTitles: Record<string, string | null>;
+	paneTitles: Record<string, string>;
 	killPtys: (paneIds: string[]) => void;
 	createWorkspace: (name: string, preset: LayoutPreset) => Promise<Workspace>;
 }
