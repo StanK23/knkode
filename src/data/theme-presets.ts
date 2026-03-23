@@ -44,7 +44,7 @@ const DEFAULT_ANSI: AnsiColors = {
 };
 
 export const THEME_PRESETS = [
-	// ── Dark themes ──────────────────────────────────────────────
+	// ── Standard themes (community palettes, minimal effects) ───
 	{
 		name: "Default Dark",
 		background: "#1a1a2e",
@@ -212,6 +212,7 @@ export const THEME_PRESETS = [
 		foreground: "#ebdbb2",
 		fontFamily: "IBM Plex Mono",
 		accent: "#fe8019",
+		selectionColor: "#d79921", // Gruvbox canonical yellow, not accent orange
 		ansiColors: {
 			black: "#282828",
 			red: "#cc241d",
@@ -250,6 +251,7 @@ export const THEME_PRESETS = [
 		foreground: "#f8f8f2",
 		fontFamily: "Source Code Pro",
 		accent: "#a6e22e",
+		selectionColor: "#75715e", // Monokai comment gray — #49483e is too close to background
 		ansiColors: {
 			black: "#272822",
 			red: "#f92672",
@@ -317,7 +319,7 @@ export const THEME_PRESETS = [
 			cardRadius: 4,
 		},
 	},
-	// ── Identity themes (brand/aesthetic identity, always have accent + glow) ──
+	// ── Identity themes (gradient, decoration, glow/scanline/noise effects) ──
 	{
 		name: "Matrix",
 		background: "#0a0a0a",
@@ -762,7 +764,8 @@ function stripUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
 	return result as Partial<T>;
 }
 
-/** Optional PaneTheme fields that can be filled from a preset. */
+/** PaneTheme fields copied from the matched preset when the user's theme
+ *  config does not already define them (fill-if-missing semantics). */
 const PRESET_FILL_KEYS = [
 	// Typography
 	"fontFamily",
@@ -770,6 +773,7 @@ const PRESET_FILL_KEYS = [
 	"lineHeight",
 	// Colors
 	"cursorColor",
+	"selectionColor",
 	"ansiColors",
 	// Effects
 	"gradientLevel",

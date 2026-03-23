@@ -418,7 +418,7 @@ export const Pane = memo(function Pane({
 							cursorStyle={mergedTheme.cursorStyle}
 							cursorColor={mergedTheme.cursorColor ?? mergedTheme.foreground}
 							isFocused={isFocused}
-							selectionColor={mergedTheme.selectionColor}
+							selectionColor={mergedTheme.selectionColor ?? mergedTheme.accent}
 							paneId={paneId}
 							accentColor={variantTheme.accent}
 						/>
