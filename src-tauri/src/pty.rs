@@ -381,12 +381,15 @@ fn check_foreground_batch(_pids: &[(String, u32)]) -> HashMap<u32, bool> {
 /// `false` if the Tauri event channel is broken.
 ///
 /// Also checks for terminal title changes (OSC 1/2) and emits
-/// `pty:title-changed` when the title differs from the last snapshot.
+/// `pty:title-changed` when the title differs from the previously observed
+/// value. Title is read under the same lock as the snapshot to avoid a
+/// redundant lock acquisition on the hot path.
 fn emit_snapshot(app: &tauri::AppHandle, term_state: &TerminalState, id: &str) -> bool {
-    if let Some(snapshot) = term_state.snapshot(id) {
-        // Check for title change piggy-backing on the snapshot cadence.
-        if let Some(title) = term_state.check_title_changed(id) {
-            let _ = app.emit("pty:title-changed", json!({ "paneId": id, "title": title }));
+    if let Some((snapshot, title_changed)) = term_state.snapshot_and_title(id) {
+        if let Some(title) = title_changed {
+            if let Err(e) = app.emit("pty:title-changed", json!({ "paneId": id, "title": title })) {
+                eprintln!("[pty] Failed to emit title-changed for {id}: {e}");
+            }
         }
         app.emit("terminal:render", json!({ "id": id, "grid": snapshot }))
             .is_ok()
