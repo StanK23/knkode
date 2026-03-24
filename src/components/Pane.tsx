@@ -4,7 +4,7 @@ import { useFileDrop } from "../hooks/useFileDrop";
 import { useInlineEdit } from "../hooks/useInlineEdit";
 import { usePaneDragDrop } from "../hooks/usePaneDragDrop";
 import { ZONE_STYLES } from "../lib/pane-drag-utils";
-import type { ScreenPosition } from "../lib/ui-constants";
+import { SCROLLBAR_HIDE_DELAY_MS, type ScreenPosition } from "../lib/ui-constants";
 import {
 	effectMul,
 	type GridSnapshot,
@@ -91,7 +91,27 @@ export const Pane = memo(function Pane({
 	const pendingScrollDelta = useRef(0);
 	const scrollRafId = useRef(0);
 	const [scrollbarVisible, setScrollbarVisible] = useState(false);
+	const scrollbarVisibleRef = useRef(false);
 	const scrollbarTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
+	const scrollbarTrackRef = useRef<HTMLDivElement>(null);
+	const scrollDragCleanupRef = useRef<(() => void) | null>(null);
+
+	// Scrollbar visibility helpers — guard state updates so continuous scrolling
+	// doesn't fire no-op setScrollbarVisible(true) every animation frame.
+	const showScrollbar = useCallback(() => {
+		if (!scrollbarVisibleRef.current) {
+			scrollbarVisibleRef.current = true;
+			setScrollbarVisible(true);
+		}
+		if (scrollbarTimerRef.current) clearTimeout(scrollbarTimerRef.current);
+	}, []);
+
+	const scheduleScrollbarHide = useCallback(() => {
+		scrollbarTimerRef.current = setTimeout(() => {
+			scrollbarVisibleRef.current = false;
+			setScrollbarVisible(false);
+		}, SCROLLBAR_HIDE_DELAY_MS);
+	}, []);
 
 	const { isDragging, dropZone, outerRef, handleHeaderPointerDown } = usePaneDragDrop({
 		paneId,
@@ -159,13 +179,123 @@ export const Pane = memo(function Pane({
 		}
 	}, [paneId]);
 
+	// Shared scroll-to-offset logic — sets refs and fires IPC (or snaps to bottom).
+	// Used by both the scrollbar drag handler and the wheel-scroll handler.
+	const applyScrollOffset = useCallback(
+		(newOffset: number) => {
+			// Defensively clamp to non-negative integer
+			const clamped = Math.max(0, Math.round(newOffset));
+
+			if (clamped === 0) {
+				scrollToBottom();
+				return;
+			}
+
+			scrollOffsetRef.current = clamped;
+			isScrolledRef.current = true;
+
+			window.api
+				.scrollTerminal(paneId, clamped)
+				.then((snapshot) => {
+					maxScrollRef.current = snapshot.scrollbackRows;
+					if (scrollOffsetRef.current > 0) setGrid(snapshot);
+				})
+				.catch((err: unknown) => {
+					console.error(`[pane] scrollTerminal failed for ${paneId}:`, err);
+				});
+		},
+		[paneId, scrollToBottom],
+	);
+
 	const scrollToTop = useCallback(() => {
 		const max = maxScrollRef.current;
 		if (max <= 0) return;
-		scrollOffsetRef.current = max;
-		isScrolledRef.current = true;
-		window.api.scrollTerminal(paneId, max).then(setGrid).catch(console.error);
-	}, [paneId]);
+		applyScrollOffset(max);
+	}, [applyScrollOffset]);
+
+	// Scrollbar drag — convert pointer Y within the track to a scroll offset.
+	// Uses document-level move/up listeners with a cleanup-ref for unmount safety
+	// (matches usePaneDragDrop pattern). Drag moves are RAF-throttled to one IPC
+	// call per frame, consistent with handleScroll.
+	const handleScrollbarPointerDown = useCallback(
+		(e: React.PointerEvent<HTMLDivElement>) => {
+			const track = scrollbarTrackRef.current;
+			if (!track) {
+				console.warn(`[pane] scrollbar track ref missing for ${paneId}`);
+				return;
+			}
+			e.preventDefault();
+			e.stopPropagation();
+
+			const rect = track.getBoundingClientRect();
+			if (rect.height <= 0) {
+				console.warn(`[pane] scrollbar track has zero height for ${paneId}`);
+				return;
+			}
+
+			// Capture pointer so touch drags aren't hijacked by the browser
+			track.setPointerCapture(e.pointerId);
+			const pointerId = e.pointerId;
+
+			// Re-read rect each call — window may resize mid-drag; cost is
+			// negligible vs. the IPC call that follows.
+			const jumpToY = (clientY: number) => {
+				const r = track.getBoundingClientRect();
+				if (r.height <= 0) return;
+				const ratio = Math.max(0, Math.min(1, (clientY - r.top) / r.height));
+				// ratio 0 = top of scrollback, ratio 1 = bottom (live viewport)
+				const max = maxScrollRef.current;
+				const newOffset = Math.round(max * (1 - ratio));
+				if (newOffset === scrollOffsetRef.current) return;
+				applyScrollOffset(newOffset);
+			};
+
+			showScrollbar();
+			jumpToY(e.clientY);
+
+			// RAF-throttle drag moves to one IPC call per frame
+			let latestClientY = e.clientY;
+			let dragRafId = 0;
+			const onMove = (ev: PointerEvent) => {
+				latestClientY = ev.clientY;
+				if (dragRafId === 0) {
+					dragRafId = requestAnimationFrame(() => {
+						dragRafId = 0;
+						jumpToY(latestClientY);
+					});
+				}
+			};
+			const onUp = () => {
+				if (dragRafId) cancelAnimationFrame(dragRafId);
+				track.releasePointerCapture(pointerId);
+				document.removeEventListener("pointermove", onMove);
+				document.removeEventListener("pointerup", onUp);
+				scrollDragCleanupRef.current = null;
+				scheduleScrollbarHide();
+			};
+
+			// Clean up any stale listeners before adding new ones
+			scrollDragCleanupRef.current?.();
+
+			document.addEventListener("pointermove", onMove);
+			document.addEventListener("pointerup", onUp);
+			scrollDragCleanupRef.current = () => {
+				if (dragRafId) cancelAnimationFrame(dragRafId);
+				track.releasePointerCapture(pointerId);
+				document.removeEventListener("pointermove", onMove);
+				document.removeEventListener("pointerup", onUp);
+			};
+		},
+		[applyScrollOffset, paneId, showScrollbar, scheduleScrollbarHide],
+	);
+
+	// Cleanup scrollbar drag listeners and pending scroll RAF on unmount
+	useEffect(() => {
+		return () => {
+			scrollDragCleanupRef.current?.();
+			if (scrollRafId.current) cancelAnimationFrame(scrollRafId.current);
+		};
+	}, []);
 
 	const handleWrite = useCallback(
 		(data: string) => {
@@ -197,15 +327,7 @@ export const Pane = memo(function Pane({
 	// rounds to integer offset, and coalesces into one IPC call per frame.
 	const handleScroll = useCallback(
 		(deltaLines: number) => {
-			// Show scrollbar, auto-hide after 2s of inactivity
-			setScrollbarVisible(true);
-			if (scrollbarTimerRef.current) clearTimeout(scrollbarTimerRef.current);
-			scrollbarTimerRef.current = setTimeout(() => setScrollbarVisible(false), 2000);
-
 			pendingScrollDelta.current += deltaLines;
-			// Mark scrolled-up immediately so the render RAF (above) won't push new output to bottom.
-			// Only deltaLines > 0 (scrolling up into history) sets the flag; scrolling down clears it at bottom.
-			if (deltaLines > 0) isScrolledRef.current = true;
 			if (scrollRafId.current !== 0) return;
 
 			scrollRafId.current = requestAnimationFrame(() => {
@@ -213,32 +335,30 @@ export const Pane = memo(function Pane({
 				const totalDelta = pendingScrollDelta.current;
 				pendingScrollDelta.current = 0;
 
-				const rawOffset = scrollOffsetRef.current + totalDelta;
-				const newOffset = Math.max(0, Math.min(maxScrollRef.current, Math.round(rawOffset)));
-				if (newOffset === scrollOffsetRef.current) return;
-				scrollOffsetRef.current = newOffset;
-				isScrolledRef.current = newOffset > 0;
-
-				if (newOffset === 0) {
-					scrollToBottom();
+				// No scrollback (alt-buffer): nothing to scroll — just clear any stale flag
+				if (maxScrollRef.current === 0) {
+					if (isScrolledRef.current) scrollToBottom();
 					return;
 				}
 
-				window.api
-					.scrollTerminal(paneId, newOffset)
-					.then((snapshot) => {
-						maxScrollRef.current = snapshot.scrollbackRows;
-						// Only display if still scrolled at this position
-						if (scrollOffsetRef.current > 0) {
-							setGrid(snapshot);
-						}
-					})
-					.catch((err: unknown) => {
-						console.error(`[pane] scrollTerminal failed for ${paneId}:`, err);
-					});
+				showScrollbar();
+				scheduleScrollbarHide();
+
+				// Mark scrolled-up so the render RAF won't push new output
+				if (totalDelta > 0) isScrolledRef.current = true;
+
+				const rawOffset = scrollOffsetRef.current + totalDelta;
+				const newOffset = Math.max(0, Math.min(maxScrollRef.current, Math.round(rawOffset)));
+				// Offset unchanged after clamping — e.g. user at bottom scrolls up but
+				// delta rounds to 0. Flush any pending render if still flagged as scrolled.
+				if (newOffset === scrollOffsetRef.current) {
+					if (newOffset === 0 && isScrolledRef.current) scrollToBottom();
+					return;
+				}
+				applyScrollOffset(newOffset);
 			});
 		},
-		[paneId, scrollToBottom],
+		[applyScrollOffset, scrollToBottom, showScrollbar, scheduleScrollbarHide],
 	);
 
 	// Listen for Mod+Up/Down scroll shortcuts dispatched by useKeyboardShortcuts
@@ -422,14 +542,20 @@ export const Pane = memo(function Pane({
 							paneId={paneId}
 							accentColor={variantTheme.accent}
 						/>
-						{/* Scrollbar — themed track, fades in on scroll, fades out after 2s */}
+						{/* Scrollbar track — themed, fades in/out, supports click-and-drag positioning when visible.
+						    Wide hit area (w-5) for touch; visible thumb stays w-1 via pointer-events-none. */}
 						{hasScrollback && (
 							<div
-								className="absolute right-2 top-2 bottom-2 w-2 z-20 pointer-events-none transition-opacity duration-500"
+								ref={scrollbarTrackRef}
+								onPointerDown={handleScrollbarPointerDown}
+								className={`absolute right-0 top-2 bottom-2 w-5 z-20 touch-none transition-opacity duration-500 ${
+									scrollbarVisible ? "pointer-events-auto cursor-pointer" : "pointer-events-none"
+								}`}
 								style={{ opacity: scrollbarVisible ? 1 : 0 }}
 							>
+								{/* pointer-events-none on thumb lets pointerdown events reach the track for drag handling */}
 								<div
-									className="absolute right-0 w-1 rounded-full"
+									className="absolute right-2 w-1 rounded-full pointer-events-none"
 									style={{
 										top: `${scrollThumbTop}%`,
 										height: `${scrollThumbHeight}%`,
