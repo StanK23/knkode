@@ -135,12 +135,11 @@ pub struct GridSnapshot {
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub images: HashMap<String, ImageSnapshot>,
     /// Whether the terminal is currently showing the alternate screen buffer
-    /// (used by TUI apps like vim, htop, less, Gemini).
+    /// (used by TUI apps like vim, htop, less, tmux).
     pub is_alt_screen: bool,
-    /// Whether the running program has enabled mouse reporting (any mode:
-    /// normal tracking, button-event, or any-event). When true, the frontend
-    /// should forward mouse events as SGR sequences instead of handling them
-    /// for selection/scrollback.
+    /// Whether the running program has enabled mouse reporting (any tracking
+    /// mode). When true, the frontend should forward mouse events as escape
+    /// sequences instead of handling them for selection/scrollback.
     pub is_mouse_grabbed: bool,
 }
 
