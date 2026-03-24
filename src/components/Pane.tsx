@@ -549,9 +549,7 @@ export const Pane = memo(function Pane({
 								ref={scrollbarTrackRef}
 								onPointerDown={handleScrollbarPointerDown}
 								className={`absolute right-0 top-2 bottom-2 w-5 z-20 touch-none transition-opacity duration-500 ${
-									scrollbarVisible
-										? "pointer-events-auto cursor-pointer"
-										: "pointer-events-none"
+									scrollbarVisible ? "pointer-events-auto cursor-pointer" : "pointer-events-none"
 								}`}
 								style={{ opacity: scrollbarVisible ? 1 : 0 }}
 							>
