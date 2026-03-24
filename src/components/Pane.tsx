@@ -17,16 +17,18 @@ import {
 	type PaneScrollDetail,
 	type PaneTheme,
 	type PrInfo,
+	type SelectionRange,
 } from "../shared/types";
 import { useStore } from "../store";
 import { shortenPath } from "../utils/path";
 import { modKey } from "../utils/platform";
-import { CanvasTerminal } from "./CanvasTerminal";
+import { CanvasTerminal, type CanvasTerminalHandle } from "./CanvasTerminal";
 import { PaneContextMenu } from "./PaneContextMenu";
 import { PaneBackgroundEffects, PaneOverlayEffects } from "./PaneEffects";
 import { getVariant, type VariantTheme } from "./pane-chrome";
 import { buildVariantTheme } from "./pane-chrome/shared";
 import { SnippetDropdown } from "./SnippetDropdown";
+import { TerminalContextMenu } from "./TerminalContextMenu";
 
 /** Stable component for snippet trigger — defined outside Pane to avoid
  *  creating a new component type on every render or memo invalidation. */
@@ -79,6 +81,10 @@ export const Pane = memo(function Pane({
 }: PaneProps) {
 	const [showContext, setShowContext] = useState(false);
 	const [contextPos, setContextPos] = useState<ScreenPosition>({ x: 0, y: 0 });
+	const [showTerminalContext, setShowTerminalContext] = useState(false);
+	const [terminalContextPos, setTerminalContextPos] = useState<ScreenPosition>({ x: 0, y: 0 });
+	const [terminalContextHasSelection, setTerminalContextHasSelection] = useState(false);
+	const terminalHandleRef = useRef<CanvasTerminalHandle | null>(null);
 	const [grid, setGrid] = useState<GridSnapshot | null>(null);
 	const [ptyError, setPtyError] = useState(false);
 	const homeDir = useStore((s) => s.homeDir);
@@ -335,6 +341,15 @@ export const Pane = memo(function Pane({
 		[paneId, workspaceId, onUpdateConfig],
 	);
 
+	const handleTerminalContextMenu = useCallback(
+		(pos: ScreenPosition, selectionRange: SelectionRange | null) => {
+			setTerminalContextPos(pos);
+			setTerminalContextHasSelection(selectionRange !== null);
+			setShowTerminalContext(true);
+		},
+		[],
+	);
+
 	const { isDropTarget } = useFileDrop({ containerRef: outerRef, onWrite: handleWrite });
 
 	// RAF-throttled scroll handler — accumulates fractional deltas from trackpad,
@@ -556,6 +571,8 @@ export const Pane = memo(function Pane({
 							paneId={paneId}
 							accentColor={variantTheme.accent}
 							onFontSizeChange={handleFontSizeChange}
+							handleRef={terminalHandleRef}
+							onTerminalContextMenu={handleTerminalContextMenu}
 						/>
 						{/* Scrollbar track — themed, fades in/out, supports click-and-drag positioning when visible.
 						    Wide hit area (w-5) for touch; visible thumb stays w-1 via pointer-events-none. */}
@@ -630,6 +647,16 @@ export const Pane = memo(function Pane({
 					onRename={startEditing}
 					onFocus={handleFocus}
 					onDismiss={() => setShowContext(false)}
+				/>
+			)}
+
+			{showTerminalContext && terminalHandleRef.current && (
+				<TerminalContextMenu
+					anchorPos={terminalContextPos}
+					hasSelection={terminalContextHasSelection}
+					terminalHandle={terminalHandleRef.current}
+					onWrite={handleWrite}
+					onDismiss={() => setShowTerminalContext(false)}
 				/>
 			)}
 		</div>

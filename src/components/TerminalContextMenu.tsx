@@ -55,8 +55,10 @@ export function TerminalContextMenu({
 	}, [anchorPos.x, anchorPos.y]);
 
 	return createPortal(
+		// biome-ignore lint/a11y/noStaticElementInteractions: stopPropagation only, keyboard handled by Escape listener
 		<div
 			ref={ref}
+			role="presentation"
 			className="ctx-menu"
 			style={{
 				position: "fixed",
