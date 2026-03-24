@@ -23,6 +23,7 @@ export function App() {
 	const updatePanePr = useStore((s) => s.updatePanePr);
 	const updatePaneAgentStatus = useStore((s) => s.updatePaneAgentStatus);
 	const updatePaneTitle = useStore((s) => s.updatePaneTitle);
+	const handlePtyExit = useStore((s) => s.handlePtyExit);
 	const visitedWorkspaceIds = useStore((s) => s.visitedWorkspaceIds);
 
 	const [updateState, updateActions] = useUpdateChecker();
@@ -61,7 +62,9 @@ export function App() {
 			if (!openWorkspaceIds.includes(ws.id)) continue;
 			for (const [paneId, config] of Object.entries(ws.panes)) {
 				if (!activePtyIds.has(paneId)) {
-					window.api.trackPaneGit(paneId, config.cwd).catch(() => {});
+					window.api.trackPaneGit(paneId, config.cwd).catch((err) => {
+						console.warn("[app] trackPaneGit failed:", err);
+					});
 				}
 			}
 		}
@@ -73,13 +76,21 @@ export function App() {
 		return window.api.onTerminalRender(dispatchRender);
 	}, []);
 
-	// Listen for backend PTY events (CWD, git branch, PR status, activity state, terminal title).
+	// Listen for backend PTY events (exit, CWD, git branch, PR status, activity state, terminal title).
 	// Unified into a single effect to avoid identical subscribe/lookup patterns.
 	useEffect(() => {
 		const findWs = (paneId: string) =>
 			useStore.getState().workspaces.find((w) => paneId in w.panes);
 
 		const unsubs = [
+			window.api.onPtyExit((paneId, exitCode) => {
+				if (exitCode === 0) {
+					console.debug(`[app] PTY exited: pane=${paneId} code=0`);
+				} else {
+					console.warn(`[app] PTY exited: pane=${paneId} code=${exitCode}`);
+				}
+				handlePtyExit(paneId);
+			}),
 			window.api.onPtyCwdChanged((paneId, cwd) => {
 				const ws = findWs(paneId);
 				if (ws) updatePaneCwd(ws.id, paneId, cwd);
@@ -109,7 +120,7 @@ export function App() {
 			}),
 		];
 		return () => unsubs.forEach((fn) => fn());
-	}, [updatePaneCwd, updatePaneBranch, updatePanePr, updatePaneAgentStatus, updatePaneTitle]);
+	}, [updatePaneCwd, updatePaneBranch, updatePanePr, updatePaneAgentStatus, updatePaneTitle, handlePtyExit]);
 
 	// Must be above early returns to satisfy React's rules of hooks.
 	// Returns { vars, failed } so we can show a fallback indicator on failure.

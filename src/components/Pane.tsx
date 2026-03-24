@@ -81,6 +81,8 @@ export const Pane = memo(function Pane({
 	const terminalHandleRef = useRef<CanvasTerminalHandle | null>(null);
 	const [grid, setGrid] = useState<GridSnapshot | null>(null);
 	const [ptyError, setPtyError] = useState(false);
+	const ptyExited = useStore((s) => s.exitedPtyIds.has(paneId));
+	const clearPtyExited = useStore((s) => s.clearPtyExited);
 	const homeDir = useStore((s) => s.homeDir);
 	const branch = useStore((s) => s.paneBranches[paneId] ?? null);
 	const pr = useStore((s) => s.panePrs[paneId] ?? null);
@@ -302,6 +304,27 @@ export const Pane = memo(function Pane({
 
 	const handleWrite = useCallback(
 		(data: string) => {
+			// Read store directly to avoid stale closure — ptyExited selector (line 84)
+			// is reactive but would require this callback in its dependency array.
+			if (useStore.getState().exitedPtyIds.has(paneId)) {
+				clearPtyExited(paneId);
+				setPtyError(false);
+				// Re-create PTY. If creation fails, ensurePty's catch rolls back
+				// activePtyIds, but we also need to restore the error overlay.
+				window.api.createPty(paneId, initialCwdRef.current, initialCmdRef.current ?? "").catch((err: unknown) => {
+					console.error(`[pane] PTY restart failed for ${paneId}:`, err);
+					setPtyError(true);
+				});
+				// Optimistically mark as active (ensurePty pattern)
+				const { activePtyIds } = useStore.getState();
+				if (!activePtyIds.has(paneId)) {
+					const newSet = new Set(activePtyIds);
+					newSet.add(paneId);
+					useStore.setState({ activePtyIds: newSet });
+				}
+				return;
+			}
+
 			// Auto-scroll to bottom on user input
 			if (isScrolledRef.current) {
 				scrollToBottom();
@@ -312,7 +335,7 @@ export const Pane = memo(function Pane({
 				setPtyError(true);
 			});
 		},
-		[paneId, scrollToBottom],
+		[paneId, scrollToBottom, clearPtyExited],
 	);
 
 	const handleResize = useCallback(
@@ -601,9 +624,11 @@ export const Pane = memo(function Pane({
 							className="absolute inset-0 bg-black pointer-events-none transition-opacity duration-150"
 							style={{ opacity: dimOpacity }}
 						/>
-						{ptyError && (
+						{(ptyError || ptyExited) && (
 							<div className="absolute bottom-2 left-2 right-2 text-xs text-danger bg-danger/10 rounded px-2 py-1 pointer-events-none">
-								Terminal disconnected
+								{ptyExited
+									? "Process exited — type to restart"
+									: "Terminal disconnected"}
 							</div>
 						)}
 					</div>
