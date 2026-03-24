@@ -293,17 +293,11 @@ export const Pane = memo(function Pane({
 
 	// RAF-throttled scroll handler — accumulates fractional deltas from trackpad,
 	// rounds to integer offset, and coalesces into one IPC call per frame.
+	// When there's no scrollback (alt-buffer, e.g. Gemini TUI), wheel events are
+	// forwarded to the running application as arrow key sequences.
 	const handleScroll = useCallback(
 		(deltaLines: number) => {
-			// Show scrollbar, auto-hide after 2s of inactivity
-			setScrollbarVisible(true);
-			if (scrollbarTimerRef.current) clearTimeout(scrollbarTimerRef.current);
-			scrollbarTimerRef.current = setTimeout(() => setScrollbarVisible(false), SCROLLBAR_HIDE_DELAY_MS);
-
 			pendingScrollDelta.current += deltaLines;
-			// Mark scrolled-up immediately so the render RAF (above) won't push new output to bottom.
-			// Only deltaLines > 0 (scrolling up into history) sets the flag; scrolling down clears it at bottom.
-			if (deltaLines > 0) isScrolledRef.current = true;
 			if (scrollRafId.current !== 0) return;
 
 			scrollRafId.current = requestAnimationFrame(() => {
@@ -311,20 +305,39 @@ export const Pane = memo(function Pane({
 				const totalDelta = pendingScrollDelta.current;
 				pendingScrollDelta.current = 0;
 
+				// Alt-buffer (no scrollback): forward wheel as arrow keys to the app
+				if (maxScrollRef.current === 0) {
+					if (isScrolledRef.current) scrollToBottom();
+					const count = Math.round(Math.abs(totalDelta));
+					if (count === 0) return;
+					const key = totalDelta > 0 ? "\x1b[A" : "\x1b[B";
+					window.api.writePty(paneId, key.repeat(count)).catch((err: unknown) => {
+						console.error(`[pane] writePty (scroll) failed for ${paneId}:`, err);
+					});
+					return;
+				}
+
+				// Normal scrollback mode — show scrollbar
+				setScrollbarVisible(true);
+				if (scrollbarTimerRef.current) clearTimeout(scrollbarTimerRef.current);
+				scrollbarTimerRef.current = setTimeout(
+					() => setScrollbarVisible(false),
+					SCROLLBAR_HIDE_DELAY_MS,
+				);
+
+				// Mark scrolled-up immediately so the render RAF won't push new output
+				if (totalDelta > 0) isScrolledRef.current = true;
+
 				const rawOffset = scrollOffsetRef.current + totalDelta;
 				const newOffset = Math.max(0, Math.min(maxScrollRef.current, Math.round(rawOffset)));
 				if (newOffset === scrollOffsetRef.current) {
-					// Alt-buffer or clamped to bottom — clear scroll state and flush any
-					// renders that were blocked while isScrolledRef was briefly true.
-					// Must call scrollToBottom() (not just clear the flag) because pending
-					// renders stored in pendingGridRef won't display on their own.
 					if (newOffset === 0 && isScrolledRef.current) scrollToBottom();
 					return;
 				}
 				applyScrollOffset(newOffset);
 			});
 		},
-		[applyScrollOffset, scrollToBottom],
+		[applyScrollOffset, scrollToBottom, paneId],
 	);
 
 	// Listen for Mod+Up/Down scroll shortcuts dispatched by useKeyboardShortcuts
