@@ -1,5 +1,5 @@
 import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useImperativeHandle, useRef } from "react";
 import { DEFAULT_FONT_FAMILY } from "../data/theme-presets";
 import { keyEventToAnsi, PASTE_SENTINEL } from "../lib/key-to-ansi";
 import {
@@ -8,6 +8,7 @@ import {
 	sgrMouseRelease,
 	sgrWheelScroll,
 } from "../lib/mouse-to-sgr";
+import type { ScreenPosition } from "../lib/ui-constants";
 import type {
 	CellSnapshot,
 	CursorStyle,
@@ -24,6 +25,16 @@ import {
 	DEFAULT_LINE_HEIGHT,
 } from "../shared/types";
 import { isMac, isModKeyHeld } from "../utils/platform";
+
+/** Imperative methods exposed by CanvasTerminal for context menu integration. */
+export interface CanvasTerminalHandle {
+	/** Copy current selection text to clipboard. Clears selection regardless of success or failure. No-op if no selection. */
+	copySelection(): void;
+	/** Read clipboard and write to PTY with bracketed paste sequences. */
+	pasteFromClipboard(): void;
+	/** Select all content in the terminal buffer and redraw. */
+	selectAll(): void;
+}
 
 export interface CanvasTerminalProps {
 	readonly grid: GridSnapshot | null;
@@ -47,6 +58,10 @@ export interface CanvasTerminalProps {
 	readonly accentColor?: string;
 	/** Callback when Cmd/Ctrl+Scroll changes font size. Receives the requested new size. */
 	readonly onFontSizeChange?: (newSize: number) => void;
+	/** Imperative handle ref for terminal context menu actions. */
+	readonly handleRef?: React.RefObject<CanvasTerminalHandle | null>;
+	/** Right-click callback with mouse pointer screen position and whether text is selected. */
+	readonly onTerminalContextMenu?: (pos: ScreenPosition, hasSelection: boolean) => void;
 }
 
 /** Smooth cursor blink — full cycle duration (fade out → fade in). */
@@ -433,6 +448,8 @@ export function CanvasTerminal({
 	paneId,
 	accentColor,
 	onFontSizeChange,
+	handleRef,
+	onTerminalContextMenu,
 }: CanvasTerminalProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -488,6 +505,7 @@ export function CanvasTerminal({
 	/** Accumulated zoom delta from wheel events — dispatched once per RAF. */
 	const pendingZoomDelta = useRef(0);
 	const zoomRafId = useRef(0);
+	const onTerminalContextMenuRef = useRef(onTerminalContextMenu);
 
 	// Keep refs in sync
 	gridRef.current = grid;
@@ -498,6 +516,7 @@ export function CanvasTerminal({
 	selectionColorRef.current = selectionColor;
 	fontSizeRef.current = fontSize;
 	onFontSizeChangeRef.current = onFontSizeChange;
+	onTerminalContextMenuRef.current = onTerminalContextMenu;
 
 	/** Convert client (mouse) coordinates to a viewport-relative cell position.
 	 *  Returns viewport-relative {row, col} — NOT absolute physical rows. */
@@ -1069,6 +1088,61 @@ export function CanvasTerminal({
 			});
 	}, [writePaste]);
 
+	/** Copy the current selection to the clipboard and clear it. Shared by imperative handle and keyboard shortcut. */
+	const copySelectionToClipboard = useCallback(() => {
+		const anchor = selectionAnchorRef.current;
+		const end = selectionEndRef.current;
+		if (!anchor || !end || !selectionActiveRef.current) return;
+		const range = normalizeSelection(anchor, end);
+		window.api
+			.getSelectionText(paneId, range)
+			.then((text) => {
+				if (text) return writeText(text);
+			})
+			.then(() => clearSelection())
+			.catch((err: unknown) => {
+				console.error(`[terminal] copy failed for ${paneId}:`, err);
+				clearSelection();
+			});
+	}, [paneId, clearSelection]);
+
+	// deps empty: all methods read only from refs
+	useImperativeHandle(
+		handleRef,
+		() => ({
+			copySelection: copySelectionToClipboard,
+			pasteFromClipboard,
+			selectAll() {
+				const snap = gridRef.current;
+				if (!snap) return;
+				selectionAnchorRef.current = { row: 0, col: 0 };
+				selectionEndRef.current = {
+					row: snap.scrollbackRows + snap.totalRows - 1,
+					col: snap.cols - 1,
+				};
+				selectionActiveRef.current = true;
+				drawRef.current();
+			},
+		}),
+		[copySelectionToClipboard, pasteFromClipboard],
+	);
+
+	// deps empty: reads only from refs
+	const handleContextMenu = useCallback((e: React.MouseEvent) => {
+		const snap = gridRef.current;
+		// In mouse-grabbed mode (TUI apps), suppress custom menu unless Shift is held
+		if (snap?.isMouseGrabbed && !e.shiftKey) return;
+		// Only suppress native menu when a custom handler is provided
+		if (!onTerminalContextMenuRef.current) return;
+
+		e.preventDefault();
+
+		const hasSelection =
+			!!selectionAnchorRef.current && !!selectionEndRef.current && selectionActiveRef.current;
+
+		onTerminalContextMenuRef.current({ x: e.clientX, y: e.clientY }, hasSelection);
+	}, []);
+
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
 			// Copy shortcut: Cmd+C (macOS) or Ctrl+C (Windows/Linux)
@@ -1079,21 +1153,9 @@ export function CanvasTerminal({
 				: e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey && e.code === "KeyC";
 
 			if (isCopy) {
-				const anchor = selectionAnchorRef.current;
-				const end = selectionEndRef.current;
-				if (anchor && end && selectionActiveRef.current) {
+				if (selectionActiveRef.current) {
 					e.preventDefault();
-					const range = normalizeSelection(anchor, end);
-					window.api
-						.getSelectionText(paneId, range)
-						.then((text) => {
-							if (text) return writeText(text);
-						})
-						.then(() => clearSelection())
-						.catch((err: unknown) => {
-							console.error(`[terminal] copy failed for ${paneId}:`, err);
-							clearSelection();
-						});
+					copySelectionToClipboard();
 					return;
 				}
 				// No selection: macOS Cmd+C = no-op; Windows/Linux Ctrl+C = SIGINT
@@ -1156,7 +1218,7 @@ export function CanvasTerminal({
 				onWrite(ansi);
 			}
 		},
-		[onWrite, pasteFromClipboard, paneId, clearSelection],
+		[onWrite, pasteFromClipboard, copySelectionToClipboard, clearSelection],
 	);
 
 	// Handle native paste events (Cmd+V on macOS via Tauri menu, browser paste)
@@ -1513,6 +1575,7 @@ export function CanvasTerminal({
 			onMouseDown={handleMouseDown}
 			onMouseMove={handleMouseMove}
 			onMouseLeave={clearLinkHover}
+			onContextMenu={handleContextMenu}
 		>
 			<canvas ref={canvasRef} className="block" />
 		</div>
