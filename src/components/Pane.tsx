@@ -81,6 +81,8 @@ export const Pane = memo(function Pane({
 	const terminalHandleRef = useRef<CanvasTerminalHandle | null>(null);
 	const [grid, setGrid] = useState<GridSnapshot | null>(null);
 	const [ptyError, setPtyError] = useState(false);
+	const ptyExited = useStore((s) => s.exitedPtyIds.has(paneId));
+	const clearPtyExited = useStore((s) => s.clearPtyExited);
 	const homeDir = useStore((s) => s.homeDir);
 	const branch = useStore((s) => s.paneBranches[paneId] ?? null);
 	const pr = useStore((s) => s.panePrs[paneId] ?? null);
@@ -302,6 +304,14 @@ export const Pane = memo(function Pane({
 
 	const handleWrite = useCallback(
 		(data: string) => {
+			// If PTY has exited, restart on any keypress
+			if (useStore.getState().exitedPtyIds.has(paneId)) {
+				clearPtyExited(paneId);
+				setPtyError(false);
+				ensurePty(paneId, initialCwdRef.current, initialCmdRef.current);
+				return;
+			}
+
 			// Auto-scroll to bottom on user input
 			if (isScrolledRef.current) {
 				scrollToBottom();
@@ -312,7 +322,7 @@ export const Pane = memo(function Pane({
 				setPtyError(true);
 			});
 		},
-		[paneId, scrollToBottom],
+		[paneId, scrollToBottom, clearPtyExited, ensurePty],
 	);
 
 	const handleResize = useCallback(
@@ -601,9 +611,11 @@ export const Pane = memo(function Pane({
 							className="absolute inset-0 bg-black pointer-events-none transition-opacity duration-150"
 							style={{ opacity: dimOpacity }}
 						/>
-						{ptyError && (
+						{(ptyError || ptyExited) && (
 							<div className="absolute bottom-2 left-2 right-2 text-xs text-danger bg-danger/10 rounded px-2 py-1 pointer-events-none">
-								Terminal disconnected
+								{ptyExited
+									? "Terminal exited — press any key to restart"
+									: "Terminal disconnected"}
 							</div>
 						)}
 					</div>
