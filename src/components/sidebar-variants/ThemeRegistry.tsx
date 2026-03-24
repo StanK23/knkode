@@ -7,41 +7,58 @@ import type {
 	CollapsedVariantProps,
 	ThemeVariantConfig,
 } from "./types";
+import type { BaseWorkspaceGitInfoProps } from "./types";
 import {
 	CatppuccinEntry,
 	CatppuccinHeader,
+	CatppuccinGitInfo,
 	DefaultDarkEntry,
 	DefaultDarkHeader,
+	DefaultDarkGitInfo,
 	DraculaEntry,
 	DraculaHeader,
+	DraculaGitInfo,
 	EverforestEntry,
 	EverforestHeader,
+	EverforestGitInfo,
 	GruvboxEntry,
 	GruvboxHeader,
+	GruvboxGitInfo,
 	MonokaiEntry,
 	MonokaiHeader,
+	MonokaiGitInfo,
 	NordEntry,
 	NordHeader,
+	NordGitInfo,
 	TokyoNightEntry,
 	TokyoNightHeader,
+	TokyoNightGitInfo,
 } from "./variants/ClassicThemes";
 import {
 	AmberEntry,
 	AmberHeader,
+	AmberGitInfo,
 	ArcticEntry,
 	ArcticHeader,
+	ArcticGitInfo,
 	CyberpunkEntry,
 	CyberpunkHeader,
+	CyberpunkGitInfo,
 	MatrixEntry,
 	MatrixHeader,
+	MatrixGitInfo,
 	OceanEntry,
 	OceanHeader,
+	OceanGitInfo,
 	SolanaEntry,
 	SolanaHeader,
+	SolanaGitInfo,
 	SunsetEntry,
 	SunsetHeader,
+	SunsetGitInfo,
 	VaporwaveEntry,
 	VaporwaveHeader,
+	VaporwaveGitInfo,
 } from "./variants/IdentityThemes";
 
 // ── Collapsed decorator factories ────────────────────────────────
@@ -132,6 +149,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 		},
 		Header: DefaultDarkHeader,
 		Entry: DefaultDarkEntry,
+		GitInfo: DefaultDarkGitInfo,
 	},
 	Dracula: {
 		wrapper: {
@@ -149,6 +167,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 		},
 		Header: DraculaHeader,
 		Entry: DraculaEntry,
+		GitInfo: DraculaGitInfo,
 	},
 	"Tokyo Night": {
 		wrapper: {
@@ -166,6 +185,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 		},
 		Header: TokyoNightHeader,
 		Entry: TokyoNightEntry,
+		GitInfo: TokyoNightGitInfo,
 	},
 	Nord: {
 		wrapper: {
@@ -182,6 +202,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 		},
 		Header: NordHeader,
 		Entry: NordEntry,
+		GitInfo: NordGitInfo,
 	},
 	Catppuccin: {
 		wrapper: {
@@ -199,6 +220,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 		},
 		Header: CatppuccinHeader,
 		Entry: CatppuccinEntry,
+		GitInfo: CatppuccinGitInfo,
 	},
 	Gruvbox: {
 		wrapper: {
@@ -216,6 +238,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 		},
 		Header: GruvboxHeader,
 		Entry: GruvboxEntry,
+		GitInfo: GruvboxGitInfo,
 	},
 	Monokai: {
 		wrapper: {
@@ -233,6 +256,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 		},
 		Header: MonokaiHeader,
 		Entry: MonokaiEntry,
+		GitInfo: MonokaiGitInfo,
 	},
 	Everforest: {
 		wrapper: {
@@ -250,6 +274,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 		},
 		Header: EverforestHeader,
 		Entry: EverforestEntry,
+		GitInfo: EverforestGitInfo,
 	},
 	Matrix: {
 		wrapper: {
@@ -266,6 +291,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 		},
 		Header: MatrixHeader,
 		Entry: MatrixEntry,
+		GitInfo: MatrixGitInfo,
 	},
 	Cyberpunk: {
 		wrapper: {
@@ -286,6 +312,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 		},
 		Header: CyberpunkHeader,
 		Entry: CyberpunkEntry,
+		GitInfo: CyberpunkGitInfo,
 	},
 	Solana: {
 		wrapper: {
@@ -304,6 +331,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 		},
 		Header: SolanaHeader,
 		Entry: SolanaEntry,
+		GitInfo: SolanaGitInfo,
 	},
 	Amber: {
 		wrapper: {
@@ -322,6 +350,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 		},
 		Header: AmberHeader,
 		Entry: AmberEntry,
+		GitInfo: AmberGitInfo,
 	},
 	Vaporwave: {
 		wrapper: {
@@ -341,6 +370,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 		},
 		Header: VaporwaveHeader,
 		Entry: VaporwaveEntry,
+		GitInfo: VaporwaveGitInfo,
 	},
 	Ocean: {
 		wrapper: {
@@ -357,6 +387,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 		},
 		Header: OceanHeader,
 		Entry: OceanEntry,
+		GitInfo: OceanGitInfo,
 	},
 	Sunset: {
 		wrapper: {
@@ -379,6 +410,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 		},
 		Header: SunsetHeader,
 		Entry: SunsetEntry,
+		GitInfo: SunsetGitInfo,
 	},
 	Arctic: {
 		wrapper: {
@@ -396,6 +428,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 		},
 		Header: ArcticHeader,
 		Entry: ArcticEntry,
+		GitInfo: ArcticGitInfo,
 	},
 };
 
@@ -451,4 +484,12 @@ export function CollapsedWorkspaceVariant({
 }) {
 	const { collapsed } = getConfig(preset);
 	return <CollapsedButton name={name} isActive={isActive} onClick={onClick} tokens={collapsed} />;
+}
+
+export function WorkspaceGitInfoVariant({
+	preset,
+	...props
+}: BaseWorkspaceGitInfoProps & { preset: ThemePresetName }) {
+	const { GitInfo } = getConfig(preset);
+	return <GitInfo {...props} />;
 }

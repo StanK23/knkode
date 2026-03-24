@@ -10,6 +10,8 @@ import type { AgentStatus, PrInfo } from "../../shared/types";
 // Base props for visual rendering
 export interface BaseWorkspaceHeaderProps {
 	name: string;
+	/** Shortened CWD path for the workspace (displayed inline after name). */
+	cwd: string | null;
 	isActive: boolean;
 	isCollapsed: boolean;
 	/** Number of panes in this workspace that have attention status. Badge shown when > 0. */
@@ -22,9 +24,8 @@ export interface BaseWorkspaceHeaderProps {
 
 export interface BasePaneEntryProps {
 	label: string;
-	cwd: string;
-	branch: string | null;
-	pr: PrInfo | null;
+	/** Terminal title (OSC 1/2). Shown as subtitle when agentStatus !== "idle". */
+	title: string | null;
 	agentStatus: AgentStatus;
 	isFocused: boolean;
 	onClick: () => void;
@@ -57,9 +58,15 @@ export interface CollapsedTokens {
 	decorator?: (isActive: boolean) => ReactNode;
 }
 
+export interface BaseWorkspaceGitInfoProps {
+	branch: string | null;
+	pr: PrInfo | null;
+}
+
 export interface ThemeVariantConfig {
 	wrapper: WrapperTokens;
 	collapsed: CollapsedTokens;
 	Header: ComponentType<BaseWorkspaceHeaderProps>;
 	Entry: ComponentType<BasePaneEntryProps>;
+	GitInfo: ComponentType<BaseWorkspaceGitInfoProps>;
 }

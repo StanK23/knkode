@@ -8,6 +8,7 @@ import type { Workspace } from "../shared/types";
 import { getPaneIdsInOrder, useStore } from "../store";
 import { isMac, MACOS_SIDEBAR_TOP_INSET, modKey } from "../utils/platform";
 import { SidebarPaneEntry } from "./SidebarPaneEntry";
+import { SidebarWorkspaceGitInfo } from "./SidebarWorkspaceGitInfo";
 import { SidebarWorkspaceHeader } from "./SidebarWorkspaceHeader";
 import { AttentionDot } from "./sidebar-variants/AgentStatusIndicator";
 import {
@@ -16,7 +17,7 @@ import {
 } from "./sidebar-variants/ThemeRegistry";
 import { UpdateBanner } from "./UpdateBanner";
 
-/** px */ const SIDEBAR_WIDTH = 200;
+/** px */ const SIDEBAR_WIDTH = 260;
 /** px — wide enough to contain macOS traffic lights (90px) and show truncated workspace names */ const SIDEBAR_COLLAPSED_WIDTH = 96;
 
 interface DragReorderProps {
@@ -217,7 +218,7 @@ export function Sidebar({
 						onDragPointerDown={handleWorkspaceDragPointerDown}
 					/>
 				) : (
-					<ul data-workspace-list className="flex flex-col gap-1 py-1 list-none m-0 p-0">
+					<ul data-workspace-list className="flex flex-col gap-4 py-1 list-none m-0 p-0">
 						{openWorkspaces.map((ws, index) => {
 							const isActive = ws.id === activeWorkspaceId;
 							const isSectionCollapsed = collapsedSections.has(ws.id);
@@ -260,25 +261,28 @@ export function Sidebar({
 											)}
 										</div>
 										{!isSectionCollapsed && (
-											<div className="flex flex-col pb-1">
-												{paneIds.map((paneId) => {
-													const config = ws.panes[paneId];
-													if (!config) return null;
-													return (
-														<SidebarPaneEntry
-															key={paneId}
-															paneId={paneId}
-															workspaceId={ws.id}
-															workspacePreset={activePreset}
-															config={config}
-															isFocused={focusedPaneId === paneId && isActive}
-															canClose={canClose}
-															onClick={() => handlePaneClick(ws.id, paneId)}
-															{...(canClose ? { onClose: () => closePane(ws.id, paneId) } : {})}
-														/>
-													);
-												})}
-											</div>
+											<>
+												<SidebarWorkspaceGitInfo workspaceId={ws.id} preset={activePreset} />
+												<div className="flex flex-col pb-1">
+													{paneIds.map((paneId) => {
+														const config = ws.panes[paneId];
+														if (!config) return null;
+														return (
+															<SidebarPaneEntry
+																key={paneId}
+																paneId={paneId}
+																workspaceId={ws.id}
+																workspacePreset={activePreset}
+																config={config}
+																isFocused={focusedPaneId === paneId && isActive}
+																canClose={canClose}
+																onClick={() => handlePaneClick(ws.id, paneId)}
+																{...(canClose ? { onClose: () => closePane(ws.id, paneId) } : {})}
+															/>
+														);
+													})}
+												</div>
+											</>
 										)}
 									</WorkspaceSectionWrapper>
 								</li>

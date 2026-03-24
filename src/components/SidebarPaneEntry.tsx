@@ -3,7 +3,6 @@ import { type ThemePresetName, toPresetName } from "../data/theme-presets";
 import { useContextMenu } from "../hooks/useContextMenu";
 import { PANE_RENAME_EVENT, type PaneConfig } from "../shared/types";
 import { useStore } from "../store";
-import { shortenPath } from "../utils/path";
 import { PaneContextMenu } from "./PaneContextMenu";
 import { PaneEntryVariant } from "./sidebar-variants/ThemeRegistry";
 
@@ -28,14 +27,11 @@ export function SidebarPaneEntry({
 	onClick,
 	onClose,
 }: SidebarPaneEntryProps) {
-	const branch = useStore((s) => s.paneBranches[paneId] ?? null);
-	const pr = useStore((s) => s.panePrs[paneId] ?? null);
 	const agentStatus = useStore((s) => s.paneAgentStatuses[paneId] ?? "idle");
-	const homeDir = useStore((s) => s.homeDir);
+	const title = useStore((s) => s.paneTitles[paneId] ?? null);
 	const splitPane = useStore((s) => s.splitPane);
 	const updatePaneConfig = useStore((s) => s.updatePaneConfig);
 
-	const shortCwd = shortenPath(config.cwd, homeDir);
 	const preset = toPresetName(config.themeOverride?.preset ?? workspacePreset);
 
 	const ctx = useContextMenu();
@@ -58,9 +54,7 @@ export function SidebarPaneEntry({
 					preset={preset}
 					paneId={paneId}
 					label={config.label}
-					cwd={shortCwd}
-					branch={branch}
-					pr={pr}
+					title={title}
 					agentStatus={agentStatus}
 					isFocused={isFocused}
 					onClick={onClick}
