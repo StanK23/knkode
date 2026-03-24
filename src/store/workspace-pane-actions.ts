@@ -714,5 +714,67 @@ export function createWorkspacePaneSlice(
 				}),
 			);
 		},
+
+		addSubgroup: (workspaceId: string) => {
+			set((state) =>
+				withWorkspace(state, workspaceId, (workspace, st) => {
+					const newPaneId = crypto.randomUUID();
+					const newSgId = crypto.randomUUID();
+					const firstPaneCwd = Object.values(workspace.panes)[0]?.cwd ?? st.homeDir;
+					const newPane: PaneConfig = {
+						label: "terminal",
+						cwd: firstPaneCwd,
+						startupCommand: null,
+						themeOverride: null,
+					};
+					const newSubgroup: SubgroupConfig = {
+						id: newSgId,
+						layout: customLayout({ paneId: newPaneId, size: 100 }),
+					};
+					return {
+						updated: {
+							...workspace,
+							subgroups: [...workspace.subgroups, newSubgroup],
+							activeSubgroupId: newSgId,
+							panes: { ...workspace.panes, [newPaneId]: newPane },
+						},
+						extra: { focusedPaneId: newPaneId, focusGeneration: st.focusGeneration + 1 },
+					};
+				}),
+			);
+		},
+
+		setActiveSubgroup: (workspaceId: string, subgroupId: string) => {
+			set((state) =>
+				withWorkspace(state, workspaceId, (workspace, st) => {
+					if (workspace.activeSubgroupId === subgroupId) return null;
+					const sg = workspace.subgroups.find((s) => s.id === subgroupId);
+					if (!sg) return null;
+					const firstPaneId = getPaneIdsInOrder(sg.layout.tree)[0] ?? null;
+					return {
+						updated: { ...workspace, activeSubgroupId: subgroupId },
+						extra: { focusedPaneId: firstPaneId, focusGeneration: st.focusGeneration + 1 },
+					};
+				}),
+			);
+		},
+
+		cycleSubgroup: (workspaceId: string, direction: 1 | -1) => {
+			set((state) =>
+				withWorkspace(state, workspaceId, (workspace, st) => {
+					if (workspace.subgroups.length < 2) return null;
+					const idx = workspace.subgroups.findIndex((sg) => sg.id === workspace.activeSubgroupId);
+					const nextIdx =
+						(idx + direction + workspace.subgroups.length) % workspace.subgroups.length;
+					const nextSg = workspace.subgroups[nextIdx];
+					if (!nextSg) return null;
+					const firstPaneId = getPaneIdsInOrder(nextSg.layout.tree)[0] ?? null;
+					return {
+						updated: { ...workspace, activeSubgroupId: nextSg.id },
+						extra: { focusedPaneId: firstPaneId, focusGeneration: st.focusGeneration + 1 },
+					};
+				}),
+			);
+		},
 	};
 }
