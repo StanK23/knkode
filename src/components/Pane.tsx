@@ -324,11 +324,15 @@ export const Pane = memo(function Pane({
 
 	const handleFontSizeChange = useCallback(
 		(newSize: number) => {
+			// Read themeOverride from the store imperatively to keep this callback stable —
+			// avoids recreation on every font size change (which would churn CanvasTerminal props)
+			const ws = useStore.getState().workspaces.find((w) => w.id === workspaceId);
+			const currentOverride = ws?.panes[paneId]?.themeOverride;
 			onUpdateConfig(paneId, {
-				themeOverride: { ...(config.themeOverride ?? {}), fontSize: clampFontSize(newSize) },
+				themeOverride: { ...(currentOverride ?? {}), fontSize: clampFontSize(newSize) },
 			});
 		},
-		[paneId, config.themeOverride, onUpdateConfig],
+		[paneId, workspaceId, onUpdateConfig],
 	);
 
 	const { isDropTarget } = useFileDrop({ containerRef: outerRef, onWrite: handleWrite });
