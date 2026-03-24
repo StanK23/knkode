@@ -2,7 +2,7 @@
 
 ## What Was Done
 
-### PR #61 — Performance & Battery Drain Fix (in review)
+### PR #61 — Performance & Battery Drain Fix (merged)
 Branch: `fix/performance-battery`
 
 7 performance fixes to eliminate idle CPU wakeups and reduce render overhead:
@@ -25,7 +25,7 @@ All findings addressed in 6 fix commits (28fc942..7d82330).
 
 ## What's Next
 
-PR #61 is ready for user review and merge. After merge, remaining v2.1.0 polish tasks:
+PR #61 merged. Remaining v2.1.0 polish tasks:
 - PR 3: Silent failures (`fix/silent-failures`)
 - PR 4: Type safety (`fix/type-safety`)
 - PR 5: Accessibility (`fix/accessibility`)
