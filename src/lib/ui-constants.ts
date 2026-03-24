@@ -15,7 +15,7 @@ export function getPortalRoot(): HTMLElement {
 	return document.getElementById("portal-root") ?? document.body;
 }
 
-/** Delay (ms) before the scrollbar fades out after scroll activity stops. */
+/** Delay (ms) before the scrollbar fades out after scroll or drag activity stops. */
 export const SCROLLBAR_HIDE_DELAY_MS = 2000;
 
 /** Suppress the click event that follows pointerup after a drag. */

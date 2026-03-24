@@ -349,6 +349,8 @@ export const Pane = memo(function Pane({
 
 				const rawOffset = scrollOffsetRef.current + totalDelta;
 				const newOffset = Math.max(0, Math.min(maxScrollRef.current, Math.round(rawOffset)));
+				// Offset unchanged after clamping — e.g. user at bottom scrolls up but
+				// delta rounds to 0. Flush any pending render if still flagged as scrolled.
 				if (newOffset === scrollOffsetRef.current) {
 					if (newOffset === 0 && isScrolledRef.current) scrollToBottom();
 					return;
