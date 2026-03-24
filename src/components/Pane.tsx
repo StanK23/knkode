@@ -505,14 +505,19 @@ export const Pane = memo(function Pane({
 							paneId={paneId}
 							accentColor={variantTheme.accent}
 						/>
-						{/* Scrollbar — themed track, fades in on scroll, fades out after 2s */}
+						{/* Scrollbar track — themed, fades in/out, supports click-and-drag positioning when visible */}
 						{hasScrollback && (
 							<div
 								ref={scrollbarTrackRef}
 								onPointerDown={handleScrollbarPointerDown}
-								className={`absolute right-2 top-2 bottom-2 w-2 z-20 transition-opacity duration-500 ${scrollbarVisible ? "cursor-pointer" : "pointer-events-none"}`}
+								className={`absolute right-2 top-2 bottom-2 w-2 z-20 transition-opacity duration-500 ${
+									scrollbarVisible
+										? "pointer-events-auto cursor-pointer"
+										: "pointer-events-none"
+								}`}
 								style={{ opacity: scrollbarVisible ? 1 : 0 }}
 							>
+								{/* pointer-events-none ensures clicks fall through to the track for drag handling */}
 								<div
 									className="absolute right-0 w-1 rounded-full pointer-events-none"
 									style={{
