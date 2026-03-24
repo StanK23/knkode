@@ -2,63 +2,64 @@ import type { ReactNode } from "react";
 import type { ThemePresetName } from "../../data/theme-presets";
 import type {
 	BasePaneEntryProps,
+	BaseWorkspaceGitInfoProps,
 	BaseWorkspaceHeaderProps,
+	BracketPosition,
 	CollapsedTokens,
 	CollapsedVariantProps,
 	ThemeVariantConfig,
 } from "./types";
-import type { BaseWorkspaceGitInfoProps } from "./types";
 import {
 	CatppuccinEntry,
-	CatppuccinHeader,
 	CatppuccinGitInfo,
+	CatppuccinHeader,
 	DefaultDarkEntry,
-	DefaultDarkHeader,
 	DefaultDarkGitInfo,
+	DefaultDarkHeader,
 	DraculaEntry,
-	DraculaHeader,
 	DraculaGitInfo,
+	DraculaHeader,
 	EverforestEntry,
-	EverforestHeader,
 	EverforestGitInfo,
+	EverforestHeader,
 	GruvboxEntry,
-	GruvboxHeader,
 	GruvboxGitInfo,
+	GruvboxHeader,
 	MonokaiEntry,
-	MonokaiHeader,
 	MonokaiGitInfo,
+	MonokaiHeader,
 	NordEntry,
-	NordHeader,
 	NordGitInfo,
+	NordHeader,
 	TokyoNightEntry,
-	TokyoNightHeader,
 	TokyoNightGitInfo,
+	TokyoNightHeader,
 } from "./variants/ClassicThemes";
 import {
 	AmberEntry,
-	AmberHeader,
 	AmberGitInfo,
+	AmberHeader,
 	ArcticEntry,
-	ArcticHeader,
 	ArcticGitInfo,
+	ArcticHeader,
 	CyberpunkEntry,
-	CyberpunkHeader,
 	CyberpunkGitInfo,
+	CyberpunkHeader,
 	MatrixEntry,
-	MatrixHeader,
 	MatrixGitInfo,
+	MatrixHeader,
 	OceanEntry,
-	OceanHeader,
 	OceanGitInfo,
+	OceanHeader,
 	SolanaEntry,
-	SolanaHeader,
 	SolanaGitInfo,
+	SolanaHeader,
 	SunsetEntry,
-	SunsetHeader,
 	SunsetGitInfo,
+	SunsetHeader,
 	VaporwaveEntry,
-	VaporwaveHeader,
 	VaporwaveGitInfo,
+	VaporwaveHeader,
 } from "./variants/IdentityThemes";
 
 // ── Collapsed decorator factories ────────────────────────────────
@@ -78,7 +79,6 @@ function diamond(size: string, activeClass: string, inactiveClass: string) {
 		/>
 	);
 }
-
 
 function monokaiArrow(isActive: boolean) {
 	return (
@@ -147,6 +147,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 			inactive: "bg-transparent text-[#8892b0] hover:text-[#e0e0e0]",
 			label: "sidebar-header text-[11px] font-medium truncate",
 		},
+		bracket: { active: "#6c63ff", inactive: "#3a4070" },
 		Header: DefaultDarkHeader,
 		Entry: DefaultDarkEntry,
 		GitInfo: DefaultDarkGitInfo,
@@ -165,6 +166,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 			label: "sidebar-header text-[12px] font-bold tracking-wide truncate",
 			decorator: dot("w-2 h-2", "bg-[#ff79c6] shadow-[0_0_8px_#ff79c6]", "bg-[#6272a4]"),
 		},
+		bracket: { active: "#bd93f9", inactive: "#44475a" },
 		Header: DraculaHeader,
 		Entry: DraculaEntry,
 		GitInfo: DraculaGitInfo,
@@ -183,6 +185,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 			label: "sidebar-header text-[11px] font-bold tracking-wider uppercase truncate",
 			labelActive: "drop-shadow-[0_0_8px_rgba(122,162,247,0.5)] text-[#7aa2f7]",
 		},
+		bracket: { active: "#7aa2f7", inactive: "#3b4261" },
 		Header: TokyoNightHeader,
 		Entry: TokyoNightEntry,
 		GitInfo: TokyoNightGitInfo,
@@ -200,6 +203,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 			inactive: "bg-transparent text-[#4c566a] hover:text-[#d8dee9] hover:bg-[#3b4252]/50",
 			label: "sidebar-header text-[12px] font-medium tracking-wide truncate",
 		},
+		bracket: { active: "#5e81ac", inactive: "#3b4252" },
 		Header: NordHeader,
 		Entry: NordEntry,
 		GitInfo: NordGitInfo,
@@ -218,6 +222,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 			label: "sidebar-header text-[12px] font-semibold truncate",
 			decorator: dot("w-2.5 h-2.5", "bg-[#cba6f7]", "bg-[#585b70]"),
 		},
+		bracket: { active: "#cba6f7", inactive: "#585b70" },
 		Header: CatppuccinHeader,
 		Entry: CatppuccinEntry,
 		GitInfo: CatppuccinGitInfo,
@@ -236,6 +241,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 			label: "sidebar-header font-mono text-[11px] font-bold uppercase truncate",
 			formatName: (name) => `[${name}]`,
 		},
+		bracket: { active: "#d79921", inactive: "#504945" },
 		Header: GruvboxHeader,
 		Entry: GruvboxEntry,
 		GitInfo: GruvboxGitInfo,
@@ -254,6 +260,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 			label: "sidebar-header text-[12px] font-medium truncate",
 			decorator: monokaiArrow,
 		},
+		bracket: { active: "#f92672", inactive: "#3e3d32" },
 		Header: MonokaiHeader,
 		Entry: MonokaiEntry,
 		GitInfo: MonokaiGitInfo,
@@ -272,6 +279,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 			label: "sidebar-header text-[12px] font-medium truncate",
 			decorator: diamond("w-1.5 h-1.5", "bg-[#a7c080] scale-125", "bg-[#4a555b]"),
 		},
+		bracket: { active: "#a7c080", inactive: "#4a555b" },
 		Header: EverforestHeader,
 		Entry: EverforestEntry,
 		GitInfo: EverforestGitInfo,
@@ -289,6 +297,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 			inactive: "text-[#009933] hover:text-[#00ff41] hover:border-[#00ff41]/40",
 			label: "sidebar-header text-[12px] truncate",
 		},
+		bracket: { active: "#00ff41", inactive: "#005500" },
 		Header: MatrixHeader,
 		Entry: MatrixEntry,
 		GitInfo: MatrixGitInfo,
@@ -310,6 +319,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 				clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%)",
 			},
 		},
+		bracket: { active: "#ff2a6d", inactive: "#5a1080" },
 		Header: CyberpunkHeader,
 		Entry: CyberpunkEntry,
 		GitInfo: CyberpunkGitInfo,
@@ -329,6 +339,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 			label: "sidebar-header text-[12px] font-semibold truncate",
 			decorator: solanaOrb,
 		},
+		bracket: { active: "#9945ff", inactive: "#35356a" },
 		Header: SolanaHeader,
 		Entry: SolanaEntry,
 		GitInfo: SolanaGitInfo,
@@ -348,6 +359,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 				"bg-transparent text-[#b37a00] border-[#5c3d10] hover:text-[#ffb000] hover:bg-[#0c0900]",
 			label: "sidebar-header text-[12px] font-bold truncate",
 		},
+		bracket: { active: "#ffb000", inactive: "#5c3d00" },
 		Header: AmberHeader,
 		Entry: AmberEntry,
 		GitInfo: AmberGitInfo,
@@ -368,6 +380,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 			label: "sidebar-header text-[11px] font-bold italic truncate",
 			decorator: diamond("w-2 h-2", "bg-[#01cdfe] shadow-[0_0_8px_#01cdfe]", "bg-[#2d1b4e]"),
 		},
+		bracket: { active: "#ff71ce", inactive: "#2d1b4e" },
 		Header: VaporwaveHeader,
 		Entry: VaporwaveEntry,
 		GitInfo: VaporwaveGitInfo,
@@ -385,6 +398,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 			inactive: "bg-transparent text-[#2890b8] hover:text-[#a0d8e8] hover:bg-[#051218]",
 			label: "sidebar-header text-[12px] font-medium truncate",
 		},
+		bracket: { active: "#00c8ff", inactive: "#144a65" },
 		Header: OceanHeader,
 		Entry: OceanEntry,
 		GitInfo: OceanGitInfo,
@@ -408,6 +422,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 				"bg-[#4d2418]",
 			),
 		},
+		bracket: { active: "#e8a040", inactive: "#4d2418" },
 		Header: SunsetHeader,
 		Entry: SunsetEntry,
 		GitInfo: SunsetGitInfo,
@@ -426,6 +441,7 @@ const VARIANT_REGISTRY: Record<ThemePresetName, ThemeVariantConfig> = {
 				"bg-transparent text-[#78b8d0] border-b border-transparent hover:text-[#c8e4f0] hover:bg-[#1e3550]/40",
 			label: "sidebar-header text-[11px] font-medium uppercase tracking-widest truncate",
 		},
+		bracket: { active: "#48c8e0", inactive: "#1e3550" },
 		Header: ArcticHeader,
 		Entry: ArcticEntry,
 		GitInfo: ArcticGitInfo,
@@ -492,4 +508,28 @@ export function WorkspaceGitInfoVariant({
 }: BaseWorkspaceGitInfoProps & { preset: ThemePresetName }) {
 	const { GitInfo } = getConfig(preset);
 	return <GitInfo {...props} />;
+}
+
+/** Renders a vertical bracket connector segment for subgroup visual grouping.
+ *  Uses a thin CSS line (not Unicode) for sub-pixel rendering and continuous connection. */
+export function SubgroupBracket({
+	position,
+	preset,
+	isActive,
+}: {
+	position: BracketPosition;
+	preset: ThemePresetName;
+	isActive: boolean;
+}) {
+	if (position === "none") return null;
+	const { bracket } = getConfig(preset);
+	const color = isActive ? bracket.active : bracket.inactive;
+	return (
+		<div className="w-3 shrink-0 flex justify-center" aria-hidden="true">
+			<div
+				className={`w-[2px] ${position === "first" ? "mt-[50%] rounded-t-full" : position === "last" ? "mb-[50%] rounded-b-full" : position === "solo" ? "my-[30%] rounded-full" : ""}`}
+				style={{ backgroundColor: color }}
+			/>
+		</div>
+	);
 }
