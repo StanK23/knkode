@@ -334,6 +334,10 @@ export interface GridSnapshot {
 	/** Unique images visible in the viewport, keyed by hex SHA256 hash.
 	 *  Only includes images not previously sent — frontend caches by hash. */
 	readonly images?: Readonly<Record<string, ImageSnapshot>>;
+	/** Whether the terminal is currently showing the alternate screen buffer. */
+	readonly isAltScreen: boolean;
+	/** Whether the running program has enabled mouse reporting (any tracking mode). */
+	readonly isMouseGrabbed: boolean;
 }
 
 // --- Selection ---
