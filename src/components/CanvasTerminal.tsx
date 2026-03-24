@@ -71,6 +71,8 @@ const CURSOR_HOLD_MS = 500;
 const CURSOR_MAX_OPACITY = 0.7;
 const CURSOR_MIN_OPACITY = 0.0;
 const CURSOR_STATIC_OPACITY = 0.5;
+/** Stop blinking after this elapsed time since blink phase started (ms). */
+const CURSOR_IDLE_TIMEOUT_MS = 5000;
 const RESIZE_DEBOUNCE_MS = 100;
 /** Bar cursor width as fraction of cell width. */
 const BAR_WIDTH_RATIO = 0.12;
@@ -455,7 +457,6 @@ export function CanvasTerminal({
 	const containerRef = useRef<HTMLDivElement>(null);
 	const cellMetrics = useRef<CellMetrics>({ width: 0, height: 0, baselineOffset: 0 });
 	const cursorOpacity = useRef(CURSOR_MAX_OPACITY);
-	const blinkStart = useRef(performance.now());
 	const animFrame = useRef<number>(0);
 	const gridRef = useRef<GridSnapshot | null>(null);
 	const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -464,6 +465,7 @@ export function CanvasTerminal({
 	const onScrollRef = useRef(onScroll);
 	const cursorStyleRef = useRef(cursorStyle);
 	const resizeTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
+	const blinkTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
 	const isFocusedRef = useRef(isFocused);
 	const imageCacheRef = useRef<TerminalImageCache>(null!);
 	if (!imageCacheRef.current) imageCacheRef.current = new TerminalImageCache();
@@ -978,9 +980,6 @@ export function CanvasTerminal({
 	// Redraw when grid changes — grid is state that triggers redraw, draw reads from gridRef
 	// biome-ignore lint/correctness/useExhaustiveDependencies: grid triggers redraw via state
 	useEffect(() => {
-		// Reset blink timer on grid change (keystroke makes cursor fully visible)
-		blinkStart.current = performance.now();
-		cursorOpacity.current = CURSOR_MAX_OPACITY;
 		// Clear stale link hover — grid content may have shifted under the highlight
 		linkHoverRef.current = null;
 		draw();
@@ -999,7 +998,10 @@ export function CanvasTerminal({
 		}
 	}, [grid, draw]);
 
-	// Smooth cursor blink animation — runs whenever the pane is focused.
+	// Three-phase cursor blink: HOLD → BLINK → IDLE.
+	// HOLD: static cursor at max opacity (500ms), no RAF — uses setTimeout.
+	// BLINK: RAF-driven cosine animation for up to 5s.
+	// IDLE: static cursor, zero wakeups. Any keystroke/grid change resets to HOLD.
 	// TUI DECSCUSR blink requests are ignored; user's setting always wins.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: grid in deps resets blink on new output (keystroke → cursor fully visible)
 	useEffect(() => {
@@ -1014,28 +1016,36 @@ export function CanvasTerminal({
 			containerRef.current.focus();
 		}
 
-		// Reset blink start so cursor is fully visible when pane gains focus
-		blinkStart.current = performance.now();
+		// Enter HOLD phase — cursor fully visible, no animation frames
 		cursorOpacity.current = CURSOR_MAX_OPACITY;
+		repaintCursor();
 
-		const tick = (now: number) => {
-			const elapsed = now - blinkStart.current;
+		// After hold period, enter BLINK phase via RAF
+		const blinkStartTime = performance.now() + CURSOR_HOLD_MS;
+		blinkTimerRef.current = setTimeout(() => {
+			const tick = (now: number) => {
+				const elapsed = now - blinkStartTime;
 
-			if (elapsed < CURSOR_HOLD_MS) {
-				cursorOpacity.current = CURSOR_MAX_OPACITY;
-			} else {
-				const t = elapsed - CURSOR_HOLD_MS;
-				const phase = (1 + Math.cos((t * 2 * Math.PI) / CURSOR_BLINK_PERIOD_MS)) / 2;
+				// After idle timeout, enter IDLE phase — static cursor, no more RAF
+				if (elapsed >= CURSOR_IDLE_TIMEOUT_MS) {
+					cursorOpacity.current = CURSOR_STATIC_OPACITY;
+					repaintCursor();
+					return;
+				}
+
+				const phase = (1 + Math.cos((elapsed * 2 * Math.PI) / CURSOR_BLINK_PERIOD_MS)) / 2;
 				cursorOpacity.current =
 					CURSOR_MIN_OPACITY + (CURSOR_MAX_OPACITY - CURSOR_MIN_OPACITY) * phase;
-			}
-
-			repaintCursor();
+				repaintCursor();
+				animFrame.current = requestAnimationFrame(tick);
+			};
 			animFrame.current = requestAnimationFrame(tick);
-		};
+		}, CURSOR_HOLD_MS);
 
-		animFrame.current = requestAnimationFrame(tick);
-		return () => cancelAnimationFrame(animFrame.current);
+		return () => {
+			if (blinkTimerRef.current) clearTimeout(blinkTimerRef.current);
+			cancelAnimationFrame(animFrame.current);
+		};
 	}, [isFocused, grid, repaintCursor]);
 
 	// Kill native browser text selection on the terminal container — CSS user-select:none

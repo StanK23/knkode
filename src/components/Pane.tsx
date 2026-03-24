@@ -4,6 +4,7 @@ import { useFileDrop } from "../hooks/useFileDrop";
 import { useInlineEdit } from "../hooks/useInlineEdit";
 import { usePaneDragDrop } from "../hooks/usePaneDragDrop";
 import { ZONE_STYLES } from "../lib/pane-drag-utils";
+import { registerRenderListener } from "../lib/render-dispatcher";
 import { SCROLLBAR_HIDE_DELAY_MS, type ScreenPosition } from "../lib/ui-constants";
 import {
 	clampFontSize,
@@ -16,7 +17,6 @@ import {
 	type PaneRenameDetail,
 	type PaneScrollDetail,
 	type PaneTheme,
-	type PrInfo,
 } from "../shared/types";
 import { useStore } from "../store";
 import { shortenPath } from "../utils/path";
@@ -55,10 +55,6 @@ interface PaneProps {
 	onSplitVertical: (paneId: string) => void;
 	onClose: (paneId: string) => void;
 	canClose: boolean;
-	/** Current git branch for this pane, or null if unavailable. */
-	branch: string | null;
-	/** Current PR info for this pane's branch, or null if no PR. */
-	pr: PrInfo | null;
 	isFocused: boolean;
 	onFocus: (paneId: string) => void;
 }
@@ -73,8 +69,6 @@ export const Pane = memo(function Pane({
 	onSplitVertical,
 	onClose,
 	canClose,
-	branch,
-	pr,
 	isFocused,
 	onFocus,
 }: PaneProps) {
@@ -88,6 +82,8 @@ export const Pane = memo(function Pane({
 	const [grid, setGrid] = useState<GridSnapshot | null>(null);
 	const [ptyError, setPtyError] = useState(false);
 	const homeDir = useStore((s) => s.homeDir);
+	const branch = useStore((s) => s.paneBranches[paneId] ?? null);
+	const pr = useStore((s) => s.panePrs[paneId] ?? null);
 	const agentStatus = useStore((s) => s.paneAgentStatuses[paneId] ?? "idle");
 
 	// --- Scrollback state ---
@@ -134,16 +130,16 @@ export const Pane = memo(function Pane({
 		ensurePty(paneId, initialCwdRef.current, initialCmdRef.current);
 	}, [paneId, ensurePty]);
 
-	// Subscribe to grid snapshots from Rust PTY renderer.
+	// Subscribe to grid snapshots from Rust PTY renderer via centralized dispatcher.
+	// App.tsx has a single onTerminalRender listener that routes by pane ID (O(1) Map lookup),
+	// replacing the previous N per-pane listeners that each deserialized all events.
 	// RAF-throttle: coalesce rapid PTY updates into one React render per frame.
 	// When the user is scrolled into scrollback, store the latest render but don't
 	// display it — the user sees the scroll-request snapshots instead.
 	const pendingGridRef = useRef<GridSnapshot | null>(null);
 	const rafIdRef = useRef(0);
 	useEffect(() => {
-		const unsub = window.api.onTerminalRender((id, snapshot) => {
-			if (id !== paneId) return;
-
+		const unregister = registerRenderListener(paneId, (snapshot) => {
 			// Always track the latest scrollback depth for clamping scroll offset
 			maxScrollRef.current = snapshot.scrollbackRows;
 
@@ -168,7 +164,7 @@ export const Pane = memo(function Pane({
 			}
 		});
 		return () => {
-			unsub();
+			unregister();
 			if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
 		};
 	}, [paneId]);

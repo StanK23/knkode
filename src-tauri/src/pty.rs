@@ -7,7 +7,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 use tauri::Emitter;
 
@@ -32,32 +32,49 @@ impl Drop for WinHandle {
     }
 }
 
-/// Detect the CWD of a child process by parsing `lsof -p PID -Fn` output.
-/// Scans for the `fcwd` file descriptor line, then reads the `n/path` line after it.
-/// Does not need PATH augmentation — `lsof` lives in `/usr/sbin` which is always
-/// in the default PATH, even for Dock/Spotlight-launched apps.
+/// Detect the CWD of a child process via `proc_pidinfo(PROC_PIDVNODEPATHINFO)`.
+/// Single kernel syscall — replaces the previous `lsof` fork+exec+parse which
+/// spawned a full subprocess every poll cycle per pane.
+///
+/// Uses `libc::proc_vnodepathinfo` struct for type-safe field access.
 #[cfg(target_os = "macos")]
 fn detect_cwd(pid: u32) -> Option<String> {
-    use std::process::Command;
-    let output = Command::new("lsof")
-        .args(["-p", &pid.to_string(), "-Fn"])
-        .stderr(std::process::Stdio::null())
-        .output()
-        .ok()?;
-    if !output.status.success() {
+    use std::ffi::CStr;
+    use std::mem::{self, MaybeUninit};
+
+    let pid = i32::try_from(pid).ok()?;
+    let mut info = MaybeUninit::<libc::proc_vnodepathinfo>::uninit();
+    let expected = mem::size_of::<libc::proc_vnodepathinfo>() as libc::c_int;
+
+    let ret = unsafe {
+        libc::proc_pidinfo(
+            pid,
+            libc::PROC_PIDVNODEPATHINFO,
+            0,
+            info.as_mut_ptr() as *mut libc::c_void,
+            expected,
+        )
+    };
+
+    // Require full struct fill — partial return means uninitialized fields
+    if ret < expected {
         return None;
     }
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let mut found_cwd = false;
-    for line in stdout.lines() {
-        if found_cwd {
-            return line.strip_prefix('n').map(|path| path.to_string());
-        }
-        if line == "fcwd" {
-            found_cwd = true;
-        }
+
+    let info = unsafe { info.assume_init() };
+    // vip_path is [[c_char; 32]; 32] in libc (workaround for old MSRV) — flatten to &[u8]
+    let path_bytes: &[u8] = unsafe {
+        std::slice::from_raw_parts(
+            info.pvi_cdir.vip_path.as_ptr() as *const u8,
+            mem::size_of_val(&info.pvi_cdir.vip_path),
+        )
+    };
+    let cstr = CStr::from_bytes_until_nul(path_bytes).ok()?;
+    let path = cstr.to_str().ok()?;
+    if path.is_empty() {
+        return None;
     }
-    None
+    Some(path.to_string())
 }
 
 /// Detect the CWD of a child process on Linux via `/proc/<pid>/cwd` symlink.
@@ -221,62 +238,84 @@ fn detect_cwd(_pid: u32) -> Option<String> {
     None
 }
 
-/// Check foreground process status for multiple shell PIDs in a single `ps` call.
+/// Check foreground process status for multiple shell PIDs via `sysctl(KERN_PROC)`.
 ///
-/// A single `ps -o pid=,stat= -p pid1,pid2,...` invocation replaces per-pane
-/// fork+exec, reducing O(N) subprocesses to O(1) per poll cycle.
+/// For each PID, a single `sysctl` syscall retrieves `kinfo_proc` which contains
+/// `e_pgid` (shell's process group) and `e_tpgid` (terminal's foreground group).
+/// If they differ, another process group owns the foreground → child is running.
+///
+/// Replaces the previous `ps` subprocess which forked every 3 seconds.
 ///
 /// Returns a map from PID to `true` (foreground child running) / `false` (idle).
 /// PIDs where detection fails (exited, not found) are omitted.
 #[cfg(target_os = "macos")]
-fn check_foreground_batch(pids: &[(String, u32)]) -> HashMap<u32, bool> {
-    use std::process::Command;
-
+fn check_foreground_all(pids: &[(String, u32)]) -> HashMap<u32, bool> {
     if pids.is_empty() {
         return HashMap::new();
     }
 
-    let pid_args: Vec<String> = pids.iter().map(|(_, pid)| pid.to_string()).collect();
-    let pid_list = pid_args.join(",");
-
-    let output = match Command::new("ps")
-        .args(["-o", "pid=,stat=", "-p", &pid_list])
-        .stderr(std::process::Stdio::null())
-        .output()
-    {
-        Ok(o) => o,
-        Err(e) => {
-            eprintln!("[pty] ps command failed: {e} — foreground detection unavailable");
-            return HashMap::new();
-        }
-    };
-
-    if !output.status.success() {
-        return HashMap::new();
-    }
-
-    // Parse lines like "  1234 S+  " — each has PID and STAT columns.
-    // '+' in STAT = process is in the foreground process group.
-    // Shell has '+' → shell is foreground → no child running (idle).
     let mut result = HashMap::with_capacity(pids.len());
-    for line in output.stdout.split(|&b| b == b'\n') {
-        let line = line.trim_ascii();
-        if line.is_empty() {
-            continue;
-        }
-        // Split on whitespace: first token is PID, rest is STAT
-        if let Some(space_pos) = line.iter().position(|&b| b == b' ' || b == b'\t') {
-            if let Ok(pid) = std::str::from_utf8(&line[..space_pos])
-                .unwrap_or("")
-                .parse::<u32>()
-            {
-                let stat_field = &line[space_pos..];
-                // '+' present in STAT bytes → shell is foreground → idle (no child)
-                result.insert(pid, !stat_field.contains(&b'+'));
-            }
+    for &(_, pid) in pids {
+        if let Some(has_child) = check_foreground_sysctl(pid) {
+            result.insert(pid, has_child);
         }
     }
     result
+}
+
+/// Check if a single process has a foreground child via sysctl(KERN_PROC_PID).
+///
+/// kinfo_proc layout (verified via offsetof() on arm64 macOS):
+///   kp_proc  (extern_proc) at offset 0
+///   kp_eproc (eproc)       at offset 296
+///     e_pgid  at absolute offset 564 (pid_t, 4 bytes)
+///     e_tpgid at absolute offset 576 (pid_t, 4 bytes)
+///
+/// If e_tpgid != e_pgid, another process group is in the foreground.
+///
+/// Note: offsets are verified on arm64. On x86_64 they may differ due to
+/// alignment — if this crate is built for x86_64, verify with offsetof().
+#[cfg(target_os = "macos")]
+fn check_foreground_sysctl(pid: u32) -> Option<bool> {
+    use std::mem::MaybeUninit;
+    // kinfo_proc is 648 bytes on arm64 macOS.
+    // Offsets verified via offsetof() on arm64:
+    //   kp_eproc at 296, e_pgid at 564, e_tpgid at 576.
+    const KINFO_PROC_SIZE: usize = 648;
+    const E_PGID_OFFSET: usize = 564;
+    const E_TPGID_OFFSET: usize = 576;
+
+    let pid = i32::try_from(pid).ok()?;
+    let mut mib: [libc::c_int; 4] = [libc::CTL_KERN, libc::KERN_PROC, libc::KERN_PROC_PID, pid];
+    let mut buf = MaybeUninit::<[u8; KINFO_PROC_SIZE]>::uninit();
+    let mut size: libc::size_t = KINFO_PROC_SIZE;
+
+    let ret = unsafe {
+        libc::sysctl(
+            mib.as_mut_ptr(),
+            4,
+            buf.as_mut_ptr() as *mut libc::c_void,
+            &mut size,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+
+    if ret != 0 || size < KINFO_PROC_SIZE {
+        return None;
+    }
+
+    let buf = unsafe { buf.assume_init() };
+    let e_pgid = i32::from_ne_bytes(buf[E_PGID_OFFSET..E_PGID_OFFSET + 4].try_into().ok()?);
+    let e_tpgid = i32::from_ne_bytes(buf[E_TPGID_OFFSET..E_TPGID_OFFSET + 4].try_into().ok()?);
+
+    // tpgid == 0 means no controlling terminal — can't determine foreground
+    if e_tpgid == 0 {
+        return None;
+    }
+
+    // If terminal foreground group != shell's group, a child process is running
+    Some(e_tpgid != e_pgid)
 }
 
 /// Check foreground process status on Linux by reading `/proc/<pid>/stat`.
@@ -285,7 +324,7 @@ fn check_foreground_batch(pids: &[(String, u32)]) -> HashMap<u32, bool> {
 /// Compares field 5 (pgrp) against field 8 (tpgid): if tpgid != pgrp,
 /// another process group owns the terminal foreground.
 #[cfg(target_os = "linux")]
-fn check_foreground_batch(pids: &[(String, u32)]) -> HashMap<u32, bool> {
+fn check_foreground_all(pids: &[(String, u32)]) -> HashMap<u32, bool> {
     let mut result = HashMap::with_capacity(pids.len());
     for &(_, pid) in pids {
         if let Some(has_child) = check_foreground_single_linux(pid) {
@@ -316,7 +355,7 @@ fn check_foreground_single_linux(pid: u32) -> Option<bool> {
 /// Note: Windows reuses PIDs aggressively. If a shell exits and its PID is
 /// reassigned, stale `th32ParentProcessID` entries may cause brief false positives.
 #[cfg(target_os = "windows")]
-fn check_foreground_batch(pids: &[(String, u32)]) -> HashMap<u32, bool> {
+fn check_foreground_all(pids: &[(String, u32)]) -> HashMap<u32, bool> {
     use winapi::um::handleapi::INVALID_HANDLE_VALUE;
     use winapi::um::tlhelp32::{
         CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
@@ -372,7 +411,7 @@ fn check_foreground_batch(pids: &[(String, u32)]) -> HashMap<u32, bool> {
 
 /// Unsupported platform — foreground detection unavailable.
 #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
-fn check_foreground_batch(_pids: &[(String, u32)]) -> HashMap<u32, bool> {
+fn check_foreground_all(_pids: &[(String, u32)]) -> HashMap<u32, bool> {
     HashMap::new()
 }
 
@@ -689,24 +728,38 @@ impl PtyManager {
         );
         eprintln!("[pty] Terminal state created for {id}");
 
-        // Shared flags between reader and flush threads.
+        // Shared state between reader and flush threads.
         // `dirty`: set when terminal state advances but no snapshot was emitted (throttled).
         // `alive`: cleared when the reader exits so the flush thread can stop.
+        // `flush_cond`: wakes the flush thread when throttled data is pending, replacing
+        // the previous 16ms sleep-poll that caused ~60 idle wakeups/sec per session.
         let dirty = Arc::new(AtomicBool::new(false));
         let alive = Arc::new(AtomicBool::new(true));
+        let flush_cond = Arc::new((Mutex::new(()), Condvar::new()));
 
         // Trailing-edge flush thread: ensures the screen always shows the latest
         // state after a data burst ends. Without this, the last chunk in a burst
         // gets throttled and the reader blocks on read(), leaving the screen stale.
+        // Uses condvar instead of sleep-poll — zero wakeups when idle.
         {
             let dirty_flush = Arc::clone(&dirty);
             let alive_flush = Arc::clone(&alive);
+            let cond = Arc::clone(&flush_cond);
             let term_state = Arc::clone(&self.terminal_state);
             let id_flush = id.clone();
             let app_flush = app.clone();
             std::thread::spawn(move || {
+                let (lock, cv) = &*cond;
                 while alive_flush.load(Ordering::Relaxed) {
-                    std::thread::sleep(RENDER_INTERVAL);
+                    // Wait until notified by reader or timeout — zero CPU when idle.
+                    // Mutex exists only to satisfy condvar API; the bool is in `dirty`.
+                    let guard = lock.lock().unwrap_or_else(|e| {
+                        eprintln!("[pty] flush condvar mutex poisoned, recovering");
+                        e.into_inner()
+                    });
+                    let _ = cv
+                        .wait_timeout(guard, RENDER_INTERVAL)
+                        .unwrap_or_else(|e| e.into_inner());
                     if dirty_flush.swap(false, Ordering::AcqRel) {
                         emit_snapshot(&app_flush, &term_state, &id_flush);
                     }
@@ -724,6 +777,7 @@ impl PtyManager {
         let last_output_at = Arc::clone(&self.last_output_at);
         std::thread::spawn(move || {
             eprintln!("[pty] Reader thread started for {id_clone}");
+            let (_, cv) = &*flush_cond;
             let mut buf = [0u8; READ_BUFFER_SIZE];
             let mut last_emit = Instant::now() - RENDER_INTERVAL; // emit first frame immediately
             let mut total_bytes: usize = 0;
@@ -768,6 +822,8 @@ impl PtyManager {
                             last_emit = Instant::now();
                         } else {
                             dirty.store(true, Ordering::Release);
+                            // Signal flush thread that dirty data is available
+                            cv.notify_one();
                         }
                     }
                     Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
@@ -779,6 +835,8 @@ impl PtyManager {
             }
 
             alive.store(false, Ordering::Release);
+            // Wake flush thread so it exits immediately instead of waiting up to 16ms
+            cv.notify_one();
 
             // Always emit a final snapshot so the screen shows the complete output
             // (the last chunk may have been throttled).
@@ -945,7 +1003,7 @@ impl PtyManager {
                 .collect()
         };
 
-        let by_pid = check_foreground_batch(&pids);
+        let by_pid = check_foreground_all(&pids);
 
         // Map back from PID-keyed results to pane-ID-keyed results
         let mut result = HashMap::with_capacity(by_pid.len());

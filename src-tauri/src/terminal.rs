@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 use std::sync::{Arc, Mutex, MutexGuard};
 use tattoy_termwiz::surface::{CursorShape, CursorVisibility};
-use tattoy_wezterm_term::color::{ColorPalette, RgbColor};
+use tattoy_wezterm_term::color::{ColorAttribute, ColorPalette, RgbColor};
 use tattoy_wezterm_term::config::TerminalConfiguration;
 use tattoy_wezterm_term::image::ImageDataType;
 use tattoy_wezterm_term::{Intensity, Terminal, TerminalSize, Underline};
@@ -749,6 +749,23 @@ impl TerminalState {
         let mut frame_images: HashMap<String, ImageSnapshot> = HashMap::new();
         let mut frame_hex_cache: HashMap<[u8; 32], String> = HashMap::new();
 
+        // Color interning table — resolves each unique (ColorAttribute, use_fg_resolver) pair
+        // once, then clones the cached RGB string for all cells sharing that color.
+        // Typical terminals have 5-20 unique colors vs ~1920 cells (80×24).
+        let mut color_cache: HashMap<(ColorAttribute, bool), String> = HashMap::new();
+        let mut intern_color = |attr: ColorAttribute, use_fg_resolver: bool| -> String {
+            color_cache
+                .entry((attr, use_fg_resolver))
+                .or_insert_with(|| {
+                    if use_fg_resolver {
+                        palette.resolve_fg(attr).to_rgb_string()
+                    } else {
+                        palette.resolve_bg(attr).to_rgb_string()
+                    }
+                })
+                .clone()
+        };
+
         for line in &lines {
             let mut cells = Vec::with_capacity(phys_cols);
             for cell_ref in line.visible_cells() {
@@ -758,15 +775,9 @@ impl TerminalState {
                 let fg_attr = attrs.foreground();
                 let bg_attr = attrs.background();
                 let (fg, bg) = if reverse {
-                    (
-                        palette.resolve_bg(bg_attr).to_rgb_string(),
-                        palette.resolve_fg(fg_attr).to_rgb_string(),
-                    )
+                    (intern_color(bg_attr, false), intern_color(fg_attr, true))
                 } else {
-                    (
-                        palette.resolve_fg(fg_attr).to_rgb_string(),
-                        palette.resolve_bg(bg_attr).to_rgb_string(),
-                    )
+                    (intern_color(fg_attr, true), intern_color(bg_attr, false))
                 };
 
                 // Extract image attachments from cell attributes.
