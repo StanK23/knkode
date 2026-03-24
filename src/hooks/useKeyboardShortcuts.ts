@@ -11,6 +11,9 @@ import { isModKeyHeld } from "../utils/platform";
 /** Delta lookup for pane navigation arrows (Left = prev, Right = next). */
 const PANE_NAV_DELTAS: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1 };
 
+/** Delta lookup for subgroup cycling brackets (physical key codes, layout-independent). */
+const SUBGROUP_NAV_DELTAS: Record<string, number> = { BracketLeft: -1, BracketRight: 1 };
+
 /**
  * Global keyboard shortcuts. Uses Cmd (macOS) or Ctrl (other platforms).
  * - Mod+D: split pane side-by-side (vertical divider)
@@ -20,7 +23,9 @@ const PANE_NAV_DELTAS: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1 }
  * - Mod+T: new workspace
  * - Mod+Shift+[: previous workspace tab
  * - Mod+Shift+]: next workspace tab
- * - Mod+Alt/Option+Left/Right: cycle focus to prev/next pane in layout order
+ * - Mod+Alt+[: previous subgroup within workspace
+ * - Mod+Alt+]: next subgroup within workspace
+ * - Mod+Alt+Left/Right: cycle focus to prev/next pane in layout order
  * - Mod+,: toggle settings panel
  * - Mod+B: toggle sidebar collapse
  * - Mod+/: toggle keyboard shortcuts panel
@@ -113,7 +118,17 @@ export function useKeyboardShortcuts({ toggleSettings, toggleHotkeys }: Shortcut
 				return;
 			}
 
-			// Mod+Alt/Option+Left/Right — cycle focus to prev/next pane in layout order
+			// Mod+Alt+[ / Mod+Alt+] — cycle subgroup within workspace
+			// Uses e.code (physical key) because Option+[ produces a special char on macOS
+			const subgroupDelta = SUBGROUP_NAV_DELTAS[e.code];
+			if (e.altKey && !e.shiftKey && subgroupDelta !== undefined) {
+				if (!activeWs) return;
+				e.preventDefault();
+				state.cycleSubgroup(activeWs.id, subgroupDelta as 1 | -1);
+				return;
+			}
+
+			// Mod+Alt+Left/Right — cycle focus to prev/next pane in layout order
 			const paneDelta = PANE_NAV_DELTAS[e.key];
 			if (e.altKey && paneDelta !== undefined) {
 				if (!activeWs || paneIds.length < 2) return;
