@@ -239,7 +239,28 @@ export const useStore = create<StoreState>((set, get) => ({
 				window.api.getSnippets(),
 			]);
 
-			let workspaces = loadedWorkspaces;
+			// Migrate workspaces from single `layout` to `subgroups` array.
+			// Configs saved before subgroups was added will have `layout` but no `subgroups`.
+			let workspaces = loadedWorkspaces.map((ws) => {
+				if (ws.subgroups) return ws;
+				const legacy = ws as unknown as {
+					layout?: { type: string; tree: unknown; preset?: string };
+				};
+				if (!legacy.layout) return ws;
+				const sgId = crypto.randomUUID();
+				const migrated: Workspace = {
+					id: ws.id,
+					name: ws.name,
+					theme: ws.theme,
+					subgroups: [{ id: sgId, layout: legacy.layout as Workspace["subgroups"][0]["layout"] }],
+					activeSubgroupId: sgId,
+					panes: ws.panes,
+				};
+				window.api.saveWorkspace(migrated).catch((err) => {
+					console.warn("[store] Failed to persist subgroup migration:", err);
+				});
+				return migrated;
+			});
 			// Backfill sidebarCollapsed for configs saved before sidebar was added.
 			// The ?? is intentional: loadedAppState comes from JSON and may lack this field
 			// even though the AppState type requires it. Remove once all users have migrated.
@@ -254,11 +275,13 @@ export const useStore = create<StoreState>((set, get) => ({
 			// If no workspaces exist, create a default one
 			if (workspaces.length === 0) {
 				const { layout, panes } = createLayoutFromPreset("single", homeDir);
+				const sgId = crypto.randomUUID();
 				const defaultWorkspace: Workspace = {
 					id: crypto.randomUUID(),
 					name: "Default",
 					theme: defaultTheme(),
-					layout,
+					subgroups: [{ id: sgId, layout }],
+					activeSubgroupId: sgId,
 					panes,
 				};
 				workspaces = [...workspaces, defaultWorkspace];
@@ -329,6 +352,9 @@ export const useStore = create<StoreState>((set, get) => ({
 export {
 	applyPresetWithRemap,
 	createLayoutFromPreset,
+	findSubgroupForPane,
+	getActiveSubgroup,
+	getAllPaneIds,
 	getFirstPaneId,
 	getPaneIdsInOrder,
 } from "./layout-tree";

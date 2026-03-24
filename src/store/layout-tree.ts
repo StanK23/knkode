@@ -1,4 +1,11 @@
-import type { LayoutNode, LayoutPreset, PaneConfig, WorkspaceLayout } from "../shared/types";
+import type {
+	LayoutNode,
+	LayoutPreset,
+	PaneConfig,
+	SubgroupConfig,
+	Workspace,
+	WorkspaceLayout,
+} from "../shared/types";
 import { isLayoutBranch } from "../shared/types";
 
 /** Remove a leaf from a layout tree by pane ID.
@@ -254,7 +261,8 @@ export function createLayoutFromPreset(
  *  - Fewer slots: first N panes kept, excess returned in `killedPaneIds`.
  *  - More slots: existing panes fill first slots, fresh empty panes fill the rest. */
 export function applyPresetWithRemap(
-	workspace: { layout: WorkspaceLayout; panes: Record<string, PaneConfig> },
+	currentLayout: WorkspaceLayout,
+	currentPanes: Record<string, PaneConfig>,
 	preset: LayoutPreset,
 	homeDir: string,
 ): {
@@ -262,7 +270,7 @@ export function applyPresetWithRemap(
 	panes: Record<string, PaneConfig>;
 	killedPaneIds: string[];
 } {
-	const existingIds = getPaneIdsInOrder(workspace.layout.tree);
+	const existingIds = getPaneIdsInOrder(currentLayout.tree);
 	const { layout: freshLayout, panes: freshPanes } = createLayoutFromPreset(preset, homeDir);
 	const freshIds = getPaneIdsInOrder(freshLayout.tree);
 
@@ -274,7 +282,7 @@ export function applyPresetWithRemap(
 		const freshId = freshIds[i]!;
 		if (i < existingIds.length) {
 			const existingId = existingIds[i]!;
-			const config = workspace.panes[existingId];
+			const config = currentPanes[existingId];
 			if (!config)
 				throw new Error(`[applyPresetWithRemap] missing pane config for "${existingId}"`);
 			idMap.set(freshId, existingId);
@@ -300,4 +308,27 @@ export function applyPresetWithRemap(
 		panes,
 		killedPaneIds,
 	};
+}
+
+// ── Subgroup helpers ─────────────────────────────────────────
+
+/** Get the active subgroup for a workspace. Falls back to first subgroup. */
+export function getActiveSubgroup(workspace: Workspace): SubgroupConfig {
+	return (
+		workspace.subgroups.find((sg) => sg.id === workspace.activeSubgroupId) ??
+		workspace.subgroups[0]!
+	);
+}
+
+/** Find which subgroup a pane belongs to by searching layout trees. */
+export function findSubgroupForPane(
+	workspace: Workspace,
+	paneId: string,
+): SubgroupConfig | undefined {
+	return workspace.subgroups.find((sg) => getPaneIdsInOrder(sg.layout.tree).includes(paneId));
+}
+
+/** Get all pane IDs across all subgroups in order (subgroup order, then depth-first within each). */
+export function getAllPaneIds(workspace: Workspace): string[] {
+	return workspace.subgroups.flatMap((sg) => getPaneIdsInOrder(sg.layout.tree));
 }

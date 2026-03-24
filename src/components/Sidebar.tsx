@@ -5,7 +5,7 @@ import { useDragReorder } from "../hooks/useDragReorder";
 import type { UpdateActions, UpdateState } from "../hooks/useUpdateChecker";
 import { useWindowDrag } from "../hooks/useWindowDrag";
 import type { Workspace } from "../shared/types";
-import { getPaneIdsInOrder, useStore } from "../store";
+import { getAllPaneIds, useStore } from "../store";
 import { isMac, MACOS_SIDEBAR_TOP_INSET, modKey } from "../utils/platform";
 import { SidebarPaneEntry } from "./SidebarPaneEntry";
 import { SidebarWorkspaceGitInfo } from "./SidebarWorkspaceGitInfo";
@@ -222,7 +222,7 @@ export function Sidebar({
 						{openWorkspaces.map((ws, index) => {
 							const isActive = ws.id === activeWorkspaceId;
 							const isSectionCollapsed = collapsedSections.has(ws.id);
-							const paneIds = getPaneIdsInOrder(ws.layout.tree);
+							const paneIds = getAllPaneIds(ws);
 							const canClose = paneIds.length > 1;
 
 							return (
