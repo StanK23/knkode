@@ -45,6 +45,10 @@ interface StoreState {
 	/** Terminal title per pane (from terminal title escape sequences). Ephemeral runtime state.
 	 *  Values are never null — entries are deleted on pane removal via cleanPaneEphemeral. */
 	paneTitles: Record<string, string>;
+	/** Pane IDs whose PTY has exited naturally (EOF or process exit).
+	 *  Used by Pane to show "exited" overlay and offer restart.
+	 *  IMPORTANT: Always create a new Set on mutation — Zustand uses reference equality. */
+	exitedPtyIds: ReadonlySet<string>;
 	/** In-memory mirror of `appState.collapsedWorkspaceIds` as a Set for O(1) lookup.
 	 *  Hydrated from AppState on init, kept in sync by `toggleSidebarSection`.
 	 *  IMPORTANT: Always create a new Set on mutation — Zustand uses reference equality. */
@@ -60,6 +64,10 @@ interface StoreState {
 	killPtys: (paneIds: string[]) => void;
 	/** Remove a single pane ID from activePtyIds (e.g. on natural PTY exit). */
 	removePtyId: (paneId: string) => void;
+	/** Mark a pane's PTY as exited (shows restart overlay in Pane). */
+	markPtyExited: (paneId: string) => void;
+	/** Clear the exited flag for a pane (on restart). */
+	clearPtyExited: (paneId: string) => void;
 	init: () => Promise<void>;
 	createWorkspace: (name: string, preset: LayoutPreset) => Promise<Workspace>;
 	createDefaultWorkspace: () => Promise<Workspace>;
@@ -136,6 +144,7 @@ export const useStore = create<StoreState>((set, get) => ({
 	focusGeneration: 0,
 	visitedWorkspaceIds: [],
 	activePtyIds: new Set(),
+	exitedPtyIds: new Set(),
 	paneBranches: {},
 	panePrs: {},
 	paneAgentStatuses: {},
@@ -235,6 +244,22 @@ export const useStore = create<StoreState>((set, get) => ({
 		const newSet = new Set(current);
 		newSet.delete(paneId);
 		set({ activePtyIds: newSet });
+	},
+
+	markPtyExited: (paneId) => {
+		const current = get().exitedPtyIds;
+		if (current.has(paneId)) return;
+		const newSet = new Set(current);
+		newSet.add(paneId);
+		set({ exitedPtyIds: newSet });
+	},
+
+	clearPtyExited: (paneId) => {
+		const current = get().exitedPtyIds;
+		if (!current.has(paneId)) return;
+		const newSet = new Set(current);
+		newSet.delete(paneId);
+		set({ exitedPtyIds: newSet });
 	},
 
 	init: async () => {
