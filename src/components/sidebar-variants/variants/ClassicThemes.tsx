@@ -1,4 +1,5 @@
 import type {
+	BaseAddPaneButtonProps,
 	BasePaneEntryProps,
 	BaseWorkspaceGitInfoProps,
 	BaseWorkspaceHeaderProps,
@@ -966,5 +967,105 @@ export function EverforestGitInfo({ branch, pr }: BaseWorkspaceGitInfoProps) {
 				{pr && <span className="text-[9px] font-bold text-[#dbbc7f] shrink-0">#{pr.number}</span>}
 			</div>
 		</div>
+	);
+}
+
+// ── Add Pane Buttons ────────────────────────────────────────────
+
+export function DefaultDarkAddPaneButton({ onClick }: BaseAddPaneButtonProps) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			className="w-full px-4 py-1 text-left text-[10px] text-[#5a6380] hover:text-[#8892b0] bg-transparent border-none cursor-pointer transition-colors duration-150"
+		>
+			+ New Pane
+		</button>
+	);
+}
+
+export function DraculaAddPaneButton({ onClick }: BaseAddPaneButtonProps) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			className="w-full mx-2 mt-0.5 mb-1 px-3 py-1 text-[10px] text-[#6272a4] hover:text-[#ff79c6] bg-transparent hover:bg-[#44475a]/20 border border-dashed border-[#44475a]/40 hover:border-[#ff79c6]/40 rounded-md cursor-pointer transition-all duration-200"
+			style={{ width: "calc(100% - 16px)" }}
+		>
+			+ New Pane
+		</button>
+	);
+}
+
+export function TokyoNightAddPaneButton({ onClick }: BaseAddPaneButtonProps) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			className="w-full px-4 py-1 text-left text-[10px] text-[#565f89] hover:text-[#7aa2f7] bg-transparent border-none cursor-pointer transition-colors duration-200 uppercase tracking-wider font-bold"
+		>
+			+ new pane
+		</button>
+	);
+}
+
+export function NordAddPaneButton({ onClick }: BaseAddPaneButtonProps) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			className="w-full px-4 py-1 text-left text-[10px] text-[#4c566a] hover:text-[#d8dee9] bg-transparent hover:bg-[#3b4252]/30 border-none cursor-pointer transition-colors duration-200 tracking-wide"
+		>
+			+ New Pane
+		</button>
+	);
+}
+
+export function CatppuccinAddPaneButton({ onClick }: BaseAddPaneButtonProps) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			className="w-full mx-2 mt-0.5 mb-1 px-3 py-1 text-[10px] text-[#7f849c] hover:text-[#cba6f7] bg-transparent hover:bg-[#313244]/30 border border-dashed border-[#313244]/60 hover:border-[#cba6f7]/40 rounded-lg cursor-pointer transition-all duration-200"
+			style={{ width: "calc(100% - 16px)" }}
+		>
+			+ New Pane
+		</button>
+	);
+}
+
+export function GruvboxAddPaneButton({ onClick }: BaseAddPaneButtonProps) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			className="w-full px-2 py-1 text-left text-[10px] text-[#a89984] hover:text-[#ebdbb2] bg-transparent hover:bg-[#3c3836] border-none cursor-pointer transition-none font-mono font-bold uppercase"
+		>
+			[+ NEW]
+		</button>
+	);
+}
+
+export function MonokaiAddPaneButton({ onClick }: BaseAddPaneButtonProps) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			className="w-full px-3 py-1 text-left text-[10px] text-[#75715e] hover:text-[#f92672] bg-transparent border-none cursor-pointer transition-colors duration-150"
+		>
+			+ New Pane
+		</button>
+	);
+}
+
+export function EverforestAddPaneButton({ onClick }: BaseAddPaneButtonProps) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			className="w-full px-3 py-1 text-left text-[10px] text-[#859289] hover:text-[#a7c080] bg-transparent hover:bg-[#343f44]/40 border-none cursor-pointer transition-colors duration-200"
+		>
+			+ New Pane
+		</button>
 	);
 }
