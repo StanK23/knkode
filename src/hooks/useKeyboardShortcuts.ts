@@ -20,6 +20,7 @@ const PANE_NAV_DELTAS: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1 }
  * - Mod+T: new workspace
  * - Mod+Shift+[: previous workspace tab
  * - Mod+Shift+]: next workspace tab
+ * - Mod+Option+[ / Mod+Option+]: cycle to prev/next subgroup within workspace
  * - Mod+Alt/Option+Left/Right: cycle focus to prev/next pane in layout order
  * - Mod+,: toggle settings panel
  * - Mod+B: toggle sidebar collapse
@@ -110,6 +111,14 @@ export function useKeyboardShortcuts({ toggleSettings, toggleHotkeys }: Shortcut
 				const next = (idx + delta + openWorkspaceIds.length) % openWorkspaceIds.length;
 				const targetId = openWorkspaceIds[next];
 				if (targetId) state.setActiveWorkspace(targetId);
+				return;
+			}
+
+			// Mod+Option+[ / Mod+Option+] — cycle subgroup within workspace
+			if (e.altKey && !e.shiftKey && (e.key === "[" || e.key === "]")) {
+				if (!activeWs || activeWs.subgroups.length < 2) return;
+				e.preventDefault();
+				state.cycleSubgroup(activeWs.id, e.key === "[" ? -1 : 1);
 				return;
 			}
 
