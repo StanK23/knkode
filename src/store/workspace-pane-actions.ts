@@ -46,13 +46,15 @@ function addToVisited(visited: string[], id: string): string[] {
 	return visited.includes(id) ? visited : [...visited, id];
 }
 
-/** Remove pane-scoped ephemeral state (branches, PRs, agent statuses, titles) for a set of pane IDs. */
+/** Remove pane-scoped ephemeral state for a set of pane IDs.
+ *  Cleans: branches, PRs, agent statuses, titles, and exited PTY flags. */
 function cleanPaneEphemeral(
 	state: {
 		paneBranches: Record<string, string | null>;
 		panePrs: Record<string, PrInfo | null>;
 		paneAgentStatuses: Record<string, AgentStatus>;
 		paneTitles: Record<string, string>;
+		exitedPtyIds: ReadonlySet<string>;
 	},
 	paneIds: string[],
 ): {
@@ -60,18 +62,24 @@ function cleanPaneEphemeral(
 	panePrs: Record<string, PrInfo | null>;
 	paneAgentStatuses: Record<string, AgentStatus>;
 	paneTitles: Record<string, string>;
+	exitedPtyIds: ReadonlySet<string>;
 } {
 	const paneBranches = { ...state.paneBranches };
 	const panePrs = { ...state.panePrs };
 	const paneAgentStatuses = { ...state.paneAgentStatuses };
 	const paneTitles = { ...state.paneTitles };
+	let exitedPtyIds = state.exitedPtyIds;
 	for (const pid of paneIds) {
 		delete paneBranches[pid];
 		delete panePrs[pid];
 		delete paneAgentStatuses[pid];
 		delete paneTitles[pid];
+		if (exitedPtyIds.has(pid)) {
+			if (exitedPtyIds === state.exitedPtyIds) exitedPtyIds = new Set(exitedPtyIds);
+			(exitedPtyIds as Set<string>).delete(pid);
+		}
 	}
-	return { paneBranches, panePrs, paneAgentStatuses, paneTitles };
+	return { paneBranches, panePrs, paneAgentStatuses, paneTitles, exitedPtyIds };
 }
 
 export function persistAppState(appState: AppState): void {
@@ -141,6 +149,7 @@ interface WorkspacePaneState {
 	panePrs: Record<string, PrInfo | null>;
 	paneAgentStatuses: Record<string, AgentStatus>;
 	paneTitles: Record<string, string>;
+	exitedPtyIds: ReadonlySet<string>;
 	killPtys: (paneIds: string[]) => void;
 	createWorkspace: (name: string, preset: LayoutPreset) => Promise<Workspace>;
 }

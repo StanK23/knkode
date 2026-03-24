@@ -32,7 +32,7 @@ interface StoreState {
 	/** Pane IDs for which a PTY has been requested or is running.
 	 *  Prevents double-creation on remount.
 	 *  IMPORTANT: Always create a new Set on mutation — Zustand uses reference equality. */
-	activePtyIds: Set<string>;
+	activePtyIds: ReadonlySet<string>;
 	/** Current git branch per pane. Hydrated from PaneConfig.lastBranch on init,
 	 *  updated live by CwdTracker events and persisted back to pane config. */
 	paneBranches: Record<string, string | null>;
@@ -45,8 +45,8 @@ interface StoreState {
 	/** Terminal title per pane (from terminal title escape sequences). Ephemeral runtime state.
 	 *  Values are never null — entries are deleted on pane removal via cleanPaneEphemeral. */
 	paneTitles: Record<string, string>;
-	/** Pane IDs whose PTY has exited naturally (EOF or process exit).
-	 *  Used by Pane to show "exited" overlay and offer restart.
+	/** Pane IDs whose PTY has exited (any exit including signals).
+	 *  Consumers can show a restart prompt. Cleaned by cleanPaneEphemeral on pane removal.
 	 *  IMPORTANT: Always create a new Set on mutation — Zustand uses reference equality. */
 	exitedPtyIds: ReadonlySet<string>;
 	/** In-memory mirror of `appState.collapsedWorkspaceIds` as a Set for O(1) lookup.
@@ -64,9 +64,11 @@ interface StoreState {
 	killPtys: (paneIds: string[]) => void;
 	/** Remove a single pane ID from activePtyIds (e.g. on natural PTY exit). */
 	removePtyId: (paneId: string) => void;
-	/** Mark a pane's PTY as exited (shows restart overlay in Pane). */
+	/** Atomically remove from activePtyIds and add to exitedPtyIds. */
+	handlePtyExit: (paneId: string) => void;
+	/** Mark a pane's PTY as exited so consumers can show a restart prompt. */
 	markPtyExited: (paneId: string) => void;
-	/** Clear the exited flag for a pane (on restart). */
+	/** Clear the exited flag for a pane. */
 	clearPtyExited: (paneId: string) => void;
 	init: () => Promise<void>;
 	createWorkspace: (name: string, preset: LayoutPreset) => Promise<Workspace>;
@@ -143,8 +145,8 @@ export const useStore = create<StoreState>((set, get) => ({
 	focusedPaneId: null,
 	focusGeneration: 0,
 	visitedWorkspaceIds: [],
-	activePtyIds: new Set(),
-	exitedPtyIds: new Set(),
+	activePtyIds: new Set<string>(),
+	exitedPtyIds: new Set<string>(),
 	paneBranches: {},
 	panePrs: {},
 	paneAgentStatuses: {},
@@ -244,6 +246,15 @@ export const useStore = create<StoreState>((set, get) => ({
 		const newSet = new Set(current);
 		newSet.delete(paneId);
 		set({ activePtyIds: newSet });
+	},
+
+	handlePtyExit: (paneId) => {
+		const { activePtyIds, exitedPtyIds } = get();
+		const newActive = new Set(activePtyIds);
+		newActive.delete(paneId);
+		const newExited = new Set(exitedPtyIds);
+		newExited.add(paneId);
+		set({ activePtyIds: newActive, exitedPtyIds: newExited });
 	},
 
 	markPtyExited: (paneId) => {
