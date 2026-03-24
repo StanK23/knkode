@@ -159,11 +159,11 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 
 	toggleSidebarSection: (workspaceId) => {
-		const current = get().collapsedSidebarSections;
-		const next = new Set(current);
+		const state = get();
+		const next = new Set(state.collapsedSidebarSections);
 		if (next.has(workspaceId)) next.delete(workspaceId);
 		else next.add(workspaceId);
-		const updated = { ...get().appState, collapsedWorkspaceIds: [...next] };
+		const updated = { ...state.appState, collapsedWorkspaceIds: Array.from(next).sort() };
 		set({ collapsedSidebarSections: next, appState: updated });
 		persistAppState(updated);
 	},
