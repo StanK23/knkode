@@ -314,14 +314,17 @@ export const Pane = memo(function Pane({
 				const rawOffset = scrollOffsetRef.current + totalDelta;
 				const newOffset = Math.max(0, Math.min(maxScrollRef.current, Math.round(rawOffset)));
 				if (newOffset === scrollOffsetRef.current) {
-					// Reset scroll flag when clamped to bottom (e.g. alt-buffer with no scrollback)
-					if (newOffset === 0) isScrolledRef.current = false;
+					// Alt-buffer or clamped to bottom — clear scroll state and flush any
+					// renders that were blocked while isScrolledRef was briefly true.
+					// Must call scrollToBottom() (not just clear the flag) because pending
+					// renders stored in pendingGridRef won't display on their own.
+					if (newOffset === 0 && isScrolledRef.current) scrollToBottom();
 					return;
 				}
 				applyScrollOffset(newOffset);
 			});
 		},
-		[applyScrollOffset],
+		[applyScrollOffset, scrollToBottom],
 	);
 
 	// Listen for Mod+Up/Down scroll shortcuts dispatched by useKeyboardShortcuts
