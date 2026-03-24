@@ -872,22 +872,25 @@ export function CanvasTerminal({
 			const snap = gridRef.current;
 			const dpr = dprRef.current;
 
-			// When the app has grabbed the mouse, forward wheel as SGR events
-			if (snap?.isMouseGrabbed) {
-				e.preventDefault();
+			// When the app has grabbed the mouse, forward wheel as SGR events.
+			// Shift bypasses forwarding so the user can still access scrollback.
+			if (snap?.isMouseGrabbed && !e.shiftKey) {
+				if (e.deltaY === 0) return; // ignore horizontal-only scroll
 				const cell = cellAtPixel(e.clientX, e.clientY);
 				if (!cell) return;
-				// SGR uses 1-based coordinates
-				const col = cell.col + 1;
-				const row = cell.row + 1;
-				// Each wheel tick sends one SGR event; for pixel deltas, discretize
-				const ticks =
+				e.preventDefault();
+				// Each wheel tick sends one SGR event; cap to avoid flooding PTY
+				const MAX_WHEEL_TICKS = 10;
+				const ticks = Math.min(
+					MAX_WHEEL_TICKS,
 					e.deltaMode === WheelEvent.DOM_DELTA_PIXEL
 						? Math.max(1, Math.round(Math.abs(e.deltaY) / (cellH / dpr)))
-						: Math.max(1, Math.round(Math.abs(e.deltaY)));
+						: Math.max(1, Math.round(Math.abs(e.deltaY))),
+				);
 				const direction = e.deltaY > 0 ? -1 : 1;
+				const seq = sgrWheelScroll(direction, cell.col, cell.row, e);
 				for (let i = 0; i < ticks; i++) {
-					onWrite(sgrWheelScroll(direction, col, row, e));
+					onWrite(seq);
 				}
 				return;
 			}
