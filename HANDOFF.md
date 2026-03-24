@@ -23,7 +23,7 @@ All findings addressed in 6 fix commits (28fc942..7d82330).
 - PR #58: Themed add-pane button (merged)
 - PR #59: Subgroup keyboard shortcuts (merged)
 
-### PR #62 — Handle PTY Exit Events & Surface Creation Errors (in review)
+### PR #62 — Handle PTY Exit Events & Surface Creation Errors (merged)
 Branch: `fix/silent-failures`
 
 3 changes to eliminate silent failures in PTY lifecycle:
@@ -36,7 +36,7 @@ All findings addressed in 3 fix commits (e477c1f..201563f).
 
 ## What's Next
 
-PR #62 ready for merge. Remaining v2.1.0 polish tasks:
+PR #62 merged. Remaining v2.1.0 polish tasks:
 - PR 4: Type safety (`fix/type-safety`)
 - PR 5: Accessibility (`fix/accessibility`)
 - PR 6: Dead code (`fix/dead-code`)
