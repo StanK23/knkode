@@ -63,9 +63,20 @@ export interface BaseWorkspaceGitInfoProps {
 	pr: PrInfo | null;
 }
 
+/** Position of a pane within its subgroup's bracket connector.
+ *  `solo` when the subgroup contains exactly one pane (short centered bar). */
+export type BracketPosition = "first" | "middle" | "last" | "solo";
+
+/** CSS color strings for subgroup bracket connectors. */
+export interface BracketColors {
+	active: string;
+	inactive: string;
+}
+
 export interface ThemeVariantConfig {
 	wrapper: WrapperTokens;
 	collapsed: CollapsedTokens;
+	bracket: BracketColors;
 	Header: ComponentType<BaseWorkspaceHeaderProps>;
 	Entry: ComponentType<BasePaneEntryProps>;
 	GitInfo: ComponentType<BaseWorkspaceGitInfoProps>;
