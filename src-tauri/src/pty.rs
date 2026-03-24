@@ -238,62 +238,85 @@ fn detect_cwd(_pid: u32) -> Option<String> {
     None
 }
 
-/// Check foreground process status for multiple shell PIDs in a single `ps` call.
+/// Check foreground process status for multiple shell PIDs via `sysctl(KERN_PROC)`.
 ///
-/// A single `ps -o pid=,stat= -p pid1,pid2,...` invocation replaces per-pane
-/// fork+exec, reducing O(N) subprocesses to O(1) per poll cycle.
+/// For each PID, a single `sysctl` syscall retrieves `kinfo_proc` which contains
+/// `e_pgid` (shell's process group) and `e_tpgid` (terminal's foreground group).
+/// If they differ, another process group owns the foreground → child is running.
+///
+/// Replaces the previous `ps` subprocess which forked every 3 seconds.
 ///
 /// Returns a map from PID to `true` (foreground child running) / `false` (idle).
 /// PIDs where detection fails (exited, not found) are omitted.
 #[cfg(target_os = "macos")]
 fn check_foreground_batch(pids: &[(String, u32)]) -> HashMap<u32, bool> {
-    use std::process::Command;
-
     if pids.is_empty() {
         return HashMap::new();
     }
 
-    let pid_args: Vec<String> = pids.iter().map(|(_, pid)| pid.to_string()).collect();
-    let pid_list = pid_args.join(",");
-
-    let output = match Command::new("ps")
-        .args(["-o", "pid=,stat=", "-p", &pid_list])
-        .stderr(std::process::Stdio::null())
-        .output()
-    {
-        Ok(o) => o,
-        Err(e) => {
-            eprintln!("[pty] ps command failed: {e} — foreground detection unavailable");
-            return HashMap::new();
-        }
-    };
-
-    if !output.status.success() {
-        return HashMap::new();
-    }
-
-    // Parse lines like "  1234 S+  " — each has PID and STAT columns.
-    // '+' in STAT = process is in the foreground process group.
-    // Shell has '+' → shell is foreground → no child running (idle).
     let mut result = HashMap::with_capacity(pids.len());
-    for line in output.stdout.split(|&b| b == b'\n') {
-        let line = line.trim_ascii();
-        if line.is_empty() {
-            continue;
-        }
-        // Split on whitespace: first token is PID, rest is STAT
-        if let Some(space_pos) = line.iter().position(|&b| b == b' ' || b == b'\t') {
-            if let Ok(pid) = std::str::from_utf8(&line[..space_pos])
-                .unwrap_or("")
-                .parse::<u32>()
-            {
-                let stat_field = &line[space_pos..];
-                // '+' present in STAT bytes → shell is foreground → idle (no child)
-                result.insert(pid, !stat_field.contains(&b'+'));
-            }
+    for &(_, pid) in pids {
+        if let Some(has_child) = check_foreground_sysctl(pid) {
+            result.insert(pid, has_child);
         }
     }
     result
+}
+
+/// Check if a single process has a foreground child via sysctl(KERN_PROC_PID).
+///
+/// kinfo_proc layout (stable across macOS versions):
+///   kp_proc  (extern_proc) at offset 0
+///   kp_eproc (eproc)       at offset 492 (on arm64/x86_64)
+///     e_pgid  at eproc offset +136 (pid_t, 4 bytes)
+///     e_tpgid at eproc offset +140 (pid_t, 4 bytes)
+///
+/// If e_tpgid != e_pgid, another process group is in the foreground.
+#[cfg(target_os = "macos")]
+fn check_foreground_sysctl(pid: u32) -> Option<bool> {
+    use std::mem::MaybeUninit;
+    // kinfo_proc is 648 bytes on arm64 macOS.
+    // Offsets verified via offsetof() on arm64:
+    //   kp_eproc at 296, e_pgid at 564, e_tpgid at 576.
+    const KINFO_PROC_SIZE: usize = 648;
+    const E_PGID_OFFSET: usize = 564;
+    const E_TPGID_OFFSET: usize = 576;
+
+    let mut mib: [libc::c_int; 4] = [
+        libc::CTL_KERN,
+        libc::KERN_PROC,
+        libc::KERN_PROC_PID,
+        pid as libc::c_int,
+    ];
+    let mut buf = MaybeUninit::<[u8; KINFO_PROC_SIZE]>::uninit();
+    let mut size: libc::size_t = KINFO_PROC_SIZE;
+
+    let ret = unsafe {
+        libc::sysctl(
+            mib.as_mut_ptr(),
+            4,
+            buf.as_mut_ptr() as *mut libc::c_void,
+            &mut size,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+
+    if ret != 0 || size < KINFO_PROC_SIZE {
+        return None;
+    }
+
+    let buf = unsafe { buf.assume_init() };
+    let e_pgid = i32::from_ne_bytes(buf[E_PGID_OFFSET..E_PGID_OFFSET + 4].try_into().ok()?);
+    let e_tpgid = i32::from_ne_bytes(buf[E_TPGID_OFFSET..E_TPGID_OFFSET + 4].try_into().ok()?);
+
+    // tpgid == 0 means no controlling terminal — can't determine foreground
+    if e_tpgid == 0 {
+        return None;
+    }
+
+    // If terminal foreground group != shell's group, a child process is running
+    Some(e_tpgid != e_pgid)
 }
 
 /// Check foreground process status on Linux by reading `/proc/<pid>/stat`.
