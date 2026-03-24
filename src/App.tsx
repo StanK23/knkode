@@ -7,6 +7,7 @@ import { Sidebar } from "./components/Sidebar";
 import { findPreset } from "./data/theme-presets";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useUpdateChecker } from "./hooks/useUpdateChecker";
+import { dispatchRender } from "./lib/render-dispatcher";
 import { useStore } from "./store";
 import { generateThemeVariables } from "./utils/colors";
 import { isWindows, WINDOWS_CAPTION_BUTTON_WIDTH } from "./utils/platform";
@@ -65,6 +66,12 @@ export function App() {
 			}
 		}
 	}, [initialized, openWorkspaceIds]);
+
+	// Single global terminal:render listener — dispatches to per-pane callbacks via Map lookup.
+	// Replaces N per-pane listeners that each received all events (N² deserialization).
+	useEffect(() => {
+		return window.api.onTerminalRender(dispatchRender);
+	}, []);
 
 	// Listen for backend PTY events (CWD, git branch, PR status, activity state, terminal title).
 	// Unified into a single effect to avoid identical subscribe/lookup patterns.
