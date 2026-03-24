@@ -304,11 +304,24 @@ export const Pane = memo(function Pane({
 
 	const handleWrite = useCallback(
 		(data: string) => {
-			// If PTY has exited, restart on any keypress
+			// Read store directly to avoid stale closure — ptyExited selector (line 84)
+			// is reactive but would require this callback in its dependency array.
 			if (useStore.getState().exitedPtyIds.has(paneId)) {
 				clearPtyExited(paneId);
 				setPtyError(false);
-				ensurePty(paneId, initialCwdRef.current, initialCmdRef.current);
+				// Re-create PTY. If creation fails, ensurePty's catch rolls back
+				// activePtyIds, but we also need to restore the error overlay.
+				window.api.createPty(paneId, initialCwdRef.current, initialCmdRef.current ?? "").catch((err: unknown) => {
+					console.error(`[pane] PTY restart failed for ${paneId}:`, err);
+					setPtyError(true);
+				});
+				// Optimistically mark as active (ensurePty pattern)
+				const { activePtyIds } = useStore.getState();
+				if (!activePtyIds.has(paneId)) {
+					const newSet = new Set(activePtyIds);
+					newSet.add(paneId);
+					useStore.setState({ activePtyIds: newSet });
+				}
 				return;
 			}
 
@@ -322,7 +335,7 @@ export const Pane = memo(function Pane({
 				setPtyError(true);
 			});
 		},
-		[paneId, scrollToBottom, clearPtyExited, ensurePty],
+		[paneId, scrollToBottom, clearPtyExited],
 	);
 
 	const handleResize = useCallback(
@@ -614,7 +627,7 @@ export const Pane = memo(function Pane({
 						{(ptyError || ptyExited) && (
 							<div className="absolute bottom-2 left-2 right-2 text-xs text-danger bg-danger/10 rounded px-2 py-1 pointer-events-none">
 								{ptyExited
-									? "Terminal exited — press any key to restart"
+									? "Process exited — type to restart"
 									: "Terminal disconnected"}
 							</div>
 						)}
