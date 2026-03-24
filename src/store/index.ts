@@ -103,6 +103,12 @@ interface StoreState {
 	 *  An empty array `[]` targets the root node itself.
 	 *  Also transitions the workspace layout type from 'preset' to 'custom'. */
 	updateNodeSizes: (workspaceId: string, path: number[], pixelSizes: number[]) => void;
+	/** Add a new solo pane subgroup to a workspace and set it active. */
+	addSubgroup: (workspaceId: string) => void;
+	/** Switch the active subgroup within a workspace. */
+	setActiveSubgroup: (workspaceId: string, subgroupId: string) => void;
+	/** Cycle to the next (+1) or previous (-1) subgroup within a workspace. */
+	cycleSubgroup: (workspaceId: string, direction: 1 | -1) => void;
 	saveState: () => Promise<void>;
 	addSnippet: (name: string, command: string) => void;
 	updateSnippet: (id: string, updates: Pick<Snippet, "name" | "command">) => void;
