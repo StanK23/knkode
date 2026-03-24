@@ -161,39 +161,39 @@ export const Pane = memo(function Pane({
 		}
 	}, [paneId]);
 
-	const scrollToTop = useCallback(() => {
-		const max = maxScrollRef.current;
-		if (max <= 0) return;
-		scrollOffsetRef.current = max;
-		isScrolledRef.current = true;
-		window.api.scrollTerminal(paneId, max).then(setGrid).catch(console.error);
-	}, [paneId]);
-
 	// Shared scroll-to-offset logic — sets refs and fires IPC (or snaps to bottom).
 	// Used by both the scrollbar drag handler and the wheel-scroll handler.
 	const applyScrollOffset = useCallback(
 		(newOffset: number) => {
-			scrollOffsetRef.current = newOffset;
-			isScrolledRef.current = newOffset > 0;
+			// Defensively clamp to non-negative integer
+			const clamped = Math.max(0, Math.round(newOffset));
 
-			if (newOffset === 0) {
+			if (clamped === 0) {
 				scrollToBottom();
 				return;
 			}
 
+			scrollOffsetRef.current = clamped;
+			isScrolledRef.current = true;
+
 			window.api
-				.scrollTerminal(paneId, newOffset)
+				.scrollTerminal(paneId, clamped)
 				.then((snapshot) => {
 					maxScrollRef.current = snapshot.scrollbackRows;
 					if (scrollOffsetRef.current > 0) setGrid(snapshot);
 				})
 				.catch((err: unknown) => {
 					console.error(`[pane] scrollTerminal failed for ${paneId}:`, err);
-					setPtyError(true);
 				});
 		},
 		[paneId, scrollToBottom],
 	);
+
+	const scrollToTop = useCallback(() => {
+		const max = maxScrollRef.current;
+		if (max <= 0) return;
+		applyScrollOffset(max);
+	}, [applyScrollOffset]);
 
 	// Scrollbar drag — convert pointer Y within the track to a scroll offset.
 	// Uses document-level move/up listeners with a cleanup-ref for unmount safety
