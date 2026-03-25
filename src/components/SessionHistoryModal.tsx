@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { getPortalRoot } from "../lib/ui-constants";
 import { AGENT_KINDS, type AgentKind, type AgentSession } from "../shared/types";
