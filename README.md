@@ -21,13 +21,13 @@ Each theme has its own visual effects — scanlines, phosphor glow, noise textur
 
 ## Download
 
-**[Latest release (v2.1.0)](https://github.com/knkenko/knkode/releases/latest)**
+**[Latest release (v2.1.1)](https://github.com/knkenko/knkode/releases/latest)**
 
 | Platform | File |
 |---|---|
-| macOS (Apple Silicon + Intel) | [knkode_2.1.0_universal.dmg](https://github.com/knkenko/knkode/releases/download/v2.1.0/knkode_2.1.0_universal.dmg) |
-| Windows (installer) | [knkode_2.1.0_x64-setup.exe](https://github.com/knkenko/knkode/releases/download/v2.1.0/knkode_2.1.0_x64-setup.exe) |
-| Windows (MSI) | [knkode_2.1.0_x64_en-US.msi](https://github.com/knkenko/knkode/releases/download/v2.1.0/knkode_2.1.0_x64_en-US.msi) |
+| macOS (Apple Silicon + Intel) | [knkode_2.1.1_universal.dmg](https://github.com/knkenko/knkode/releases/download/v2.1.1/knkode_2.1.1_universal.dmg) |
+| Windows (installer) | [knkode_2.1.1_x64-setup.exe](https://github.com/knkenko/knkode/releases/download/v2.1.1/knkode_2.1.1_x64-setup.exe) |
+| Windows (MSI) | [knkode_2.1.1_x64_en-US.msi](https://github.com/knkenko/knkode/releases/download/v2.1.1/knkode_2.1.1_x64_en-US.msi) |
 
 ## Why
 
