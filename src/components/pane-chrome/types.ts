@@ -10,6 +10,13 @@ export interface VariantTheme {
 	statusBarPosition: "top" | "bottom";
 }
 
+/** Shared props for toolbar trigger slots (snippet, session history, etc.). */
+export type TriggerProps = {
+	className?: string;
+	style?: React.CSSProperties;
+	children?: React.ReactNode;
+};
+
 /** Header-related props shared by all variant Frames. Extended by FrameProps. */
 export interface StatusBarProps {
 	label: string;
@@ -34,11 +41,8 @@ export interface StatusBarProps {
 		onBlur: () => void;
 		onKeyDown: (e: React.KeyboardEvent) => void;
 	};
-	SnippetTrigger: React.ComponentType<{
-		className?: string;
-		style?: React.CSSProperties;
-		children?: React.ReactNode;
-	}>;
+	SnippetTrigger: React.ComponentType<TriggerProps>;
+	SessionHistoryTrigger: React.ComponentType<TriggerProps>;
 	shortcuts: { splitV: string; splitH: string; close: string };
 }
 

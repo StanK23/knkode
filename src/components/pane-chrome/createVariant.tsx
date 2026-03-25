@@ -64,7 +64,8 @@ export interface VariantConfig {
 			labels?: Partial<Record<"splitV" | "splitH" | "close", string>>;
 		};
 		snippet: { label: string };
-		/** Wrap action buttons (excluding snippet trigger) in a hover-reveal container. */
+		sessionHistory: { label: string };
+		/** Wrap action buttons (excluding snippet and session history triggers) in a hover-reveal container. */
 		hoverRevealActions?: { className: string };
 	};
 	/** Activity animation on the status bar border when agent is active.
@@ -123,6 +124,7 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 		isEditing,
 		editInputProps,
 		SnippetTrigger,
+		SessionHistoryTrigger,
 		shortcuts,
 		children,
 		headerProps,
@@ -282,6 +284,9 @@ export function createAndRegisterVariant(name: string, config: VariantConfig): P
 				<SnippetTrigger className={actionCls} style={actionStyle}>
 					{sb.snippet.label}
 				</SnippetTrigger>
+				<SessionHistoryTrigger className={actionCls} style={actionStyle}>
+					{sb.sessionHistory.label}
+				</SessionHistoryTrigger>
 				{sb.hoverRevealActions ? (
 					<div className={sb.hoverRevealActions.className}>{actions}</div>
 				) : (

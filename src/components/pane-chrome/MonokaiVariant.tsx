@@ -35,6 +35,7 @@ createAndRegisterVariant("Monokai", {
 			style: (theme, _isFocused) => ({ color: theme.accent }),
 		},
 		snippet: { label: ">_" },
+		sessionHistory: { label: "⏱" },
 	},
 	scrollButton: {
 		className: "bottom-3 left-3 right-3 h-7 text-[11px] hover:brightness-110",

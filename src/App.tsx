@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { HotkeyPanel } from "./components/HotkeyPanel";
 import { PaneArea } from "./components/PaneArea";
+import { SessionHistoryModal } from "./components/SessionHistoryModal";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { Sidebar } from "./components/Sidebar";
 import { findPreset } from "./data/theme-presets";
@@ -120,7 +121,14 @@ export function App() {
 			}),
 		];
 		return () => unsubs.forEach((fn) => fn());
-	}, [updatePaneCwd, updatePaneBranch, updatePanePr, updatePaneAgentStatus, updatePaneTitle, handlePtyExit]);
+	}, [
+		updatePaneCwd,
+		updatePaneBranch,
+		updatePanePr,
+		updatePaneAgentStatus,
+		updatePaneTitle,
+		handlePtyExit,
+	]);
 
 	// Must be above early returns to satisfy React's rules of hooks.
 	// Returns { vars, failed } so we can show a fallback indicator on failure.
@@ -230,6 +238,7 @@ export function App() {
 					)}
 					{showHotkeys && <HotkeyPanel onClose={() => setShowHotkeys(false)} />}
 				</div>
+				<SessionHistoryModal />
 				{/* Portal root for menus that need to escape pane stacking/overflow
 				    but still inherit theme CSS variables */}
 				<div id="portal-root" />

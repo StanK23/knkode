@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import type {
+	AgentKind,
+	AgentSession,
 	AgentStatus,
 	AppState,
 	DropPosition,
@@ -11,6 +13,7 @@ import type {
 	Workspace,
 } from "../shared/types";
 import { createLayoutFromPreset, makeSingleSubgroup } from "./layout-tree";
+import { createSessionHistorySlice } from "./session-history-actions";
 import { createSnippetSlice } from "./snippet-actions";
 import { createWorkspacePaneSlice, defaultTheme, persistAppState } from "./workspace-pane-actions";
 
@@ -136,6 +139,16 @@ interface StoreState {
 	removeWorkspaceSnippet: (wsId: string, id: string) => void;
 	reorderWorkspaceSnippets: (wsId: string, fromIndex: number, toIndex: number) => void;
 	runWorkspaceSnippet: (wsId: string, snippetId: string, paneId: string) => void;
+
+	// Session history
+	agentSessions: AgentSession[];
+	agentFilter: AgentKind | null;
+	sessionHistoryPaneId: string | null;
+	fetchAgentSessions: (projectCwd: string) => Promise<void>;
+	setAgentFilter: (filter: AgentKind | null) => void;
+	openSessionHistory: (paneId: string) => void;
+	closeSessionHistory: () => void;
+	resumeSession: (paneId: string, session: AgentSession, unsafe: boolean) => void;
 }
 
 export const useStore = create<StoreState>((set, get) => ({
@@ -413,6 +426,7 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 
 	...createSnippetSlice(set, get),
+	...createSessionHistorySlice(set, get),
 }));
 
 export {

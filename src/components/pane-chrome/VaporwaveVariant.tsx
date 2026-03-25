@@ -18,6 +18,7 @@ function Frame({
 	isEditing,
 	editInputProps,
 	SnippetTrigger,
+	SessionHistoryTrigger,
 	shortcuts,
 	children,
 	headerProps,
@@ -132,6 +133,16 @@ function Frame({
 			>
 				{">_"}
 			</SnippetTrigger>
+			<SessionHistoryTrigger
+				className={`text-[9px] tracking-wider font-medium px-2 py-0.5 rounded-full cursor-pointer border-none hover:brightness-110 transition-all ${FOCUS_VIS}`}
+				style={{
+					background: `linear-gradient(135deg, ${c1}44, ${c2}44)`,
+					color: theme.foreground,
+					boxShadow: isFocused ? `0 0 6px ${c2}44` : "none",
+				}}
+			>
+				⏱
+			</SessionHistoryTrigger>
 
 			<button
 				type="button"
