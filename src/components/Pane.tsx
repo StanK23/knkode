@@ -33,16 +33,25 @@ import { TerminalContextMenu } from "./TerminalContextMenu";
  *  creating a new component type on every render or memo invalidation. */
 function PaneSnippetTrigger({
 	paneId,
+	workspaceId,
 	statusBarPosition,
 	...rest
 }: {
 	paneId: string;
+	workspaceId: string;
 	statusBarPosition: "top" | "bottom";
 	className?: string | undefined;
 	style?: React.CSSProperties | undefined;
 	children?: React.ReactNode;
 }) {
-	return <SnippetDropdown paneId={paneId} statusBarPosition={statusBarPosition} {...rest} />;
+	return (
+		<SnippetDropdown
+			paneId={paneId}
+			workspaceId={workspaceId}
+			statusBarPosition={statusBarPosition}
+			{...rest}
+		/>
+	);
 }
 
 interface PaneProps {
@@ -512,8 +521,8 @@ export const Pane = memo(function Pane({
 
 	// Stable snippet trigger props — avoids creating new component type per render
 	const snippetTriggerProps = useMemo(
-		() => ({ paneId, statusBarPosition }),
-		[paneId, statusBarPosition],
+		() => ({ paneId, workspaceId, statusBarPosition }),
+		[paneId, workspaceId, statusBarPosition],
 	);
 
 	const handleFocus = useCallback(() => onFocus(paneId), [paneId, onFocus]);

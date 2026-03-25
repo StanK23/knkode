@@ -12,6 +12,7 @@ const STATUS_BAR_POSITIONS = ["top", "bottom"] as const satisfies readonly [
 ];
 
 interface WorkspaceTabPanelProps {
+	workspaceId: string;
 	panes: Record<string, PaneConfig>;
 	name: string;
 	onNameChange: (name: string) => void;
@@ -25,6 +26,7 @@ interface WorkspaceTabPanelProps {
 }
 
 export function WorkspaceTabPanel({
+	workspaceId,
 	panes,
 	name,
 	onNameChange,
@@ -99,7 +101,7 @@ export function WorkspaceTabPanel({
 				label="Status bar"
 			/>
 			{/* Snippets */}
-			<SnippetsSection />
+			<SnippetsSection workspaceId={workspaceId} />
 		</div>
 	);
 }
