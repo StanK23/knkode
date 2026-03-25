@@ -1,3 +1,5 @@
+// Must remain `import type` — runtime import would create a circular dependency
+// with theme-presets.ts (which imports PaneTheme from this file).
 import type { ThemePresetName } from "../data/theme-presets";
 
 /** Default unfocused pane dimming opacity. */

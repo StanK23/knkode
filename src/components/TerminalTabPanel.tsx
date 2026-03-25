@@ -98,7 +98,9 @@ export function TerminalTabPanel({
 						document.getElementById(`theme-preset-${next}`)?.focus();
 					}}
 				>
-					{THEME_PRESETS.map((preset: ThemePreset & { name: ThemePresetName }, index) => {
+					{/* Cast widens as-const elements to ThemePreset (for optional field access like .glow)
+				    while preserving narrow name literals via the intersection */}
+				{(THEME_PRESETS as readonly (ThemePreset & { name: ThemePresetName })[]).map((preset, index) => {
 						const isActive = selectedPreset === preset.name;
 						return (
 							<button
