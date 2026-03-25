@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
+import { toPresetName } from "../data/theme-presets";
 import { getPortalRoot } from "../lib/ui-constants";
 import { AGENT_KINDS, type AgentKind, type AgentSession } from "../shared/types";
 import { useStore } from "../store";
+import { AgentIcon } from "./AgentIcons";
+import { getSessionHistoryTokens } from "./sidebar-variants/ThemeRegistry";
 
 const AGENT_LABELS: Record<AgentKind, string> = {
 	claude: "Claude",
 	gemini: "Gemini",
 	codex: "Codex",
 };
-
-const TRUNCATE_ID_LENGTH = 8;
 
 function formatRelativeTime(iso: string): string {
 	const diff = Date.now() - new Date(iso).getTime();
@@ -25,8 +26,9 @@ function formatRelativeTime(iso: string): string {
 	return `${days}d ago`;
 }
 
-function truncateId(id: string): string {
-	return id.length > TRUNCATE_ID_LENGTH ? id.slice(0, TRUNCATE_ID_LENGTH) : id;
+/** Resolve the display name for a session: custom title > AI summary > first prompt. */
+function sessionDisplayName(session: AgentSession): string {
+	return session.title ?? session.summary ?? "Untitled session";
 }
 
 const FOCUS_RING = "focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none";
@@ -35,47 +37,53 @@ function SessionRow({
 	session,
 	paneId,
 	onResume,
+	rowClass,
+	rowStyle,
+	resumeButtonClass,
+	resumeButtonStyle,
+	resumeLabel,
 }: {
 	session: AgentSession;
 	paneId: string;
 	onResume: (paneId: string, session: AgentSession, unsafe: boolean) => void;
+	rowClass: string;
+	rowStyle?: React.CSSProperties | undefined;
+	resumeButtonClass: string;
+	resumeButtonStyle?: React.CSSProperties | undefined;
+	resumeLabel: string;
 }) {
+	const timeStr = formatRelativeTime(session.lastUpdated ?? session.timestamp);
+	const name = sessionDisplayName(session);
+	const hasUnsafe = session.agent !== "gemini";
+
 	return (
-		<div className="flex flex-col gap-1.5 p-3 rounded-md bg-canvas border border-edge hover:border-accent/40 transition-colors">
-			<div className="flex items-center justify-between gap-2">
-				<div className="flex items-center gap-2 min-w-0">
-					<span className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-overlay text-accent">
-						{AGENT_LABELS[session.agent]}
-					</span>
-					<span className="text-[11px] text-content-muted shrink-0">
-						{formatRelativeTime(session.timestamp)}
-					</span>
-				</div>
-				<div className="flex items-center gap-1.5 shrink-0">
+		<div className={`flex items-center gap-3 p-3 ${rowClass}`} style={rowStyle}>
+			<AgentIcon agent={session.agent} className="w-5 h-5 shrink-0 text-accent opacity-70" />
+			<div className="flex-1 min-w-0">
+				<p className="text-xs text-content truncate" title={name}>
+					{name}
+				</p>
+				<span className="text-[10px] text-content-muted">{timeStr}</span>
+			</div>
+			<div className="flex items-center gap-1.5 shrink-0">
+				<button
+					type="button"
+					className={`${resumeButtonClass} ${FOCUS_RING}`}
+					style={resumeButtonStyle}
+					onClick={() => onResume(paneId, session, false)}
+				>
+					{resumeLabel}
+				</button>
+				{hasUnsafe && (
 					<button
 						type="button"
-						className={`text-[11px] px-2 py-1 rounded bg-overlay text-content hover:bg-accent hover:text-canvas transition-colors cursor-pointer ${FOCUS_RING}`}
-						onClick={() => onResume(paneId, session, false)}
-					>
-						Resume
-					</button>
-					<button
-						type="button"
-						className={`text-[11px] px-2 py-1 rounded bg-overlay text-danger hover:bg-danger hover:text-canvas transition-colors cursor-pointer ${FOCUS_RING}`}
+						className={`${resumeButtonClass} ${FOCUS_RING} !text-danger hover:!bg-danger hover:!text-canvas`}
+						style={resumeButtonStyle}
 						onClick={() => onResume(paneId, session, true)}
 						title="Resume without confirmation prompts"
 					>
-						Unsafe
+						unsafe
 					</button>
-				</div>
-			</div>
-			{session.summary && <p className="text-xs text-content truncate">{session.summary}</p>}
-			<div className="flex items-center gap-3 text-[10px] text-content-muted">
-				<span className="font-mono">{truncateId(session.id)}</span>
-				{session.branch && (
-					<span className="truncate max-w-48" title={session.branch}>
-						{session.branch}
-					</span>
 				)}
 			</div>
 		</div>
@@ -89,7 +97,16 @@ export function SessionHistoryModal() {
 	const setAgentFilter = useStore((s) => s.setAgentFilter);
 	const closeSessionHistory = useStore((s) => s.closeSessionHistory);
 	const resumeSession = useStore((s) => s.resumeSession);
+	const workspaces = useStore((s) => s.workspaces);
+	const activeWorkspaceId = useStore((s) => s.appState.activeWorkspaceId);
 	const modalRef = useRef<HTMLDivElement>(null);
+
+	const preset = useMemo(() => {
+		const ws = workspaces.find((w) => w.id === activeWorkspaceId);
+		return toPresetName(ws?.theme.preset);
+	}, [workspaces, activeWorkspaceId]);
+
+	const tokens = useMemo(() => getSessionHistoryTokens(preset), [preset]);
 
 	const filtered = useMemo(
 		() => (agentFilter ? sessions.filter((s) => s.agent === agentFilter) : sessions),
@@ -105,7 +122,6 @@ export function SessionHistoryModal() {
 		return () => document.removeEventListener("keydown", handler);
 	}, [paneId, closeSessionHistory]);
 
-	// Focus modal on open so keyboard events (Escape) are captured
 	useEffect(() => {
 		if (paneId && modalRef.current) {
 			modalRef.current.focus();
@@ -125,14 +141,15 @@ export function SessionHistoryModal() {
 			<div
 				ref={modalRef}
 				tabIndex={-1}
-				className="w-full max-w-xl max-w-[calc(100vw-2rem)] max-h-[70vh] flex flex-col bg-canvas/80 backdrop-blur-2xl border border-edge/50 rounded-md shadow-panel animate-panel-in overflow-hidden outline-none"
+				className={`w-full max-w-xl max-w-[calc(100vw-2rem)] max-h-[70vh] flex flex-col overflow-hidden outline-none animate-panel-in ${tokens.modal}`}
+				style={tokens.modalStyle}
 				role="dialog"
 				aria-modal="true"
 				aria-label="Session History"
 				onClick={(e) => e.stopPropagation()}
 			>
-				<div className="flex items-center justify-between px-6 py-4 border-b border-edge">
-					<h2 className="text-sm font-semibold tracking-wide text-content">Session History</h2>
+				<div className={`flex items-center justify-between px-6 py-4 ${tokens.header}`}>
+					<h2 className="text-sm font-semibold tracking-wide">Session History</h2>
 					<button
 						type="button"
 						className={`text-content-muted hover:text-content text-sm cursor-pointer ${FOCUS_RING}`}
@@ -143,19 +160,23 @@ export function SessionHistoryModal() {
 					</button>
 				</div>
 
-				<div className="flex items-center gap-1 px-6 py-2 border-b border-edge">
-					<FilterTab
-						label="All"
-						active={agentFilter === null}
+				<div className="flex items-center gap-1 px-6 py-2">
+					<button
+						type="button"
+						className={agentFilter === null ? tokens.filterTabActive : tokens.filterTab}
 						onClick={() => setAgentFilter(null)}
-					/>
+					>
+						All
+					</button>
 					{AGENT_KINDS.map((kind) => (
-						<FilterTab
+						<button
 							key={kind}
-							label={AGENT_LABELS[kind]}
-							active={agentFilter === kind}
+							type="button"
+							className={agentFilter === kind ? tokens.filterTabActive : tokens.filterTab}
 							onClick={() => setAgentFilter(kind)}
-						/>
+						>
+							{AGENT_LABELS[kind]}
+						</button>
 					))}
 				</div>
 
@@ -173,6 +194,11 @@ export function SessionHistoryModal() {
 								session={session}
 								paneId={paneId}
 								onResume={resumeSession}
+								rowClass={tokens.row}
+								rowStyle={tokens.rowStyle}
+								resumeButtonClass={tokens.resumeButton}
+								resumeButtonStyle={tokens.resumeButtonStyle}
+								resumeLabel={tokens.resumeLabel}
 							/>
 						))
 					)}
@@ -180,27 +206,5 @@ export function SessionHistoryModal() {
 			</div>
 		</div>,
 		getPortalRoot(),
-	);
-}
-
-function FilterTab({
-	label,
-	active,
-	onClick,
-}: {
-	label: string;
-	active: boolean;
-	onClick: () => void;
-}) {
-	return (
-		<button
-			type="button"
-			className={`text-[11px] px-2.5 py-1 rounded cursor-pointer transition-colors ${FOCUS_RING} ${
-				active ? "bg-accent text-canvas" : "bg-overlay text-content-muted hover:text-content"
-			}`}
-			onClick={onClick}
-		>
-			{label}
-		</button>
 	);
 }
