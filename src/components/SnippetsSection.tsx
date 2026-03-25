@@ -1,14 +1,31 @@
-import { useCallback, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { useDragReorder } from "../hooks/useDragReorder";
+import type { Snippet } from "../shared/types";
 import { useStore } from "../store";
 import { SettingsSection } from "./SettingsSection";
 
-export function SnippetsSection() {
-	const snippets = useStore((s) => s.snippets);
-	const addSnippet = useStore((s) => s.addSnippet);
-	const updateSnippet = useStore((s) => s.updateSnippet);
-	const removeSnippet = useStore((s) => s.removeSnippet);
-	const reorderSnippets = useStore((s) => s.reorderSnippets);
+const EMPTY_SNIPPETS: readonly Snippet[] = [];
+
+interface SnippetListProps {
+	snippets: readonly Snippet[];
+	onAdd: (name: string, command: string) => void;
+	onUpdate: (id: string, updates: Pick<Snippet, "name" | "command">) => void;
+	onRemove: (id: string) => void;
+	onReorder: (from: number, to: number) => void;
+	/** Scopes drag-reorder to the correct list when two instances coexist. */
+	listId: "global" | "workspace";
+}
+
+/** Headless snippet list with add/edit/delete/reorder.
+ *  Used for both global and workspace-scoped snippet tiers. */
+const SnippetList = memo(function SnippetList({
+	snippets,
+	onAdd,
+	onUpdate,
+	onRemove,
+	onReorder,
+	listId,
+}: SnippetListProps) {
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [editName, setEditName] = useState("");
 	const [editCommand, setEditCommand] = useState("");
@@ -21,13 +38,13 @@ export function SnippetsSection() {
 	const { dragFromIndex, dragOverIndex, handlePointerDown } = useDragReorder({
 		onReorder: useCallback(
 			(from: number, to: number) => {
-				reorderSnippets(from, to);
+				onReorder(from, to);
 				const name = snippets[from]?.name ?? "Snippet";
 				setLiveMessage(`Moved ${name} to position ${to + 1}`);
 			},
-			[reorderSnippets, snippets],
+			[onReorder, snippets],
 		),
-		containerSelector: "[data-snippet-list]",
+		containerSelector: `[data-snippet-list="${listId}"]`,
 		itemSelector: "[data-snippet-item]",
 	});
 
@@ -45,47 +62,44 @@ export function SnippetsSection() {
 	const commitEdit = useCallback(() => {
 		if (!editingId) return;
 		if (editName.trim() && editCommand.trim()) {
-			updateSnippet(editingId, { name: editName.trim(), command: editCommand.trim() });
+			onUpdate(editingId, { name: editName.trim(), command: editCommand.trim() });
 			setEditingId(null);
 		}
-	}, [editingId, editName, editCommand, updateSnippet]);
+	}, [editingId, editName, editCommand, onUpdate]);
 
 	const commitAdd = useCallback(() => {
 		if (newName.trim() && newCommand.trim()) {
-			addSnippet(newName.trim(), newCommand.trim());
+			onAdd(newName.trim(), newCommand.trim());
 			setNewName("");
 			setNewCommand("");
 			setIsAdding(false);
 		}
-	}, [newName, newCommand, addSnippet]);
+	}, [newName, newCommand, onAdd]);
 
 	const handleKeyboardReorder = useCallback(
 		(e: React.KeyboardEvent, index: number) => {
 			if (!e.altKey) return;
 			if (e.key === "ArrowUp" && index > 0) {
 				e.preventDefault();
-				reorderSnippets(index, index - 1);
+				onReorder(index, index - 1);
 				const name = snippets[index]?.name ?? "Snippet";
 				setLiveMessage(`Moved ${name} to position ${index}`);
 			} else if (e.key === "ArrowDown" && index < snippets.length - 1) {
 				e.preventDefault();
-				reorderSnippets(index, index + 1);
+				onReorder(index, index + 1);
 				const name = snippets[index]?.name ?? "Snippet";
 				setLiveMessage(`Moved ${name} to position ${index + 2}`);
 			}
 		},
-		[reorderSnippets, snippets],
+		[onReorder, snippets],
 	);
 
 	return (
-		<SettingsSection label="Commands" gap={8}>
-			<span className="text-[10px] text-content-muted -mt-1 mb-1">
-				Global snippets — available from the &gt;_ icon on any pane
-			</span>
+		<>
 			{snippets.length === 0 && !isAdding && (
 				<span className="text-[11px] text-content-muted italic">No snippets yet</span>
 			)}
-			<div data-snippet-list className="flex flex-col gap-2">
+			<div data-snippet-list={listId} className="flex flex-col gap-2">
 				{snippets.map((snippet, index) => {
 					const isDropTarget =
 						dragOverIndex === index && dragFromIndex !== null && dragFromIndex !== index;
@@ -171,7 +185,7 @@ export function SnippetsSection() {
 										type="button"
 										onClick={() => {
 											if (confirmDeleteId === snippet.id) {
-												removeSnippet(snippet.id);
+												onRemove(snippet.id);
 												setConfirmDeleteId(null);
 											} else {
 												setConfirmDeleteId(snippet.id);
@@ -237,6 +251,71 @@ export function SnippetsSection() {
 					+ Add Snippet
 				</button>
 			)}
+		</>
+	);
+});
+
+export function SnippetsSection({ workspaceId }: { workspaceId: string }) {
+	const snippets = useStore((s) => s.snippets);
+	const addSnippet = useStore((s) => s.addSnippet);
+	const updateSnippet = useStore((s) => s.updateSnippet);
+	const removeSnippet = useStore((s) => s.removeSnippet);
+	const reorderSnippets = useStore((s) => s.reorderSnippets);
+
+	const wsSnippets = useStore(
+		(s) => s.workspaces.find((w) => w.id === workspaceId)?.snippets ?? EMPTY_SNIPPETS,
+	);
+	const wsName = useStore(
+		(s) => s.workspaces.find((w) => w.id === workspaceId)?.name ?? "Workspace",
+	);
+	const addWorkspaceSnippet = useStore((s) => s.addWorkspaceSnippet);
+	const updateWorkspaceSnippet = useStore((s) => s.updateWorkspaceSnippet);
+	const removeWorkspaceSnippet = useStore((s) => s.removeWorkspaceSnippet);
+	const reorderWorkspaceSnippets = useStore((s) => s.reorderWorkspaceSnippets);
+
+	const handleWsAdd = useCallback(
+		(name: string, command: string) => addWorkspaceSnippet(workspaceId, name, command),
+		[workspaceId, addWorkspaceSnippet],
+	);
+	const handleWsUpdate = useCallback(
+		(id: string, updates: Pick<Snippet, "name" | "command">) =>
+			updateWorkspaceSnippet(workspaceId, id, updates),
+		[workspaceId, updateWorkspaceSnippet],
+	);
+	const handleWsRemove = useCallback(
+		(id: string) => removeWorkspaceSnippet(workspaceId, id),
+		[workspaceId, removeWorkspaceSnippet],
+	);
+	const handleWsReorder = useCallback(
+		(from: number, to: number) => reorderWorkspaceSnippets(workspaceId, from, to),
+		[workspaceId, reorderWorkspaceSnippets],
+	);
+
+	return (
+		<SettingsSection label="Commands" gap={8}>
+			<span className="text-[10px] text-content-muted -mt-1 mb-1">
+				Global snippets — available from the &gt;_ icon on any pane
+			</span>
+			<SnippetList
+				snippets={snippets}
+				onAdd={addSnippet}
+				onUpdate={updateSnippet}
+				onRemove={removeSnippet}
+				onReorder={reorderSnippets}
+				listId="global"
+			/>
+			<div className="border-t border-edge my-2" role="separator" />
+			<span className="text-[10px] text-content-muted -mt-1 mb-1">
+				{wsName} snippets — only available in this workspace
+			</span>
+			<SnippetList
+				snippets={wsSnippets}
+				onAdd={handleWsAdd}
+				onUpdate={handleWsUpdate}
+				onRemove={handleWsRemove}
+				onReorder={handleWsReorder}
+				listId="workspace"
+			/>
 		</SettingsSection>
 	);
 }

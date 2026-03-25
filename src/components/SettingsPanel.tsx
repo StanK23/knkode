@@ -434,6 +434,7 @@ export function SettingsPanel({
 				</div>
 
 				<WorkspaceTabPanel
+					workspaceId={workspace.id}
 					panes={workspace.panes}
 					name={state.name}
 					onNameChange={(v) => update({ name: v })}
