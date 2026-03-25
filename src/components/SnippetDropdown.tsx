@@ -7,6 +7,7 @@ import { useStore } from "../store";
 
 interface SnippetDropdownProps {
 	paneId: string;
+	workspaceId: string;
 	statusBarPosition: NonNullable<PaneTheme["statusBarPosition"]>;
 	className?: string | undefined;
 	style?: React.CSSProperties | undefined;
@@ -15,6 +16,7 @@ interface SnippetDropdownProps {
 
 export function SnippetDropdown({
 	paneId,
+	workspaceId,
 	statusBarPosition,
 	className,
 	style,
@@ -24,9 +26,14 @@ export function SnippetDropdown({
 	const ref = useRef<HTMLDivElement>(null);
 	const menuRef = useRef<HTMLDivElement>(null);
 	const [menuPos, setMenuPos] = useState<{ right: number; top: number } | null>(null);
-	const snippets = useStore((s) => s.snippets);
+	const globalSnippets = useStore((s) => s.snippets);
+	const workspace = useStore((s) => s.workspaces.find((w) => w.id === workspaceId));
 	const runSnippet = useStore((s) => s.runSnippet);
+	const runWorkspaceSnippet = useStore((s) => s.runWorkspaceSnippet);
 	const setFocusedPane = useStore((s) => s.setFocusedPane);
+
+	const wsSnippets = workspace?.snippets ?? [];
+	const hasAny = globalSnippets.length > 0 || wsSnippets.length > 0;
 
 	useClickOutside(ref, () => setOpen(false), open, menuRef);
 
@@ -79,7 +86,7 @@ export function SnippetDropdown({
 		return () => document.removeEventListener("keydown", handler);
 	}, [open]);
 
-	if (snippets.length === 0) return null;
+	if (!hasAny) return null;
 
 	return (
 		<div ref={ref}>
@@ -108,22 +115,55 @@ export function SnippetDropdown({
 							visibility: menuPos ? "visible" : "hidden",
 						}}
 					>
-						{snippets.map((snippet) => (
-							<button
-								type="button"
-								key={snippet.id}
-								role="menuitem"
-								className="ctx-item flex items-center gap-2"
-								onClick={() => {
-									runSnippet(snippet.id, paneId);
-									setOpen(false);
-									setFocusedPane(paneId);
-								}}
-							>
-								<span className="text-accent">&gt;</span>
-								<span className="truncate">{snippet.name}</span>
-							</button>
-						))}
+						{globalSnippets.length > 0 && (
+							<>
+								<div className="ctx-separator text-[10px] text-content-muted px-2 py-1" role="presentation">
+									Global
+								</div>
+								{globalSnippets.map((snippet) => (
+									<button
+										type="button"
+										key={snippet.id}
+										role="menuitem"
+										className="ctx-item flex items-center gap-2"
+										onClick={() => {
+											runSnippet(snippet.id, paneId);
+											setOpen(false);
+											setFocusedPane(paneId);
+										}}
+									>
+										<span className="text-accent">&gt;</span>
+										<span className="truncate">{snippet.name}</span>
+									</button>
+								))}
+							</>
+						)}
+						{wsSnippets.length > 0 && (
+							<>
+								{globalSnippets.length > 0 && (
+									<div className="border-t border-edge my-1" role="separator" />
+								)}
+								<div className="ctx-separator text-[10px] text-content-muted px-2 py-1" role="presentation">
+									{workspace?.name ?? "Workspace"}
+								</div>
+								{wsSnippets.map((snippet) => (
+									<button
+										type="button"
+										key={snippet.id}
+										role="menuitem"
+										className="ctx-item flex items-center gap-2"
+										onClick={() => {
+											runWorkspaceSnippet(workspaceId, snippet.id, paneId);
+											setOpen(false);
+											setFocusedPane(paneId);
+										}}
+									>
+										<span className="text-accent">&gt;</span>
+										<span className="truncate">{snippet.name}</span>
+									</button>
+								))}
+							</>
+						)}
 					</div>,
 					getPortalRoot(),
 				)}
