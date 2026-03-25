@@ -55,7 +55,10 @@ pub fn list_sessions(project_cwd: &str) -> Vec<AgentSession> {
     let agents = detect_installed_agents();
     let home = match dirs::home_dir() {
         Some(h) => h,
-        None => return Vec::new(),
+        None => {
+            eprintln!("[session_scanner] home_dir() returned None — cannot scan sessions");
+            return Vec::new();
+        }
     };
 
     let mut sessions = Vec::new();
@@ -68,6 +71,7 @@ pub fn list_sessions(project_cwd: &str) -> Vec<AgentSession> {
         }
     }
 
+    // Lexicographic sort — works because all agents emit ISO 8601 timestamps
     sessions.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
     sessions.truncate(MAX_SESSIONS);
     sessions
@@ -92,15 +96,19 @@ fn detect_installed_agents() -> Vec<AgentKind> {
 }
 
 fn is_command_available(name: &str) -> bool {
+    let augmented_path = crate::tracker::build_augmented_path();
+
     #[cfg(target_os = "windows")]
     let result = std::process::Command::new("where")
         .arg(name)
+        .env("PATH", &augmented_path)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .status();
     #[cfg(not(target_os = "windows"))]
     let result = std::process::Command::new("which")
         .arg(name)
+        .env("PATH", &augmented_path)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .status();
@@ -122,12 +130,18 @@ fn scan_claude(home: &Path, project_cwd: &str, out: &mut Vec<AgentSession>) {
 
     let entries = match std::fs::read_dir(&sessions_dir) {
         Ok(e) => e,
-        Err(_) => return,
+        Err(e) => {
+            eprintln!(
+                "[session_scanner] Failed to read Claude sessions dir {}: {e}",
+                sessions_dir.display()
+            );
+            return;
+        }
     };
 
     for entry in entries.flatten() {
         let path = entry.path();
-        if path.extension().map_or(true, |e| e != "jsonl") || !path.is_file() {
+        if path.extension().is_none_or(|e| e != "jsonl") || !path.is_file() {
             continue;
         }
         if let Some(session) = parse_claude_session(&path) {
@@ -221,8 +235,11 @@ fn extract_claude_prompt(content: &str) -> Option<String> {
     if lines.is_empty() {
         return None;
     }
-    // If first line is just a number (permission mode), skip it
-    if lines.len() > 1 && lines[0].trim().parse::<u32>().is_ok() {
+    // If first line is just a number (permission mode indicator), skip it
+    if lines.len() > 1
+        && !lines[0].trim().is_empty()
+        && lines[0].trim().bytes().all(|b| b.is_ascii_digit())
+    {
         Some(lines[1..].join(" "))
     } else {
         Some(lines.join(" "))
@@ -233,6 +250,9 @@ fn extract_claude_prompt(content: &str) -> Option<String> {
 // Gemini CLI — ~/.gemini/tmp/<project-name>/chats/session-*.json
 // ---------------------------------------------------------------------------
 
+/// Scan Gemini sessions. Note: Gemini CLI stores sessions by project directory
+/// **name** only (not the full path), so two projects with the same directory
+/// name at different paths will match each other's sessions.
 fn scan_gemini(home: &Path, project_cwd: &str, out: &mut Vec<AgentSession>) {
     let project_name = match Path::new(project_cwd).file_name().and_then(|n| n.to_str()) {
         Some(name) if !name.is_empty() => name,
@@ -251,12 +271,18 @@ fn scan_gemini(home: &Path, project_cwd: &str, out: &mut Vec<AgentSession>) {
 
     let entries = match std::fs::read_dir(&chats_dir) {
         Ok(e) => e,
-        Err(_) => return,
+        Err(e) => {
+            eprintln!(
+                "[session_scanner] Failed to read Gemini chats dir {}: {e}",
+                chats_dir.display()
+            );
+            return;
+        }
     };
 
     for entry in entries.flatten() {
         let path = entry.path();
-        if path.extension().map_or(true, |e| e != "json") || !path.is_file() {
+        if path.extension().is_none_or(|e| e != "json") || !path.is_file() {
             continue;
         }
         if let Some(session) = parse_gemini_session(&path) {
@@ -265,7 +291,21 @@ fn scan_gemini(home: &Path, project_cwd: &str, out: &mut Vec<AgentSession>) {
     }
 }
 
+/// Max file size (10 MB) for Gemini session JSON before skipping.
+const MAX_GEMINI_FILE_SIZE: u64 = 10 * 1024 * 1024;
+
 fn parse_gemini_session(path: &Path) -> Option<AgentSession> {
+    // Guard against oversized files — Gemini sessions can contain full conversations
+    if let Ok(meta) = std::fs::metadata(path) {
+        if meta.len() > MAX_GEMINI_FILE_SIZE {
+            eprintln!(
+                "[session_scanner] Skipping oversized Gemini session file ({} bytes): {}",
+                meta.len(),
+                path.display()
+            );
+            return None;
+        }
+    }
     let content = std::fs::read_to_string(path).ok()?;
     let val: serde_json::Value = serde_json::from_str(&content).ok()?;
 
@@ -317,20 +357,29 @@ fn scan_codex(home: &Path, project_cwd: &str, out: &mut Vec<AgentSession>) {
     if !sessions_dir.is_dir() {
         return;
     }
-    walk_codex_dir(&sessions_dir, project_cwd, out);
+    walk_codex_dir(&sessions_dir, project_cwd, out, 0);
 }
 
-fn walk_codex_dir(dir: &Path, project_cwd: &str, out: &mut Vec<AgentSession>) {
+fn walk_codex_dir(dir: &Path, project_cwd: &str, out: &mut Vec<AgentSession>, depth: usize) {
+    if depth > 4 {
+        return;
+    }
     let entries = match std::fs::read_dir(dir) {
         Ok(e) => e,
-        Err(_) => return,
+        Err(e) => {
+            eprintln!(
+                "[session_scanner] Failed to read Codex sessions dir {}: {e}",
+                dir.display()
+            );
+            return;
+        }
     };
 
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
-            walk_codex_dir(&path, project_cwd, out);
-        } else if path.extension().map_or(false, |e| e == "jsonl") && path.is_file() {
+            walk_codex_dir(&path, project_cwd, out, depth + 1);
+        } else if path.extension().is_some_and(|e| e == "jsonl") && path.is_file() {
             if let Some(session) = parse_codex_session(&path, project_cwd) {
                 out.push(session);
             }
@@ -364,11 +413,10 @@ fn parse_codex_session(path: &Path, project_cwd: &str) -> Option<AgentSession> {
         .and_then(|v| v.as_str())
         .map(String::from);
 
-    // Filter by CWD
-    if let Some(ref session_cwd) = cwd {
-        if session_cwd != project_cwd {
-            return None;
-        }
+    // Filter by CWD — exclude sessions with no CWD or mismatched CWD
+    match cwd {
+        Some(ref session_cwd) if session_cwd == project_cwd => {}
+        _ => return None,
     }
 
     // Try to extract first user prompt from subsequent lines

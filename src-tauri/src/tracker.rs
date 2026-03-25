@@ -705,7 +705,7 @@ fn get_pr_status(
 /// Build an augmented PATH with extra directories for tools like git/gh.
 /// Uses platform-specific separator and extra dirs. Cached for the
 /// lifetime of the polling thread.
-fn build_augmented_path() -> String {
+pub(crate) fn build_augmented_path() -> String {
     let current = std::env::var("PATH").unwrap_or_default();
     let sep = if cfg!(target_os = "windows") {
         ";"
