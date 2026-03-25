@@ -3,7 +3,7 @@
 //! Each agent stores sessions in a different format and directory structure.
 //! This module detects which agents are installed, reads session metadata
 //! (without loading full conversation content), and returns a unified list
-//! sorted by timestamp descending.
+//! sorted by last activity descending (falling back to session start time).
 
 use serde::Serialize;
 use std::path::Path;
@@ -91,33 +91,32 @@ pub fn list_sessions(project_cwd: &str) -> Vec<AgentSession> {
 // ---------------------------------------------------------------------------
 
 fn detect_installed_agents() -> Vec<AgentKind> {
+    let augmented_path = crate::tracker::build_augmented_path();
     let mut agents = Vec::new();
     for (name, kind) in [
         ("claude", AgentKind::Claude),
         ("gemini", AgentKind::Gemini),
         ("codex", AgentKind::Codex),
     ] {
-        if is_command_available(name) {
+        if is_command_available(name, &augmented_path) {
             agents.push(kind);
         }
     }
     agents
 }
 
-fn is_command_available(name: &str) -> bool {
-    let augmented_path = crate::tracker::build_augmented_path();
-
+fn is_command_available(name: &str, augmented_path: &str) -> bool {
     #[cfg(target_os = "windows")]
     let result = std::process::Command::new("where")
         .arg(name)
-        .env("PATH", &augmented_path)
+        .env("PATH", augmented_path)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .status();
     #[cfg(not(target_os = "windows"))]
     let result = std::process::Command::new("which")
         .arg(name)
-        .env("PATH", &augmented_path)
+        .env("PATH", augmented_path)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .status();
@@ -169,8 +168,8 @@ fn cwd_to_claude_dir_name(cwd: &str) -> String {
 fn parse_claude_session(path: &Path) -> Option<AgentSession> {
     use std::io::{BufRead, BufReader};
 
-    let file = std::fs::File::open(path).ok()?;
-    let reader = BufReader::new(file);
+    let mut file = std::fs::File::open(path).ok()?;
+    let reader = BufReader::new(file.try_clone().ok()?);
 
     let mut session_id: Option<String> = None;
     let mut timestamp: Option<String> = None;
@@ -228,9 +227,8 @@ fn parse_claude_session(path: &Path) -> Option<AgentSession> {
     // Fall back to filename as session ID
     let id = session_id.or_else(|| path.file_stem()?.to_str().map(String::from))?;
 
-    // Pass 2: read last TAIL_BYTES of the file for custom-title, last-prompt, last timestamp.
-    // These metadata lines are appended at end of session, so a reverse scan is efficient.
-    let (title, last_updated) = extract_claude_tail_metadata(path);
+    // Pass 2: read last TAIL_BYTES of the file for custom-title and last timestamp.
+    let (title, last_updated) = extract_claude_tail_metadata(&mut file);
 
     Some(AgentSession {
         id,
@@ -248,14 +246,14 @@ fn parse_claude_session(path: &Path) -> Option<AgentSession> {
 const CLAUDE_TAIL_BYTES: u64 = 8 * 1024;
 
 /// Extract custom-title and last timestamp from the tail of a Claude session file.
-fn extract_claude_tail_metadata(path: &Path) -> (Option<String>, Option<String>) {
+/// Accepts an already-opened file handle to avoid a second `open()` syscall.
+fn extract_claude_tail_metadata(file: &mut std::fs::File) -> (Option<String>, Option<String>) {
     use std::io::{Read, Seek, SeekFrom};
 
-    let mut file = match std::fs::File::open(path) {
-        Ok(f) => f,
-        Err(_) => return (None, None),
-    };
     let file_len = file.metadata().map(|m| m.len()).unwrap_or(0);
+    if file_len == 0 {
+        return (None, None);
+    }
 
     // Seek to near the end (or start if file is small)
     let seek_pos = file_len.saturating_sub(CLAUDE_TAIL_BYTES);
@@ -263,10 +261,12 @@ fn extract_claude_tail_metadata(path: &Path) -> (Option<String>, Option<String>)
         return (None, None);
     }
 
-    let mut buf = String::new();
-    if file.read_to_string(&mut buf).is_err() {
+    // Read into bytes and use lossy conversion to handle mid-multibyte seek boundaries
+    let mut raw = Vec::new();
+    if file.read_to_end(&mut raw).is_err() {
         return (None, None);
     }
+    let buf = String::from_utf8_lossy(&raw);
 
     let mut title: Option<String> = None;
     let mut last_timestamp: Option<String> = None;
@@ -279,7 +279,6 @@ fn extract_claude_tail_metadata(path: &Path) -> (Option<String>, Option<String>)
         };
         let msg_type = val.get("type").and_then(|t| t.as_str());
 
-        // custom-title is set by /rename — last one wins
         if msg_type == Some("custom-title") && title.is_none() {
             title = val
                 .get("customTitle")
@@ -381,18 +380,20 @@ fn scan_gemini(home: &Path, project_cwd: &str, out: &mut Vec<AgentSession>) {
 const MAX_GEMINI_FILE_SIZE: u64 = 10 * 1024 * 1024;
 
 fn parse_gemini_session(path: &Path) -> Option<AgentSession> {
-    // Guard against oversized files — Gemini sessions can contain full conversations
-    if let Ok(meta) = std::fs::metadata(path) {
-        if meta.len() > MAX_GEMINI_FILE_SIZE {
-            eprintln!(
-                "[session_scanner] Skipping oversized Gemini session file ({} bytes): {}",
-                meta.len(),
-                path.display()
-            );
-            return None;
-        }
+    use std::io::Read;
+
+    // Open once and check metadata from the handle to avoid TOCTOU
+    let mut file = std::fs::File::open(path).ok()?;
+    let file_len = file.metadata().map(|m| m.len()).unwrap_or(0);
+    if file_len > MAX_GEMINI_FILE_SIZE {
+        eprintln!(
+            "[session_scanner] Skipping oversized Gemini session file ({file_len} bytes): {}",
+            path.display()
+        );
+        return None;
     }
-    let content = std::fs::read_to_string(path).ok()?;
+    let mut content = String::with_capacity(file_len as usize);
+    file.read_to_string(&mut content).ok()?;
     let val: serde_json::Value = serde_json::from_str(&content).ok()?;
 
     let id = val.get("sessionId").and_then(|v| v.as_str())?.to_string();
@@ -476,7 +477,22 @@ fn scan_codex_sqlite(home: &Path, project_cwd: &str, out: &mut Vec<AgentSession>
     }
 
     // Shell out to sqlite3 — ships on macOS/Linux, avoids rusqlite dependency.
-    // Output format: id|title|cwd|git_branch|created_at|updated_at|first_user_message
+    // Security: reject CWD values with control characters (prevents newline-based
+    // dot-command injection in the sqlite3 CLI). CWD comes from the app's own
+    // workspace config, not user input, but defense-in-depth is warranted.
+    if project_cwd
+        .bytes()
+        .any(|b| b < 0x20 || b == 0x7F || b == b'\\')
+    {
+        eprintln!(
+            "[session_scanner] Rejecting Codex CWD with control/backslash chars: {project_cwd:?}"
+        );
+        return false;
+    }
+
+    // Output format: tab-separated columns — id, title, cwd, git_branch, created_at,
+    // updated_at, first_user_message. Using splitn(7) so the last field captures any
+    // embedded tabs in first_user_message.
     let result = std::process::Command::new("sqlite3")
         .arg("-separator")
         .arg("\t")
@@ -485,7 +501,6 @@ fn scan_codex_sqlite(home: &Path, project_cwd: &str, out: &mut Vec<AgentSession>
             "SELECT id, title, cwd, git_branch, created_at, updated_at, first_user_message \
              FROM threads WHERE cwd = '{}' AND archived = 0 \
              ORDER BY updated_at DESC LIMIT {};",
-            // Simple quote escaping for the CWD value
             project_cwd.replace('\'', "''"),
             MAX_SESSIONS,
         ))
@@ -510,17 +525,14 @@ fn scan_codex_sqlite(home: &Path, project_cwd: &str, out: &mut Vec<AgentSession>
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     for line in stdout.lines() {
-        let cols: Vec<&str> = line.split('\t').collect();
+        // splitn(7) so the last field captures any embedded tabs in first_user_message
+        let cols: Vec<&str> = line.splitn(7, '\t').collect();
         if cols.len() < 7 {
             continue;
         }
         let id = cols[0].to_string();
         let title_raw = cols[1];
-        let git_branch = if cols[3].is_empty() {
-            None
-        } else {
-            Some(cols[3].to_string())
-        };
+        let git_branch = non_empty_str(cols[3]);
         let created_at = cols[4].parse::<i64>().unwrap_or(0);
         let updated_at = cols[5].parse::<i64>().unwrap_or(0);
         let first_user_msg = cols[6];
@@ -533,17 +545,9 @@ fn scan_codex_sqlite(home: &Path, project_cwd: &str, out: &mut Vec<AgentSession>
             None
         };
 
-        // Title: use thread title if it differs from first_user_message (i.e. was renamed)
-        let title = if !title_raw.is_empty() {
-            Some(truncate_summary(title_raw))
-        } else {
-            None
-        };
-        let summary = if !first_user_msg.is_empty() {
-            Some(truncate_summary(first_user_msg))
-        } else {
-            None
-        };
+        // Title: use thread title if present
+        let title = non_empty_summary(title_raw);
+        let summary = non_empty_summary(first_user_msg);
 
         out.push(AgentSession {
             id,
@@ -685,36 +689,42 @@ fn truncate_summary(s: &str) -> String {
     }
 }
 
-/// Convert a Unix timestamp (seconds) to an ISO 8601 string.
-fn unix_to_iso(secs: i64) -> String {
-    // Manual conversion — avoids chrono dependency.
-    // Codex stores seconds since epoch; we produce a UTC ISO 8601 string.
-    let d = std::time::UNIX_EPOCH + std::time::Duration::from_secs(secs as u64);
-    let dt: std::time::SystemTime = d;
-    // Format via the humantime crate pattern (already used transitively) or manual
-    // We'll use a simple approach: convert to RFC 3339 manually
-    match dt.duration_since(std::time::UNIX_EPOCH) {
-        Ok(dur) => {
-            let total_secs = dur.as_secs();
-            let days = total_secs / 86400;
-            let time_secs = total_secs % 86400;
-            let hours = time_secs / 3600;
-            let mins = (time_secs % 3600) / 60;
-            let secs = time_secs % 60;
-
-            // Days since Unix epoch to Y-M-D (civil calendar)
-            let (y, m, d) = days_to_ymd(days as i64);
-            format!("{y:04}-{m:02}-{d:02}T{hours:02}:{mins:02}:{secs:02}Z")
-        }
-        Err(_) => String::new(),
+/// Return `Some(truncated)` if the string is non-empty, else `None`.
+fn non_empty_summary(s: &str) -> Option<String> {
+    if s.is_empty() {
+        None
+    } else {
+        Some(truncate_summary(s))
     }
+}
+
+/// Return `Some(s.to_string())` if the string is non-empty, else `None`.
+fn non_empty_str(s: &str) -> Option<String> {
+    if s.is_empty() {
+        None
+    } else {
+        Some(s.to_string())
+    }
+}
+
+/// Convert a Unix timestamp (seconds) to an ISO 8601 string.
+/// Returns `"1970-01-01T00:00:00Z"` for negative or zero values.
+fn unix_to_iso(secs: i64) -> String {
+    let total_secs = secs.max(0) as u64;
+    let days = total_secs / 86400;
+    let time_secs = total_secs % 86400;
+    let hours = time_secs / 3600;
+    let mins = (time_secs % 3600) / 60;
+    let s = time_secs % 60;
+    let (y, m, d) = days_to_ymd(days as i64);
+    format!("{y:04}-{m:02}-{d:02}T{hours:02}:{mins:02}:{s:02}Z")
 }
 
 /// Convert days since Unix epoch (1970-01-01) to (year, month, day).
 fn days_to_ymd(days: i64) -> (i64, u32, u32) {
     // Algorithm from http://howardhinnant.github.io/date_algorithms.html
     let z = days + 719468;
-    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+    let era = (if z >= 0 { z } else { z - 146096 }) / 146097;
     let doe = (z - era * 146097) as u32;
     let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
     let y = yoe as i64 + era * 400;
