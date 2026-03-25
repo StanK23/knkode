@@ -172,6 +172,7 @@ export function createWorkspacePaneSlice(
 				theme: defaultTheme(),
 				...makeSingleSubgroup(layout),
 				panes,
+				snippets: [],
 			};
 			await window.api.saveWorkspace(workspace);
 
@@ -253,6 +254,7 @@ export function createWorkspacePaneSlice(
 				subgroups: newSubgroups,
 				activeSubgroupId: newActiveSubgroupId,
 				panes: newPanes,
+				snippets: source.snippets,
 			};
 			await window.api.saveWorkspace(workspace);
 			const newAppState = {

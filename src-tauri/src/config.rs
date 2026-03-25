@@ -301,6 +301,38 @@ fn default_theme() -> Value {
     })
 }
 
+/// Ensure workspace has a valid `snippets` array. Backfills missing field,
+/// validates existing entries (dropping invalid ones with a warning), and
+/// resets non-array values to `[]`.
+fn backfill_snippets(mut ws: Value) -> Value {
+    if let Some(obj) = ws.as_object_mut() {
+        if !obj.contains_key("snippets") {
+            obj.insert("snippets".to_string(), json!([]));
+        } else if let Some(arr) = obj.get("snippets").and_then(|v| v.as_array()) {
+            // Validate existing snippets — drop invalid entries
+            let valid: Vec<Value> = arr
+                .iter()
+                .filter(|s| is_valid_snippet(s))
+                .cloned()
+                .collect();
+            let dropped = arr.len() - valid.len();
+            if dropped > 0 {
+                eprintln!(
+                    "[config-store] Filtered {dropped} invalid workspace snippet(s) during migration"
+                );
+                obj.insert("snippets".to_string(), Value::Array(valid));
+            }
+        } else {
+            // snippets field exists but isn't an array — reset to empty
+            eprintln!(
+                "[config-store] Workspace snippets field is not an array — resetting to empty"
+            );
+            obj.insert("snippets".to_string(), json!([]));
+        }
+    }
+    ws
+}
+
 /// Apply migrations and sanitization to a workspace loaded from disk.
 fn migrate_workspace(ws: Value) -> Value {
     let ws = migrate_theme(ws);
@@ -314,7 +346,7 @@ fn migrate_workspace(ws: Value) -> Value {
         }
     }
 
-    ws
+    backfill_snippets(ws)
 }
 
 /// Validate a snippet: must have non-empty string id, name, command.

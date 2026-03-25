@@ -127,6 +127,15 @@ interface StoreState {
 	/** Move the snippet at fromIndex to toIndex (splice-remove then insert). */
 	reorderSnippets: (fromIndex: number, toIndex: number) => void;
 	runSnippet: (snippetId: string, paneId: string) => void;
+	addWorkspaceSnippet: (wsId: string, name: string, command: string) => void;
+	updateWorkspaceSnippet: (
+		wsId: string,
+		id: string,
+		updates: Pick<Snippet, "name" | "command">,
+	) => void;
+	removeWorkspaceSnippet: (wsId: string, id: string) => void;
+	reorderWorkspaceSnippets: (wsId: string, fromIndex: number, toIndex: number) => void;
+	runWorkspaceSnippet: (wsId: string, snippetId: string, paneId: string) => void;
 }
 
 export const useStore = create<StoreState>((set, get) => ({
@@ -306,6 +315,8 @@ export const useStore = create<StoreState>((set, get) => ({
 				// acceptable for migration of arbitrary persisted data.
 				...makeSingleSubgroup(ws.layout as Workspace["subgroups"][0]["layout"]),
 					panes: ws.panes,
+					// Rust backfill_snippets guarantees this field; fallback is a safety net
+				snippets: ws.snippets ?? [],
 				};
 				migrationPromises.push(
 					window.api.saveWorkspace(migrated).catch((err) => {
@@ -337,6 +348,7 @@ export const useStore = create<StoreState>((set, get) => ({
 					theme: defaultTheme(),
 					...makeSingleSubgroup(layout),
 					panes,
+					snippets: [],
 				};
 				workspaces = [...workspaces, defaultWorkspace];
 				appState = {
