@@ -55,8 +55,12 @@ pub struct AgentSession {
 }
 
 /// List agent sessions matching `project_cwd`, sorted by last activity descending.
+///
+/// Scans all known agent session directories unconditionally — each `scan_*`
+/// function returns early if its directory doesn't exist.  Previous versions
+/// gated scanning on `which <agent>`, which silently returned zero results in
+/// production builds where the inherited PATH lacks nvm / Homebrew paths.
 pub fn list_sessions(project_cwd: &str) -> Vec<AgentSession> {
-    let agents = detect_installed_agents();
     let home = match dirs::home_dir() {
         Some(h) => h,
         None => {
@@ -67,13 +71,9 @@ pub fn list_sessions(project_cwd: &str) -> Vec<AgentSession> {
 
     let mut sessions = Vec::new();
 
-    for agent in agents {
-        match agent {
-            AgentKind::Claude => scan_claude(&home, project_cwd, &mut sessions),
-            AgentKind::Gemini => scan_gemini(&home, project_cwd, &mut sessions),
-            AgentKind::Codex => scan_codex(&home, project_cwd, &mut sessions),
-        }
-    }
+    scan_claude(&home, project_cwd, &mut sessions);
+    scan_gemini(&home, project_cwd, &mut sessions);
+    scan_codex(&home, project_cwd, &mut sessions);
 
     // Sort by last activity (fall back to session start if no last_updated).
     // Lexicographic compare works because all values are ISO 8601.
@@ -84,44 +84,6 @@ pub fn list_sessions(project_cwd: &str) -> Vec<AgentSession> {
     });
     sessions.truncate(MAX_SESSIONS);
     sessions
-}
-
-// ---------------------------------------------------------------------------
-// Agent detection
-// ---------------------------------------------------------------------------
-
-fn detect_installed_agents() -> Vec<AgentKind> {
-    let augmented_path = crate::tracker::build_augmented_path();
-    let mut agents = Vec::new();
-    for (name, kind) in [
-        ("claude", AgentKind::Claude),
-        ("gemini", AgentKind::Gemini),
-        ("codex", AgentKind::Codex),
-    ] {
-        if is_command_available(name, &augmented_path) {
-            agents.push(kind);
-        }
-    }
-    agents
-}
-
-fn is_command_available(name: &str, augmented_path: &str) -> bool {
-    #[cfg(target_os = "windows")]
-    let result = std::process::Command::new("where")
-        .arg(name)
-        .env("PATH", augmented_path)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status();
-    #[cfg(not(target_os = "windows"))]
-    let result = std::process::Command::new("which")
-        .arg(name)
-        .env("PATH", augmented_path)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status();
-
-    result.map(|s| s.success()).unwrap_or(false)
 }
 
 // ---------------------------------------------------------------------------
