@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-shell";
 import type {
+	AgentSession,
 	AppState,
 	GridSnapshot,
 	KnkodeApi,
@@ -65,6 +66,10 @@ const _api: KnkodeApi = {
 	saveAppState: (state) => invoke("save_app_state", { state }),
 	getSnippets: () => invoke<Snippet[]>("get_snippets"),
 	saveSnippets: (snippets) => invoke("save_snippets", { snippets }),
+
+	// Session history
+	listAgentSessions: (projectCwd) =>
+		invoke<AgentSession[]>("list_agent_sessions", { projectCwd }),
 
 	// PTY
 	trackPaneGit: (id, cwd) => invoke("track_pane_git", { id, cwd }),
