@@ -65,7 +65,7 @@ export interface VariantConfig {
 		};
 		snippet: { label: string };
 		sessionHistory: { label: string };
-		/** Wrap action buttons (excluding snippet trigger) in a hover-reveal container. */
+		/** Wrap action buttons (excluding snippet and session history triggers) in a hover-reveal container. */
 		hoverRevealActions?: { className: string };
 	};
 	/** Activity animation on the status bar border when agent is active.
