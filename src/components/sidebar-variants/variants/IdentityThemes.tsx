@@ -751,7 +751,7 @@ export function MatrixGitInfo({ branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!branch && !pr) return null;
 	return (
 		<div className="mt-0.5 mb-1.5 bg-[#010401]/90 px-3 py-1">
-			<div className="flex items-center gap-2">
+			<div className="flex items-center justify-between gap-2">
 				{branch && (
 					<span className="text-[9px] text-[#00ff41] font-mono uppercase italic opacity-80 truncate min-w-0">
 						&gt; {branch}
@@ -776,7 +776,7 @@ export function CyberpunkGitInfo({ branch, pr }: BaseWorkspaceGitInfoProps) {
 				clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%)",
 			}}
 		>
-			<div className="flex items-center gap-2">
+			<div className="flex items-center justify-between gap-2">
 				{branch && (
 					<span className="text-[9px] text-[#05d9e8] font-bold font-mono uppercase italic opacity-80 truncate min-w-0">
 						// {branch}
@@ -796,7 +796,7 @@ export function SolanaGitInfo({ branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!branch && !pr) return null;
 	return (
 		<div className="mt-0.5 mb-1.5 bg-[#06060f]/80 px-5 py-2">
-			<div className="flex items-center gap-2">
+			<div className="flex items-center justify-between gap-2">
 				{branch && (
 					<div className="flex items-center gap-1 min-w-0">
 						<svg
@@ -828,7 +828,7 @@ export function AmberGitInfo({ branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!branch && !pr) return null;
 	return (
 		<div className="mt-0.5 mb-1.5 bg-[#060400]/80 px-3 py-1">
-			<div className="flex items-center gap-2">
+			<div className="flex items-center justify-between gap-2">
 				{branch && (
 					<span className="text-[9px] text-[#ffb000] font-mono font-bold uppercase italic opacity-80 truncate min-w-0">
 						[{branch}]
@@ -848,7 +848,7 @@ export function VaporwaveGitInfo({ branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!branch && !pr) return null;
 	return (
 		<div className="mt-0.5 mb-1.5 bg-[#06000d]/80 px-4 py-1.5">
-			<div className="flex items-center gap-2">
+			<div className="flex items-center justify-between gap-2">
 				{branch && (
 					<div className="flex items-center gap-1 min-w-0">
 						<svg
@@ -878,7 +878,7 @@ export function OceanGitInfo({ branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!branch && !pr) return null;
 	return (
 		<div className="mt-0.5 mb-1.5 bg-[#010509]/80 px-4 py-2">
-			<div className="flex items-center gap-2">
+			<div className="flex items-center justify-between gap-2">
 				{branch && (
 					<div className="flex items-center gap-1 min-w-0">
 						<svg
@@ -908,7 +908,7 @@ export function SunsetGitInfo({ branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!branch && !pr) return null;
 	return (
 		<div className="mt-0.5 mb-1.5 bg-[#0a0404]/80 px-4 py-1.5">
-			<div className="flex items-center gap-2">
+			<div className="flex items-center justify-between gap-2">
 				{branch && (
 					<div className="flex items-center gap-1 min-w-0">
 						<svg
@@ -934,7 +934,7 @@ export function ArcticGitInfo({ branch, pr }: BaseWorkspaceGitInfoProps) {
 	if (!branch && !pr) return null;
 	return (
 		<div className="mt-0.5 mb-1.5 bg-[#020810]/70 backdrop-blur-sm px-4 py-2">
-			<div className="flex items-center gap-2">
+			<div className="flex items-center justify-between gap-2">
 				{branch && (
 					<div className="flex items-center gap-1 min-w-0">
 						<svg
