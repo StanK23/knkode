@@ -21,13 +21,13 @@ Each theme has its own visual effects — scanlines, phosphor glow, noise textur
 
 ## Download
 
-**[Latest release (v2.0.3)](https://github.com/knkenko/knkode/releases/latest)**
+**[Latest release (v2.1.0)](https://github.com/knkenko/knkode/releases/latest)**
 
 | Platform | File |
 |---|---|
-| macOS (Apple Silicon + Intel) | [knkode_2.0.3_universal.dmg](https://github.com/knkenko/knkode/releases/download/v2.0.3/knkode_2.0.3_universal.dmg) |
-| Windows (installer) | [knkode_2.0.3_x64-setup.exe](https://github.com/knkenko/knkode/releases/download/v2.0.3/knkode_2.0.3_x64-setup.exe) |
-| Windows (MSI) | [knkode_2.0.3_x64_en-US.msi](https://github.com/knkenko/knkode/releases/download/v2.0.3/knkode_2.0.3_x64_en-US.msi) |
+| macOS (Apple Silicon + Intel) | [knkode_2.1.0_universal.dmg](https://github.com/knkenko/knkode/releases/download/v2.1.0/knkode_2.1.0_universal.dmg) |
+| Windows (installer) | [knkode_2.1.0_x64-setup.exe](https://github.com/knkenko/knkode/releases/download/v2.1.0/knkode_2.1.0_x64-setup.exe) |
+| Windows (MSI) | [knkode_2.1.0_x64_en-US.msi](https://github.com/knkenko/knkode/releases/download/v2.1.0/knkode_2.1.0_x64_en-US.msi) |
 
 ## Why
 
@@ -37,11 +37,11 @@ Every project needs a different terminal setup — build watcher, dev server, lo
 
 **Workspaces as tabs.** Each workspace is a color-coded tab with its own split-pane layout. Create, duplicate, close, drag to reorder, or reopen from the closed-workspaces menu. Switching is instant — background shells stay alive.
 
-**Split panes.** Six layout presets plus split any pane on the fly. Drag pane headers to rearrange — drop on center to swap, drop on an edge to insert. Move panes across workspaces via right-click.
+**Split panes and subgroups.** Six layout presets plus split any pane on the fly. Drag pane headers to rearrange — drop on center to swap, drop on an edge to insert. Move panes across workspaces via right-click. Within a workspace, group panes into subgroups — independent split layouts switchable from the sidebar (like tmux windows within a session). Bracket connectors in the sidebar show which panes belong to which group.
 
-**16 themes.** 8 identity themes with unique visual effects (Matrix, Cyberpunk, Vaporwave, Amber, Solana, Ocean, Sunset, Arctic) and 8 classics (Dracula, Tokyo Night, Nord, Catppuccin, Gruvbox, Monokai, Everforest, Default Dark). Each has custom pane chrome — parallelogram badges, CRT scanlines, gradient borders, retro grids. Applied per-workspace, with per-pane color overrides.
+**16 themes.** 8 identity themes with unique visual effects (Matrix, Cyberpunk, Vaporwave, Amber, Solana, Ocean, Sunset, Arctic) and 8 classics (Dracula, Tokyo Night, Nord, Catppuccin, Gruvbox, Monokai, Everforest, Default Dark). Each has custom pane chrome — parallelogram badges, CRT scanlines, gradient borders, retro grids — and themed animated separators between subgroup brackets. Applied per-workspace, with per-pane color overrides.
 
-**Sidebar.** Tree-style mission control — workspaces, pane entries with CWD paths, git branch badges, and PR status. Activity indicators pulse when a pane has output (animated border separators with theme-specific styles: scan, wave, ember, shimmer).
+**Sidebar.** Tree-style mission control — workspaces with CWD path, git branch badge, and PR status at the workspace level. Pane entries show terminal titles and activity indicators that pulse on output. Subgroup brackets with themed animated separators (scan, wave, ember, shimmer).
 
 **Terminal.** Rust-native terminal emulation via wezterm-term, rendered on a custom HTML canvas. Clickable URLs (Cmd+click), inline images (iTerm2/Kitty/Sixel protocols), CWD tracking in pane headers, file drag-and-drop to paste paths. `Shift+Enter` sends LF instead of CR for tools like Claude Code.
 
@@ -69,7 +69,7 @@ bun run build        # compile frontend
 bun tauri build      # full app build (.dmg / .exe)
 ```
 
-Stack: Tauri 2, Rust (wezterm-term + portable-pty), React 19, TypeScript, Zustand 5, Tailwind CSS 4, Vite 6, Biome.
+Stack: Tauri 2, Rust (tattoy-wezterm-term + portable-pty), React 19, TypeScript, Zustand 5, Tailwind CSS 4, Vite 6, Biome.
 
 ## License
 
