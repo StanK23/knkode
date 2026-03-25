@@ -43,6 +43,7 @@ createAndRegisterVariant("Arctic", {
 			style: (theme, _isFocused) => ({ color: theme.accent }),
 		},
 		snippet: { label: ">_" },
+		sessionHistory: { label: "⏱" },
 	},
 	scrollButton: {
 		className:

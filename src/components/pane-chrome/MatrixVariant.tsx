@@ -18,6 +18,7 @@ function Frame({
 	isEditing,
 	editInputProps,
 	SnippetTrigger,
+	SessionHistoryTrigger,
 	shortcuts,
 	children,
 	headerProps,
@@ -101,6 +102,12 @@ function Frame({
 			>
 				[CMD]
 			</SnippetTrigger>
+			<SessionHistoryTrigger
+				className={`bg-transparent border-none cursor-pointer px-0.5 leading-none opacity-60 hover:opacity-100 ${FOCUS_VIS}`}
+				style={{ color: fg }}
+			>
+				[HST]
+			</SessionHistoryTrigger>
 
 			<button
 				type="button"
