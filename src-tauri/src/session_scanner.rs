@@ -6,8 +6,7 @@
 //! sorted by timestamp descending.
 
 use serde::Serialize;
-use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
+use std::path::Path;
 
 /// Maximum number of sessions returned by [`list_sessions`].
 const MAX_SESSIONS: usize = 50;
@@ -51,11 +50,9 @@ pub struct AgentSession {
     pub cwd: Option<String>,
 }
 
-static INSTALLED_AGENTS: OnceLock<Vec<AgentKind>> = OnceLock::new();
-
 /// List agent sessions matching `project_cwd`, sorted by timestamp descending.
 pub fn list_sessions(project_cwd: &str) -> Vec<AgentSession> {
-    let agents = INSTALLED_AGENTS.get_or_init(detect_installed_agents);
+    let agents = detect_installed_agents();
     let home = match dirs::home_dir() {
         Some(h) => h,
         None => return Vec::new(),
@@ -435,10 +432,4 @@ fn truncate_summary(s: &str) -> String {
         end -= 1;
     }
     format!("{}…", &trimmed[..end])
-}
-
-/// Resolve a home directory for the given path, or the platform home dir.
-#[allow(dead_code)]
-fn home_dir() -> Option<PathBuf> {
-    dirs::home_dir()
 }
