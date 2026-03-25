@@ -27,7 +27,6 @@ export interface SessionHistoryState {
 
 export function createSessionHistorySlice(
 	set: (partial: Partial<SessionHistoryState>) => void,
-	get: () => SessionHistoryState,
 ) {
 	return {
 		agentSessions: [] as AgentSession[],
