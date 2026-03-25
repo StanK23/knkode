@@ -69,9 +69,7 @@ function SessionRow({
 					</button>
 				</div>
 			</div>
-			{session.summary && (
-				<p className="text-xs text-content truncate">{session.summary}</p>
-			)}
+			{session.summary && <p className="text-xs text-content truncate">{session.summary}</p>}
 			<div className="flex items-center gap-3 text-[10px] text-content-muted">
 				<span className="font-mono">{truncateId(session.id)}</span>
 				{session.branch && (
@@ -117,7 +115,7 @@ export function SessionHistoryModal() {
 	if (!paneId) return null;
 
 	return createPortal(
-		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape key handled via document listener above
+		// biome-ignore lint/a11y/noStaticElementInteractions: Escape key handled via document listener above
 		<div
 			role="presentation"
 			className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60"
@@ -198,9 +196,7 @@ function FilterTab({
 		<button
 			type="button"
 			className={`text-[11px] px-2.5 py-1 rounded cursor-pointer transition-colors ${FOCUS_RING} ${
-				active
-					? "bg-accent text-canvas"
-					: "bg-overlay text-content-muted hover:text-content"
+				active ? "bg-accent text-canvas" : "bg-overlay text-content-muted hover:text-content"
 			}`}
 			onClick={onClick}
 		>

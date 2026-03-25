@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { HotkeyPanel } from "./components/HotkeyPanel";
 import { PaneArea } from "./components/PaneArea";
-import { SettingsPanel } from "./components/SettingsPanel";
 import { SessionHistoryModal } from "./components/SessionHistoryModal";
+import { SettingsPanel } from "./components/SettingsPanel";
 import { Sidebar } from "./components/Sidebar";
 import { findPreset } from "./data/theme-presets";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
@@ -121,7 +121,14 @@ export function App() {
 			}),
 		];
 		return () => unsubs.forEach((fn) => fn());
-	}, [updatePaneCwd, updatePaneBranch, updatePanePr, updatePaneAgentStatus, updatePaneTitle, handlePtyExit]);
+	}, [
+		updatePaneCwd,
+		updatePaneBranch,
+		updatePanePr,
+		updatePaneAgentStatus,
+		updatePaneTitle,
+		handlePtyExit,
+	]);
 
 	// Must be above early returns to satisfy React's rules of hooks.
 	// Returns { vars, failed } so we can show a fallback indicator on failure.
