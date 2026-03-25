@@ -205,7 +205,7 @@ fn parse_claude_session(path: &Path) -> Option<AgentSession> {
                 .map(String::from));
         }
 
-        // First user message has session metadata
+        // First user message has session metadata + the user's prompt
         if msg_type == Some("user") {
             session_id = session_id.or(val
                 .get("sessionId")
@@ -220,6 +220,13 @@ fn parse_claude_session(path: &Path) -> Option<AgentSession> {
                 .and_then(|v| v.as_str())
                 .map(String::from));
             cwd = cwd.or(val.get("cwd").and_then(|v| v.as_str()).map(String::from));
+
+            // Extract prompt from message.content (string or [{type:"text",text:"..."}])
+            if summary.is_none() {
+                if let Some(msg) = val.get("message") {
+                    summary = extract_message_content(msg);
+                }
+            }
             break;
         }
     }
@@ -318,6 +325,34 @@ fn extract_claude_prompt(content: &str) -> Option<String> {
     } else {
         Some(lines.join(" "))
     }
+}
+
+/// Extract the user prompt from a Claude `message` object.
+/// `message.content` can be a plain string or an array of `{type:"text", text:"..."}`.
+fn extract_message_content(message: &serde_json::Value) -> Option<String> {
+    let content = message.get("content")?;
+    // String content (most common)
+    if let Some(s) = content.as_str() {
+        let trimmed = s.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+        return Some(trimmed.to_string());
+    }
+    // Array content — find first text block
+    if let Some(arr) = content.as_array() {
+        for item in arr {
+            if item.get("type").and_then(|t| t.as_str()) == Some("text") {
+                if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
+                    let trimmed = text.trim();
+                    if !trimmed.is_empty() {
+                        return Some(trimmed.to_string());
+                    }
+                }
+            }
+        }
+    }
+    None
 }
 
 // ---------------------------------------------------------------------------
