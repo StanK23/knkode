@@ -1,5 +1,6 @@
 use crate::config::ConfigStore;
 use crate::pty::PtyManager;
+use crate::session_scanner;
 use crate::terminal::{AnsiThemeColors, GridSnapshot, SelectionRange, TerminalState};
 use crate::tracker::CwdTracker;
 use serde_json::Value;
@@ -179,4 +180,20 @@ pub fn get_selection_text(
     terminal_state: State<'_, Arc<TerminalState>>,
 ) -> Result<String, String> {
     terminal_state.extract_text(&id, &range)
+}
+
+// --- Session history ---
+
+#[tauri::command]
+pub fn list_agent_sessions(
+    project_cwd: String,
+) -> Result<Vec<session_scanner::AgentSession>, String> {
+    if project_cwd.contains('\0') {
+        return Err("project_cwd must not contain null bytes".to_string());
+    }
+    let p = std::path::Path::new(&project_cwd);
+    if !p.is_absolute() {
+        return Err("project_cwd must be an absolute path".to_string());
+    }
+    Ok(session_scanner::list_sessions(&project_cwd))
 }

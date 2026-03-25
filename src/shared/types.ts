@@ -263,6 +263,25 @@ export interface Snippet {
 	readonly command: string;
 }
 
+// --- Agent session history ---
+
+export const AGENT_KINDS = ["claude", "gemini", "codex"] as const;
+export type AgentKind = (typeof AGENT_KINDS)[number];
+
+/** Metadata for a previous coding agent session. */
+export interface AgentSession {
+	readonly id: string;
+	readonly agent: AgentKind;
+	/** ISO 8601 timestamp of session start. */
+	readonly timestamp: string;
+	/** First user prompt or session name (truncated). */
+	readonly summary: string | null;
+	/** Git branch active when the session started. */
+	readonly branch: string | null;
+	/** Working directory of the session. */
+	readonly cwd: string | null;
+}
+
 /** PR info for a pane's current branch. */
 export interface PrInfo {
 	readonly number: number;
@@ -384,6 +403,9 @@ export interface KnkodeApi {
 	saveAppState(state: AppState): Promise<void>;
 	getSnippets(): Promise<Snippet[]>;
 	saveSnippets(snippets: Snippet[]): Promise<void>;
+
+	// Session history
+	listAgentSessions(projectCwd: string): Promise<AgentSession[]>;
 
 	// PTY
 	trackPaneGit(id: string, cwd: string): Promise<void>;
