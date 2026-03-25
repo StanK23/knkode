@@ -188,23 +188,24 @@ export function SettingsPanel({
 		[],
 	);
 
-	const effects = useMemo(() => {
-		const rec = {} as Record<EffectCategory, EffectLevel>;
-		for (const [cat, key] of Object.entries(EFFECT_STATE_KEY) as [
-			EffectCategory,
-			EffectStateField,
-		][]) {
-			rec[cat] = state[key];
-		}
-		return rec;
-	}, [
-		state.dimLevel,
-		state.opacityLevel,
-		state.gradientLevel,
-		state.glowLevel,
-		state.scanlineLevel,
-		state.noiseLevel,
-	]);
+	const effects = useMemo(
+		(): Record<EffectCategory, EffectLevel> => ({
+			dim: state.dimLevel,
+			opacity: state.opacityLevel,
+			gradient: state.gradientLevel,
+			glow: state.glowLevel,
+			scanline: state.scanlineLevel,
+			noise: state.noiseLevel,
+		}),
+		[
+			state.dimLevel,
+			state.opacityLevel,
+			state.gradientLevel,
+			state.glowLevel,
+			state.scanlineLevel,
+			state.noiseLevel,
+		],
+	);
 
 	const handleEffectChange = useCallback((category: EffectCategory, level: EffectLevel) => {
 		dispatch({ type: "SET_EFFECT", category, level });
