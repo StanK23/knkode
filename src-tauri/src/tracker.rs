@@ -517,7 +517,7 @@ fn clear_pr_if_present(
 }
 
 /// Truncate a string at a char boundary, returning at most `max_len` bytes.
-fn truncate_str(s: &str, max_len: usize) -> &str {
+pub(crate) fn truncate_str(s: &str, max_len: usize) -> &str {
     if s.len() <= max_len {
         return s;
     }
@@ -707,7 +707,11 @@ fn get_pr_status(
 /// lifetime of the polling thread.
 fn build_augmented_path() -> String {
     let current = std::env::var("PATH").unwrap_or_default();
-    let sep = if cfg!(target_os = "windows") { ";" } else { ":" };
+    let sep = if cfg!(target_os = "windows") {
+        ";"
+    } else {
+        ":"
+    };
 
     let segments: HashSet<&str> = current.split(sep).collect();
     let missing: Vec<&str> = EXTRA_PATH_DIRS

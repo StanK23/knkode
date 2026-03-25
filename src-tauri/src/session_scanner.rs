@@ -18,7 +18,7 @@ const MAX_SUMMARY_LEN: usize = 120;
 const MAX_LINES_TO_READ: usize = 15;
 
 #[derive(Serialize, Clone, Debug, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "lowercase")]
 pub enum AgentKind {
     Claude,
     Gemini,
@@ -139,7 +139,8 @@ fn scan_claude(home: &Path, project_cwd: &str, out: &mut Vec<AgentSession>) {
 /// Convert an absolute CWD path to Claude's project directory name format.
 /// `/Users/sfory/dev/knkode` → `-Users-sfory-dev-knkode`
 fn cwd_to_claude_dir_name(cwd: &str) -> String {
-    cwd.replace('/', "-")
+    cwd.replace(std::path::MAIN_SEPARATOR, "-")
+        .replace('/', "-") // Normalize forward slashes on all platforms
 }
 
 fn parse_claude_session(path: &Path) -> Option<AgentSession> {
@@ -423,13 +424,10 @@ fn parse_codex_session(path: &Path, project_cwd: &str) -> Option<AgentSession> {
 
 fn truncate_summary(s: &str) -> String {
     let trimmed = s.trim();
-    if trimmed.len() <= MAX_SUMMARY_LEN {
-        return trimmed.to_string();
+    let truncated = crate::tracker::truncate_str(trimmed, MAX_SUMMARY_LEN);
+    if truncated.len() < trimmed.len() {
+        format!("{truncated}…")
+    } else {
+        truncated.to_string()
     }
-    // Walk back to a char boundary
-    let mut end = MAX_SUMMARY_LEN;
-    while !trimmed.is_char_boundary(end) && end > 0 {
-        end -= 1;
-    }
-    format!("{}…", &trimmed[..end])
 }
