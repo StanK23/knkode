@@ -219,7 +219,7 @@ function buildFont(cell: CellSnapshot, scaledSize: number, fontFamily: string): 
 	return `${style}${weight}${scaledSize}px ${fontFamily}`;
 }
 
-/** Draw a horizontal line (used for underline and strikethrough). */
+/** Draw a horizontal line (used for underline, strikethrough, and overline). */
 function drawHLine(
 	ctx: CanvasRenderingContext2D,
 	color: string,
@@ -234,6 +234,72 @@ function drawHLine(
 	ctx.moveTo(x, y);
 	ctx.lineTo(x + width, y);
 	ctx.stroke();
+}
+
+/** Draw a curly/wavy underline using quadratic bezier curves. */
+function drawCurlyLine(
+	ctx: CanvasRenderingContext2D,
+	color: string,
+	lineWidth: number,
+	x: number,
+	y: number,
+	width: number,
+	cellH: number,
+) {
+	const amplitude = cellH * 0.12;
+	const wavelength = cellH * 0.5;
+	ctx.strokeStyle = color;
+	ctx.lineWidth = lineWidth;
+	ctx.beginPath();
+	ctx.moveTo(x, y);
+	let cx = x;
+	let up = true;
+	while (cx < x + width) {
+		const nx = Math.min(cx + wavelength, x + width);
+		const cpY = up ? y - amplitude : y + amplitude;
+		ctx.quadraticCurveTo(cx + (nx - cx) / 2, cpY, nx, y);
+		cx = nx;
+		up = !up;
+	}
+	ctx.stroke();
+}
+
+/** Draw a dashed horizontal line. */
+function drawDashedLine(
+	ctx: CanvasRenderingContext2D,
+	color: string,
+	lineWidth: number,
+	x: number,
+	y: number,
+	width: number,
+) {
+	ctx.strokeStyle = color;
+	ctx.lineWidth = lineWidth;
+	ctx.setLineDash([3, 2]);
+	ctx.beginPath();
+	ctx.moveTo(x, y);
+	ctx.lineTo(x + width, y);
+	ctx.stroke();
+	ctx.setLineDash([]);
+}
+
+/** Draw a dotted horizontal line. */
+function drawDottedLine(
+	ctx: CanvasRenderingContext2D,
+	color: string,
+	lineWidth: number,
+	x: number,
+	y: number,
+	width: number,
+) {
+	ctx.strokeStyle = color;
+	ctx.lineWidth = lineWidth;
+	ctx.setLineDash([1, 2]);
+	ctx.beginPath();
+	ctx.moveTo(x, y);
+	ctx.lineTo(x + width, y);
+	ctx.stroke();
+	ctx.setLineDash([]);
 }
 
 /** Decode a base64-encoded image into an ImageBitmap. */
@@ -710,8 +776,27 @@ export function CanvasTerminal({
 						ctx.fillStyle = cell.fg;
 						ctx.fillText(cell.text, x, y + baselineOffset);
 					}
-					if (cell.underline) {
-						drawHLine(ctx, cell.fg, ctx.lineWidth, x, y + cellH - ctx.lineWidth, cellW);
+					if (cell.underline !== "none") {
+						const ulColor = cell.underlineColor ?? cell.fg;
+						const ulY = y + cellH - ctx.lineWidth;
+						switch (cell.underline) {
+							case "single":
+								drawHLine(ctx, ulColor, ctx.lineWidth, x, ulY, cellW);
+								break;
+							case "double":
+								drawHLine(ctx, ulColor, ctx.lineWidth, x, ulY, cellW);
+								drawHLine(ctx, ulColor, ctx.lineWidth, x, ulY - ctx.lineWidth * 2, cellW);
+								break;
+							case "curly":
+								drawCurlyLine(ctx, ulColor, ctx.lineWidth, x, ulY, cellW, cellH);
+								break;
+							case "dotted":
+								drawDottedLine(ctx, ulColor, ctx.lineWidth, x, ulY, cellW);
+								break;
+							case "dashed":
+								drawDashedLine(ctx, ulColor, ctx.lineWidth, x, ulY, cellW);
+								break;
+						}
 					}
 					if (cell.strikethrough) {
 						drawHLine(ctx, cell.fg, ctx.lineWidth, x, y + cellH / 2, cellW);

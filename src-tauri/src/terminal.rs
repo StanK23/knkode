@@ -97,7 +97,11 @@ pub struct CellSnapshot {
     pub bold: bool,
     pub dim: bool,
     pub italic: bool,
-    pub underline: bool,
+    /// Underline style: "none", "single", "double", "curly", "dotted", "dashed"
+    pub underline: String,
+    /// Underline color override (SGR 58). Omitted when using default fg color.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub underline_color: Option<String>,
     pub strikethrough: bool,
     pub hidden: bool,
     pub overline: bool,
@@ -864,7 +868,23 @@ impl TerminalState {
                     bold: matches!(attrs.intensity(), Intensity::Bold),
                     dim: matches!(attrs.intensity(), Intensity::Half),
                     italic: attrs.italic(),
-                    underline: !matches!(attrs.underline(), Underline::None),
+                    underline: match attrs.underline() {
+                        Underline::None => "none",
+                        Underline::Single => "single",
+                        Underline::Double => "double",
+                        Underline::Curly => "curly",
+                        Underline::Dotted => "dotted",
+                        Underline::Dashed => "dashed",
+                    }
+                    .to_string(),
+                    underline_color: {
+                        let uc = attrs.underline_color();
+                        if matches!(uc, ColorAttribute::Default) {
+                            None
+                        } else {
+                            Some(intern_color(uc, true))
+                        }
+                    },
                     strikethrough: attrs.strikethrough(),
                     hidden: attrs.invisible(),
                     overline: attrs.overline(),

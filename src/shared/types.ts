@@ -338,7 +338,10 @@ export interface CellSnapshot {
 	readonly bold: boolean;
 	readonly dim: boolean;
 	readonly italic: boolean;
-	readonly underline: boolean;
+	/** Underline style: "none", "single", "double", "curly", "dotted", "dashed" */
+	readonly underline: string;
+	/** Underline color override (SGR 58). Undefined when using default fg color. */
+	readonly underlineColor?: string;
 	readonly strikethrough: boolean;
 	readonly hidden: boolean;
 	readonly overline: boolean;
