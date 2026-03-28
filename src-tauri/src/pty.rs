@@ -779,7 +779,7 @@ impl PtyManager {
         let sessions_clone = Arc::clone(&self.sessions);
         let term_state = Arc::clone(&self.terminal_state);
         let last_output_at = Arc::clone(&self.last_output_at);
-        let pty_writer_clone = pty_writer;
+        let pty_writer_for_reader = pty_writer;
         std::thread::spawn(move || {
             eprintln!("[pty] Reader thread started for {id_clone}");
             let (_, cv) = &*flush_cond;
@@ -811,9 +811,18 @@ impl PtyManager {
                         // wezterm-term writes these to its writer during advance_bytes().
                         let responses = term_state.drain_responses(&id_clone);
                         if !responses.is_empty() {
-                            if let Ok(mut w) = pty_writer_clone.lock() {
-                                let _ = w.write_all(&responses);
-                                let _ = w.flush();
+                            match pty_writer_for_reader.lock() {
+                                Ok(mut w) => {
+                                    if let Err(e) = w.write_all(&responses) {
+                                        eprintln!(
+                                            "[pty] response write failed for {id_clone}: {e}"
+                                        );
+                                    }
+                                    let _ = w.flush();
+                                }
+                                Err(e) => {
+                                    eprintln!("[pty] writer lock failed for {id_clone}: {e}");
+                                }
                             }
                         }
 

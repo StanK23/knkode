@@ -445,10 +445,16 @@ impl TerminalState {
             Ok(mut terminals) => {
                 terminals.insert(id.to_string(), terminal);
             }
-            Err(e) => eprintln!("[terminal] create failed for {id}: {e}"),
+            Err(e) => {
+                eprintln!("[terminal] create failed for {id}: {e}");
+                return;
+            }
         }
-        if let Ok(mut buffers) = self.response_buffers.lock() {
-            buffers.insert(id.to_string(), response_buf);
+        match self.lock_response_buffers() {
+            Ok(mut buffers) => {
+                buffers.insert(id.to_string(), response_buf);
+            }
+            Err(e) => eprintln!("[terminal] create response_buffers lock failed for {id}: {e}"),
         }
     }
 
@@ -471,14 +477,25 @@ impl TerminalState {
     /// wezterm-term wrote to the response buffer during `advance_bytes()`.
     /// Returns the bytes to be written back to the PTY master fd.
     pub fn drain_responses(&self, id: &str) -> Vec<u8> {
-        if let Ok(buffers) = self.response_buffers.lock() {
-            if let Some(buf) = buffers.get(id) {
-                if let Ok(mut inner) = buf.lock() {
-                    return std::mem::take(&mut *inner);
+        match self.lock_response_buffers() {
+            Ok(buffers) => {
+                if let Some(buf) = buffers.get(id) {
+                    match buf.lock() {
+                        Ok(mut inner) => std::mem::take(&mut *inner),
+                        Err(e) => {
+                            eprintln!("[terminal] drain_responses inner lock failed for {id}: {e}");
+                            Vec::new()
+                        }
+                    }
+                } else {
+                    Vec::new()
                 }
             }
+            Err(e) => {
+                eprintln!("[terminal] drain_responses lock failed for {id}: {e}");
+                Vec::new()
+            }
         }
-        Vec::new()
     }
 
     /// Advance the terminal state machine with raw PTY output, without
@@ -706,8 +723,11 @@ impl TerminalState {
             Err(e) => eprintln!("[terminal] remove last_titles lock failed for {id}: {e}"),
         }
         // Clean up response buffer for this session
-        if let Ok(mut buffers) = self.response_buffers.lock() {
-            buffers.remove(id);
+        match self.lock_response_buffers() {
+            Ok(mut buffers) => {
+                buffers.remove(id);
+            }
+            Err(e) => eprintln!("[terminal] remove response_buffers lock failed for {id}: {e}"),
         }
         // Palette intentionally NOT removed — survives pane restart.
         // Cleaned up in remove_all() on app shutdown.
@@ -732,8 +752,9 @@ impl TerminalState {
             Ok(mut titles) => titles.clear(),
             Err(e) => eprintln!("[terminal] remove_all last_titles lock failed: {e}"),
         }
-        if let Ok(mut buffers) = self.response_buffers.lock() {
-            buffers.clear();
+        match self.lock_response_buffers() {
+            Ok(mut buffers) => buffers.clear(),
+            Err(e) => eprintln!("[terminal] remove_all response_buffers lock failed: {e}"),
         }
     }
 
@@ -1051,5 +1072,13 @@ impl TerminalState {
         self.last_titles
             .lock()
             .map_err(|e| format!("Last titles lock poisoned: {e}"))
+    }
+
+    fn lock_response_buffers(
+        &self,
+    ) -> Result<MutexGuard<'_, HashMap<String, Arc<Mutex<Vec<u8>>>>>, String> {
+        self.response_buffers
+            .lock()
+            .map_err(|e| format!("Response buffers lock poisoned: {e}"))
     }
 }
