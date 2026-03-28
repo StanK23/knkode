@@ -104,8 +104,9 @@ pub struct CellSnapshot {
     pub bold: bool,
     pub dim: bool,
     pub italic: bool,
-    /// Underline style: "none", "single", "double", "curly", "dotted", "dashed"
-    pub underline: String,
+    /// Underline style: "none", "single", "double", "curly", "dotted", "dashed".
+    /// Uses `&'static str` to avoid per-cell heap allocation (~115k/sec at 60fps).
+    pub underline: &'static str,
     /// Underline color override (SGR 58). Omitted when using default fg color.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub underline_color: Option<String>,
@@ -991,8 +992,7 @@ impl TerminalState {
                         Underline::Curly => "curly",
                         Underline::Dotted => "dotted",
                         Underline::Dashed => "dashed",
-                    }
-                    .to_string(),
+                    },
                     underline_color: {
                         let uc = attrs.underline_color();
                         if matches!(uc, ColorAttribute::Default) {
