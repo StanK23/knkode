@@ -94,7 +94,14 @@ pub struct ImageSnapshot {
 pub struct CellSnapshot {
     pub text: String,
     pub fg: String,
-    pub bg: String,
+    /// Explicit background color, or `None` for default/transparent.
+    /// Programs that query the terminal bg (OSC 11) and set their UI bg
+    /// to match would produce cells where the resolved color equals
+    /// `defaultBg`. Using `Option` preserves the distinction: `None` means
+    /// the cell inherited the terminal default (render as transparent),
+    /// while `Some(color)` means the program explicitly set a bg (always render).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bg: Option<String>,
     pub bold: bool,
     pub dim: bool,
     pub italic: bool,
@@ -891,10 +898,22 @@ impl TerminalState {
                     }
                 }
 
+                // Determine whether the bg was explicitly set vs inherited default.
+                // Reverse video always produces an explicit bg (derived from fg).
+                let bg_is_default = !reverse && bg_attr == ColorAttribute::Default;
+
                 let (fg, bg) = if reverse {
-                    (intern_color(bg_attr, false), intern_color(fg_attr, true))
+                    (
+                        intern_color(bg_attr, false),
+                        Some(intern_color(fg_attr, true)),
+                    )
+                } else if bg_is_default {
+                    (intern_color(fg_attr, true), None)
                 } else {
-                    (intern_color(fg_attr, true), intern_color(bg_attr, false))
+                    (
+                        intern_color(fg_attr, true),
+                        Some(intern_color(bg_attr, false)),
+                    )
                 };
 
                 // Extract image attachments from cell attributes.
@@ -1008,17 +1027,17 @@ impl TerminalState {
             CursorShape::BlinkingBar => ("bar", true),
             CursorShape::SteadyBar => ("bar", false),
         };
-        // Debug: detect alt screen and count non-default background cells
         let default_bg_str = palette.background.to_rgb_string();
+        // Debug: detect alt screen and count explicit background cells
         let is_alt = terminal.is_alt_screen_active();
-        let non_default_bg_count = rows
+        let explicit_bg_count = rows
             .iter()
             .flat_map(|r| r.iter())
-            .filter(|c| c.bg != default_bg_str)
+            .filter(|c| c.bg.is_some())
             .count();
-        if non_default_bg_count > 0 || is_alt {
+        if explicit_bg_count > 0 || is_alt {
             eprintln!(
-                "[terminal] snapshot: alt_screen={is_alt}, non_default_bg_cells={non_default_bg_count}, defaultBg={default_bg_str}"
+                "[terminal] snapshot: alt_screen={is_alt}, explicit_bg_cells={explicit_bg_count}"
             );
         }
 

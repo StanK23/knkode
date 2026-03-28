@@ -650,7 +650,7 @@ export function CanvasTerminal({
 		const imgCache = imageCacheRef.current;
 
 		// Redraw cell background if it has a custom color
-		if (cursorCell && cursorCell.bg !== snap.defaultBg) {
+		if (cursorCell?.bg) {
 			ctx.fillStyle = cursorCell.bg;
 			ctx.fillRect(cx, cy, cellW, cellH);
 		}
@@ -733,7 +733,12 @@ export function CanvasTerminal({
 		const canvas = canvasRef.current;
 		const snap = gridRef.current;
 		const ctx = ctxRef.current;
-		if (!canvas || !snap || !ctx) return;
+		if (!canvas || !ctx) return;
+		if (!snap) {
+			// Grid cleared (e.g. PTY restart) — wipe stale pixels immediately
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			return;
+		}
 
 		const dpr = dprRef.current;
 		const scaledSize = fontSize * dpr;
@@ -747,7 +752,6 @@ export function CanvasTerminal({
 		ctx.textBaseline = "alphabetic";
 		ctx.lineWidth = dpr;
 
-		const defaultBg = snap.defaultBg;
 		const imgCache = imageCacheRef.current;
 		// Check if this snapshot has images — skip_serializing_if means
 		// grid.images is absent (undefined) when empty, so truthiness suffices.
@@ -769,7 +773,7 @@ export function CanvasTerminal({
 				const y = row * cellH;
 
 				// Background
-				if (cell.bg !== defaultBg) {
+				if (cell.bg) {
 					ctx.fillStyle = cell.bg;
 					ctx.fillRect(x, y, cellW, cellH);
 				}
@@ -875,7 +879,7 @@ export function CanvasTerminal({
 					const x = c * cellW;
 					const y = linkRow * cellH;
 					// Redraw background to clear original text
-					if (cell.bg !== snap.defaultBg) {
+					if (cell.bg) {
 						ctx.fillStyle = cell.bg;
 						ctx.fillRect(x, y, cellW, cellH);
 					} else {

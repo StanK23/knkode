@@ -161,8 +161,24 @@ export const Pane = memo(function Pane({
 	// One-shot capture — PTY should only use initial CWD and startup command
 	const initialCwdRef = useRef(config.cwd);
 	const initialCmdRef = useRef(config.startupCommand);
+	// Ref to merged theme for use in sync-colors-before-create pattern
+	const mergedThemeRef = useRef(mergeThemeWithPreset(workspaceTheme, config.themeOverride));
 	useEffect(() => {
-		ensurePty(paneId, initialCwdRef.current, initialCmdRef.current);
+		mergedThemeRef.current = mergeThemeWithPreset(workspaceTheme, config.themeOverride);
+	}, [workspaceTheme, config.themeOverride]);
+	useEffect(() => {
+		// Sync palette BEFORE creating the PTY so the terminal's palette is correct
+		// from the first byte — prevents race where CLI tools query OSC 10/11
+		// before setTerminalColors fires from its own effect.
+		const theme = mergedThemeRef.current;
+		const pre = theme.ansiColors
+			? window.api.setTerminalColors(paneId, theme.ansiColors, theme.foreground, theme.background)
+			: Promise.resolve();
+		pre.catch((err: unknown) => {
+			console.error(`[pane] pre-create setTerminalColors failed for ${paneId}:`, err);
+		}).finally(() => {
+			ensurePty(paneId, initialCwdRef.current, initialCmdRef.current);
+		});
 	}, [paneId, ensurePty]);
 
 	// Subscribe to grid snapshots from Rust PTY renderer via centralized dispatcher.
@@ -351,11 +367,16 @@ export const Pane = memo(function Pane({
 				clearPtyExited(paneId);
 				setPtyError(false);
 				setGrid(null);
-				// Re-create PTY. If creation fails, ensurePty's catch rolls back
-				// activePtyIds, but we also need to restore the error overlay.
-				window.api.createPty(paneId, initialCwdRef.current, initialCmdRef.current ?? "").catch((err: unknown) => {
-					console.error(`[pane] PTY restart failed for ${paneId}:`, err);
-					setPtyError(true);
+				// Sync palette before re-creating PTY (same pattern as initial creation)
+				const theme = mergedThemeRef.current;
+				const pre = theme.ansiColors
+					? window.api.setTerminalColors(paneId, theme.ansiColors, theme.foreground, theme.background)
+					: Promise.resolve();
+				pre.catch(() => {}).finally(() => {
+					window.api.createPty(paneId, initialCwdRef.current, initialCmdRef.current ?? "").catch((err: unknown) => {
+						console.error(`[pane] PTY restart failed for ${paneId}:`, err);
+						setPtyError(true);
+					});
 				});
 				// Optimistically mark as active (ensurePty pattern)
 				const { activePtyIds } = useStore.getState();

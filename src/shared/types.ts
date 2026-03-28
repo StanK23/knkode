@@ -336,7 +336,8 @@ export type UnderlineStyle = "none" | "single" | "double" | "curly" | "dotted" |
 export interface CellSnapshot {
 	readonly text: string;
 	readonly fg: string;
-	readonly bg: string;
+	/** Explicit background color, or undefined for default/transparent. */
+	readonly bg?: string;
 	readonly bold: boolean;
 	readonly dim: boolean;
 	readonly italic: boolean;
