@@ -707,13 +707,13 @@ export function CanvasTerminal({
 		ctx.textBaseline = "alphabetic";
 		ctx.lineWidth = dpr;
 
+		const imgCache = imageCacheRef.current;
+
 		// Clear cursor rect to transparent
 		ctx.clearRect(cx, cy, cellW, cellH);
 
-		const imgCache = imageCacheRef.current;
-
 		// Redraw cell background if it has a custom color
-		if (cursorCell?.bg) {
+		if (cursorCell && cursorCell.bg !== snap.defaultBg) {
 			ctx.fillStyle = cursorCell.bg;
 			ctx.fillRect(cx, cy, cellW, cellH);
 		}
@@ -779,6 +779,7 @@ export function CanvasTerminal({
 		ctx.textBaseline = "alphabetic";
 		ctx.lineWidth = dpr;
 
+		const defaultBg = snap.defaultBg;
 		const imgCache = imageCacheRef.current;
 		// Check if this snapshot has images — skip_serializing_if means
 		// grid.images is absent (undefined) when empty, so truthiness suffices.
@@ -800,7 +801,7 @@ export function CanvasTerminal({
 				const y = row * cellH;
 
 				// Background
-				if (cell.bg) {
+				if (cell.bg !== defaultBg) {
 					ctx.fillStyle = cell.bg;
 					ctx.fillRect(x, y, cellW, cellH);
 				}
@@ -868,7 +869,7 @@ export function CanvasTerminal({
 					const x = c * cellW;
 					const y = linkRow * cellH;
 					// Redraw background to clear original text
-					if (cell.bg) {
+					if (cell.bg !== snap.defaultBg) {
 						ctx.fillStyle = cell.bg;
 						ctx.fillRect(x, y, cellW, cellH);
 					} else {
@@ -1167,6 +1168,19 @@ export function CanvasTerminal({
 			cancelAnimationFrame(animFrame.current);
 		};
 	}, [isFocused, grid, repaintCursor]);
+
+	// Re-focus the terminal container when the OS window regains focus — the initial
+	// useEffect .focus() call can miss if the Tauri window isn't active yet at mount time.
+	useEffect(() => {
+		if (!isFocused) return;
+		const handler = () => {
+			if (containerRef.current && document.activeElement !== containerRef.current) {
+				containerRef.current.focus();
+			}
+		};
+		window.addEventListener("focus", handler);
+		return () => window.removeEventListener("focus", handler);
+	}, [isFocused]);
 
 	// Kill native browser text selection on the terminal container — CSS user-select:none
 	// doesn't prevent keyboard-driven selection in WKWebView.
