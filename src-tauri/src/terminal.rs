@@ -264,13 +264,9 @@ fn build_palette(ansi: &AnsiThemeColors, foreground: &str, background: &str) -> 
     palette
 }
 
-/// Manages one `wezterm-term::Terminal` per PTY session. Each terminal
-/// processes raw PTY bytes through `advance_bytes()` and produces
-/// `GridSnapshot`s for the frontend canvas renderer.
-///
 /// Writer that captures terminal responses (DA, CPR, OSC replies) into a shared
-/// buffer. After each `advance_bytes()` call, the buffer is drained and the
-/// responses are routed back to the PTY master fd.
+/// buffer. Callers must drain the buffer after each `advance_bytes()` call and
+/// route responses back to the PTY master fd.
 struct SharedWriter(Arc<Mutex<Vec<u8>>>);
 
 impl std::io::Write for SharedWriter {
@@ -288,9 +284,13 @@ impl std::io::Write for SharedWriter {
     }
 }
 
+/// Manages one `wezterm-term::Terminal` per PTY session. Each terminal
+/// processes raw PTY bytes through `advance_bytes()` and produces
+/// `GridSnapshot`s for the frontend canvas renderer.
+///
 /// Each terminal has its own `ColorPalette` so themes are applied per-pane.
 ///
-/// Lock ordering: `terminals` → `palettes` → `sent_image_hashes` → `last_titles`.
+/// Lock ordering: `terminals` → `palettes` → `sent_image_hashes` → `last_titles` → `response_buffers`.
 /// Never acquire these locks in a different order to prevent deadlocks.
 pub struct TerminalState {
     terminals: Mutex<HashMap<String, Terminal>>,
