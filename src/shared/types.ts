@@ -330,6 +330,8 @@ export interface ImageSnapshot {
 	readonly height: number;
 }
 
+export type UnderlineStyle = "none" | "single" | "double" | "curly" | "dotted" | "dashed";
+
 /** A single cell in the terminal grid. Designed to be serialized from Rust (wezterm-term). */
 export interface CellSnapshot {
 	readonly text: string;
@@ -338,9 +340,8 @@ export interface CellSnapshot {
 	readonly bold: boolean;
 	readonly dim: boolean;
 	readonly italic: boolean;
-	/** Underline style: "none", "single", "double", "curly", "dotted", "dashed" */
-	readonly underline: string;
-	/** Underline color override (SGR 58). Undefined when using default fg color. */
+	readonly underline: UnderlineStyle;
+	/** Underline color override (SGR 58). Omitted when using default fg color. */
 	readonly underlineColor?: string;
 	readonly strikethrough: boolean;
 	readonly hidden: boolean;

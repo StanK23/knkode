@@ -266,37 +266,19 @@ function drawCurlyLine(
 	ctx.stroke();
 }
 
-/** Draw a dashed horizontal line. */
-function drawDashedLine(
+/** Draw a styled (dashed/dotted) horizontal line. Pattern values are DPR-scaled. */
+function drawStyledLine(
 	ctx: CanvasRenderingContext2D,
 	color: string,
 	lineWidth: number,
 	x: number,
 	y: number,
 	width: number,
+	dashPattern: number[],
 ) {
 	ctx.strokeStyle = color;
 	ctx.lineWidth = lineWidth;
-	ctx.setLineDash([3, 2]);
-	ctx.beginPath();
-	ctx.moveTo(x, y);
-	ctx.lineTo(x + width, y);
-	ctx.stroke();
-	ctx.setLineDash([]);
-}
-
-/** Draw a dotted horizontal line. */
-function drawDottedLine(
-	ctx: CanvasRenderingContext2D,
-	color: string,
-	lineWidth: number,
-	x: number,
-	y: number,
-	width: number,
-) {
-	ctx.strokeStyle = color;
-	ctx.lineWidth = lineWidth;
-	ctx.setLineDash([1, 2]);
+	ctx.setLineDash(dashPattern.map((v) => v * lineWidth));
 	ctx.beginPath();
 	ctx.moveTo(x, y);
 	ctx.lineTo(x + width, y);
@@ -702,10 +684,10 @@ export function CanvasTerminal({
 						drawCurlyLine(ctx, ulColor, dpr, cx, ulY, cellW, cellH);
 						break;
 					case "dotted":
-						drawDottedLine(ctx, ulColor, dpr, cx, ulY, cellW);
+						drawStyledLine(ctx, ulColor, dpr, cx, ulY, cellW, [1, 2]);
 						break;
 					case "dashed":
-						drawDashedLine(ctx, ulColor, dpr, cx, ulY, cellW);
+						drawStyledLine(ctx, ulColor, dpr, cx, ulY, cellW, [3, 2]);
 						break;
 				}
 			}
@@ -828,10 +810,10 @@ export function CanvasTerminal({
 								drawCurlyLine(ctx, ulColor, ctx.lineWidth, x, ulY, cellW, cellH);
 								break;
 							case "dotted":
-								drawDottedLine(ctx, ulColor, ctx.lineWidth, x, ulY, cellW);
+								drawStyledLine(ctx, ulColor, ctx.lineWidth, x, ulY, cellW, [1, 2]);
 								break;
 							case "dashed":
-								drawDashedLine(ctx, ulColor, ctx.lineWidth, x, ulY, cellW);
+								drawStyledLine(ctx, ulColor, ctx.lineWidth, x, ulY, cellW, [3, 2]);
 								break;
 						}
 					}
@@ -842,7 +824,7 @@ export function CanvasTerminal({
 						drawHLine(ctx, cell.fg, ctx.lineWidth, x, y + ctx.lineWidth, cellW);
 					}
 
-					if (cell.dim) ctx.globalAlpha = 1.0;
+					ctx.globalAlpha = 1.0;
 				}
 			}
 		}
