@@ -699,6 +699,9 @@ export function CanvasTerminal({
 					drawCellImages(ctx, cell.images, imgCache, x, y, cellW, cellH, "below");
 				}
 
+				// Dim text: reduce opacity for SGR 2 (faint/dim)
+				if (cell.dim) ctx.globalAlpha = 0.5;
+
 				// Text
 				if (cell.text.trim()) {
 					ctx.font = buildFont(cell, scaledSize, fontFamily);
@@ -711,6 +714,8 @@ export function CanvasTerminal({
 				if (cell.strikethrough) {
 					drawHLine(ctx, cell.fg, ctx.lineWidth, x, y + cellH / 2, cellW);
 				}
+
+				if (cell.dim) ctx.globalAlpha = 1.0;
 			}
 		}
 

@@ -336,6 +336,7 @@ export interface CellSnapshot {
 	readonly fg: string;
 	readonly bg: string;
 	readonly bold: boolean;
+	readonly dim: boolean;
 	readonly italic: boolean;
 	readonly underline: boolean;
 	readonly strikethrough: boolean;
