@@ -1203,8 +1203,8 @@ export function CanvasTerminal({
 		return () => el.removeEventListener("selectstart", prevent);
 	}, []);
 
-	// Cleanup drag listeners, selection RAF, and image cache on unmount — prevents leaks if
-	// the component unmounts mid-drag (pane close, workspace switch).
+	// Cleanup drag listeners, selection RAF, text blink timer, and image cache on unmount —
+	// prevents leaks if the component unmounts mid-drag (pane close, workspace switch).
 	useEffect(() => {
 		const cache = imageCacheRef.current;
 		return () => {
@@ -1217,6 +1217,10 @@ export function CanvasTerminal({
 			if (selectionRafRef.current) {
 				cancelAnimationFrame(selectionRafRef.current);
 				selectionRafRef.current = 0;
+			}
+			if (textBlinkTimerRef.current) {
+				clearInterval(textBlinkTimerRef.current);
+				textBlinkTimerRef.current = null;
 			}
 			cache.dispose();
 		};
