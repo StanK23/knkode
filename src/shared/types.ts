@@ -336,8 +336,7 @@ export type UnderlineStyle = "none" | "single" | "double" | "curly" | "dotted" |
 export interface CellSnapshot {
 	readonly text: string;
 	readonly fg: string;
-	/** Explicit background color, or undefined for default/transparent. */
-	readonly bg?: string;
+	readonly bg: string;
 	readonly bold: boolean;
 	readonly dim: boolean;
 	readonly italic: boolean;
@@ -375,6 +374,10 @@ export interface GridSnapshot {
 	/** Unique images visible in the viewport, keyed by hex SHA256 hash.
 	 *  Only includes images not previously sent — frontend caches by hash. */
 	readonly images?: Readonly<Record<string, ImageSnapshot>>;
+	/** The terminal's default background color (from the palette).
+	 *  Used to paint default-bg cells opaque on the alternate screen (TUI apps)
+	 *  while keeping them transparent on the normal screen (gradient shows through). */
+	readonly defaultBg: string;
 	/** Whether the terminal is currently showing the alternate screen buffer
 	 *  (used by TUI apps like vim, htop, less, tmux). */
 	readonly isAltScreen: boolean;
