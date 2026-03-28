@@ -157,7 +157,6 @@ export const Pane = memo(function Pane({
 		onFocus,
 	});
 
-	const ensurePty = useStore((s) => s.ensurePty);
 	// One-shot capture — PTY should only use initial CWD and startup command
 	const initialCwdRef = useRef(config.cwd);
 	const initialCmdRef = useRef(config.startupCommand);
@@ -166,20 +165,35 @@ export const Pane = memo(function Pane({
 	useEffect(() => {
 		mergedThemeRef.current = mergeThemeWithPreset(workspaceTheme, config.themeOverride);
 	}, [workspaceTheme, config.themeOverride]);
+
+	/** Sync palette to Rust then create the PTY. Palette is sent first so
+	 *  the terminal's OSC 10/11 responses are correct from the first byte. */
+	const syncPaletteAndCreatePty = useCallback(
+		(id: string, cwd: string, cmd: string | null) => {
+			const theme = mergedThemeRef.current;
+			const pre = theme.ansiColors
+				? window.api.setTerminalColors(id, theme.ansiColors, theme.foreground, theme.background)
+				: Promise.resolve();
+			pre.catch((err: unknown) => {
+				console.error(`[pane] pre-create setTerminalColors failed for ${id}:`, err);
+			}).finally(() => {
+				window.api.createPty(id, cwd, cmd ?? "").catch((err: unknown) => {
+					console.error(`[pane] PTY create failed for ${id}:`, err);
+					setPtyError(true);
+				});
+			});
+		},
+		[],
+	);
+
 	useEffect(() => {
-		// Sync palette BEFORE creating the PTY so the terminal's palette is correct
-		// from the first byte — prevents race where CLI tools query OSC 10/11
-		// before setTerminalColors fires from its own effect.
-		const theme = mergedThemeRef.current;
-		const pre = theme.ansiColors
-			? window.api.setTerminalColors(paneId, theme.ansiColors, theme.foreground, theme.background)
-			: Promise.resolve();
-		pre.catch((err: unknown) => {
-			console.error(`[pane] pre-create setTerminalColors failed for ${paneId}:`, err);
-		}).finally(() => {
-			ensurePty(paneId, initialCwdRef.current, initialCmdRef.current);
-		});
-	}, [paneId, ensurePty]);
+		const { activePtyIds } = useStore.getState();
+		if (activePtyIds.has(paneId)) return;
+		const newSet = new Set(activePtyIds);
+		newSet.add(paneId);
+		useStore.setState({ activePtyIds: newSet });
+		syncPaletteAndCreatePty(paneId, initialCwdRef.current, initialCmdRef.current);
+	}, [paneId, syncPaletteAndCreatePty]);
 
 	// Subscribe to grid snapshots from Rust PTY renderer via centralized dispatcher.
 	// App.tsx has a single onTerminalRender listener that routes by pane ID (O(1) Map lookup),
@@ -367,24 +381,14 @@ export const Pane = memo(function Pane({
 				clearPtyExited(paneId);
 				setPtyError(false);
 				setGrid(null);
-				// Sync palette before re-creating PTY (same pattern as initial creation)
-				const theme = mergedThemeRef.current;
-				const pre = theme.ansiColors
-					? window.api.setTerminalColors(paneId, theme.ansiColors, theme.foreground, theme.background)
-					: Promise.resolve();
-				pre.catch(() => {}).finally(() => {
-					window.api.createPty(paneId, initialCwdRef.current, initialCmdRef.current ?? "").catch((err: unknown) => {
-						console.error(`[pane] PTY restart failed for ${paneId}:`, err);
-						setPtyError(true);
-					});
-				});
-				// Optimistically mark as active (ensurePty pattern)
+				// Optimistically mark as active
 				const { activePtyIds } = useStore.getState();
 				if (!activePtyIds.has(paneId)) {
 					const newSet = new Set(activePtyIds);
 					newSet.add(paneId);
 					useStore.setState({ activePtyIds: newSet });
 				}
+				syncPaletteAndCreatePty(paneId, initialCwdRef.current, initialCmdRef.current);
 				return;
 			}
 
