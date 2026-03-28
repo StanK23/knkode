@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { findPreset, mergeThemeWithPreset } from "../data/theme-presets";
+import { DEFAULT_ANSI, findPreset, mergeThemeWithPreset } from "../data/theme-presets";
 import { useFileDrop } from "../hooks/useFileDrop";
 import { useInlineEdit } from "../hooks/useInlineEdit";
 import { usePaneDragDrop } from "../hooks/usePaneDragDrop";
@@ -169,19 +169,19 @@ export const Pane = memo(function Pane({
 	/** Sync palette to Rust then create the PTY. Palette is sent first so
 	 *  the terminal's OSC 10/11 responses are correct from the first byte. */
 	const syncPaletteAndCreatePty = useCallback(
-		(id: string, cwd: string, cmd: string | null) => {
+		async (id: string, cwd: string, cmd: string | null) => {
 			const theme = mergedThemeRef.current;
-			const pre = theme.ansiColors
-				? window.api.setTerminalColors(id, theme.ansiColors, theme.foreground, theme.background)
-				: Promise.resolve();
-			pre.catch((err: unknown) => {
+			try {
+				await window.api.setTerminalColors(id, theme.ansiColors ?? DEFAULT_ANSI, theme.foreground, theme.background);
+			} catch (err: unknown) {
 				console.error(`[pane] pre-create setTerminalColors failed for ${id}:`, err);
-			}).finally(() => {
-				window.api.createPty(id, cwd, cmd ?? "").catch((err: unknown) => {
-					console.error(`[pane] PTY create failed for ${id}:`, err);
-					setPtyError(true);
-				});
-			});
+			}
+			try {
+				await window.api.createPty(id, cwd, cmd);
+			} catch (err: unknown) {
+				console.error(`[pane] PTY create failed for ${id}:`, err);
+				setPtyError(true);
+			}
 		},
 		[],
 	);
@@ -549,18 +549,16 @@ export const Pane = memo(function Pane({
 	// Sync theme ANSI palette to Rust when palette-related fields change.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: ansiColorsKey replaces mergedTheme.ansiColors — JSON serialization avoids redundant IPC on object-reference churn
 	useEffect(() => {
-		if (mergedTheme.ansiColors) {
-			window.api
-				.setTerminalColors(
-					paneId,
-					mergedTheme.ansiColors,
-					mergedTheme.foreground,
-					mergedTheme.background,
-				)
-				.catch((err: unknown) => {
-					console.error(`[pane] setTerminalColors failed for ${paneId}:`, err);
-				});
-		}
+		window.api
+			.setTerminalColors(
+				paneId,
+				mergedTheme.ansiColors ?? DEFAULT_ANSI,
+				mergedTheme.foreground,
+				mergedTheme.background,
+			)
+			.catch((err: unknown) => {
+				console.error(`[pane] setTerminalColors failed for ${paneId}:`, err);
+			});
 	}, [paneId, ansiColorsKey, mergedTheme.foreground, mergedTheme.background]);
 
 	const handleOpenExternal = useCallback((url: string) => {
