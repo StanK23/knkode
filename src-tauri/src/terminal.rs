@@ -267,6 +267,26 @@ fn build_palette(ansi: &AnsiThemeColors, foreground: &str, background: &str) -> 
 /// processes raw PTY bytes through `advance_bytes()` and produces
 /// `GridSnapshot`s for the frontend canvas renderer.
 ///
+/// Writer that captures terminal responses (DA, CPR, OSC replies) into a shared
+/// buffer. After each `advance_bytes()` call, the buffer is drained and the
+/// responses are routed back to the PTY master fd.
+struct SharedWriter(Arc<Mutex<Vec<u8>>>);
+
+impl std::io::Write for SharedWriter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let mut inner = self
+            .0
+            .lock()
+            .map_err(|_| std::io::Error::other("response buffer lock poisoned"))?;
+        inner.extend_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
 /// Each terminal has its own `ColorPalette` so themes are applied per-pane.
 ///
 /// Lock ordering: `terminals` → `palettes` → `sent_image_hashes` → `last_titles`.
@@ -283,6 +303,8 @@ pub struct TerminalState {
     /// Last-seen terminal title per pane (OSC 1/2). Used to detect title
     /// changes between snapshot cycles.
     last_titles: Mutex<HashMap<String, String>>,
+    /// Per-terminal response buffers for DA/CPR/OSC replies from wezterm-term.
+    response_buffers: Mutex<HashMap<String, Arc<Mutex<Vec<u8>>>>>,
     default_palette: Arc<ColorPalette>,
     config: Arc<dyn TerminalConfiguration + Send + Sync>,
 }
@@ -395,6 +417,7 @@ impl TerminalState {
             palettes: Mutex::new(HashMap::new()),
             sent_image_hashes: Mutex::new(HashMap::new()),
             last_titles: Mutex::new(HashMap::new()),
+            response_buffers: Mutex::new(HashMap::new()),
             default_palette: Arc::new(ColorPalette::default()),
             config: Arc::new(TermConfig),
         }
@@ -408,20 +431,23 @@ impl TerminalState {
         pixel_width: usize,
         pixel_height: usize,
     ) {
-        // NOTE: Terminal writer is sink() — shell DSR responses (e.g. cursor position
-        // reports via \e[6n) are discarded. Apps relying on DSR won't get replies.
+        let response_buf = Arc::new(Mutex::new(Vec::new()));
+        let writer = SharedWriter(Arc::clone(&response_buf));
         let terminal = Terminal::new(
             term_size(cols, rows, pixel_width, pixel_height),
             Arc::clone(&self.config),
             "knkode",
             env!("CARGO_PKG_VERSION"),
-            Box::new(std::io::sink()),
+            Box::new(writer),
         );
         match self.lock_terminals() {
             Ok(mut terminals) => {
                 terminals.insert(id.to_string(), terminal);
             }
             Err(e) => eprintln!("[terminal] create failed for {id}: {e}"),
+        }
+        if let Ok(mut buffers) = self.response_buffers.lock() {
+            buffers.insert(id.to_string(), response_buf);
         }
     }
 
@@ -438,6 +464,20 @@ impl TerminalState {
         let mut palettes = self.lock_palettes()?;
         palettes.insert(id.to_string(), palette);
         Ok(())
+    }
+
+    /// Drain any pending terminal responses (DA, CPR, OSC replies) that
+    /// wezterm-term wrote to the response buffer during `advance_bytes()`.
+    /// Returns the bytes to be written back to the PTY master fd.
+    pub fn drain_responses(&self, id: &str) -> Vec<u8> {
+        if let Ok(buffers) = self.response_buffers.lock() {
+            if let Some(buf) = buffers.get(id) {
+                if let Ok(mut inner) = buf.lock() {
+                    return std::mem::take(&mut *inner);
+                }
+            }
+        }
+        Vec::new()
     }
 
     /// Advance the terminal state machine with raw PTY output, without
@@ -664,6 +704,10 @@ impl TerminalState {
             }
             Err(e) => eprintln!("[terminal] remove last_titles lock failed for {id}: {e}"),
         }
+        // Clean up response buffer for this session
+        if let Ok(mut buffers) = self.response_buffers.lock() {
+            buffers.remove(id);
+        }
         // Palette intentionally NOT removed — survives pane restart.
         // Cleaned up in remove_all() on app shutdown.
     }
@@ -686,6 +730,9 @@ impl TerminalState {
         match self.lock_last_titles() {
             Ok(mut titles) => titles.clear(),
             Err(e) => eprintln!("[terminal] remove_all last_titles lock failed: {e}"),
+        }
+        if let Ok(mut buffers) = self.response_buffers.lock() {
+            buffers.clear();
         }
     }
 

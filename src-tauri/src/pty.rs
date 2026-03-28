@@ -706,6 +706,9 @@ impl PtyManager {
             });
         }
 
+        // Clone writer for the reader thread to route terminal responses back to PTY
+        let pty_writer = Arc::clone(&writer);
+
         // Store session before starting reader — cleanup logic in the reader
         // checks the session map, so it must exist before the reader can race
         // to completion
@@ -776,6 +779,7 @@ impl PtyManager {
         let sessions_clone = Arc::clone(&self.sessions);
         let term_state = Arc::clone(&self.terminal_state);
         let last_output_at = Arc::clone(&self.last_output_at);
+        let pty_writer_clone = pty_writer;
         std::thread::spawn(move || {
             eprintln!("[pty] Reader thread started for {id_clone}");
             let (_, cv) = &*flush_cond;
@@ -802,6 +806,16 @@ impl PtyManager {
                             );
                         }
                         term_state.advance_only(&id_clone, &buf[..n]);
+
+                        // Route terminal responses (DA, CPR, OSC replies) back to PTY.
+                        // wezterm-term writes these to its writer during advance_bytes().
+                        let responses = term_state.drain_responses(&id_clone);
+                        if !responses.is_empty() {
+                            if let Ok(mut w) = pty_writer_clone.lock() {
+                                let _ = w.write_all(&responses);
+                                let _ = w.flush();
+                            }
+                        }
 
                         if last_emit.elapsed() >= RENDER_INTERVAL {
                             // Record output timestamp for activity detection.
