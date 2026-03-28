@@ -104,18 +104,13 @@ jobs:
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}
         run: node .github/scripts/generate-latest-json.mjs
 
-      - name: Generate release notes from conventional commits
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: node .github/scripts/generate-release-notes.mjs
-
-      - name: Create or update GitHub Release
+      - name: Upload artifacts to existing release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          if gh release view "$RELEASE_TAG" &>/dev/null; then
-            gh release upload "$RELEASE_TAG" release-files/* --clobber
-          else
-            gh release create "$RELEASE_TAG" release-files/* --draft --notes-file release-notes.md
+          if ! gh release view "$RELEASE_TAG" &>/dev/null; then
+            echo "ERROR: Release $RELEASE_TAG does not exist. Create a draft release first."
+            exit 1
           fi
+          gh release upload "$RELEASE_TAG" release-files/* --clobber
