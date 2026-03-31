@@ -404,12 +404,9 @@ export const Pane = memo(function Pane({
 				scrollToBottom();
 			}
 
-			// Mark that user sent input to a running process — gates attention
-			// indicators.  Only counts when the tracker has reported activity
-			// at least once (status !== undefined), meaning a foreground child
-			// has been detected.  Typing shell commands like `bun dev` happens
-			// before the tracker reports, so status is still undefined → skipped.
-			if (useStore.getState().paneAgentStatuses[paneId] !== undefined) {
+			// Only mark user input when a process is already running in the pane.
+			const status = useStore.getState().paneAgentStatuses[paneId];
+			if (status === "active" || status === "idle") {
 				useStore.getState().markPaneUserInput(paneId);
 			}
 
