@@ -231,9 +231,16 @@ export const Pane = memo(function Pane({
 
 		// When remounting into an already-active PTY (e.g. subgroup tab switch),
 		// no new render event will arrive until user input. Request a fresh snapshot
-		// so the canvas isn't blank.
+		// so the canvas isn't blank. Also seed maxScrollRef so scrolling works
+		// immediately (otherwise it stays 0 until the next render event).
 		if (useStore.getState().activePtyIds.has(paneId)) {
-			window.api.scrollTerminal(paneId, 0).then(setGrid).catch(console.error);
+			window.api
+				.scrollTerminal(paneId, 0)
+				.then((snapshot) => {
+					maxScrollRef.current = snapshot.scrollbackRows;
+					setGrid(snapshot);
+				})
+				.catch(console.error);
 		}
 
 		return () => {

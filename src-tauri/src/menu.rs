@@ -11,14 +11,14 @@ pub fn build_menu(handle: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         handle,
         "Edit",
         true,
-        // Cut & Copy omitted — they intercept Cmd+C / Cmd+X at the OS menu level
-        // before the keydown event reaches the WebView, breaking canvas-based
-        // terminal copy. The webview handles copy/cut via keydown handlers instead.
+        // Cut, Copy, and Paste omitted — PredefinedMenuItem intercepts at the OS menu
+        // level before the keydown event reaches the WebView. Cut/Copy broke canvas-based
+        // terminal copy; Paste causes WKWebView first-responder drift after many tab
+        // switches, making Cmd+V silently stop working. All three are handled by the
+        // webview's keydown handlers instead (keyEventToAnsi → PASTE_SENTINEL / copy logic).
         &[
             &PredefinedMenuItem::undo(handle, None)?,
             &PredefinedMenuItem::redo(handle, None)?,
-            &PredefinedMenuItem::separator(handle)?,
-            &PredefinedMenuItem::paste(handle, None)?,
             &PredefinedMenuItem::separator(handle)?,
             &PredefinedMenuItem::select_all(handle, None)?,
         ],

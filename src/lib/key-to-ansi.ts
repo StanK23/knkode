@@ -53,8 +53,12 @@ export function keyEventToAnsi(e: KeyboardEvent): string | null {
 
 	// --- Platform clipboard / menu keys: return null so the browser/Tauri handles them ---
 
-	// macOS: Cmd+<key> is always handled by the native menu or global shortcuts.
-	// Never send Cmd combos to the PTY.
+	// macOS: Cmd+V → paste explicitly (native menu paste removed — PredefinedMenuItem::paste
+	// causes WKWebView first-responder drift after many tab switches, same issue that led
+	// to removing Cut/Copy from the native menu).
+	if (isMac && e.metaKey && !e.altKey && e.code === "KeyV") return PASTE_SENTINEL;
+
+	// macOS: All other Cmd+<key> combos handled by native menu or global shortcuts.
 	if (isMac && e.metaKey) return null;
 
 	// Windows/Linux copy: Ctrl+C with no other modifiers.

@@ -1119,6 +1119,23 @@ export function CanvasTerminal({
 		}
 	}, [grid, draw]);
 
+	// Focus the terminal container only when logical focus transitions to true —
+	// NOT on every grid update, which would steal focus from inline edits and
+	// context menu buttons during rapid PTY output.
+	const prevFocusedRef = useRef(isFocused);
+	useEffect(() => {
+		const focusChanged = prevFocusedRef.current !== isFocused;
+		prevFocusedRef.current = isFocused;
+		if (
+			focusChanged &&
+			isFocused &&
+			containerRef.current &&
+			document.activeElement !== containerRef.current
+		) {
+			containerRef.current.focus();
+		}
+	}, [isFocused]);
+
 	// Three-phase cursor blink: HOLD → BLINK → IDLE.
 	// HOLD: static cursor at max opacity (500ms), no RAF — uses setTimeout.
 	// BLINK: RAF-driven cosine animation for up to 5s.
@@ -1130,11 +1147,6 @@ export function CanvasTerminal({
 			cursorOpacity.current = CURSOR_STATIC_OPACITY;
 			repaintCursor();
 			return;
-		}
-
-		// Ensure DOM focus matches logical focus (e.g. after snippet command)
-		if (containerRef.current && document.activeElement !== containerRef.current) {
-			containerRef.current.focus();
 		}
 
 		// Enter HOLD phase — cursor fully visible, no animation frames
