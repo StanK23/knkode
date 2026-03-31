@@ -404,8 +404,12 @@ export const Pane = memo(function Pane({
 				scrollToBottom();
 			}
 
-			// Mark that user actually sent input — gates attention indicators
-			useStore.getState().markPaneUserInput(paneId);
+			// Mark that user sent input to a running process — gates attention
+			// indicators.  Only counts when a process is already active (not
+			// shell commands like `bun dev` that merely start a process).
+			if (useStore.getState().paneAgentStatuses[paneId] === "active") {
+				useStore.getState().markPaneUserInput(paneId);
+			}
 
 			window.api.writePty(paneId, data).catch((err: unknown) => {
 				console.error(`[pane] writePty failed for ${paneId}:`, err);
