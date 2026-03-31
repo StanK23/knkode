@@ -107,16 +107,17 @@ export function App() {
 			window.api.onPtyActivityChanged((paneId, active) => {
 				const ws = findWs(paneId);
 				if (!ws) return;
+				// Gate both active and attention on paneHadUserInput so panes
+				// without user input (HMR, dev-servers) stay completely quiet.
+				const { focusedPaneId, paneHadUserInput } = useStore.getState();
+				const hasInput = paneHadUserInput.has(paneId);
 				if (active) {
-					updatePaneAgentStatus(paneId, "active");
+					updatePaneAgentStatus(paneId, hasInput ? "active" : "idle");
 				} else {
-					// Went idle — only show attention if the user actually sent input
-					// to this pane (filters HMR/dev-server noise and agent MCP chatter).
-					const { focusedPaneId, paneHadUserInput } = useStore.getState();
-					const shouldAttention = focusedPaneId !== paneId && paneHadUserInput.has(paneId);
+					const shouldAttention = focusedPaneId !== paneId && hasInput;
 					updatePaneAgentStatus(paneId, shouldAttention ? "attention" : "idle");
-					// One-shot: clear the flag so subsequent idle transitions don't
-					// re-trigger attention until the user sends new input.
+					// One-shot: clear the flag so subsequent transitions don't
+					// re-trigger until the user sends new input.
 					if (shouldAttention) {
 						const next = new Set(useStore.getState().paneHadUserInput);
 						next.delete(paneId);
