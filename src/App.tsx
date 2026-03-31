@@ -110,9 +110,11 @@ export function App() {
 				if (active) {
 					updatePaneAgentStatus(paneId, "active");
 				} else {
-					// Went idle — if pane is focused, stay idle; otherwise → attention
-					const { focusedPaneId } = useStore.getState();
-					updatePaneAgentStatus(paneId, focusedPaneId === paneId ? "idle" : "attention");
+					// Went idle — only show attention if the user actually sent input
+					// to this pane (filters HMR/dev-server noise and agent MCP chatter).
+					const { focusedPaneId, paneHadUserInput } = useStore.getState();
+					const shouldAttention = focusedPaneId !== paneId && paneHadUserInput.has(paneId);
+					updatePaneAgentStatus(paneId, shouldAttention ? "attention" : "idle");
 				}
 			}),
 			window.api.onPtyTitleChanged((paneId, title) => {

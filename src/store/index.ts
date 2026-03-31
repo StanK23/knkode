@@ -45,6 +45,10 @@ interface StoreState {
 	panePrs: Record<string, PrInfo | null>;
 	/** Current agent status per pane. Ephemeral runtime state. */
 	paneAgentStatuses: Record<string, AgentStatus>;
+	/** Panes where the user has typed since last attention acknowledgment.
+	 *  Gates attention indicators — only panes with user input show attention
+	 *  when going idle while unfocused. Prevents HMR/dev-server noise. */
+	paneHadUserInput: ReadonlySet<string>;
 	/** Terminal title per pane (from terminal title escape sequences). Ephemeral runtime state.
 	 *  Values are never null — entries are deleted on pane removal via cleanPaneEphemeral. */
 	paneTitles: Record<string, string>;
@@ -73,6 +77,8 @@ interface StoreState {
 	markPtyExited: (paneId: string) => void;
 	/** Clear the exited flag for a pane. */
 	clearPtyExited: (paneId: string) => void;
+	/** Mark that the user has typed in a pane — gates attention indicators. */
+	markPaneUserInput: (paneId: string) => void;
 	init: () => Promise<void>;
 	createWorkspace: (name: string, preset: LayoutPreset) => Promise<Workspace>;
 	createDefaultWorkspace: () => Promise<Workspace>;
@@ -172,17 +178,21 @@ export const useStore = create<StoreState>((set, get) => ({
 	paneBranches: {},
 	panePrs: {},
 	paneAgentStatuses: {},
+	paneHadUserInput: new Set<string>(),
 	paneTitles: {},
 	collapsedSidebarSections: new Set(),
 
 	setFocusedPane: (paneId) =>
 		set((state) => {
-			// Clear attention when user focuses a pane (acknowledges the notification)
+			// Clear attention + hadUserInput when user focuses a pane (acknowledges the notification)
 			if (paneId && state.paneAgentStatuses[paneId] === "attention") {
+				const nextInput = new Set(state.paneHadUserInput);
+				nextInput.delete(paneId);
 				return {
 					focusedPaneId: paneId,
 					focusGeneration: state.focusGeneration + 1,
 					paneAgentStatuses: { ...state.paneAgentStatuses, [paneId]: "idle" },
+					paneHadUserInput: nextInput,
 				};
 			}
 			return {
@@ -212,6 +222,15 @@ export const useStore = create<StoreState>((set, get) => ({
 		set((state) => {
 			if (state.paneAgentStatuses[paneId] === status) return {};
 			return { paneAgentStatuses: { ...state.paneAgentStatuses, [paneId]: status } };
+		});
+	},
+
+	markPaneUserInput: (paneId) => {
+		set((state) => {
+			if (state.paneHadUserInput.has(paneId)) return {};
+			const next = new Set(state.paneHadUserInput);
+			next.add(paneId);
+			return { paneHadUserInput: next };
 		});
 	},
 

@@ -53,6 +53,7 @@ function cleanPaneEphemeral(
 		paneBranches: Record<string, string | null>;
 		panePrs: Record<string, PrInfo | null>;
 		paneAgentStatuses: Record<string, AgentStatus>;
+		paneHadUserInput: ReadonlySet<string>;
 		paneTitles: Record<string, string>;
 		exitedPtyIds: ReadonlySet<string>;
 	},
@@ -61,6 +62,7 @@ function cleanPaneEphemeral(
 	paneBranches: Record<string, string | null>;
 	panePrs: Record<string, PrInfo | null>;
 	paneAgentStatuses: Record<string, AgentStatus>;
+	paneHadUserInput: ReadonlySet<string>;
 	paneTitles: Record<string, string>;
 	exitedPtyIds: ReadonlySet<string>;
 } {
@@ -69,6 +71,7 @@ function cleanPaneEphemeral(
 	const paneAgentStatuses = { ...state.paneAgentStatuses };
 	const paneTitles = { ...state.paneTitles };
 	let exitedPtyIds = state.exitedPtyIds;
+	let paneHadUserInput = state.paneHadUserInput;
 	for (const pid of paneIds) {
 		delete paneBranches[pid];
 		delete panePrs[pid];
@@ -78,8 +81,12 @@ function cleanPaneEphemeral(
 			if (exitedPtyIds === state.exitedPtyIds) exitedPtyIds = new Set(exitedPtyIds);
 			(exitedPtyIds as Set<string>).delete(pid);
 		}
+		if (paneHadUserInput.has(pid)) {
+			if (paneHadUserInput === state.paneHadUserInput) paneHadUserInput = new Set(paneHadUserInput);
+			(paneHadUserInput as Set<string>).delete(pid);
+		}
 	}
-	return { paneBranches, panePrs, paneAgentStatuses, paneTitles, exitedPtyIds };
+	return { paneBranches, panePrs, paneAgentStatuses, paneHadUserInput, paneTitles, exitedPtyIds };
 }
 
 export function persistAppState(appState: AppState): void {
@@ -772,7 +779,8 @@ export function createWorkspacePaneSlice(
 						console.error("[store] cycleSubgroup: activeSubgroupId not found in subgroups");
 						return null;
 					}
-					const nextIdx = (idx + direction + workspace.subgroups.length) % workspace.subgroups.length;
+					const nextIdx =
+						(idx + direction + workspace.subgroups.length) % workspace.subgroups.length;
 					const nextSg = workspace.subgroups[nextIdx];
 					if (!nextSg) return null;
 					const firstPaneId = getPaneIdsInOrder(nextSg.layout.tree)[0] ?? null;

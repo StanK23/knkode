@@ -404,6 +404,9 @@ export const Pane = memo(function Pane({
 				scrollToBottom();
 			}
 
+			// Mark that user actually sent input — gates attention indicators
+			useStore.getState().markPaneUserInput(paneId);
+
 			window.api.writePty(paneId, data).catch((err: unknown) => {
 				console.error(`[pane] writePty failed for ${paneId}:`, err);
 				setPtyError(true);
