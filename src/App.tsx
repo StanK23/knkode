@@ -115,6 +115,13 @@ export function App() {
 					const { focusedPaneId, paneHadUserInput } = useStore.getState();
 					const shouldAttention = focusedPaneId !== paneId && paneHadUserInput.has(paneId);
 					updatePaneAgentStatus(paneId, shouldAttention ? "attention" : "idle");
+					// One-shot: clear the flag so subsequent idle transitions don't
+					// re-trigger attention until the user sends new input.
+					if (shouldAttention) {
+						const next = new Set(useStore.getState().paneHadUserInput);
+						next.delete(paneId);
+						useStore.setState({ paneHadUserInput: next });
+					}
 				}
 			}),
 			window.api.onPtyTitleChanged((paneId, title) => {
