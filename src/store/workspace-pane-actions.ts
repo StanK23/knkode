@@ -155,6 +155,7 @@ interface WorkspacePaneState {
 	paneBranches: Record<string, string | null>;
 	panePrs: Record<string, PrInfo | null>;
 	paneAgentStatuses: Record<string, AgentStatus>;
+	paneHadUserInput: ReadonlySet<string>;
 	paneTitles: Record<string, string>;
 	exitedPtyIds: ReadonlySet<string>;
 	killPtys: (paneIds: string[]) => void;
