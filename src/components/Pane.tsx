@@ -405,9 +405,11 @@ export const Pane = memo(function Pane({
 			}
 
 			// Mark that user sent input to a running process — gates attention
-			// indicators.  Only counts when a process is already active (not
-			// shell commands like `bun dev` that merely start a process).
-			if (useStore.getState().paneAgentStatuses[paneId] === "active") {
+			// indicators.  Only counts when the tracker has reported activity
+			// at least once (status !== undefined), meaning a foreground child
+			// has been detected.  Typing shell commands like `bun dev` happens
+			// before the tracker reports, so status is still undefined → skipped.
+			if (useStore.getState().paneAgentStatuses[paneId] !== undefined) {
 				useStore.getState().markPaneUserInput(paneId);
 			}
 
