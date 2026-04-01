@@ -1,19 +1,19 @@
-<h1><img src="docs/icon.png" width="32" alt="knkode icon" align="center" /> knkode</h1>
+<h1><img src="docs/icon.png" width="32" alt="knkode icon" align="center" /> knkode — Terminal Workspace Manager</h1>
 
-A terminal workspace manager that saves your multi-pane layouts so you stop rebuilding them every morning.
+A terminal workspace manager for macOS and Windows that saves your multi-pane layouts so you stop rebuilding them every morning. Like tmux sessions, but with a native GUI, split panes, and themed workspaces.
 
 <table>
   <tr>
-    <td><img src="docs/themes/matrix.svg" width="220"/></td>
-    <td><img src="docs/themes/cyberpunk.svg" width="220"/></td>
-    <td><img src="docs/themes/vaporwave.svg" width="220"/></td>
-    <td><img src="docs/themes/amber.svg" width="220"/></td>
+    <td><img src="docs/themes/matrix.svg" width="220" alt="Matrix terminal theme — green phosphor CRT effect"/></td>
+    <td><img src="docs/themes/cyberpunk.svg" width="220" alt="Cyberpunk terminal theme — neon glow effect"/></td>
+    <td><img src="docs/themes/vaporwave.svg" width="220" alt="Vaporwave terminal theme — retro gradient effect"/></td>
+    <td><img src="docs/themes/amber.svg" width="220" alt="Amber terminal theme — warm monochrome CRT effect"/></td>
   </tr>
   <tr>
-    <td><img src="docs/themes/solana.svg" width="220"/></td>
-    <td><img src="docs/themes/ocean.svg" width="220"/></td>
-    <td><img src="docs/themes/sunset.svg" width="220"/></td>
-    <td><img src="docs/themes/arctic.svg" width="220"/></td>
+    <td><img src="docs/themes/solana.svg" width="220" alt="Solana terminal theme — purple gradient effect"/></td>
+    <td><img src="docs/themes/ocean.svg" width="220" alt="Ocean terminal theme — deep blue effect"/></td>
+    <td><img src="docs/themes/sunset.svg" width="220" alt="Sunset terminal theme — warm orange effect"/></td>
+    <td><img src="docs/themes/arctic.svg" width="220" alt="Arctic terminal theme — cool ice blue effect"/></td>
   </tr>
 </table>
 
@@ -29,11 +29,11 @@ Each theme has its own visual effects — scanlines, phosphor glow, noise textur
 | Windows (installer) | [knkode_2.2.3_x64-setup.exe](https://github.com/knkenko/knkode/releases/download/v2.2.3/knkode_2.2.3_x64-setup.exe) |
 | Windows (MSI) | [knkode_2.2.3_x64_en-US.msi](https://github.com/knkenko/knkode/releases/download/v2.2.3/knkode_2.2.3_x64_en-US.msi) |
 
-## Why
+## Why use knkode
 
 Every project needs a different terminal setup — build watcher, dev server, logs, a shell for git. You arrange them, close the window, and rebuild the whole thing next time. knkode saves each arrangement as a named workspace you can switch between instantly.
 
-## What it does
+## Features
 
 **Workspaces as tabs.** Each workspace is a color-coded tab with its own split-pane layout. Create, duplicate, close, drag to reorder, or reopen from the closed-workspaces menu. Switching is instant — background shells stay alive.
 
