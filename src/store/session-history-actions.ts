@@ -10,14 +10,16 @@ function buildResumeCommand(session: AgentSession, unsafe: boolean): string {
 	switch (session.agent) {
 		case "claude":
 			return unsafe
-				? `claude --resume ${session.id} --permission-mode bypassPermissions`
+				? `claude --dangerously-skip-permissions --resume ${session.id}`
 				: `claude --resume ${session.id}`;
 		case "gemini":
 			return unsafe
-				? `gemini --resume ${session.id} --yolo`
+				? `gemini --resume ${session.id} --approval-mode=yolo`
 				: `gemini --resume ${session.id}`;
 		case "codex":
-			return unsafe ? `codex resume ${session.id} --full-auto` : `codex resume ${session.id}`;
+			return unsafe
+				? `codex resume ${session.id} --dangerously-bypass-approvals-and-sandbox`
+				: `codex resume ${session.id}`;
 		default: {
 			const _exhaustive: never = session.agent;
 			throw new Error(`Unknown agent kind: ${_exhaustive}`);
