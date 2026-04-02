@@ -47,6 +47,16 @@ fn system_root_join(parts: &[&str]) -> Option<PathBuf> {
     Some(path)
 }
 
+#[cfg(target_os = "windows")]
+fn join_from_env(env_name: &str, parts: &[&str]) -> Option<PathBuf> {
+    let root = env::var_os(env_name)?;
+    let mut path = PathBuf::from(root);
+    for part in parts {
+        path.push(part);
+    }
+    Some(path)
+}
+
 #[tauri::command]
 pub fn get_available_shells() -> Vec<ShellOption> {
     // Only surface shells that are both installed and known-good with the
@@ -79,7 +89,10 @@ pub fn get_available_shells() -> Vec<ShellOption> {
                 find_in_path(candidate).or_else(|| {
                     if candidate.contains('\\') {
                         let parts: Vec<&str> = candidate.split('\\').collect();
-                        system_root_join(&parts).filter(|path| path.is_file())
+                        system_root_join(&parts)
+                            .filter(|path| path.is_file())
+                            .or_else(|| join_from_env("ProgramW6432", &parts).filter(|path| path.is_file()))
+                            .or_else(|| join_from_env("ProgramFiles", &parts).filter(|path| path.is_file()))
                     } else {
                         None
                     }
