@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useModalFocusTrap } from "../hooks/useModalFocusTrap";
 import { modKey } from "../utils/platform";
 
 interface HotkeyPanelProps {
@@ -77,6 +78,8 @@ export function HotkeyPanel({ onClose }: HotkeyPanelProps) {
 		return () => document.removeEventListener("keydown", handler);
 	}, [onClose]);
 
+	useModalFocusTrap(dialogRef, true, { initialFocus: "dialog" });
+
 	return (
 		// biome-ignore lint/a11y/noStaticElementInteractions: Escape key handled via document listener above
 		<div
@@ -87,6 +90,7 @@ export function HotkeyPanel({ onClose }: HotkeyPanelProps) {
 			{/* biome-ignore lint/a11y/useKeyWithClickEvents: stopPropagation only, keyboard handled by overlay */}
 			<div
 				ref={dialogRef}
+				tabIndex={-1}
 				role="dialog"
 				aria-modal="true"
 				aria-label="Keyboard Shortcuts"
