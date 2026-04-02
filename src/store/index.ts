@@ -13,6 +13,7 @@ import type {
 	Workspace,
 } from "../shared/types";
 import { nextPaneTitlesForUpdate } from "../utils/pane-title";
+import { DEFAULT_WINDOW_BOUNDS, sanitizeAppState } from "./app-state";
 import { createLayoutFromPreset, getActivePaneId, makeSingleSubgroup } from "./layout-tree";
 import { createSessionHistorySlice } from "./session-history-actions";
 import { createSnippetSlice } from "./snippet-actions";
@@ -72,7 +73,12 @@ interface StoreState {
 	toggleSidebar: () => void;
 	toggleSidebarSection: (workspaceId: string) => void;
 	/** Ensure a PTY exists for the given pane. No-op if already requested or active. */
-	ensurePty: (paneId: string, cwd: string, shell: string | null, startupCommand: string | null) => void;
+	ensurePty: (
+		paneId: string,
+		cwd: string,
+		shell: string | null,
+		startupCommand: string | null,
+	) => void;
 	/** Kill PTYs for the given pane IDs and remove them from activePtyIds. */
 	killPtys: (paneIds: string[]) => void;
 	/** Remove a single pane ID from activePtyIds (e.g. on natural PTY exit). */
@@ -170,7 +176,7 @@ export const useStore = create<StoreState>((set, get) => ({
 		activeWorkspaceId: null,
 		sidebarCollapsed: false,
 		collapsedWorkspaceIds: [],
-		windowBounds: { x: 100, y: 100, width: 1200, height: 800 },
+		windowBounds: DEFAULT_WINDOW_BOUNDS,
 	},
 	homeDir: "/tmp",
 	snippets: [],
@@ -381,16 +387,10 @@ export const useStore = create<StoreState>((set, get) => ({
 			if (migrationPromises.length > 0) {
 				await Promise.all(migrationPromises);
 			}
-			// Backfill sidebarCollapsed for configs saved before sidebar was added.
-			// The ?? is intentional: loadedAppState comes from JSON and may lack this field
-			// even though the AppState type requires it. Remove once all users have migrated.
-			let appState: AppState = {
-				...loadedAppState,
-				sidebarCollapsed: (loadedAppState as Partial<AppState>).sidebarCollapsed ?? false,
-				collapsedWorkspaceIds: (
-					(loadedAppState as Partial<AppState>).collapsedWorkspaceIds ?? []
-				).filter((id): id is string => typeof id === "string"),
-			};
+			let appState = sanitizeAppState(
+				loadedAppState,
+				workspaces.map((workspace) => workspace.id),
+			);
 
 			// If no workspaces exist, create a default one
 			if (workspaces.length === 0) {
