@@ -205,7 +205,11 @@ pub fn write_pty(
     id: String,
     data: String,
     pty_mgr: State<'_, Arc<PtyManager>>,
+    tracker: State<'_, CwdTracker>,
 ) -> Result<(), String> {
+    if !data.is_empty() {
+        tracker.mark_user_input(&id);
+    }
     pty_mgr.write(&id, &data)
 }
 

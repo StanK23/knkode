@@ -279,11 +279,36 @@ fn check_foreground_all(pids: &[(String, u32)]) -> HashMap<u32, bool> {
 
     let mut result = HashMap::with_capacity(pids.len());
     for &(_, pid) in pids {
-        if let Some(has_child) = check_foreground_sysctl(pid) {
+        if let Some(has_child) = check_foreground_macos(pid) {
             result.insert(pid, has_child);
         }
     }
     result
+}
+
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+fn check_foreground_macos(pid: u32) -> Option<bool> {
+    check_foreground_sysctl(pid)
+}
+
+#[cfg(all(target_os = "macos", not(target_arch = "aarch64")))]
+fn check_foreground_macos(pid: u32) -> Option<bool> {
+    let pid = i32::try_from(pid).ok()?;
+    let output = std::process::Command::new("ps")
+        .args(["-o", "pgid=", "-o", "tpgid=", "-p", &pid.to_string()])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let stdout = String::from_utf8(output.stdout).ok()?;
+    let mut fields = stdout.split_whitespace();
+    let pgid = fields.next()?.parse::<i32>().ok()?;
+    let tpgid = fields.next()?.parse::<i32>().ok()?;
+    if tpgid <= 0 {
+        return None;
+    }
+    Some(tpgid != pgid)
 }
 
 /// Check if a single process has a foreground child via sysctl(KERN_PROC_PID).

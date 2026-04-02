@@ -56,6 +56,7 @@ pub struct PrInfo {
 /// an immediate first PR check.
 struct PaneState {
     cwd: String,
+    repo_root: Option<String>,
     branch: Option<String>,
     pr: Option<PrInfo>,
     pr_last_checked: Instant,
@@ -64,6 +65,9 @@ struct PaneState {
     /// When this pane was first tracked. Activity detection is suppressed
     /// during [`ACTIVITY_WARMUP`] to ignore shell startup output.
     tracked_at: Instant,
+    /// First user input observed in this pane. Once present, activity polling
+    /// no longer suppresses transitions during the startup warmup window.
+    user_input_at: Option<Instant>,
 }
 
 /// Per-pane CWD, git branch, and PR status tracker.
@@ -119,11 +123,13 @@ impl CwdTracker {
                         pane_id,
                         PaneState {
                             cwd: initial_cwd,
+                            repo_root: None,
                             branch: None,
                             pr: None,
                             pr_last_checked: Instant::now() - PR_REFRESH_INTERVAL,
                             active: false,
                             tracked_at: Instant::now(),
+                            user_input_at: None,
                         },
                     );
                 }
@@ -138,6 +144,17 @@ impl CwdTracker {
                 panes.remove(pane_id);
             }
             Err(e) => eprintln!("[tracker] Failed to untrack pane — lock poisoned: {e}"),
+        }
+    }
+
+    pub fn mark_user_input(&self, pane_id: &str) {
+        match self.panes.lock() {
+            Ok(mut panes) => {
+                if let Some(state) = panes.get_mut(pane_id) {
+                    state.user_input_at = Some(Instant::now());
+                }
+            }
+            Err(e) => eprintln!("[tracker] Failed to mark user input — lock poisoned: {e}"),
         }
     }
 
@@ -237,9 +254,9 @@ fn poll_pane(
     repo_cache: &mut HashMap<String, RepoCacheEntry>,
 ) {
     let current_cwd = pty_manager.get_cwd(pane_id);
-    let (last_cwd, last_branch) = match panes.lock() {
+    let (last_cwd, last_repo_root, last_branch) = match panes.lock() {
         Ok(p) => match p.get(pane_id) {
-            Some(s) => (s.cwd.clone(), s.branch.clone()),
+            Some(s) => (s.cwd.clone(), s.repo_root.clone(), s.branch.clone()),
             None => return,
         },
         Err(e) => {
@@ -271,6 +288,13 @@ fn poll_pane(
 
     // Resolve repo root to share results across panes in the same repo
     let repo_root = get_repo_root(&cwd, &state.augmented_path);
+    let repo_root_changed = repo_root != last_repo_root;
+    if repo_root_changed {
+        with_pane_mut(panes, pane_id, |s| {
+            s.repo_root = repo_root.clone();
+        });
+        clear_pr_if_present(panes, pane_id, app);
+    }
 
     // Check if we already have cached results for this repo
     let current_branch = if let Some(root) = &repo_root {
@@ -342,7 +366,8 @@ fn poll_pane(
     }
 
     // PR detection — deduplicated per repo root
-    let should_check_pr = branch_changed
+    let should_check_pr = repo_root_changed
+        || branch_changed
         || with_pane(panes, pane_id, |s| {
             s.pr_last_checked.elapsed() >= PR_REFRESH_INTERVAL
         })
@@ -457,7 +482,7 @@ fn poll_activity(
             if let Some(state) = panes_guard.get_mut(pane_id) {
                 // Skip activity detection during warmup — shell startup
                 // output would cause false "attention" on unfocused panes.
-                if state.tracked_at.elapsed() < ACTIVITY_WARMUP {
+                if state.user_input_at.is_none() && state.tracked_at.elapsed() < ACTIVITY_WARMUP {
                     continue;
                 }
                 if is_active != state.active {
