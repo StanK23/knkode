@@ -411,7 +411,8 @@ export function createWorkspacePaneSlice(
 					}
 					if (!workspace.panes[paneId]) return null;
 					const newPaneId = crypto.randomUUID();
-					const newPane = makePaneConfig("terminal", workspace.panes[paneId]!.cwd);
+					const sourcePane = workspace.panes[paneId]!;
+					const newPane = makePaneConfig("terminal", sourcePane.cwd, sourcePane.shell);
 					const newTree = replaceLeafInTree(sg.layout.tree, paneId, (leaf) => ({
 						direction,
 						size: leaf.size,
@@ -753,7 +754,9 @@ export function createWorkspacePaneSlice(
 				withWorkspace(state, workspaceId, (workspace, st) => {
 					const newPaneId = crypto.randomUUID();
 					const newSgId = crypto.randomUUID();
-					const cwd = Object.values(workspace.panes)[0]?.cwd ?? st.homeDir;
+					const sourcePane = Object.values(workspace.panes)[0] ?? null;
+					const cwd = sourcePane?.cwd ?? st.homeDir;
+					const shell = sourcePane?.shell ?? null;
 					const newSubgroup: SubgroupConfig = {
 						id: newSgId,
 						layout: customLayout({ paneId: newPaneId, size: 100 }),
@@ -763,7 +766,7 @@ export function createWorkspacePaneSlice(
 							...workspace,
 							subgroups: [...workspace.subgroups, newSubgroup],
 							activeSubgroupId: newSgId,
-							panes: { ...workspace.panes, [newPaneId]: makePaneConfig("terminal", cwd) },
+							panes: { ...workspace.panes, [newPaneId]: makePaneConfig("terminal", cwd, shell) },
 						},
 						extra: { focusedPaneId: newPaneId, focusGeneration: st.focusGeneration + 1 },
 					};

@@ -8,9 +8,9 @@ import type {
 } from "../shared/types";
 import { isLayoutBranch } from "../shared/types";
 
-/** Create a default PaneConfig with the given label and cwd. */
-export function makePaneConfig(label: string, cwd: string): PaneConfig {
-	return { label, cwd, shell: null, startupCommand: null, themeOverride: null };
+/** Create a default PaneConfig with the given label, cwd, and optional shell. */
+export function makePaneConfig(label: string, cwd: string, shell: string | null = null): PaneConfig {
+	return { label, cwd, shell, startupCommand: null, themeOverride: null };
 }
 
 /** Remove a leaf from a layout tree by pane ID.
