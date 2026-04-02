@@ -1,8 +1,44 @@
+import type { CSSProperties, MouseEvent, ReactNode } from "react";
 import type {
 	BasePaneEntryProps,
 	BaseWorkspaceGitInfoProps,
 	BaseWorkspaceHeaderProps,
 } from "../types";
+
+function WorkspaceHeaderFrame({
+	isEditing,
+	onClick,
+	onContextMenu,
+	className,
+	style,
+	children,
+}: {
+	isEditing: boolean;
+	onClick: (e: MouseEvent) => void;
+	onContextMenu: (e: MouseEvent) => void;
+	className: string;
+	style?: CSSProperties;
+	children: ReactNode;
+}) {
+	if (isEditing) {
+		return (
+			<div className={className} style={style}>
+				{children}
+			</div>
+		);
+	}
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			onContextMenu={onContextMenu}
+			className={className}
+			style={style}
+		>
+			{children}
+		</button>
+	);
+}
 
 // --- Default Dark ---
 export function DefaultDarkHeader({
@@ -17,8 +53,8 @@ export function DefaultDarkHeader({
 	onContextMenu,
 }: BaseWorkspaceHeaderProps) {
 	return (
-		<button
-			type="button"
+		<WorkspaceHeaderFrame
+			isEditing={isEditing}
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			className={`sidebar-item flex flex-col gap-0.5 w-full px-3 py-3.5 text-left cursor-pointer border-none transition-colors duration-150 ${isActive ? "text-[#e0e0e0] bg-[#232946]/5" : "bg-transparent text-[#8892b0] hover:text-[#e0e0e0]"}`}
@@ -67,7 +103,7 @@ export function DefaultDarkHeader({
 					</span>
 				)}
 			</div>
-		</button>
+		</WorkspaceHeaderFrame>
 	);
 }
 
@@ -109,8 +145,8 @@ export function DraculaHeader({
 	onContextMenu,
 }: BaseWorkspaceHeaderProps) {
 	return (
-		<button
-			type="button"
+		<WorkspaceHeaderFrame
+			isEditing={isEditing}
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			className={`sidebar-item flex flex-col gap-0.5 w-full px-3 py-3.5 text-left cursor-pointer border-none transition-all ${isActive ? "text-[#f8f8f2] bg-[#44475a]/40 border-b border-[#44475a]" : "bg-transparent text-[#6272a4] hover:text-[#f8f8f2] hover:bg-[#44475a]/20"}`}
@@ -156,12 +192,13 @@ export function DraculaHeader({
 					strokeWidth="2"
 					strokeLinecap="round"
 					strokeLinejoin="round"
+					aria-hidden="true"
 					className={`shrink-0 transition-transform duration-300 ${isCollapsed ? "rotate-180" : ""}`}
 				>
 					<polyline points="6 9 12 15 18 9"></polyline>
 				</svg>
 			</div>
-		</button>
+		</WorkspaceHeaderFrame>
 	);
 }
 
@@ -201,8 +238,8 @@ export function TokyoNightHeader({
 	onContextMenu,
 }: BaseWorkspaceHeaderProps) {
 	return (
-		<button
-			type="button"
+		<WorkspaceHeaderFrame
+			isEditing={isEditing}
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			className={`sidebar-item flex flex-col gap-0.5 w-full px-3 py-3.5 text-left cursor-pointer border-none transition-all ${isActive ? "text-[#c0caf5] bg-[#1f2335]" : "bg-transparent text-[#565f89] hover:text-[#a9b1d6] hover:bg-[#1f2335]/50"}`}
@@ -242,7 +279,7 @@ export function TokyoNightHeader({
 					</span>
 				)}
 			</div>
-		</button>
+		</WorkspaceHeaderFrame>
 	);
 }
 
@@ -282,8 +319,8 @@ export function NordHeader({
 	onContextMenu,
 }: BaseWorkspaceHeaderProps) {
 	return (
-		<button
-			type="button"
+		<WorkspaceHeaderFrame
+			isEditing={isEditing}
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			className={`sidebar-item flex flex-col gap-0.5 w-full px-4 py-3.5 text-left cursor-pointer border-none transition-all ${isActive ? "text-[#eceff4] bg-[#3b4252]" : "bg-transparent text-[#4c566a] hover:text-[#d8dee9] hover:bg-[#3b4252]/50"}`}
@@ -331,7 +368,7 @@ export function NordHeader({
 					<path d="M2 3L5 6L8 3" />
 				</svg>
 			</div>
-		</button>
+		</WorkspaceHeaderFrame>
 	);
 }
 
@@ -371,8 +408,8 @@ export function CatppuccinHeader({
 	onContextMenu,
 }: BaseWorkspaceHeaderProps) {
 	return (
-		<button
-			type="button"
+		<WorkspaceHeaderFrame
+			isEditing={isEditing}
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			className={`sidebar-item flex flex-col gap-0.5 w-full px-3 py-3.5 text-left cursor-pointer border-none transition-all ${isActive ? "text-[#cdd6f4] bg-[#313244]" : "bg-transparent text-[#7f849c] hover:text-[#bac2de] hover:bg-[#313244]/50"}`}
@@ -423,7 +460,7 @@ export function CatppuccinHeader({
 					<path d="M6 9l6 6 6-6" />
 				</svg>
 			</div>
-		</button>
+		</WorkspaceHeaderFrame>
 	);
 }
 
@@ -463,8 +500,8 @@ export function GruvboxHeader({
 	onContextMenu,
 }: BaseWorkspaceHeaderProps) {
 	return (
-		<button
-			type="button"
+		<WorkspaceHeaderFrame
+			isEditing={isEditing}
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			className={`sidebar-item flex flex-col gap-0 w-full px-2 py-3.5 text-left cursor-pointer border-none transition-none ${isActive ? "text-[#ebdbb2] bg-[#3c3836]" : "bg-transparent text-[#a89984] hover:text-[#ebdbb2] hover:bg-[#3c3836]"}`}
@@ -502,7 +539,7 @@ export function GruvboxHeader({
 					</span>
 				)}
 			</div>
-		</button>
+		</WorkspaceHeaderFrame>
 	);
 }
 
@@ -542,8 +579,8 @@ export function MonokaiHeader({
 	onContextMenu,
 }: BaseWorkspaceHeaderProps) {
 	return (
-		<button
-			type="button"
+		<WorkspaceHeaderFrame
+			isEditing={isEditing}
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			className={`sidebar-item flex flex-col gap-0.5 w-full px-3 py-3.5 text-left cursor-pointer border-none transition-colors ${isActive ? "text-[#f8f8f2] bg-[#3e3d32]" : "bg-transparent text-[#75715e] hover:text-[#f8f8f2] hover:bg-[#3e3d32]/50"}`}
@@ -587,7 +624,7 @@ export function MonokaiHeader({
 					</span>
 				)}
 			</div>
-		</button>
+		</WorkspaceHeaderFrame>
 	);
 }
 
@@ -627,8 +664,8 @@ export function EverforestHeader({
 	onContextMenu,
 }: BaseWorkspaceHeaderProps) {
 	return (
-		<button
-			type="button"
+		<WorkspaceHeaderFrame
+			isEditing={isEditing}
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			className={`sidebar-item flex flex-col gap-0.5 w-full px-3 py-3.5 text-left cursor-pointer border-none transition-colors ${isActive ? "text-[#d3c6aa] bg-[#3a454a]" : "bg-transparent text-[#859289] hover:text-[#d3c6aa] hover:bg-[#343f44]"}`}
@@ -666,7 +703,7 @@ export function EverforestHeader({
 					</span>
 				)}
 			</div>
-		</button>
+		</WorkspaceHeaderFrame>
 	);
 }
 

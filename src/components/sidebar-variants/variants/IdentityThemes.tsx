@@ -1,8 +1,44 @@
+import type { CSSProperties, MouseEvent, ReactNode } from "react";
 import type {
 	BasePaneEntryProps,
 	BaseWorkspaceGitInfoProps,
 	BaseWorkspaceHeaderProps,
 } from "../types";
+
+function WorkspaceHeaderFrame({
+	isEditing,
+	onClick,
+	onContextMenu,
+	className,
+	style,
+	children,
+}: {
+	isEditing: boolean;
+	onClick: (e: MouseEvent) => void;
+	onContextMenu: (e: MouseEvent) => void;
+	className: string;
+	style?: CSSProperties;
+	children: ReactNode;
+}) {
+	if (isEditing) {
+		return (
+			<div className={className} style={style}>
+				{children}
+			</div>
+		);
+	}
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			onContextMenu={onContextMenu}
+			className={className}
+			style={style}
+		>
+			{children}
+		</button>
+	);
+}
 
 // --- Matrix ---
 export function MatrixHeader({
@@ -17,8 +53,8 @@ export function MatrixHeader({
 	onContextMenu,
 }: BaseWorkspaceHeaderProps) {
 	return (
-		<button
-			type="button"
+		<WorkspaceHeaderFrame
+			isEditing={isEditing}
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			className={`sidebar-item flex flex-col gap-0.5 w-full px-2 py-3.5 text-left cursor-pointer transition-none border-y border-[#00ff41]/20 bg-[#050505] uppercase font-mono font-bold tracking-widest ${
@@ -56,7 +92,7 @@ export function MatrixHeader({
 					</span>
 				)}
 			</div>
-		</button>
+		</WorkspaceHeaderFrame>
 	);
 }
 
@@ -104,8 +140,8 @@ export function CyberpunkHeader({
 	onContextMenu,
 }: BaseWorkspaceHeaderProps) {
 	return (
-		<button
-			type="button"
+		<WorkspaceHeaderFrame
+			isEditing={isEditing}
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			style={{
@@ -150,7 +186,7 @@ export function CyberpunkHeader({
 					</span>
 				)}
 			</div>
-		</button>
+		</WorkspaceHeaderFrame>
 	);
 }
 
@@ -198,8 +234,8 @@ export function SolanaHeader({
 	onContextMenu,
 }: BaseWorkspaceHeaderProps) {
 	return (
-		<button
-			type="button"
+		<WorkspaceHeaderFrame
+			isEditing={isEditing}
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			className={`sidebar-item flex flex-col gap-0.5 w-full px-3 py-3.5 text-left cursor-pointer transition-all backdrop-blur-sm ${
@@ -249,7 +285,7 @@ export function SolanaHeader({
 					</span>
 				)}
 			</div>
-		</button>
+		</WorkspaceHeaderFrame>
 	);
 }
 
@@ -295,8 +331,8 @@ export function AmberHeader({
 	onContextMenu,
 }: BaseWorkspaceHeaderProps) {
 	return (
-		<button
-			type="button"
+		<WorkspaceHeaderFrame
+			isEditing={isEditing}
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			className={`sidebar-item flex flex-col gap-0.5 w-full px-3 py-3.5 text-left cursor-pointer transition-none border-b-2 font-mono uppercase tracking-wider ${
@@ -336,7 +372,7 @@ export function AmberHeader({
 					</span>
 				)}
 			</div>
-		</button>
+		</WorkspaceHeaderFrame>
 	);
 }
 
@@ -384,8 +420,8 @@ export function VaporwaveHeader({
 	onContextMenu,
 }: BaseWorkspaceHeaderProps) {
 	return (
-		<button
-			type="button"
+		<WorkspaceHeaderFrame
+			isEditing={isEditing}
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			className={`sidebar-item flex flex-col gap-0.5 w-full px-3 py-3.5 text-left cursor-pointer transition-all border-b font-sans tracking-widest uppercase ${
@@ -429,7 +465,7 @@ export function VaporwaveHeader({
 					</span>
 				)}
 			</div>
-		</button>
+		</WorkspaceHeaderFrame>
 	);
 }
 
@@ -473,8 +509,8 @@ export function OceanHeader({
 	onContextMenu,
 }: BaseWorkspaceHeaderProps) {
 	return (
-		<button
-			type="button"
+		<WorkspaceHeaderFrame
+			isEditing={isEditing}
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			className={`sidebar-item flex flex-col gap-0.5 w-full px-3 py-3.5 text-left cursor-pointer rounded-t-2xl transition-all duration-500 ${
@@ -526,7 +562,7 @@ export function OceanHeader({
 					</span>
 				)}
 			</div>
-		</button>
+		</WorkspaceHeaderFrame>
 	);
 }
 
@@ -570,8 +606,8 @@ export function SunsetHeader({
 	onContextMenu,
 }: BaseWorkspaceHeaderProps) {
 	return (
-		<button
-			type="button"
+		<WorkspaceHeaderFrame
+			isEditing={isEditing}
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			className={`sidebar-item flex flex-col gap-0.5 w-full px-3 py-3.5 text-left cursor-pointer border-none transition-all border-l-4 ${
@@ -617,7 +653,7 @@ export function SunsetHeader({
 					</span>
 				)}
 			</div>
-		</button>
+		</WorkspaceHeaderFrame>
 	);
 }
 
@@ -661,8 +697,8 @@ export function ArcticHeader({
 	onContextMenu,
 }: BaseWorkspaceHeaderProps) {
 	return (
-		<button
-			type="button"
+		<WorkspaceHeaderFrame
+			isEditing={isEditing}
 			onClick={onClick}
 			onContextMenu={onContextMenu}
 			className={`sidebar-item flex flex-col gap-0.5 w-full px-3 py-3.5 text-left cursor-pointer rounded-t-lg transition-all backdrop-blur-md ${
@@ -716,7 +752,7 @@ export function ArcticHeader({
 					</span>
 				)}
 			</div>
-		</button>
+		</WorkspaceHeaderFrame>
 	);
 }
 
