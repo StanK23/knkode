@@ -18,6 +18,7 @@ const MAX_SESSIONS: usize = 64;
 /// During high-throughput output the reader advances terminal state on every
 /// chunk but only snapshots + emits at this cadence, preventing UI freezes.
 const RENDER_INTERVAL: Duration = Duration::from_millis(16);
+const OSC7_PREFIX: &[u8] = b"\x1b]7;";
 
 /// RAII guard for Windows HANDLEs — calls `CloseHandle` on drop.
 #[cfg(target_os = "windows")]
@@ -477,7 +478,159 @@ struct PtySession {
     generation: u64,
     /// CWD at spawn time — fallback when OS-level CWD detection fails.
     initial_cwd: String,
+    /// Last cwd explicitly reported by the shell (for example via OSC 7).
+    reported_cwd: Arc<Mutex<Option<String>>>,
     platform: PlatformPty,
+}
+
+#[cfg(target_os = "windows")]
+fn resolve_windows_shell(shell: Option<&str>) -> String {
+    shell
+        .filter(|s| !s.trim().is_empty())
+        .map(str::to_string)
+        .or_else(|| {
+            std::env::var("SHELL")
+                .ok()
+                .filter(|s| s.contains(':') || s.contains('\\'))
+        })
+        .unwrap_or_else(|| "powershell.exe".to_string())
+}
+
+#[cfg(target_os = "windows")]
+fn shell_basename(shell: &str) -> String {
+    shell
+        .rsplit(['\\', '/'])
+        .next()
+        .unwrap_or(shell)
+        .to_ascii_lowercase()
+}
+
+#[cfg(target_os = "windows")]
+fn is_powershell_shell(shell: &str) -> bool {
+    matches!(shell_basename(shell).as_str(), "powershell.exe" | "pwsh.exe")
+}
+
+#[cfg(target_os = "windows")]
+fn powershell_cwd_bootstrap() -> String {
+    concat!(
+        "$global:__knkode_emit_cwd = { ",
+        "$p = (Get-Location).ProviderPath; ",
+        "if ($p) { ",
+        "$u = $p -replace '\\\\','/'; ",
+        "if ($u -match '^[A-Za-z]:/') { $u = '/' + $u }; ",
+        "Write-Host -NoNewline ([char]27 + ']7;file://knkode' + $u + [char]7) ",
+        "} ",
+        "}; ",
+        "if (Test-Path function:prompt) { $global:__knkode_original_prompt = $function:prompt }; ",
+        "function global:prompt { ",
+        "& $global:__knkode_emit_cwd; ",
+        "if ($global:__knkode_original_prompt) { & $global:__knkode_original_prompt } ",
+        "else { 'PS ' + $executionContext.SessionState.Path.CurrentLocation + '> ' } ",
+        "}; ",
+        "& $global:__knkode_emit_cwd"
+    )
+    .to_string()
+}
+
+fn osc7_prefix_overlap(bytes: &[u8]) -> usize {
+    let max = bytes.len().min(OSC7_PREFIX.len().saturating_sub(1));
+    for len in (1..=max).rev() {
+        if bytes[bytes.len() - len..] == OSC7_PREFIX[..len] {
+            return len;
+        }
+    }
+    0
+}
+
+fn osc7_uri_to_cwd(uri: &str) -> Option<String> {
+    let raw = uri.trim();
+    let after_scheme = raw.strip_prefix("file://")?;
+    let path = if after_scheme.starts_with('/') {
+        after_scheme
+    } else {
+        let slash = after_scheme.find('/')?;
+        &after_scheme[slash..]
+    };
+
+    #[cfg(target_os = "windows")]
+    {
+        let trimmed = if path.starts_with('/') && path.as_bytes().get(2) == Some(&b':') {
+            &path[1..]
+        } else {
+            path
+        };
+        let normalized = trimmed.replace('/', "\\");
+        if normalized.is_empty() {
+            None
+        } else {
+            Some(normalized)
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        if path.is_empty() {
+            None
+        } else {
+            Some(path.to_string())
+        }
+    }
+}
+
+fn extract_osc7_cwds(chunk: &[u8], pending: &mut Vec<u8>) -> Vec<String> {
+    let mut data = Vec::with_capacity(pending.len() + chunk.len());
+    data.extend_from_slice(pending);
+    data.extend_from_slice(chunk);
+    pending.clear();
+
+    let mut results = Vec::new();
+    let mut cursor = 0usize;
+    while cursor < data.len() {
+        let start_rel = data[cursor..]
+            .windows(OSC7_PREFIX.len())
+            .position(|window| window == OSC7_PREFIX);
+        let Some(start_rel) = start_rel else {
+            let overlap = osc7_prefix_overlap(&data[cursor..]);
+            if overlap > 0 {
+                pending.extend_from_slice(&data[data.len() - overlap..]);
+            }
+            break;
+        };
+        let start = cursor + start_rel;
+        let content_start = start + OSC7_PREFIX.len();
+
+        let mut end = None;
+        let mut terminator_len = 0usize;
+        let mut i = content_start;
+        while i < data.len() {
+            if data[i] == 0x07 {
+                end = Some(i);
+                terminator_len = 1;
+                break;
+            }
+            if data[i] == 0x1b && data.get(i + 1) == Some(&b'\\') {
+                end = Some(i);
+                terminator_len = 2;
+                break;
+            }
+            i += 1;
+        }
+
+        let Some(end_idx) = end else {
+            pending.extend_from_slice(&data[start..]);
+            break;
+        };
+
+        if let Ok(uri) = std::str::from_utf8(&data[content_start..end_idx]) {
+            if let Some(cwd) = osc7_uri_to_cwd(uri) {
+                results.push(cwd);
+            }
+        }
+
+        cursor = end_idx + terminator_len;
+    }
+
+    results
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -631,15 +784,7 @@ fn create_platform_pty(
     // CreateProcessW can't resolve. Only use SHELL if it looks like a valid
     // Windows path (contains ':' or '\'). Default to PowerShell (not COMSPEC/cmd.exe)
     // since PowerShell handles ConPTY output better.
-    let exe = shell
-        .filter(|s| !s.trim().is_empty())
-        .map(str::to_string)
-        .or_else(|| {
-            std::env::var("SHELL")
-                .ok()
-                .filter(|s| s.contains(':') || s.contains('\\'))
-        })
-        .unwrap_or_else(|| "powershell.exe".to_string());
+    let exe = resolve_windows_shell(shell);
 
     eprintln!("[pty] Windows shell detection for {id}: exe={exe}");
 
@@ -711,6 +856,7 @@ impl PtyManager {
         let generation = self.next_generation.fetch_add(1, Ordering::Relaxed);
         let default_pw = (DEFAULT_COLS * DEFAULT_CELL_PIXEL_WIDTH) as u16;
         let default_ph = (DEFAULT_ROWS * DEFAULT_CELL_PIXEL_HEIGHT) as u16;
+        let reported_cwd = Arc::new(Mutex::new(None));
 
         // Platform-specific PTY creation
         let (writer, mut reader, platform) = create_platform_pty(&id, &cwd, shell.as_deref())?;
@@ -725,14 +871,27 @@ impl PtyManager {
         // If there is no startup command, responses are always routed (the user
         // is interacting with the shell directly).
         let has_startup_cmd = startup_command.as_ref().is_some_and(|s| !s.is_empty());
+        #[cfg(target_os = "windows")]
+        let shell_bootstrap = {
+            let resolved = resolve_windows_shell(shell.as_deref());
+            if is_powershell_shell(&resolved) {
+                Some(powershell_cwd_bootstrap())
+            } else {
+                None
+            }
+        };
+        #[cfg(not(target_os = "windows"))]
+        let shell_bootstrap: Option<String> = None;
         let route_responses = Arc::new(AtomicBool::new(!has_startup_cmd));
 
         // Delay startup command to let the shell initialize (login profile, prompt)
-        if let Some(cmd_str) = startup_command.filter(|s| !s.is_empty()) {
+        if shell_bootstrap.is_some() || startup_command.as_ref().is_some_and(|s| !s.is_empty()) {
             let writer_clone = Arc::clone(&writer);
             let id_clone = id.clone();
             let sessions_clone = Arc::clone(&self.sessions);
             let route_flag = Arc::clone(&route_responses);
+            let bootstrap_cmd = shell_bootstrap.clone();
+            let startup_cmd = startup_command.filter(|s| !s.is_empty());
             std::thread::spawn(move || {
                 std::thread::sleep(std::time::Duration::from_millis(SHELL_READY_DELAY_MS));
                 // Check session still exists, then drop the sessions lock before
@@ -743,13 +902,25 @@ impl PtyManager {
                     .is_some_and(|s| s.contains_key(&id_clone));
                 if exists {
                     if let Ok(mut w) = writer_clone.lock() {
-                        if let Err(e) = w.write_all(cmd_str.as_bytes()) {
-                            eprintln!("[pty] Failed to write startup command for {id_clone}: {e}");
-                            return;
+                        if let Some(bootstrap) = bootstrap_cmd {
+                            if let Err(e) = w.write_all(bootstrap.as_bytes()) {
+                                eprintln!("[pty] Failed to write shell bootstrap for {id_clone}: {e}");
+                                return;
+                            }
+                            if let Err(e) = w.write_all(b"\r") {
+                                eprintln!("[pty] Failed to write bootstrap CR for {id_clone}: {e}");
+                                return;
+                            }
                         }
-                        if let Err(e) = w.write_all(b"\r") {
-                            eprintln!("[pty] Failed to write CR for {id_clone}: {e}");
-                            return;
+                        if let Some(cmd_str) = startup_cmd {
+                            if let Err(e) = w.write_all(cmd_str.as_bytes()) {
+                                eprintln!("[pty] Failed to write startup command for {id_clone}: {e}");
+                                return;
+                            }
+                            if let Err(e) = w.write_all(b"\r") {
+                                eprintln!("[pty] Failed to write CR for {id_clone}: {e}");
+                                return;
+                            }
                         }
                         let _ = w.flush();
                     }
@@ -771,6 +942,7 @@ impl PtyManager {
             writer,
             generation,
             initial_cwd: cwd.clone(),
+            reported_cwd: Arc::clone(&reported_cwd),
             platform,
         };
         self.lock_sessions()?.insert(id.clone(), session);
@@ -835,10 +1007,12 @@ impl PtyManager {
         let term_state = Arc::clone(&self.terminal_state);
         let last_output_at = Arc::clone(&self.last_output_at);
         let route_flag_reader = Arc::clone(&route_responses);
+        let reported_cwd_reader = Arc::clone(&reported_cwd);
         std::thread::spawn(move || {
             eprintln!("[pty] Reader thread started for {id_clone}");
             let (_, cv) = &*flush_cond;
             let mut buf = [0u8; READ_BUFFER_SIZE];
+            let mut osc7_pending = Vec::new();
             let mut last_emit = Instant::now() - RENDER_INTERVAL; // emit first frame immediately
             let mut total_bytes: usize = 0;
             loop {
@@ -849,6 +1023,18 @@ impl PtyManager {
                     }
                     Ok(n) => {
                         total_bytes += n;
+                        for cwd in extract_osc7_cwds(&buf[..n], &mut osc7_pending) {
+                            let mut reported = reported_cwd_reader
+                                .lock()
+                                .unwrap_or_else(|e| e.into_inner());
+                            if reported.as_ref() != Some(&cwd) {
+                                *reported = Some(cwd.clone());
+                                let _ = app.emit(
+                                    "pty:cwd-changed",
+                                    json!({ "paneId": &id_clone, "cwd": cwd }),
+                                );
+                            }
+                        }
 
                         // Detect OSC 10/11 color queries in the incoming data.
                         // Track which queries arrived so we can supplement a missing
@@ -1091,9 +1277,14 @@ impl PtyManager {
         let session = sessions.get(id)?;
         let pid = session.platform.pid();
         let fallback = session.initial_cwd.clone();
+        let reported = session
+            .reported_cwd
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         drop(sessions);
 
-        pid.and_then(detect_cwd).or(Some(fallback))
+        reported.or_else(|| pid.and_then(detect_cwd)).or(Some(fallback))
     }
 
     /// Returns elapsed time since last PTY output for each pane that has produced output.
