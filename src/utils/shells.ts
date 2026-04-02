@@ -25,7 +25,8 @@ let shellOptionsPromise: Promise<readonly ShellOption[]> | null = null;
 function compareShellValues(left: string, right: string): boolean {
 	if (left === right) return true;
 	if (!isWindows) return false;
-	const normalize = (value: string) => value.replaceAll("/", "\\").split("\\").at(-1)?.toLowerCase();
+	const normalize = (value: string) =>
+		value.replace(/\//g, "\\").split("\\").at(-1)?.toLowerCase();
 	return normalize(left) === normalize(right);
 }
 

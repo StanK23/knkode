@@ -16,7 +16,7 @@ export function normalizeCwd(value: string): string {
 	}
 
 	if (/^[A-Za-z]:[/\\]/.test(normalized) || normalized.startsWith("\\\\")) {
-		normalized = normalized.replaceAll("/", "\\");
+		normalized = normalized.replace(/\//g, "\\");
 	}
 
 	return normalized;
