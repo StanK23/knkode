@@ -19,6 +19,7 @@ import { isValidCwd, normalizeCwd } from "../utils/validation";
 import {
 	createLayoutFromPreset,
 	findSubgroupForPane,
+	getActivePaneId,
 	getActiveSubgroup,
 	getPaneIdsInOrder,
 	makePaneConfig,
@@ -363,7 +364,7 @@ export function createWorkspacePaneSlice(
 				const newAppState = { ...state.appState, activeWorkspaceId: id };
 				persistAppState(newAppState);
 				const ws = state.workspaces.find((w) => w.id === id);
-				const firstPaneId = ws ? (Object.keys(ws.panes)[0] ?? null) : null;
+				const firstPaneId = ws ? getActivePaneId(ws) : null;
 				return {
 					appState: newAppState,
 					focusedPaneId: firstPaneId,
@@ -377,10 +378,17 @@ export function createWorkspacePaneSlice(
 			set((state) => {
 				const open = state.appState.openWorkspaceIds;
 				const visited = addToVisited(state.visitedWorkspaceIds, id);
+				const ws = state.workspaces.find((w) => w.id === id);
+				const firstPaneId = ws ? getActivePaneId(ws) : null;
 				if (open.includes(id)) {
 					const newAppState = { ...state.appState, activeWorkspaceId: id };
 					persistAppState(newAppState);
-					return { appState: newAppState, visitedWorkspaceIds: visited };
+					return {
+						appState: newAppState,
+						visitedWorkspaceIds: visited,
+						focusedPaneId: firstPaneId,
+						focusGeneration: state.focusGeneration + 1,
+					};
 				}
 				const newAppState = {
 					...state.appState,
@@ -388,7 +396,12 @@ export function createWorkspacePaneSlice(
 					activeWorkspaceId: id,
 				};
 				persistAppState(newAppState);
-				return { appState: newAppState, visitedWorkspaceIds: visited };
+				return {
+					appState: newAppState,
+					visitedWorkspaceIds: visited,
+					focusedPaneId: firstPaneId,
+					focusGeneration: state.focusGeneration + 1,
+				};
 			});
 		},
 

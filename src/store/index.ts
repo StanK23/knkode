@@ -13,7 +13,7 @@ import type {
 	Workspace,
 } from "../shared/types";
 import { nextPaneTitlesForUpdate } from "../utils/pane-title";
-import { createLayoutFromPreset, makeSingleSubgroup } from "./layout-tree";
+import { createLayoutFromPreset, getActivePaneId, makeSingleSubgroup } from "./layout-tree";
 import { createSessionHistorySlice } from "./session-history-actions";
 import { createSnippetSlice } from "./snippet-actions";
 import {
@@ -426,7 +426,7 @@ export const useStore = create<StoreState>((set, get) => ({
 
 			const initialVisited = appState.activeWorkspaceId ? [appState.activeWorkspaceId] : [];
 			const activeWs = workspaces.find((w) => w.id === appState.activeWorkspaceId);
-			const initialFocusedPaneId = activeWs ? (Object.keys(activeWs.panes)[0] ?? null) : null;
+			const initialFocusedPaneId = activeWs ? getActivePaneId(activeWs) : null;
 
 			// Hydrate branch from persisted pane configs for instant sidebar rendering.
 			// PR data is NOT hydrated — it's ephemeral remote state that goes stale
