@@ -16,6 +16,7 @@ import type {
 import { DEFAULT_CURSOR_STYLE, DEFAULT_SCROLLBACK, DEFAULT_UNFOCUSED_DIM } from "../shared/types";
 import { reorderArray } from "../utils/array";
 import { isValidCwd, normalizeCwd } from "../utils/validation";
+import { isWindowBounds } from "./app-state";
 import {
 	createLayoutFromPreset,
 	findSubgroupForPane,
@@ -94,19 +95,6 @@ export function persistAppState(appState: AppState): void {
 	saveAppStatePreservingWindowBounds(appState).catch((err) => {
 		console.error("[store] Failed to save app state:", err);
 	});
-}
-
-function isWindowBounds(
-	value: unknown,
-): value is AppState["windowBounds"] {
-	if (typeof value !== "object" || value === null) return false;
-	const bounds = value as Record<string, unknown>;
-	return (
-		typeof bounds.x === "number" &&
-		typeof bounds.y === "number" &&
-		typeof bounds.width === "number" &&
-		typeof bounds.height === "number"
-	);
 }
 
 export function mergeAppStatePreservingWindowBounds(
