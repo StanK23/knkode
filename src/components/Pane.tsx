@@ -157,8 +157,9 @@ export const Pane = memo(function Pane({
 		onFocus,
 	});
 
-	// One-shot capture — PTY should only use initial CWD and startup command
+	// One-shot capture — PTY should only use initial spawn config
 	const initialCwdRef = useRef(config.cwd);
+	const initialShellRef = useRef(config.shell);
 	const initialCmdRef = useRef(config.startupCommand);
 	// Ref to merged theme for use in sync-colors-before-create pattern
 	const mergedThemeRef = useRef(mergeThemeWithPreset(workspaceTheme, config.themeOverride));
@@ -169,7 +170,7 @@ export const Pane = memo(function Pane({
 	/** Sync palette to Rust then create the PTY. Palette is sent first so
 	 *  the terminal's OSC 10/11 responses are correct from the first byte. */
 	const syncPaletteAndCreatePty = useCallback(
-		async (id: string, cwd: string, cmd: string | null) => {
+		async (id: string, cwd: string, shell: string | null, cmd: string | null) => {
 			const theme = mergedThemeRef.current;
 			try {
 				await window.api.setTerminalColors(id, theme.ansiColors ?? DEFAULT_ANSI, theme.foreground, theme.background);
@@ -177,7 +178,7 @@ export const Pane = memo(function Pane({
 				console.error(`[pane] pre-create setTerminalColors failed for ${id}:`, err);
 			}
 			try {
-				await window.api.createPty(id, cwd, cmd);
+				await window.api.createPty(id, cwd, shell, cmd);
 			} catch (err: unknown) {
 				console.error(`[pane] PTY create failed for ${id}:`, err);
 				setPtyError(true);
@@ -192,7 +193,12 @@ export const Pane = memo(function Pane({
 		const newSet = new Set(activePtyIds);
 		newSet.add(paneId);
 		useStore.setState({ activePtyIds: newSet });
-		syncPaletteAndCreatePty(paneId, initialCwdRef.current, initialCmdRef.current);
+		syncPaletteAndCreatePty(
+			paneId,
+			initialCwdRef.current,
+			initialShellRef.current,
+			initialCmdRef.current,
+		);
 	}, [paneId, syncPaletteAndCreatePty]);
 
 	// Subscribe to grid snapshots from Rust PTY renderer via centralized dispatcher.
@@ -395,7 +401,12 @@ export const Pane = memo(function Pane({
 					newSet.add(paneId);
 					useStore.setState({ activePtyIds: newSet });
 				}
-				syncPaletteAndCreatePty(paneId, initialCwdRef.current, initialCmdRef.current);
+				syncPaletteAndCreatePty(
+					paneId,
+					initialCwdRef.current,
+					initialShellRef.current,
+					initialCmdRef.current,
+				);
 				return;
 			}
 

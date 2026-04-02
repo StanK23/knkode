@@ -10,7 +10,7 @@ import { isLayoutBranch } from "../shared/types";
 
 /** Create a default PaneConfig with the given label and cwd. */
 export function makePaneConfig(label: string, cwd: string): PaneConfig {
-	return { label, cwd, startupCommand: null, themeOverride: null };
+	return { label, cwd, shell: null, startupCommand: null, themeOverride: null };
 }
 
 /** Remove a leaf from a layout tree by pane ID.

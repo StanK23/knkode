@@ -51,6 +51,7 @@ function isAllowedUrl(url: string): boolean {
 const _api: KnkodeApi = {
 	// App
 	getHomeDir: () => invoke<string>("get_home_dir"),
+	getAvailableShells: () => invoke("get_available_shells"),
 	openExternal: (url) => {
 		if (!isAllowedUrl(url)) {
 			return Promise.reject(new Error(`Blocked URL scheme: ${url}`));
@@ -73,7 +74,8 @@ const _api: KnkodeApi = {
 
 	// PTY
 	trackPaneGit: (id, cwd) => invoke("track_pane_git", { id, cwd }),
-	createPty: (id, cwd, startupCommand) => invoke("create_pty", { id, cwd, startupCommand }),
+	createPty: (id, cwd, shell, startupCommand) =>
+		invoke("create_pty", { id, cwd, shell, startupCommand }),
 	writePty: (id, data) => invoke("write_pty", { id, data }),
 	resizePty: (id, cols, rows, pixelWidth, pixelHeight) =>
 		invoke("resize_pty", { id, cols, rows, pixelWidth, pixelHeight }),

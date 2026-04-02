@@ -2,6 +2,7 @@ import type { LayoutPreset, PaneConfig, PaneTheme } from "../shared/types";
 import { CwdInput } from "./CwdInput";
 import { LayoutPicker } from "./LayoutPicker";
 import { SegmentedButton } from "./SegmentedButton";
+import { ShellSelector } from "./ShellSelector";
 import { SettingsSection } from "./SettingsSection";
 import { SnippetsSection } from "./SnippetsSection";
 
@@ -76,6 +77,15 @@ export function WorkspaceTabPanel({
 							onChange={(cwd) => onPaneUpdate(paneId, { cwd })}
 							aria-label={`Pane ${pane.label} working directory`}
 						/>
+						<div className="flex flex-1 min-w-0 gap-1.5">
+							<ShellSelector
+								value={pane.shell}
+								onChange={(shell) => onPaneUpdate(paneId, { shell })}
+								selectClassName="settings-input w-40 shrink-0"
+								inputClassName="settings-input flex-1 min-w-0"
+								ariaLabel={`Pane ${pane.label} shell`}
+							/>
+						</div>
 						<input
 							value={pane.startupCommand || ""}
 							onChange={(e) =>

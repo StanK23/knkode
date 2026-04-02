@@ -96,6 +96,36 @@ fn detect_cwd(pid: u32) -> Option<String> {
 ///   PEB + 0x20 → ProcessParameters (RTL_USER_PROCESS_PARAMETERS*)
 ///   ProcessParameters + 0x38 → CurrentDirectory.DosPath (UNICODE_STRING)
 #[cfg(target_os = "windows")]
+fn normalize_windows_cwd(path: &str) -> Option<String> {
+    let mut normalized = path.trim().replace('/', "\\");
+    if normalized.is_empty() {
+        return None;
+    }
+
+    if let Some(rest) = normalized
+        .strip_prefix("\\\\?\\UNC\\")
+        .or_else(|| normalized.strip_prefix("\\??\\UNC\\"))
+    {
+        normalized = format!("\\\\{rest}");
+    } else if let Some(rest) = normalized
+        .strip_prefix("\\\\?\\")
+        .or_else(|| normalized.strip_prefix("\\??\\"))
+    {
+        normalized = rest.to_string();
+    }
+
+    let trimmed = normalized.trim_end_matches('\\');
+    if trimmed.is_empty() {
+        return None;
+    }
+    if trimmed.ends_with(':') {
+        Some(format!("{trimmed}\\"))
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+#[cfg(target_os = "windows")]
 #[cfg(target_arch = "x86_64")]
 fn detect_cwd(pid: u32) -> Option<String> {
     use std::mem;
@@ -213,15 +243,7 @@ fn detect_cwd(pid: u32) -> Option<String> {
             .map(|c| u16::from_ne_bytes([c[0], c[1]]))
             .collect();
         let path = String::from_utf16(&wide).ok()?;
-
-        // Strip trailing backslash (e.g. "C:\Users\foo\" → "C:\Users\foo")
-        // but keep root drive paths like "C:\" intact.
-        let trimmed = path.trim_end_matches('\\');
-        if trimmed.ends_with(':') {
-            Some(path)
-        } else {
-            Some(trimmed.to_string())
-        }
+        normalize_windows_cwd(&path)
     }
 }
 
@@ -529,6 +551,7 @@ impl PlatformPty {
 fn create_platform_pty(
     id: &str,
     cwd: &str,
+    shell: Option<&str>,
 ) -> Result<
     (
         Box<dyn Write + Send>,
@@ -550,7 +573,11 @@ fn create_platform_pty(
         ))
         .map_err(|e| format!("Failed to open PTY: {e}"))?;
 
-    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string());
+    let shell = shell
+        .filter(|s| !s.trim().is_empty())
+        .map(str::to_string)
+        .or_else(|| std::env::var("SHELL").ok())
+        .unwrap_or_else(|| "/bin/bash".to_string());
     let mut cmd = CommandBuilder::new(&shell);
     cmd.arg("-l");
     cmd.cwd(cwd);
@@ -591,6 +618,7 @@ fn create_platform_pty(
 fn create_platform_pty(
     id: &str,
     cwd: &str,
+    shell: Option<&str>,
 ) -> Result<
     (
         Box<dyn Write + Send>,
@@ -603,9 +631,14 @@ fn create_platform_pty(
     // CreateProcessW can't resolve. Only use SHELL if it looks like a valid
     // Windows path (contains ':' or '\'). Default to PowerShell (not COMSPEC/cmd.exe)
     // since PowerShell handles ConPTY output better.
-    let exe = std::env::var("SHELL")
-        .ok()
-        .filter(|s| s.contains(':') || s.contains('\\'))
+    let exe = shell
+        .filter(|s| !s.trim().is_empty())
+        .map(str::to_string)
+        .or_else(|| {
+            std::env::var("SHELL")
+                .ok()
+                .filter(|s| s.contains(':') || s.contains('\\'))
+        })
         .unwrap_or_else(|| "powershell.exe".to_string());
 
     eprintln!("[pty] Windows shell detection for {id}: exe={exe}");
@@ -660,6 +693,7 @@ impl PtyManager {
         &self,
         id: String,
         cwd: String,
+        shell: Option<String>,
         startup_command: Option<String>,
         app: tauri::AppHandle,
     ) -> Result<(), String> {
@@ -679,7 +713,7 @@ impl PtyManager {
         let default_ph = (DEFAULT_ROWS * DEFAULT_CELL_PIXEL_HEIGHT) as u16;
 
         // Platform-specific PTY creation
-        let (writer, mut reader, platform) = create_platform_pty(&id, &cwd)?;
+        let (writer, mut reader, platform) = create_platform_pty(&id, &cwd, shell.as_deref())?;
         let writer = Arc::new(Mutex::new(writer));
 
         // Gate for response routing: suppress shell-init OSC/DA responses that
