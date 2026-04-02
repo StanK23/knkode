@@ -6,6 +6,7 @@
 //! sorted by last activity descending (falling back to session start time).
 
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 use std::path::Path;
 
 /// Maximum number of sessions returned by [`list_sessions`].
@@ -331,6 +332,7 @@ fn scan_gemini(home: &Path, project_cwd: &str, out: &mut Vec<AgentSession>) {
         Some(name) if !name.is_empty() => name,
         _ => return,
     };
+    let expected_project_hash = gemini_project_hash(project_cwd);
 
     let chats_dir = home
         .join(".gemini")
@@ -360,7 +362,7 @@ fn scan_gemini(home: &Path, project_cwd: &str, out: &mut Vec<AgentSession>) {
         if path.extension().is_none_or(|e| e != "json") || !path.is_file() {
             continue;
         }
-        if let Some(session) = parse_gemini_session(&path) {
+        if let Some(session) = parse_gemini_session(&path, &expected_project_hash) {
             gemini_sessions.push(session);
         }
     }
@@ -378,7 +380,13 @@ fn scan_gemini(home: &Path, project_cwd: &str, out: &mut Vec<AgentSession>) {
 /// Max file size (10 MB) for Gemini session JSON before skipping.
 const MAX_GEMINI_FILE_SIZE: u64 = 10 * 1024 * 1024;
 
-fn parse_gemini_session(path: &Path) -> Option<AgentSession> {
+fn gemini_project_hash(project_cwd: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(project_cwd.as_bytes());
+    format!("{:x}", hasher.finalize())
+}
+
+fn parse_gemini_session(path: &Path, expected_project_hash: &str) -> Option<AgentSession> {
     use std::io::Read;
 
     // Open once and check metadata from the handle to avoid TOCTOU
@@ -394,6 +402,10 @@ fn parse_gemini_session(path: &Path) -> Option<AgentSession> {
     let mut content = String::with_capacity(file_len as usize);
     file.read_to_string(&mut content).ok()?;
     let val: serde_json::Value = serde_json::from_str(&content).ok()?;
+    let project_hash = val.get("projectHash").and_then(|v| v.as_str())?;
+    if project_hash != expected_project_hash {
+        return None;
+    }
 
     let id = val.get("sessionId").and_then(|v| v.as_str())?.to_string();
     let timestamp = val.get("startTime").and_then(|v| v.as_str())?.to_string();
@@ -448,6 +460,69 @@ fn parse_gemini_session(path: &Path) -> Option<AgentSession> {
         branch: None,
         cwd: None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{gemini_project_hash, parse_gemini_session};
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn write_temp_gemini_session(project_hash: &str) -> PathBuf {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock before unix epoch")
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("knkode-gemini-session-{suffix}.json"));
+        let payload = format!(
+            r#"{{
+  "sessionId": "session-1",
+  "projectHash": "{project_hash}",
+  "startTime": "2026-04-02T00:00:00.000Z",
+  "lastUpdated": "2026-04-02T00:10:00.000Z",
+  "summary": "Test session",
+  "messages": [
+    {{
+      "id": "msg-1",
+      "type": "user",
+      "timestamp": "2026-04-02T00:00:01.000Z",
+      "content": "hello"
+    }}
+  ]
+}}"#
+        );
+        fs::write(&path, payload).expect("failed to write temp gemini session");
+        path
+    }
+
+    #[test]
+    fn gemini_hash_matches_full_project_path() {
+        let project_cwd = "/Users/test/dev/knkode";
+        assert_eq!(
+            gemini_project_hash(project_cwd),
+            "c50ffdfc1a87e94ff71d66a07700dada2eb949b3adae14e6f18891bd28cf5747"
+        );
+    }
+
+    #[test]
+    fn parse_gemini_session_rejects_mismatched_project_hash() {
+        let path = write_temp_gemini_session("different-hash");
+        let result = parse_gemini_session(&path, "expected-hash");
+        fs::remove_file(&path).expect("failed to clean up temp gemini session");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn parse_gemini_session_accepts_matching_project_hash() {
+        let expected_hash = gemini_project_hash("/Users/test/dev/knkode");
+        let path = write_temp_gemini_session(&expected_hash);
+        let result = parse_gemini_session(&path, &expected_hash);
+        fs::remove_file(&path).expect("failed to clean up temp gemini session");
+        let session = result.expect("expected matching session");
+        assert_eq!(session.id, "session-1");
+        assert_eq!(session.title.as_deref(), Some("Test session"));
+    }
 }
 
 // ---------------------------------------------------------------------------
