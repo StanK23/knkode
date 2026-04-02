@@ -180,13 +180,11 @@ impl Write for PipeWriter {
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        use winapi::um::fileapi::FlushFileBuffers;
-        let ok = unsafe { FlushFileBuffers(self.handle.as_raw_handle() as _) };
-        if ok == 0 {
-            Err(IoError::last_os_error())
-        } else {
-            Ok(())
-        }
+        // ConPTY input is an anonymous pipe, not a buffered file. `WriteFile`
+        // already hands bytes to the kernel immediately; forcing
+        // `FlushFileBuffers` here can block until the pseudoconsole drains the
+        // pipe, which amplifies input lag while the shell is producing output.
+        Ok(())
     }
 }
 
