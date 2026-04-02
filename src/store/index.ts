@@ -66,7 +66,7 @@ interface StoreState {
 	toggleSidebar: () => void;
 	toggleSidebarSection: (workspaceId: string) => void;
 	/** Ensure a PTY exists for the given pane. No-op if already requested or active. */
-	ensurePty: (paneId: string, cwd: string, startupCommand: string | null) => void;
+	ensurePty: (paneId: string, cwd: string, shell: string | null, startupCommand: string | null) => void;
 	/** Kill PTYs for the given pane IDs and remove them from activePtyIds. */
 	killPtys: (paneIds: string[]) => void;
 	/** Remove a single pane ID from activePtyIds (e.g. on natural PTY exit). */
@@ -247,14 +247,14 @@ export const useStore = create<StoreState>((set, get) => ({
 		});
 	},
 
-	ensurePty: (paneId, cwd, startupCommand) => {
+	ensurePty: (paneId, cwd, shell, startupCommand) => {
 		const { activePtyIds } = get();
 		if (activePtyIds.has(paneId)) return;
 		// Optimistically mark as active to prevent concurrent creation attempts
 		const newSet = new Set(activePtyIds);
 		newSet.add(paneId);
 		set({ activePtyIds: newSet });
-		window.api.createPty(paneId, cwd, startupCommand).catch((err) => {
+		window.api.createPty(paneId, cwd, shell, startupCommand).catch((err) => {
 			console.error(`[store] Failed to create PTY for pane ${paneId}:`, err);
 			// Remove from active set on failure so retry is possible
 			const current = get().activePtyIds;

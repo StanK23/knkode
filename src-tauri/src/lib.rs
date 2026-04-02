@@ -33,6 +33,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         .manage(CwdTracker::new())
         .invoke_handler(tauri::generate_handler![
             commands::get_home_dir,
+            commands::get_available_shells,
             commands::get_workspaces,
             commands::save_workspace,
             commands::delete_workspace,

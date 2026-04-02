@@ -4,10 +4,11 @@ import { useClickOutside } from "../hooks/useClickOutside";
 import { getPortalRoot, type ScreenPosition, VIEWPORT_MARGIN } from "../lib/ui-constants";
 import type { PaneConfig } from "../shared/types";
 import { useStore } from "../store";
-import { isValidCwd } from "../utils/validation";
+import { isValidCwd, normalizeCwd } from "../utils/validation";
 import { MoveToWorkspaceSubmenu } from "./MoveToWorkspaceSubmenu";
+import { ShellSelector } from "./ShellSelector";
 
-type ContextPanelKind = "cwd" | "cmd" | "move";
+type ContextPanelKind = "cwd" | "cmd" | "move" | "shell";
 
 interface PaneContextMenuProps {
 	paneId: string;
@@ -172,7 +173,7 @@ export function PaneContextMenu({
 					className="flex gap-1 px-3 py-1 pb-2"
 					onSubmit={(e) => {
 						e.preventDefault();
-						const cwd = cwdInput.trim();
+						const cwd = normalizeCwd(cwdInput.trim());
 						if (cwd && isValidCwd(cwd)) {
 							onUpdateConfig({ cwd });
 						} else if (cwd) {
@@ -193,6 +194,30 @@ export function PaneContextMenu({
 						Set
 					</button>
 				</form>
+			)}
+			<button
+				type="button"
+				className="ctx-item"
+				onClick={() => {
+					setContextPanel(contextPanel === "shell" ? null : "shell");
+				}}
+			>
+				Set Shell
+			</button>
+			{contextPanel === "shell" && (
+				<div className="flex gap-1 px-3 py-1 pb-2">
+					<ShellSelector
+						value={config.shell}
+						onChange={(shell) => {
+							onUpdateConfig({ shell });
+							closeContext();
+						}}
+						selectClassName="ctx-input w-40 shrink-0"
+						inputClassName="ctx-input flex-1 min-w-0"
+						ariaLabel={`Pane ${config.label} shell`}
+						autoFocusInput
+					/>
+				</div>
 			)}
 			<button
 				type="button"
@@ -234,7 +259,7 @@ export function PaneContextMenu({
 				className="ctx-item"
 				onClick={() => {
 					killPtys([paneId]);
-					ensurePty(paneId, config.cwd, config.startupCommand);
+					ensurePty(paneId, config.cwd, config.shell, config.startupCommand);
 					closeContext();
 					onFocus();
 				}}

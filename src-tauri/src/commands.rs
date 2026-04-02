@@ -3,9 +3,19 @@ use crate::pty::PtyManager;
 use crate::session_scanner;
 use crate::terminal::{AnsiThemeColors, GridSnapshot, SelectionRange, TerminalState};
 use crate::tracker::CwdTracker;
+use serde::Serialize;
 use serde_json::Value;
+use std::collections::HashSet;
+use std::env;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::State;
+
+#[derive(Serialize)]
+pub struct ShellOption {
+    value: String,
+    label: String,
+}
 
 #[tauri::command]
 pub fn get_home_dir() -> Result<String, String> {
@@ -13,6 +23,87 @@ pub fn get_home_dir() -> Result<String, String> {
     path.to_str()
         .map(|s| s.to_string())
         .ok_or_else(|| "Home directory path contains invalid UTF-8".to_string())
+}
+
+fn find_in_path(executable: &str) -> Option<PathBuf> {
+    let candidate = Path::new(executable);
+    if candidate.is_absolute() && candidate.is_file() {
+        return Some(candidate.to_path_buf());
+    }
+
+    let path_var = env::var_os("PATH")?;
+    env::split_paths(&path_var)
+        .map(|dir| dir.join(executable))
+        .find(|path| path.is_file())
+}
+
+#[cfg(target_os = "windows")]
+fn system_root_join(parts: &[&str]) -> Option<PathBuf> {
+    let root = env::var_os("SystemRoot")?;
+    let mut path = PathBuf::from(root);
+    for part in parts {
+        path.push(part);
+    }
+    Some(path)
+}
+
+#[tauri::command]
+pub fn get_available_shells() -> Vec<ShellOption> {
+    // Only surface shells that are both installed and known-good with the
+    // current PTY launch model. Anything more exotic should stay reachable
+    // through the UI's `Custom…` path until we explicitly validate it.
+    #[cfg(target_os = "windows")]
+    let candidates: [(&str, &[&str]); 3] = [
+        (
+            "PowerShell",
+            &["powershell.exe", "WindowsPowerShell\\v1.0\\powershell.exe"],
+        ),
+        ("PowerShell 7", &["pwsh.exe", "PowerShell\\7\\pwsh.exe"]),
+        ("Command Prompt", &["cmd.exe", "System32\\cmd.exe"]),
+    ];
+
+    #[cfg(not(target_os = "windows"))]
+    let candidates: [(&str, &[&str]); 3] = [
+        ("Zsh", &["/bin/zsh", "/usr/bin/zsh"]),
+        ("Bash", &["/bin/bash", "/usr/bin/bash"]),
+        ("Fish", &["/opt/homebrew/bin/fish", "/usr/local/bin/fish", "/usr/bin/fish"]),
+    ];
+
+    let mut seen = HashSet::new();
+    let mut options = Vec::new();
+
+    for (label, paths) in candidates {
+        let resolved = paths.iter().find_map(|candidate| {
+            #[cfg(target_os = "windows")]
+            {
+                find_in_path(candidate).or_else(|| {
+                    if candidate.contains('\\') {
+                        let parts: Vec<&str> = candidate.split('\\').collect();
+                        system_root_join(&parts).filter(|path| path.is_file())
+                    } else {
+                        None
+                    }
+                })
+            }
+
+            #[cfg(not(target_os = "windows"))]
+            {
+                find_in_path(candidate)
+            }
+        });
+
+        if let Some(path) = resolved {
+            let value = path.to_string_lossy().to_string();
+            if seen.insert(value.clone()) {
+                options.push(ShellOption {
+                    value,
+                    label: label.to_string(),
+                });
+            }
+        }
+    }
+
+    options
 }
 
 // --- Config commands ---
@@ -58,6 +149,7 @@ pub fn save_snippets(snippets: Vec<Value>, config: State<'_, ConfigStore>) -> Re
 pub fn create_pty(
     id: String,
     cwd: String,
+    shell: Option<String>,
     startup_command: Option<String>,
     pty_mgr: State<'_, Arc<PtyManager>>,
     tracker: State<'_, CwdTracker>,
@@ -73,12 +165,17 @@ pub fn create_pty(
     if !cwd_path.is_dir() {
         return Err(format!("cwd does not exist or is not a directory: {cwd}"));
     }
+    if let Some(ref shell) = shell {
+        if shell.contains('\0') {
+            return Err("shell must not contain null bytes".to_string());
+        }
+    }
     if let Some(ref cmd) = startup_command {
         if cmd.contains('\0') {
             return Err("startup_command must not contain null bytes".to_string());
         }
     }
-    pty_mgr.create(id.clone(), cwd.clone(), startup_command, app)?;
+    pty_mgr.create(id.clone(), cwd.clone(), shell, startup_command, app)?;
     tracker.track_pane(id, cwd);
     Ok(())
 }

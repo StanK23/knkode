@@ -186,9 +186,16 @@ export interface SidebarTheme {
 	readonly cardRadius?: number;
 }
 
+export interface ShellOption {
+	readonly value: string;
+	readonly label: string;
+}
+
 export interface PaneConfig {
 	readonly label: string;
 	readonly cwd: string;
+	/** Optional shell executable/path for this pane. When null, platform default shell is used. */
+	readonly shell: string | null;
 	readonly startupCommand: string | null;
 	readonly themeOverride: Partial<PaneTheme> | null;
 	/** Last known git branch — persisted for instant sidebar rendering on startup. */
@@ -407,6 +414,7 @@ export type Unsubscribe = () => void;
 export interface KnkodeApi {
 	// App
 	getHomeDir(): Promise<string>;
+	getAvailableShells(): Promise<ShellOption[]>;
 	openExternal(url: string): Promise<void>;
 
 	// Config
@@ -423,7 +431,12 @@ export interface KnkodeApi {
 
 	// PTY
 	trackPaneGit(id: string, cwd: string): Promise<void>;
-	createPty(id: string, cwd: string, startupCommand: string | null): Promise<void>;
+	createPty(
+		id: string,
+		cwd: string,
+		shell: string | null,
+		startupCommand: string | null,
+	): Promise<void>;
 	writePty(id: string, data: string): Promise<void>;
 	resizePty(
 		id: string,
