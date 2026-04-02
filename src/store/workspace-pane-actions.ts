@@ -15,7 +15,7 @@ import type {
 } from "../shared/types";
 import { DEFAULT_CURSOR_STYLE, DEFAULT_SCROLLBACK, DEFAULT_UNFOCUSED_DIM } from "../shared/types";
 import { reorderArray } from "../utils/array";
-import { isValidCwd } from "../utils/validation";
+import { isValidCwd, normalizeCwd } from "../utils/validation";
 import {
 	createLayoutFromPreset,
 	findSubgroupForPane,
@@ -115,6 +115,21 @@ function persistPaneField(
 	window.api.saveWorkspace(updated).catch((err) => {
 		console.warn("[store] persistPaneField: save failed", err);
 	});
+}
+
+/** Return a workspace copy with one pane's cwd updated, or null when unchanged/invalid. */
+export function updateWorkspacePaneCwd(
+	workspace: Workspace,
+	paneId: string,
+	cwd: string,
+): Workspace | null {
+	const pane = workspace.panes[paneId];
+	if (!pane) return null;
+	if (pane.cwd === cwd) return null;
+	return {
+		...workspace,
+		panes: { ...workspace.panes, [paneId]: { ...pane, cwd } },
+	};
 }
 
 /** Find a workspace, apply a transformation, and return the merged partial state.
@@ -645,6 +660,8 @@ export function createWorkspacePaneSlice(
 		},
 
 		updatePaneConfig: (workspaceId: string, paneId: string, updates: Partial<PaneConfig>) => {
+			const normalizedUpdates =
+				typeof updates.cwd === "string" ? { ...updates, cwd: normalizeCwd(updates.cwd) } : updates;
 			set((state) =>
 				withWorkspace(state, workspaceId, (workspace) => {
 					if (!workspace.panes[paneId]) return null;
@@ -653,7 +670,7 @@ export function createWorkspacePaneSlice(
 							...workspace,
 							panes: {
 								...workspace.panes,
-								[paneId]: { ...workspace.panes[paneId]!, ...updates },
+								[paneId]: { ...workspace.panes[paneId]!, ...normalizedUpdates },
 							},
 						},
 					};
@@ -662,27 +679,25 @@ export function createWorkspacePaneSlice(
 			// Notify the CWD tracker so branch/PR detection updates immediately.
 			// This path is triggered by context menu CWD changes; updatePaneCwd
 			// below handles CWD changes detected by the Rust tracker itself.
-			if (updates.cwd && isValidCwd(updates.cwd)) {
-				window.api.trackPaneGit(paneId, updates.cwd).catch((err) => {
+			if (normalizedUpdates.cwd && isValidCwd(normalizedUpdates.cwd)) {
+				window.api.trackPaneGit(paneId, normalizedUpdates.cwd).catch((err) => {
 					console.warn("[store] trackPaneGit failed:", err);
 				});
 			}
 		},
 
 		updatePaneCwd: (workspaceId: string, paneId: string, cwd: string) => {
-			if (!isValidCwd(cwd)) {
-				console.warn("[store] updatePaneCwd: invalid cwd", cwd);
+			const normalizedCwd = normalizeCwd(cwd);
+			if (!isValidCwd(normalizedCwd)) {
+				console.warn("[store] updatePaneCwd: invalid cwd", { cwd, normalizedCwd });
 				return;
 			}
 			set((state) =>
 				withWorkspace(state, workspaceId, (workspace) => {
-					if (!workspace.panes[paneId]) return null;
-					if (workspace.panes[paneId]!.cwd === cwd) return null;
+					const updated = updateWorkspacePaneCwd(workspace, paneId, normalizedCwd);
+					if (!updated) return null;
 					return {
-						updated: {
-							...workspace,
-							panes: { ...workspace.panes, [paneId]: { ...workspace.panes[paneId]!, cwd } },
-						},
+						updated,
 					};
 				}),
 			);

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { isMac } from "../utils/platform";
-import { isValidCwd } from "../utils/validation";
+import { isValidCwd, normalizeCwd } from "../utils/validation";
 
 interface CwdInputProps {
 	value: string;
@@ -24,6 +24,7 @@ export function CwdInput({ value, homeDir, onChange, "aria-label": ariaLabel }: 
 		// Resolve tilde to absolute path before validation
 		if (trimmed === "~") trimmed = homeDir;
 		else if (trimmed.startsWith("~/")) trimmed = `${homeDir}${trimmed.slice(1)}`;
+		trimmed = normalizeCwd(trimmed);
 
 		if (isValidCwd(trimmed)) {
 			if (trimmed !== value) onChange(trimmed);
