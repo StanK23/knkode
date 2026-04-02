@@ -858,7 +858,9 @@ impl PtyManager {
         app: tauri::AppHandle,
     ) -> Result<(), String> {
         // Kill existing session to allow pane restart without explicit cleanup
-        self.kill(&id).ok();
+        if let Err(e) = self.kill(&id) {
+            eprintln!("[pty] Failed to kill existing session for {id}: {e}");
+        }
 
         // Enforce session limit to prevent resource exhaustion
         {
@@ -915,7 +917,9 @@ impl PtyManager {
                                 return;
                             }
                         }
-                        let _ = w.flush();
+                        if let Err(e) = w.flush() {
+                            eprintln!("[pty] Failed to flush startup command for {id_clone}: {e}");
+                        }
                     }
                 }
                 // Now that the command is sent, allow responses to flow back.
@@ -1022,10 +1026,14 @@ impl PtyManager {
                                 .unwrap_or_else(|e| e.into_inner());
                             if reported.as_ref() != Some(&cwd) {
                                 *reported = Some(cwd.clone());
-                                let _ = app.emit(
+                                if let Err(e) = app.emit(
                                     "pty:cwd-changed",
                                     json!({ "paneId": &id_clone, "cwd": cwd }),
-                                );
+                                ) {
+                                    eprintln!(
+                                        "[pty] Failed to emit cwd-changed for {id_clone}: {e}"
+                                    );
+                                }
                             }
                         }
 

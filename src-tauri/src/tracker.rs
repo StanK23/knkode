@@ -254,10 +254,10 @@ fn poll_pane(
             with_pane_mut(panes, pane_id, |s| {
                 s.cwd = detected.clone();
             });
-            let _ = app.emit(
-                "pty:cwd-changed",
-                json!({ "paneId": pane_id, "cwd": detected }),
-            );
+            if let Err(e) = app.emit("pty:cwd-changed", json!({ "paneId": pane_id, "cwd": detected }))
+            {
+                eprintln!("[tracker] Failed to emit cwd-changed for {pane_id}: {e}");
+            }
         }
         detected.clone()
     } else {
@@ -332,10 +332,12 @@ fn poll_pane(
         with_pane_mut(panes, pane_id, |s| {
             s.branch = current_branch.clone();
         });
-        let _ = app.emit(
+        if let Err(e) = app.emit(
             "pty:branch-changed",
             json!({ "paneId": pane_id, "branch": current_branch }),
-        );
+        ) {
+            eprintln!("[tracker] Failed to emit branch-changed for {pane_id}: {e}");
+        }
         clear_pr_if_present(panes, pane_id, app);
     }
 
