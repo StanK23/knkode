@@ -345,7 +345,7 @@ impl WinPtySession {
 
                 let ok = unsafe {
                     CreateProcessW(
-                        exe_wide.as_ptr(),
+                        ptr::null(),
                         cmdline.as_mut_ptr(),
                         ptr::null_mut(),
                         ptr::null_mut(),
