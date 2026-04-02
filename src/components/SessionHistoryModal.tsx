@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { toPresetName } from "../data/theme-presets";
+import { useModalFocusTrap } from "../hooks/useModalFocusTrap";
 import { getPortalRoot } from "../lib/ui-constants";
 import { AGENT_KINDS, type AgentKind, type AgentSession } from "../shared/types";
 import { useStore } from "../store";
@@ -79,9 +80,6 @@ function SessionRow({
 	);
 }
 
-const FOCUSABLE_SELECTOR =
-	'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-
 export function SessionHistoryModal() {
 	const paneId = useStore((s) => s.sessionHistoryPaneId);
 	const sessions = useStore((s) => s.agentSessions);
@@ -115,30 +113,7 @@ export function SessionHistoryModal() {
 		return () => document.removeEventListener("keydown", handler);
 	}, [paneId, closeSessionHistory]);
 
-	// Focus trap — contain Tab/Shift+Tab within the dialog
-	useEffect(() => {
-		const dialog = modalRef.current;
-		if (!paneId || !dialog) return;
-		const handler = (e: KeyboardEvent) => {
-			if (e.key !== "Tab") return;
-			const focusable = dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
-			if (focusable.length === 0) return;
-			// biome-ignore lint/style/noNonNullAssertion: length > 0 checked above
-			const first = focusable[0]!;
-			// biome-ignore lint/style/noNonNullAssertion: length > 0 checked above
-			const last = focusable[focusable.length - 1]!;
-			if (e.shiftKey && document.activeElement === first) {
-				e.preventDefault();
-				last.focus();
-			} else if (!e.shiftKey && document.activeElement === last) {
-				e.preventDefault();
-				first.focus();
-			}
-		};
-		dialog.addEventListener("keydown", handler);
-		dialog.focus();
-		return () => dialog.removeEventListener("keydown", handler);
-	}, [paneId]);
+	useModalFocusTrap(modalRef, Boolean(paneId), { initialFocus: "dialog" });
 
 	if (!paneId) return null;
 

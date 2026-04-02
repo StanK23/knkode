@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { DEFAULT_PRESET_NAME, type ThemePresetName, findPreset } from "../data/theme-presets";
+import { useModalFocusTrap } from "../hooks/useModalFocusTrap";
 import type { UpdateActions, UpdateState } from "../hooks/useUpdateChecker";
 import {
 	type CursorStyle,
@@ -181,7 +182,8 @@ export function SettingsPanel({
 
 	const dialogRef = useRef<HTMLDivElement>(null);
 	const activeSubgroup = getActiveSubgroup(workspace);
-	const currentPreset = activeSubgroup.layout.type === "preset" ? activeSubgroup.layout.preset : null;
+	const currentPreset =
+		activeSubgroup.layout.type === "preset" ? activeSubgroup.layout.preset : null;
 
 	const update = useCallback(
 		(patch: Partial<SettingsState>) => dispatch({ type: "UPDATE", patch }),
@@ -332,34 +334,7 @@ export function SettingsPanel({
 		return () => document.removeEventListener("keydown", handler);
 	}, [onClose]);
 
-	// Focus trap — contain Tab/Shift+Tab within the dialog
-	useEffect(() => {
-		const dialog = dialogRef.current;
-		if (!dialog) return;
-		const handler = (e: KeyboardEvent) => {
-			if (e.key !== "Tab") return;
-			const focusable = dialog.querySelectorAll<HTMLElement>(
-				'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-			);
-			if (focusable.length === 0) return;
-			const first = focusable[0]!;
-			const last = focusable[focusable.length - 1]!;
-			if (e.shiftKey && document.activeElement === first) {
-				e.preventDefault();
-				last.focus();
-			} else if (!e.shiftKey && document.activeElement === last) {
-				e.preventDefault();
-				first.focus();
-			}
-		};
-		dialog.addEventListener("keydown", handler);
-		// Auto-focus first focusable element on mount
-		const firstFocusable = dialog.querySelector<HTMLElement>(
-			'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-		);
-		firstFocusable?.focus();
-		return () => dialog.removeEventListener("keydown", handler);
-	}, []);
+	useModalFocusTrap(dialogRef, true, { initialFocus: "first" });
 
 	const handlePaneUpdate = useCallback(
 		(paneId: string, updates: Partial<PaneConfig>) => {

@@ -12,6 +12,7 @@ export function MoveToWorkspaceSubmenu({ workspaces, onMove }: MoveToWorkspaceSu
 				<button
 					type="button"
 					key={ws.id}
+					role="menuitem"
 					className="ctx-item flex items-center gap-2"
 					onClick={(e) => {
 						e.stopPropagation();

@@ -1,4 +1,5 @@
 import { createPortal } from "react-dom";
+import { useId } from "react";
 import type { ThemePresetName } from "../data/theme-presets";
 import { useContextMenu } from "../hooks/useContextMenu";
 import { useInlineEdit } from "../hooks/useInlineEdit";
@@ -36,6 +37,7 @@ export function SidebarWorkspaceHeader({
 	onClose,
 }: SidebarWorkspaceHeaderProps) {
 	const ctx = useContextMenu();
+	const menuId = useId();
 	const homeDir = useStore((s) => s.homeDir);
 	const gitInfo = useWorkspaceGitInfo(workspace.id);
 	const shortCwd = gitInfo.cwd ? shortenPath(gitInfo.cwd, homeDir) : null;
@@ -78,6 +80,9 @@ export function SidebarWorkspaceHeader({
 				createPortal(
 					<div
 						ref={ctx.ref}
+						id={menuId}
+						role="menu"
+						aria-label={`${workspace.name} workspace actions`}
 						className="ctx-menu fixed z-[300]"
 						style={{ left: ctx.position.x, top: ctx.position.y }}
 						onKeyDown={(e) => {
@@ -87,6 +92,7 @@ export function SidebarWorkspaceHeader({
 					>
 						<button
 							type="button"
+							role="menuitem"
 							className="ctx-item"
 							onClick={(e) => {
 								e.stopPropagation();
@@ -98,6 +104,7 @@ export function SidebarWorkspaceHeader({
 						</button>
 						<button
 							type="button"
+							role="menuitem"
 							className="ctx-item"
 							onClick={(e) => {
 								e.stopPropagation();
@@ -110,6 +117,7 @@ export function SidebarWorkspaceHeader({
 						<div className="ctx-separator" />
 						<button
 							type="button"
+							role="menuitem"
 							className="ctx-item text-danger"
 							onClick={(e) => {
 								e.stopPropagation();

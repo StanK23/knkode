@@ -50,5 +50,15 @@ export function useContextMenu() {
 		return () => window.removeEventListener("resize", clamp);
 	}, [isOpen, rawPos]);
 
+	useLayoutEffect(() => {
+		if (!isOpen) return;
+		const menu = ref.current;
+		if (!menu) return;
+		const firstItem = menu.querySelector<HTMLElement>(
+			'[role="menuitem"], button:not(:disabled), [tabindex]:not([tabindex="-1"])',
+		);
+		firstItem?.focus();
+	}, [isOpen]);
+
 	return { isOpen, position: clampedPos ?? rawPos, ref, open, close };
 }

@@ -97,6 +97,8 @@ export function PaneContextMenu({
 	return createPortal(
 		<div
 			ref={contextRef}
+			role="menu"
+			aria-label={`Pane ${config.label} actions`}
 			className="ctx-menu"
 			style={{
 				position: "fixed",
@@ -108,6 +110,7 @@ export function PaneContextMenu({
 		>
 			<button
 				type="button"
+				role="menuitem"
 				className="ctx-item"
 				onClick={() => {
 					onSplitVertical();
@@ -118,6 +121,7 @@ export function PaneContextMenu({
 			</button>
 			<button
 				type="button"
+				role="menuitem"
 				className="ctx-item"
 				onClick={() => {
 					onSplitHorizontal();
@@ -131,7 +135,10 @@ export function PaneContextMenu({
 					<div className="ctx-separator" />
 					<button
 						type="button"
+						role="menuitem"
 						className="ctx-item"
+						aria-haspopup="true"
+						aria-expanded={contextPanel === "move"}
 						onClick={() => setContextPanel(contextPanel === "move" ? null : "move")}
 					>
 						Move to Workspace
@@ -150,6 +157,7 @@ export function PaneContextMenu({
 			<div className="ctx-separator" />
 			<button
 				type="button"
+				role="menuitem"
 				className="ctx-item"
 				onClick={() => {
 					onRename();
@@ -160,6 +168,7 @@ export function PaneContextMenu({
 			</button>
 			<button
 				type="button"
+				role="menuitem"
 				className="ctx-item"
 				onClick={() => {
 					setCwdInput(config.cwd);
@@ -197,6 +206,7 @@ export function PaneContextMenu({
 			)}
 			<button
 				type="button"
+				role="menuitem"
 				className="ctx-item"
 				onClick={() => {
 					setContextPanel(contextPanel === "shell" ? null : "shell");
@@ -221,6 +231,7 @@ export function PaneContextMenu({
 			)}
 			<button
 				type="button"
+				role="menuitem"
 				className="ctx-item"
 				onClick={() => {
 					setCmdInput(config.startupCommand ?? "");
@@ -269,6 +280,7 @@ export function PaneContextMenu({
 			{canClose && (
 				<button
 					type="button"
+					role="menuitem"
 					className="ctx-item text-danger"
 					onClick={() => {
 						onClose();

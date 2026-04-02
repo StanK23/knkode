@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useId, useMemo, useRef, useState } from "react";
 import { type ThemePresetName, toPresetName } from "../data/theme-presets";
 import { useClickOutside } from "../hooks/useClickOutside";
 import { useDragReorder } from "../hooks/useDragReorder";
@@ -162,6 +162,7 @@ export function Sidebar({
 
 	const [showClosedMenu, setShowClosedMenu] = useState(false);
 	const closedMenuRef = useRef<HTMLDivElement>(null);
+	const closedMenuId = useId();
 	useClickOutside(closedMenuRef, () => setShowClosedMenu(false), showClosedMenu);
 
 	const handlePaneClick = useCallback(
@@ -358,6 +359,9 @@ export function Sidebar({
 							onClick={() => setShowClosedMenu((v) => !v)}
 							title={`Reopen closed workspace (${closedWorkspaces.length} available)`}
 							aria-label={`Reopen closed workspace (${closedWorkspaces.length} available)`}
+							aria-haspopup="menu"
+							aria-expanded={showClosedMenu}
+							aria-controls={showClosedMenu ? closedMenuId : undefined}
 							className="flex items-center justify-center h-7 px-1.5 bg-transparent border-none text-content-muted cursor-pointer rounded-sm text-[10px] hover:text-content hover:bg-overlay focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none transition-colors duration-200"
 						>
 							{closedWorkspaces.length}
@@ -376,11 +380,21 @@ export function Sidebar({
 							</svg>
 						</button>
 						{showClosedMenu && (
-							<div className="ctx-menu bottom-full left-0 mb-1">
-								{closedWorkspaces.map((ws) => (
+							<div
+								id={closedMenuId}
+								role="menu"
+								aria-label="Closed workspaces"
+								className="ctx-menu bottom-full left-0 mb-1"
+								onKeyDown={(e) => {
+									if (e.key === "Escape") setShowClosedMenu(false);
+								}}
+							>
+								{closedWorkspaces.map((ws, index) => (
 									<button
 										type="button"
 										key={ws.id}
+										role="menuitem"
+										autoFocus={index === 0}
 										className="ctx-item flex items-center gap-2"
 										onClick={() => {
 											openWorkspace(ws.id);
