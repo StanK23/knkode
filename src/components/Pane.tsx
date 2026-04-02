@@ -20,6 +20,7 @@ import {
 } from "../shared/types";
 import { useStore } from "../store";
 import { shortenPath } from "../utils/path";
+import { getPaneSpawnConfig } from "../utils/pane-spawn";
 import { modKey } from "../utils/platform";
 import { CanvasTerminal, type CanvasTerminalHandle } from "./CanvasTerminal";
 import { PaneContextMenu } from "./PaneContextMenu";
@@ -158,9 +159,7 @@ export const Pane = memo(function Pane({
 	});
 
 	// One-shot capture — PTY should only use initial spawn config
-	const initialCwdRef = useRef(config.cwd);
-	const initialShellRef = useRef(config.shell);
-	const initialCmdRef = useRef(config.startupCommand);
+	const initialSpawnConfigRef = useRef(getPaneSpawnConfig(config));
 	// Ref to merged theme for use in sync-colors-before-create pattern
 	const mergedThemeRef = useRef(mergeThemeWithPreset(workspaceTheme, config.themeOverride));
 	useEffect(() => {
@@ -193,13 +192,13 @@ export const Pane = memo(function Pane({
 		const newSet = new Set(activePtyIds);
 		newSet.add(paneId);
 		useStore.setState({ activePtyIds: newSet });
-		syncPaletteAndCreatePty(
-			paneId,
-			initialCwdRef.current,
-			initialShellRef.current,
-			initialCmdRef.current,
-		);
-	}, [paneId, syncPaletteAndCreatePty]);
+			syncPaletteAndCreatePty(
+				paneId,
+				initialSpawnConfigRef.current.cwd,
+				initialSpawnConfigRef.current.shell,
+				initialSpawnConfigRef.current.startupCommand,
+			);
+		}, [paneId, syncPaletteAndCreatePty]);
 
 	// Subscribe to grid snapshots from Rust PTY renderer via centralized dispatcher.
 	// App.tsx has a single onTerminalRender listener that routes by pane ID (O(1) Map lookup),
@@ -401,11 +400,12 @@ export const Pane = memo(function Pane({
 					newSet.add(paneId);
 					useStore.setState({ activePtyIds: newSet });
 				}
+				const restartSpawnConfig = getPaneSpawnConfig(config);
 				syncPaletteAndCreatePty(
 					paneId,
-					initialCwdRef.current,
-					initialShellRef.current,
-					initialCmdRef.current,
+					restartSpawnConfig.cwd,
+					restartSpawnConfig.shell,
+					restartSpawnConfig.startupCommand,
 				);
 				return;
 			}
@@ -426,8 +426,8 @@ export const Pane = memo(function Pane({
 				setPtyError(true);
 			});
 		},
-		[paneId, scrollToBottom, clearPtyExited],
-	);
+			[paneId, config, scrollToBottom, clearPtyExited, syncPaletteAndCreatePty],
+		);
 
 	const handleResize = useCallback(
 		(cols: number, rows: number, pixelWidth: number, pixelHeight: number) => {
