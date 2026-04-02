@@ -532,6 +532,19 @@ fn powershell_cwd_bootstrap() -> String {
     .to_string()
 }
 
+#[cfg(target_os = "windows")]
+fn windows_shell_launch_args(shell: &str) -> Vec<String> {
+    if !is_powershell_shell(shell) {
+        return Vec::new();
+    }
+    vec![
+        "-NoLogo".to_string(),
+        "-NoExit".to_string(),
+        "-Command".to_string(),
+        powershell_cwd_bootstrap(),
+    ]
+}
+
 fn osc7_prefix_overlap(bytes: &[u8]) -> usize {
     let max = bytes.len().min(OSC7_PREFIX.len().saturating_sub(1));
     for len in (1..=max).rev() {
@@ -785,6 +798,7 @@ fn create_platform_pty(
     // Windows path (contains ':' or '\'). Default to PowerShell (not COMSPEC/cmd.exe)
     // since PowerShell handles ConPTY output better.
     let exe = resolve_windows_shell(shell);
+    let args = windows_shell_launch_args(&exe);
 
     eprintln!("[pty] Windows shell detection for {id}: exe={exe}");
 
@@ -797,6 +811,7 @@ fn create_platform_pty(
         DEFAULT_COLS as u16,
         DEFAULT_ROWS as u16,
         &exe,
+        &args,
         cwd,
         &env_vars,
     )?;
@@ -871,26 +886,14 @@ impl PtyManager {
         // If there is no startup command, responses are always routed (the user
         // is interacting with the shell directly).
         let has_startup_cmd = startup_command.as_ref().is_some_and(|s| !s.is_empty());
-        #[cfg(target_os = "windows")]
-        let shell_bootstrap = {
-            let resolved = resolve_windows_shell(shell.as_deref());
-            if is_powershell_shell(&resolved) {
-                Some(powershell_cwd_bootstrap())
-            } else {
-                None
-            }
-        };
-        #[cfg(not(target_os = "windows"))]
-        let shell_bootstrap: Option<String> = None;
         let route_responses = Arc::new(AtomicBool::new(!has_startup_cmd));
 
         // Delay startup command to let the shell initialize (login profile, prompt)
-        if shell_bootstrap.is_some() || startup_command.as_ref().is_some_and(|s| !s.is_empty()) {
+        if startup_command.as_ref().is_some_and(|s| !s.is_empty()) {
             let writer_clone = Arc::clone(&writer);
             let id_clone = id.clone();
             let sessions_clone = Arc::clone(&self.sessions);
             let route_flag = Arc::clone(&route_responses);
-            let bootstrap_cmd = shell_bootstrap.clone();
             let startup_cmd = startup_command.filter(|s| !s.is_empty());
             std::thread::spawn(move || {
                 std::thread::sleep(std::time::Duration::from_millis(SHELL_READY_DELAY_MS));
@@ -902,16 +905,6 @@ impl PtyManager {
                     .is_some_and(|s| s.contains_key(&id_clone));
                 if exists {
                     if let Ok(mut w) = writer_clone.lock() {
-                        if let Some(bootstrap) = bootstrap_cmd {
-                            if let Err(e) = w.write_all(bootstrap.as_bytes()) {
-                                eprintln!("[pty] Failed to write shell bootstrap for {id_clone}: {e}");
-                                return;
-                            }
-                            if let Err(e) = w.write_all(b"\r") {
-                                eprintln!("[pty] Failed to write bootstrap CR for {id_clone}: {e}");
-                                return;
-                            }
-                        }
                         if let Some(cmd_str) = startup_cmd {
                             if let Err(e) = w.write_all(cmd_str.as_bytes()) {
                                 eprintln!("[pty] Failed to write startup command for {id_clone}: {e}");

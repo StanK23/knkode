@@ -96,6 +96,37 @@ fn coord(cols: u16, rows: u16) -> COORD {
     }
 }
 
+fn quote_windows_arg(arg: &str) -> String {
+    if !arg.contains([' ', '\t', '"']) {
+        return arg.to_string();
+    }
+
+    let mut quoted = String::from("\"");
+    let mut backslashes = 0usize;
+    for ch in arg.chars() {
+        match ch {
+            '\\' => backslashes += 1,
+            '"' => {
+                quoted.push_str(&"\\".repeat(backslashes * 2 + 1));
+                quoted.push('"');
+                backslashes = 0;
+            }
+            _ => {
+                if backslashes > 0 {
+                    quoted.push_str(&"\\".repeat(backslashes));
+                    backslashes = 0;
+                }
+                quoted.push(ch);
+            }
+        }
+    }
+    if backslashes > 0 {
+        quoted.push_str(&"\\".repeat(backslashes * 2));
+    }
+    quoted.push('"');
+    quoted
+}
+
 /// A Windows pseudoconsole session.
 ///
 /// `hpc` is behind a `Mutex<Option<>>` because concurrent `resize()` calls
@@ -212,6 +243,7 @@ impl WinPtySession {
         cols: u16,
         rows: u16,
         exe: &str,
+        args: &[String],
         cwd: &str,
         env_vars: &[(&str, &str)],
     ) -> Result<(Self, WinPtyPipes), String> {
@@ -302,11 +334,18 @@ impl WinPtySession {
                 si.lpAttributeList = attr_list as _;
 
                 let mut pi: PROCESS_INFORMATION = unsafe { mem::zeroed() };
-                let mut cmdline = exe_wide.clone();
+                let command_line = std::iter::once(quote_windows_arg(exe))
+                    .chain(args.iter().map(|arg| quote_windows_arg(arg)))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                let mut cmdline: Vec<u16> = OsString::from(command_line)
+                    .encode_wide()
+                    .chain(Some(0))
+                    .collect();
 
                 let ok = unsafe {
                     CreateProcessW(
-                        ptr::null(),
+                        exe_wide.as_ptr(),
                         cmdline.as_mut_ptr(),
                         ptr::null_mut(),
                         ptr::null_mut(),
