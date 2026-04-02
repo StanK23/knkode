@@ -12,6 +12,7 @@ import type {
 	SplitDirection,
 	Workspace,
 } from "../shared/types";
+import { nextPaneTitlesForUpdate } from "../utils/pane-title";
 import { createLayoutFromPreset, makeSingleSubgroup } from "./layout-tree";
 import { createSessionHistorySlice } from "./session-history-actions";
 import { createSnippetSlice } from "./snippet-actions";
@@ -240,15 +241,10 @@ export const useStore = create<StoreState>((set, get) => ({
 	},
 
 	updatePaneTitle: (paneId, title) => {
-		// Strip control characters (C0/C1) and clamp length for defense-in-depth.
-		// Rust backend truncates to 4096; we clamp tighter for UI display.
-		const MAX_TITLE = 512;
-		// biome-ignore lint/suspicious/noControlCharactersInRegex: intentionally stripping C0/C1 control chars from terminal titles
-		const sanitized = title.replace(/[\x00-\x1f\x7f-\x9f]/g, "").slice(0, MAX_TITLE);
-		if (!sanitized) return;
 		set((state) => {
-			if (state.paneTitles[paneId] === sanitized) return {};
-			return { paneTitles: { ...state.paneTitles, [paneId]: sanitized } };
+			const nextTitles = nextPaneTitlesForUpdate(state.paneTitles, paneId, title);
+			if (!nextTitles) return {};
+			return { paneTitles: nextTitles };
 		});
 	},
 
