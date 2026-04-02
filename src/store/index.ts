@@ -15,7 +15,12 @@ import type {
 import { createLayoutFromPreset, makeSingleSubgroup } from "./layout-tree";
 import { createSessionHistorySlice } from "./session-history-actions";
 import { createSnippetSlice } from "./snippet-actions";
-import { createWorkspacePaneSlice, defaultTheme, persistAppState } from "./workspace-pane-actions";
+import {
+	createWorkspacePaneSlice,
+	defaultTheme,
+	persistAppState,
+	saveAppStatePreservingWindowBounds,
+} from "./workspace-pane-actions";
 
 interface StoreState {
 	// Data
@@ -409,7 +414,7 @@ export const useStore = create<StoreState>((set, get) => ({
 					activeWorkspaceId: defaultWorkspace.id,
 				};
 				await window.api.saveWorkspace(defaultWorkspace);
-				await window.api.saveAppState(appState);
+				await saveAppStatePreservingWindowBounds(appState);
 			}
 
 			// Ensure at least one tab is open
@@ -420,7 +425,7 @@ export const useStore = create<StoreState>((set, get) => ({
 					openWorkspaceIds: [firstId],
 					activeWorkspaceId: firstId,
 				};
-				await window.api.saveAppState(appState);
+				await saveAppStatePreservingWindowBounds(appState);
 			}
 
 			const initialVisited = appState.activeWorkspaceId ? [appState.activeWorkspaceId] : [];
@@ -459,7 +464,7 @@ export const useStore = create<StoreState>((set, get) => ({
 	...createWorkspacePaneSlice(set, get),
 
 	saveState: async () => {
-		await window.api.saveAppState(get().appState).catch((err) => {
+		await saveAppStatePreservingWindowBounds(get().appState).catch((err) => {
 			console.error("[store] Failed to save app state:", err);
 		});
 	},

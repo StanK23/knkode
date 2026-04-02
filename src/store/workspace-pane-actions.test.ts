@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Workspace } from "../shared/types";
-import { updateWorkspacePaneCwd } from "./workspace-pane-actions";
+import type { AppState } from "../shared/types";
+import {
+	mergeAppStatePreservingWindowBounds,
+	updateWorkspacePaneCwd,
+} from "./workspace-pane-actions";
 
 function makeWorkspace(): Workspace {
 	return {
@@ -54,5 +58,37 @@ describe("updateWorkspacePaneCwd", () => {
 	it("returns null when the pane does not exist", () => {
 		const workspace = makeWorkspace();
 		expect(updateWorkspacePaneCwd(workspace, "missing-pane", "C:\\Projects\\knkode")).toBeNull();
+	});
+});
+
+describe("mergeAppStatePreservingWindowBounds", () => {
+	it("preserves persisted window bounds when saving other app state changes", () => {
+		const nextState: AppState = {
+			openWorkspaceIds: ["ws-1", "ws-2"],
+			activeWorkspaceId: "ws-2",
+			sidebarCollapsed: true,
+			collapsedWorkspaceIds: ["ws-1"],
+			windowBounds: { x: 100, y: 100, width: 1200, height: 800 },
+		};
+		const persistedState: Partial<AppState> = {
+			windowBounds: { x: 640, y: 320, width: 1440, height: 900 },
+		};
+
+		expect(mergeAppStatePreservingWindowBounds(nextState, persistedState)).toEqual({
+			...nextState,
+			windowBounds: persistedState.windowBounds!,
+		});
+	});
+
+	it("keeps in-memory window bounds when persisted bounds are missing", () => {
+		const nextState: AppState = {
+			openWorkspaceIds: ["ws-1"],
+			activeWorkspaceId: "ws-1",
+			sidebarCollapsed: false,
+			collapsedWorkspaceIds: [],
+			windowBounds: { x: 120, y: 90, width: 1280, height: 820 },
+		};
+
+		expect(mergeAppStatePreservingWindowBounds(nextState, null)).toEqual(nextState);
 	});
 });

@@ -90,9 +90,41 @@ function cleanPaneEphemeral(
 }
 
 export function persistAppState(appState: AppState): void {
-	window.api.saveAppState(appState).catch((err) => {
+	saveAppStatePreservingWindowBounds(appState).catch((err) => {
 		console.error("[store] Failed to save app state:", err);
 	});
+}
+
+function isWindowBounds(
+	value: unknown,
+): value is AppState["windowBounds"] {
+	if (typeof value !== "object" || value === null) return false;
+	const bounds = value as Record<string, unknown>;
+	return (
+		typeof bounds.x === "number" &&
+		typeof bounds.y === "number" &&
+		typeof bounds.width === "number" &&
+		typeof bounds.height === "number"
+	);
+}
+
+export function mergeAppStatePreservingWindowBounds(
+	appState: AppState,
+	persistedState: Partial<AppState> | null | undefined,
+): AppState {
+	if (!isWindowBounds(persistedState?.windowBounds)) return appState;
+	return {
+		...appState,
+		windowBounds: persistedState.windowBounds,
+	};
+}
+
+export async function saveAppStatePreservingWindowBounds(appState: AppState): Promise<void> {
+	const persistedState = await window.api.getAppState().catch((err) => {
+		console.warn("[store] Failed to read persisted app state for window bounds:", err);
+		return null;
+	});
+	await window.api.saveAppState(mergeAppStatePreservingWindowBounds(appState, persistedState));
 }
 
 function customLayout(tree: LayoutNode): { type: "custom"; tree: LayoutNode } {
@@ -205,7 +237,7 @@ export function createWorkspacePaneSlice(
 				openWorkspaceIds: [...state.appState.openWorkspaceIds, workspace.id],
 				activeWorkspaceId: workspace.id,
 			};
-			await window.api.saveAppState(newAppState);
+			await saveAppStatePreservingWindowBounds(newAppState);
 
 			set({
 				workspaces: [...state.workspaces, workspace],
@@ -285,7 +317,7 @@ export function createWorkspacePaneSlice(
 				openWorkspaceIds: [...state.appState.openWorkspaceIds, workspace.id],
 				activeWorkspaceId: workspace.id,
 			};
-			await window.api.saveAppState(newAppState);
+			await saveAppStatePreservingWindowBounds(newAppState);
 			set({
 				workspaces: [...state.workspaces, workspace],
 				appState: newAppState,
@@ -316,7 +348,7 @@ export function createWorkspacePaneSlice(
 					(wid) => wid !== id,
 				),
 			};
-			await window.api.saveAppState(newAppState);
+			await saveAppStatePreservingWindowBounds(newAppState);
 			const latest = get();
 			set({
 				workspaces: latest.workspaces.filter((w) => w.id !== id),
