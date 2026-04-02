@@ -1,8 +1,8 @@
 /** Normalize renderer-facing cwd strings before validation/persistence.
  *  Windows process APIs may return device-prefixed absolute paths like
  *  `\\?\C:\repo` or `\??\C:\repo`; convert them back to standard absolute paths. */
-export function normalizeCwd(value: string): string {
-	let normalized = value.trim();
+export function normalizeCwd(value: unknown): string {
+	let normalized = typeof value === "string" ? value.trim() : "";
 	if (!normalized) return normalized;
 
 	if (normalized.startsWith("\\\\?\\UNC\\")) {
@@ -22,7 +22,7 @@ export function normalizeCwd(value: string): string {
 	return normalized;
 }
 
-export function isValidCwd(value: string): boolean {
+export function isValidCwd(value: unknown): boolean {
 	const normalized = normalizeCwd(value);
 	if (normalized === "") return true;
 	if (normalized.startsWith("/")) return true;

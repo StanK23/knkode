@@ -337,25 +337,45 @@ export const useStore = create<StoreState>((set, get) => ({
 			}
 			const migrationPromises: Promise<void>[] = [];
 			let workspaces = loadedWorkspaces.map((ws) => {
-				if (Array.isArray(ws.subgroups) && ws.subgroups.length > 0) return ws;
-				if (!hasLegacyLayout(ws)) return ws;
-				const migrated: Workspace = {
-					id: ws.id,
-					name: ws.name,
-					theme: ws.theme,
-					// Cast: type guard validates shape but not that tree conforms to LayoutNode —
-				// acceptable for migration of arbitrary persisted data.
-				...makeSingleSubgroup(ws.layout as Workspace["subgroups"][0]["layout"]),
-					panes: ws.panes,
-					// Rust backfill_snippets guarantees this field; fallback is a safety net
-				snippets: ws.snippets ?? [],
-				};
-				migrationPromises.push(
-					window.api.saveWorkspace(migrated).catch((err) => {
-						console.error("[store] Failed to persist subgroup migration:", err);
+				let nextWorkspace = ws;
+				let shouldPersist = false;
+
+				if (!Array.isArray(ws.subgroups) || ws.subgroups.length === 0) {
+					if (!hasLegacyLayout(ws)) return ws;
+					nextWorkspace = {
+						id: ws.id,
+						name: ws.name,
+						theme: ws.theme,
+						// Cast: type guard validates shape but not that tree conforms to LayoutNode —
+						// acceptable for migration of arbitrary persisted data.
+						...makeSingleSubgroup(ws.layout as Workspace["subgroups"][0]["layout"]),
+						panes: ws.panes,
+						// Rust backfill_snippets guarantees this field; fallback is a safety net
+						snippets: ws.snippets ?? [],
+					};
+					shouldPersist = true;
+				}
+
+				const normalizedPanes = Object.fromEntries(
+					Object.entries(nextWorkspace.panes).map(([paneId, pane]) => {
+						if ("shell" in pane && pane.shell !== undefined) {
+							return [paneId, pane];
+						}
+						shouldPersist = true;
+						return [paneId, { ...pane, shell: null }];
 					}),
-				);
-				return migrated;
+				) as Workspace["panes"];
+
+				if (shouldPersist) {
+					nextWorkspace = { ...nextWorkspace, panes: normalizedPanes };
+					migrationPromises.push(
+						window.api.saveWorkspace(nextWorkspace).catch((err) => {
+							console.error("[store] Failed to persist workspace migration:", err);
+						}),
+					);
+				}
+
+				return shouldPersist ? nextWorkspace : ws;
 			});
 			if (migrationPromises.length > 0) {
 				await Promise.all(migrationPromises);

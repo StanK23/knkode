@@ -22,19 +22,26 @@ export const FALLBACK_SHELL_OPTIONS: readonly ShellOption[] = isWindows
 
 let shellOptionsPromise: Promise<readonly ShellOption[]> | null = null;
 
-function compareShellValues(left: string, right: string): boolean {
+function normalizeShellValue(value: unknown): string | null {
+	if (typeof value !== "string") return null;
+	const normalized = value.trim();
+	if (!normalized) return null;
+	if (!isWindows) return normalized;
+	return normalized.replace(/\//g, "\\").split("\\").at(-1)?.toLowerCase() ?? null;
+}
+
+function compareShellValues(left: unknown, right: unknown): boolean {
 	if (left === right) return true;
-	if (!isWindows) return false;
-	const normalize = (value: string) =>
-		value.replace(/\//g, "\\").split("\\").at(-1)?.toLowerCase();
-	return normalize(left) === normalize(right);
+	const normalizedLeft = normalizeShellValue(left);
+	const normalizedRight = normalizeShellValue(right);
+	return normalizedLeft !== null && normalizedLeft === normalizedRight;
 }
 
 export function getShellSelectValue(
-	shell: string | null,
+	shell: string | null | undefined,
 	options: readonly ShellOption[],
 ): string {
-	if (shell === null) return DEFAULT_SHELL_VALUE;
+	if (shell == null) return DEFAULT_SHELL_VALUE;
 	const matched = options.find((option) => compareShellValues(shell, option.value));
 	return matched?.value ?? CUSTOM_SHELL_VALUE;
 }

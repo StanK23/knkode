@@ -10,7 +10,7 @@ import {
 } from "../utils/shells";
 
 interface ShellSelectorProps {
-	value: string | null;
+	value: string | null | undefined;
 	onChange: (value: string | null) => void;
 	selectClassName: string;
 	inputClassName: string;
