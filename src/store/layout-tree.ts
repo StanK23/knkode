@@ -323,6 +323,13 @@ export function getActiveSubgroup(workspace: Workspace): SubgroupConfig {
 	return sg;
 }
 
+/** Get the first visible pane ID for a workspace's active subgroup.
+ * Returns null when the active subgroup tree is empty/corrupted.
+ */
+export function getActivePaneId(workspace: Workspace): string | null {
+	return getFirstPaneId(getActiveSubgroup(workspace).layout.tree);
+}
+
 /** Find which subgroup a pane belongs to by searching layout trees.
  *  Short-circuits on first match instead of collecting all IDs. */
 export function findSubgroupForPane(

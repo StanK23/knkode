@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { makePaneConfig } from "./layout-tree";
+import { getActivePaneId, makePaneConfig } from "./layout-tree";
 
 describe("makePaneConfig", () => {
 	it("defaults shell to null", () => {
@@ -20,5 +20,38 @@ describe("makePaneConfig", () => {
 			startupCommand: null,
 			themeOverride: null,
 		});
+	});
+});
+
+describe("getActivePaneId", () => {
+	it("returns the first pane from the active subgroup tree", () => {
+		expect(
+			getActivePaneId({
+				id: "ws-1",
+				name: "Workspace",
+				theme: {
+					background: "#111111",
+					foreground: "#eeeeee",
+					fontSize: 14,
+					unfocusedDim: 0.3,
+				},
+				subgroups: [
+					{
+						id: "sg-hidden",
+						layout: { type: "custom", tree: { paneId: "hidden-pane", size: 100 } },
+					},
+					{
+						id: "sg-visible",
+						layout: { type: "custom", tree: { paneId: "visible-pane", size: 100 } },
+					},
+				],
+				activeSubgroupId: "sg-visible",
+				panes: {
+					"hidden-pane": makePaneConfig("terminal", "/tmp"),
+					"visible-pane": makePaneConfig("terminal", "/tmp"),
+				},
+				snippets: [],
+			}),
+		).toBe("visible-pane");
 	});
 });
