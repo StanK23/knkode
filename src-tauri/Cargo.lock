@@ -2226,6 +2226,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "sha2",
  "tattoy-termwiz",
  "tattoy-wezterm-term",
  "tauri",
