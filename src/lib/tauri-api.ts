@@ -45,7 +45,20 @@ export function createListener<T>(event: string, handler: (payload: T) => void):
 }
 
 function isAllowedUrl(url: string): boolean {
-	return url.startsWith("https://") || url.startsWith("http://");
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		return false;
+	}
+	if (parsed.protocol === "https:") return true;
+	if (parsed.protocol !== "http:") return false;
+	return (
+		parsed.hostname === "localhost" ||
+		parsed.hostname === "127.0.0.1" ||
+		parsed.hostname === "::1" ||
+		parsed.hostname === "[::1]"
+	);
 }
 
 const _api: KnkodeApi = {
