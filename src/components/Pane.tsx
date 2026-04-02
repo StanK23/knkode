@@ -117,6 +117,8 @@ export const Pane = memo(function Pane({
 	const [ptyError, setPtyError] = useState(false);
 	const ptyExited = useStore((s) => s.exitedPtyIds.has(paneId));
 	const clearPtyExited = useStore((s) => s.clearPtyExited);
+	const markPtyExited = useStore((s) => s.markPtyExited);
+	const removePtyId = useStore((s) => s.removePtyId);
 	const homeDir = useStore((s) => s.homeDir);
 	const branch = useStore((s) => s.paneBranches[paneId] ?? null);
 	const pr = useStore((s) => s.panePrs[paneId] ?? null);
@@ -180,10 +182,13 @@ export const Pane = memo(function Pane({
 				await window.api.createPty(id, cwd, shell, cmd);
 			} catch (err: unknown) {
 				console.error(`[pane] PTY create failed for ${id}:`, err);
+				removePtyId(id);
+				markPtyExited(id);
 				setPtyError(true);
+				setGrid(null);
 			}
 		},
-		[],
+		[markPtyExited, removePtyId],
 	);
 
 	useEffect(() => {

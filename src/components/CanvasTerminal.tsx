@@ -1262,7 +1262,6 @@ export function CanvasTerminal({
 			.then(() => clearSelection())
 			.catch((err: unknown) => {
 				console.error(`[terminal] copy failed for ${paneId}:`, err);
-				clearSelection();
 			});
 	}, [paneId, clearSelection]);
 
