@@ -25,6 +25,22 @@ pub fn get_home_dir() -> Result<String, String> {
         .ok_or_else(|| "Home directory path contains invalid UTF-8".to_string())
 }
 
+fn validate_absolute_path(value: &str, field_name: &str, require_dir: bool) -> Result<(), String> {
+    if value.contains('\0') {
+        return Err(format!("{field_name} must not contain null bytes"));
+    }
+    let path = std::path::Path::new(value);
+    if !path.is_absolute() {
+        return Err(format!("{field_name} must be an absolute path"));
+    }
+    if require_dir && !path.is_dir() {
+        return Err(format!(
+            "{field_name} does not exist or is not a directory: {value}"
+        ));
+    }
+    Ok(())
+}
+
 fn find_in_path(executable: &str) -> Option<PathBuf> {
     let candidate = Path::new(executable);
     if candidate.is_absolute() && candidate.is_file() {
@@ -168,16 +184,7 @@ pub fn create_pty(
     tracker: State<'_, CwdTracker>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
-    if cwd.contains('\0') {
-        return Err("cwd must not contain null bytes".to_string());
-    }
-    let cwd_path = std::path::Path::new(&cwd);
-    if !cwd_path.is_absolute() {
-        return Err("cwd must be an absolute path".to_string());
-    }
-    if !cwd_path.is_dir() {
-        return Err(format!("cwd does not exist or is not a directory: {cwd}"));
-    }
+    validate_absolute_path(&cwd, "cwd", true)?;
     if let Some(ref shell) = shell {
         if shell.contains('\0') {
             return Err("shell must not contain null bytes".to_string());
@@ -234,13 +241,7 @@ pub fn track_pane_git(
     cwd: String,
     tracker: State<'_, CwdTracker>,
 ) -> Result<(), String> {
-    if cwd.contains('\0') {
-        return Err("cwd must not contain null bytes".to_string());
-    }
-    let cwd_path = std::path::Path::new(&cwd);
-    if !cwd_path.is_absolute() {
-        return Err("cwd must be an absolute path".to_string());
-    }
+    validate_absolute_path(&cwd, "cwd", true)?;
     tracker.track_pane(id, cwd);
     Ok(())
 }
@@ -298,12 +299,26 @@ pub fn get_selection_text(
 pub fn list_agent_sessions(
     project_cwd: String,
 ) -> Result<Vec<session_scanner::AgentSession>, String> {
-    if project_cwd.contains('\0') {
-        return Err("project_cwd must not contain null bytes".to_string());
-    }
-    let p = std::path::Path::new(&project_cwd);
-    if !p.is_absolute() {
-        return Err("project_cwd must be an absolute path".to_string());
-    }
+    validate_absolute_path(&project_cwd, "project_cwd", false)?;
     Ok(session_scanner::list_sessions(&project_cwd))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_absolute_path;
+
+    #[test]
+    fn validate_absolute_path_rejects_relative_paths() {
+        let err = validate_absolute_path("relative/path", "cwd", true)
+            .expect_err("relative cwd should be rejected");
+        assert_eq!(err, "cwd must be an absolute path");
+    }
+
+    #[test]
+    fn validate_absolute_path_requires_existing_directory() {
+        let missing = std::env::temp_dir().join("knkode-missing-dir-for-validation");
+        let err = validate_absolute_path(&missing.to_string_lossy(), "cwd", true)
+            .expect_err("missing dir should be rejected");
+        assert!(err.contains("cwd does not exist or is not a directory"));
+    }
 }

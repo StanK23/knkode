@@ -93,12 +93,16 @@ fn restore_bounds(app: &tauri::App, window: &tauri::WebviewWindow) {
     if let (Some(w), Some(h)) = (width, height) {
         let w = w.clamp(MIN_WINDOW_WIDTH, MAX_DIMENSION);
         let h = h.clamp(MIN_WINDOW_HEIGHT, MAX_DIMENSION);
-        let _ = window.set_size(tauri::LogicalSize::new(w, h));
+        if let Err(e) = window.set_size(tauri::LogicalSize::new(w, h)) {
+            eprintln!("[window] Failed to restore window size: {e}");
+        }
     }
 
     if let (Some(x), Some(y)) = (x, y) {
         if is_position_visible(window, x, y) {
-            let _ = window.set_position(tauri::LogicalPosition::new(x, y));
+            if let Err(e) = window.set_position(tauri::LogicalPosition::new(x, y)) {
+                eprintln!("[window] Failed to restore window position: {e}");
+            }
         }
     }
 }
