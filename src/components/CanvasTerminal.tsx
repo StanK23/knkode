@@ -26,6 +26,7 @@ import {
 	DEFAULT_LINE_HEIGHT,
 } from "../shared/types";
 import { shouldPaintTerminalCellBackground } from "../utils/terminal-background";
+import { diffTerminalViewport } from "../utils/terminal-render";
 import { isMac, isModKeyHeld } from "../utils/platform";
 
 /** Imperative methods exposed by CanvasTerminal for context menu integration. */
@@ -92,6 +93,22 @@ const CLICK_WORD = 2;
 const CLICK_LINE = 3;
 /** Word character pattern for word-boundary detection in findWordBounds. */
 const WORD_CHAR_RE = /\w/;
+const TERMINAL_PERF_DEBUG_STORAGE_KEY = "knkode:debug-terminal-perf";
+const TERMINAL_PERF_REPORT_INTERVAL_MS = 2000;
+
+interface DrawOptions {
+	readonly forceFull?: boolean;
+}
+
+interface DrawPerfStats {
+	count: number;
+	totalMs: number;
+	maxMs: number;
+	fullCount: number;
+	incrementalCount: number;
+	blitCount: number;
+	lastReportAt: number;
+}
 
 interface CellMetrics {
 	width: number;
@@ -104,6 +121,42 @@ interface CellMetrics {
 interface CellPosition {
 	readonly row: number;
 	readonly col: number;
+}
+
+function isTerminalPerfDebugEnabled(): boolean {
+	try {
+		return window.localStorage.getItem(TERMINAL_PERF_DEBUG_STORAGE_KEY) === "1";
+	} catch {
+		return false;
+	}
+}
+
+function groupContiguousRows(rows: readonly number[]): Array<{ start: number; end: number }> {
+	if (rows.length === 0) return [];
+	const ranges: Array<{ start: number; end: number }> = [];
+	let start = rows[0]!;
+	let end = start;
+	for (let index = 1; index < rows.length; index++) {
+		const row = rows[index]!;
+		if (row === end + 1) {
+			end = row;
+			continue;
+		}
+		ranges.push({ start, end });
+		start = row;
+		end = row;
+	}
+	ranges.push({ start, end });
+	return ranges;
+}
+
+function gridHasBlinkingCells(grid: GridSnapshot): boolean {
+	for (const row of grid.rows) {
+		for (const cell of row) {
+			if (cell?.blink) return true;
+		}
+	}
+	return false;
 }
 
 /** Convert a viewport-relative row to an absolute physical row in the scrollback buffer. */
@@ -625,6 +678,18 @@ export function CanvasTerminal({
 	const pendingZoomDelta = useRef(0);
 	const zoomRafId = useRef(0);
 	const onTerminalContextMenuRef = useRef(onTerminalContextMenu);
+	const previousDrawnGridRef = useRef<GridSnapshot | null>(null);
+	const blitCanvasRef = useRef<HTMLCanvasElement | OffscreenCanvas | null>(null);
+	const perfDebugRef = useRef(isTerminalPerfDebugEnabled());
+	const drawPerfRef = useRef<DrawPerfStats>({
+		count: 0,
+		totalMs: 0,
+		maxMs: 0,
+		fullCount: 0,
+		incrementalCount: 0,
+		blitCount: 0,
+		lastReportAt: performance.now(),
+	});
 
 	// Keep refs in sync
 	gridRef.current = grid;
@@ -688,6 +753,124 @@ export function CanvasTerminal({
 			baselineOffset: padding + ascent,
 		};
 	}, [fontSize, fontFamily, lineHeight]);
+
+	const recordDrawPerf = useCallback(
+		(strategy: "full" | "incremental" | "blit", durationMs: number) => {
+			if (!perfDebugRef.current) return;
+			const stats = drawPerfRef.current;
+			stats.count += 1;
+			stats.totalMs += durationMs;
+			stats.maxMs = Math.max(stats.maxMs, durationMs);
+			if (strategy === "full") {
+				stats.fullCount += 1;
+			} else if (strategy === "blit") {
+				stats.blitCount += 1;
+			} else {
+				stats.incrementalCount += 1;
+			}
+			const now = performance.now();
+			if (now - stats.lastReportAt < TERMINAL_PERF_REPORT_INTERVAL_MS) return;
+			console.debug(
+				`[terminal-perf] pane=${paneId} draws=${stats.count} avg=${(stats.totalMs / stats.count).toFixed(2)}ms max=${stats.maxMs.toFixed(2)}ms full=${stats.fullCount} incremental=${stats.incrementalCount} blit=${stats.blitCount}`,
+			);
+			stats.count = 0;
+			stats.totalMs = 0;
+			stats.maxMs = 0;
+			stats.fullCount = 0;
+			stats.incrementalCount = 0;
+			stats.blitCount = 0;
+			stats.lastReportAt = now;
+		},
+		[paneId],
+	);
+
+	const getBlitCanvas = useCallback((width: number, height: number) => {
+		let canvas = blitCanvasRef.current;
+		if (
+			typeof OffscreenCanvas !== "undefined" &&
+			(!canvas || !(canvas instanceof OffscreenCanvas))
+		) {
+			canvas = new OffscreenCanvas(width, height);
+			blitCanvasRef.current = canvas;
+			return canvas;
+		}
+
+		if (!canvas || canvas instanceof OffscreenCanvas) {
+			const fallbackCanvas = document.createElement("canvas");
+			canvas = fallbackCanvas;
+			blitCanvasRef.current = canvas;
+		}
+
+		if (canvas.width !== width) canvas.width = width;
+		if (canvas.height !== height) canvas.height = height;
+		return canvas;
+	}, []);
+
+	const paintRows = useCallback(
+		(
+			ctx: CanvasRenderingContext2D,
+			snap: GridSnapshot,
+			rows: readonly number[],
+			scaledSize: number,
+			cellW: number,
+			cellH: number,
+			baselineOffset: number,
+			clearBeforePaint: boolean,
+		) => {
+			if (rows.length === 0) return;
+			const defaultBg = snap.defaultBg;
+			const imgCache = imageCacheRef.current;
+
+			for (const { start, end } of groupContiguousRows(rows)) {
+				if (clearBeforePaint) {
+					ctx.clearRect(0, start * cellH, ctx.canvas.width, (end - start + 1) * cellH);
+				}
+
+				for (let row = start; row <= end; row++) {
+					const rowCells = snap.rows[row];
+					if (!rowCells) continue;
+					const y = row * cellH;
+
+					for (let col = 0; col < rowCells.length; col++) {
+						const cell = rowCells[col];
+						if (!cell) continue;
+						const x = col * cellW;
+
+						if (shouldPaintTerminalCellBackground(cell.bg, defaultBg, snap.isAltScreen)) {
+							ctx.fillStyle = cell.bg;
+							ctx.fillRect(x, y, cellW, cellH);
+						}
+
+						if (cell.images) {
+							drawCellImages(ctx, cell.images, imgCache, x, y, cellW, cellH, "below");
+						}
+
+						if (!cell.hidden && !(cell.blink && !textBlinkVisibleRef.current)) {
+							drawCellContent(
+								ctx,
+								cell,
+								x,
+								y,
+								cellW,
+								cellH,
+								ctx.lineWidth,
+								baselineOffset,
+								scaledSize,
+								fontFamily,
+							);
+						}
+					}
+
+					for (let col = 0; col < rowCells.length; col++) {
+						const cell = rowCells[col];
+						if (!cell?.images) continue;
+						drawCellImages(ctx, cell.images, imgCache, col * cellW, y, cellW, cellH, "above");
+					}
+				}
+			}
+		},
+		[fontFamily],
+	);
 
 	/** Repaint only the cursor cell area — used by the blink animation loop. */
 	const repaintCursor = useCallback(() => {
@@ -770,9 +953,12 @@ export function CanvasTerminal({
 		}
 	}, [fontSize, fontFamily, cursorColor, background]);
 
-	// Draw the full grid
+	// Draw the terminal grid. Snapshot-driven redraws use the incremental path by
+	// default; interaction-driven redraws force a full repaint to keep selection
+	// and hover behavior simple and correct.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: lineHeight affects cellMetrics ref
-	const draw = useCallback(() => {
+	const draw = useCallback((options?: DrawOptions) => {
+		const startedAt = performance.now();
 		const canvas = canvasRef.current;
 		const snap = gridRef.current;
 		const ctx = ctxRef.current;
@@ -780,6 +966,7 @@ export function CanvasTerminal({
 		if (!snap) {
 			// Grid cleared (e.g. PTY restart) — wipe stale pixels immediately
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			previousDrawnGridRef.current = null;
 			return;
 		}
 
@@ -788,89 +975,94 @@ export function CanvasTerminal({
 		const { width: cellW, height: cellH, baselineOffset } = cellMetrics.current;
 		if (cellW === 0 || cellH === 0) return;
 
-		// Clear to transparent — PaneBackgroundEffects provides the visual background
-		ctx.clearRect(0, 0, canvas.width, canvas.height);
-
 		// Set shared state once before the cell loop
 		ctx.textBaseline = "alphabetic";
 		ctx.lineWidth = dpr;
 
-		const defaultBg = snap.defaultBg;
-		const imgCache = imageCacheRef.current;
-		// Check if this snapshot has images — skip_serializing_if means
-		// grid.images is absent (undefined) when empty, so truthiness suffices.
-		const snapshotHasImages = !!snap.images;
-		let hasImages = false;
-		let hasBlinkingCells = false;
-		const blinkVisible = textBlinkVisibleRef.current;
+		const previousGrid = previousDrawnGridRef.current;
+		const forceFull =
+			!!options?.forceFull ||
+			selectionActiveRef.current ||
+			!!linkHoverRef.current ||
+			!!snap.images;
+		const renderDiff = forceFull ? null : diffTerminalViewport(previousGrid, snap, { allowBlit: false });
+		let strategy: "full" | "incremental" | "blit" = "full";
 
-		// Single pass: backgrounds + below-text images + text + decorations.
-		// Below-text images (zIndex < 0) render after background, before text,
-		// which is correct because they layer bg → below-images → text.
-		for (let row = 0; row < snap.rows.length; row++) {
-			const rowCells = snap.rows[row];
-			if (!rowCells) continue;
-			for (let col = 0; col < rowCells.length; col++) {
-				const cell = rowCells[col];
-				if (!cell) continue;
-				const x = col * cellW;
-				const y = row * cellH;
-
-				// Background
-				if (shouldPaintTerminalCellBackground(cell.bg, defaultBg, snap.isAltScreen)) {
-					ctx.fillStyle = cell.bg;
-					ctx.fillRect(x, y, cellW, cellH);
+		if (!renderDiff || renderDiff.kind === "full") {
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			paintRows(
+				ctx,
+				snap,
+				Array.from({ length: snap.rows.length }, (_, row) => row),
+				scaledSize,
+				cellW,
+				cellH,
+				baselineOffset,
+				false,
+			);
+		} else {
+			if (renderDiff.blit) {
+				const { sourceRowStart, destinationRowStart, rowCount } = renderDiff.blit;
+				if (rowCount > 0) {
+					const blitCanvas = getBlitCanvas(canvas.width, rowCount * cellH);
+					const blitCtx = blitCanvas.getContext("2d") as
+						| CanvasRenderingContext2D
+						| OffscreenCanvasRenderingContext2D
+						| null;
+					if (!blitCtx) {
+						ctx.clearRect(0, 0, canvas.width, canvas.height);
+						paintRows(
+							ctx,
+							snap,
+							Array.from({ length: snap.rows.length }, (_, row) => row),
+							scaledSize,
+							cellW,
+							cellH,
+							baselineOffset,
+							false,
+						);
+						strategy = "full";
+					} else {
+						blitCtx.clearRect(0, 0, blitCanvas.width, blitCanvas.height);
+						blitCtx.drawImage(
+							canvas,
+							0,
+							sourceRowStart * cellH,
+							canvas.width,
+							rowCount * cellH,
+							0,
+							0,
+							blitCanvas.width,
+							blitCanvas.height,
+						);
+						ctx.drawImage(
+							blitCanvas,
+							0,
+							0,
+							blitCanvas.width,
+							blitCanvas.height,
+							0,
+							destinationRowStart * cellH,
+							canvas.width,
+							rowCount * cellH,
+						);
+					}
 				}
-
-				// Below-text images (zIndex < 0)
-				if (cell.images) {
-					hasImages = true;
-					drawCellImages(ctx, cell.images, imgCache, x, y, cellW, cellH, "below");
-				}
-
-				// Track blinking cells for timer management
-				if (cell.blink) hasBlinkingCells = true;
-
-				// SGR 8: hidden/invisible — skip text and decorations, keep background
-				// SGR 5: blink — hide text during off phase
-				if (!cell.hidden && !(cell.blink && !blinkVisible)) {
-					drawCellContent(
-						ctx,
-						cell,
-						x,
-						y,
-						cellW,
-						cellH,
-						ctx.lineWidth,
-						baselineOffset,
-						scaledSize,
-						fontFamily,
-					);
-				}
+				strategy = "blit";
+			} else {
+				strategy = "incremental";
 			}
-		}
 
-		// Separate pass for above-text images (zIndex >= 0) — must render after
-		// all text so they layer on top correctly.
-		if (hasImages || snapshotHasImages) {
-			for (let row = 0; row < snap.rows.length; row++) {
-				const rowCells = snap.rows[row];
-				if (!rowCells) continue;
-				for (let col = 0; col < rowCells.length; col++) {
-					const cell = rowCells[col];
-					if (!cell?.images) continue;
-					drawCellImages(
-						ctx,
-						cell.images,
-						imgCache,
-						col * cellW,
-						row * cellH,
-						cellW,
-						cellH,
-						"above",
-					);
-				}
-			}
+			paintRows(
+				ctx,
+				snap,
+				renderDiff.changedRows,
+				scaledSize,
+				cellW,
+				cellH,
+				baselineOffset,
+				true,
+			);
 		}
 
 		// Draw selection highlight (between cells and cursor so cursor stays on top)
@@ -937,17 +1129,20 @@ export function CanvasTerminal({
 		}
 
 		// SGR 5 blink timer: start interval when blinking cells exist, stop when none
+		const hasBlinkingCells = gridHasBlinkingCells(snap);
 		if (hasBlinkingCells && !textBlinkTimerRef.current) {
 			textBlinkTimerRef.current = setInterval(() => {
 				textBlinkVisibleRef.current = !textBlinkVisibleRef.current;
-				drawRef.current();
+				drawRef.current({ forceFull: true });
 			}, TEXT_BLINK_INTERVAL_MS);
 		} else if (!hasBlinkingCells && textBlinkTimerRef.current) {
 			clearInterval(textBlinkTimerRef.current);
 			textBlinkTimerRef.current = null;
 			textBlinkVisibleRef.current = true;
 		}
-	}, [accentColor, background, cursorColor, fontSize, fontFamily, lineHeight]);
+		previousDrawnGridRef.current = snap;
+		recordDrawPerf(strategy, performance.now() - startedAt);
+	}, [accentColor, background, cursorColor, fontSize, fontFamily, getBlitCanvas, lineHeight, paintRows, recordDrawPerf]);
 
 	// Keep draw ref in sync so the resize observer can trigger redraws
 	// without being recreated when draw's dependencies change.
@@ -1129,8 +1324,9 @@ export function CanvasTerminal({
 	// biome-ignore lint/correctness/useExhaustiveDependencies: grid triggers redraw via state
 	useEffect(() => {
 		// Clear stale link hover — grid content may have shifted under the highlight
+		const hadLinkHover = linkHoverRef.current !== null;
 		linkHoverRef.current = null;
-		draw();
+		draw({ forceFull: hadLinkHover ? true : false });
 
 		// Ingest any new images from this snapshot. If new images were decoded,
 		// trigger a redraw so they appear without waiting for the next grid change.
