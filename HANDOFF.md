@@ -2,15 +2,17 @@
 
 ## Current State
 
-**Version**: 2.3.0 | **Branch**: `fix/alt-screen-and-scrollback` | **Open PRs**: none
+**Version**: 2.3.0 | **Branch**: `main` | **Open PRs**: none
 
-Local implementation is complete for the terminal alt-screen/rendering investigation. The branch now contains the bug fix, targeted tests, and handoff updates, but no PR has been opened yet.
+The terminal alt-screen/rendering fix is now merged locally into `main`. There is no active implementation in progress on this branch.
 
-## In Progress
+## Recently Shipped
 
 ### Terminal alt-screen rendering and scrollback fix
 
-Implemented:
+Merged in local commit `4f8d0fa`.
+
+Included:
 1. **Real scrollback wiring** — threaded pane/theme scrollback through the PTY creation path into Rust `PaneTermConfig`, and implemented `scrollback_size()` so the terminal engine uses the configured value.
 2. **Higher default scrollback** — raised `DEFAULT_SCROLLBACK` from `5000` to `50000`.
 3. **Alt-screen background fix** — default-background cells are now painted opaquely on the alternate screen while normal-screen default backgrounds remain transparent.
@@ -24,8 +26,8 @@ Verified locally:
 
 ## What’s Next
 
-1. Manually verify Codex and Claude panes in the app, especially alt-screen redraws during streaming output and context compaction.
-2. Open the PR from `fix/alt-screen-and-scrollback` if manual verification matches the intended behavior.
+1. Start a dedicated Windows TUI input-lag investigation branch from `main`.
+2. Instrument snapshot cadence and canvas draw cost on the affected Windows machine to confirm whether render saturation is the remaining bottleneck.
 
 ## Important Decisions
 
