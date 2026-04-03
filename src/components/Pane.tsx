@@ -93,6 +93,17 @@ interface PaneProps {
 	onFocus: (paneId: string) => void;
 }
 
+const PANE_INTERACTIVE_TARGET_SELECTOR = [
+	"button",
+	"input",
+	"select",
+	"textarea",
+	"a[href]",
+	"[role='button']",
+	"[role='menuitem']",
+	"[contenteditable='true']",
+].join(", ");
+
 export const Pane = memo(function Pane({
 	paneId,
 	workspaceId,
@@ -628,7 +639,20 @@ export const Pane = memo(function Pane({
 		[paneId, config.cwd],
 	);
 
-	const handleFocus = useCallback(() => onFocus(paneId), [paneId, onFocus]);
+	const focusPane = useCallback(() => onFocus(paneId), [paneId, onFocus]);
+
+	const handlePaneMouseDown = useCallback(
+		(event: React.MouseEvent<HTMLDivElement>) => {
+			if (
+				event.target instanceof Element &&
+				event.target.closest(PANE_INTERACTIVE_TARGET_SELECTOR)
+			) {
+				return;
+			}
+			focusPane();
+		},
+		[focusPane],
+	);
 
 	// Compute dim opacity once, use inline style exclusively (no class/inline conflict)
 	const dimOpacity =
@@ -655,7 +679,7 @@ export const Pane = memo(function Pane({
 			ref={outerRef}
 			data-pane-id={paneId}
 			className="flex flex-col h-full w-full relative overflow-hidden select-none"
-			onMouseDown={handleFocus}
+			onMouseDown={handlePaneMouseDown}
 		>
 			<PaneBackgroundEffects theme={mergedTheme} isFocused={isFocused} />
 
@@ -786,7 +810,7 @@ export const Pane = memo(function Pane({
 					onSplitHorizontal={() => onSplitHorizontal(paneId)}
 					onClose={() => onClose(paneId)}
 					onRename={startEditing}
-					onFocus={handleFocus}
+					onFocus={focusPane}
 					onDismiss={() => setShowContext(false)}
 				/>
 			)}
