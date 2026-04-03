@@ -68,6 +68,20 @@ describe("diffTerminalViewport", () => {
 		});
 	});
 
+	it("keeps blitting disabled by default for shifted viewports", () => {
+		const previous = makeGrid(["aaa", "bbb", "ccc"], { scrollbackRows: 10 });
+		const next = makeGrid(["bbb", "ccc", "ddd"], {
+			scrollbackRows: 11,
+			cursorRow: 2,
+		});
+
+		expect(diffTerminalViewport(previous, next)).toEqual({
+			kind: "full",
+			blit: null,
+			changedRows: [],
+		});
+	});
+
 	it("returns a downward blit plan when the viewport scrolls up into scrollback", () => {
 		const previous = makeGrid(["bbb", "ccc", "ddd"], {
 			scrollbackRows: 11,

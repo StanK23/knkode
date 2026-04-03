@@ -53,6 +53,8 @@ export interface CanvasTerminalProps {
 	readonly cursorColor?: string | undefined;
 	readonly background?: string | undefined;
 	readonly isFocused?: boolean | undefined;
+	/** Monotonic token that increments whenever the app explicitly focuses this pane. */
+	readonly focusGeneration?: number | undefined;
 	/** Selection highlight color. When omitted, selections are not visually highlighted but tracking and copy still function. */
 	readonly selectionColor?: string | undefined;
 	/** Pane ID used by getSelectionText IPC. */
@@ -106,7 +108,6 @@ interface DrawPerfStats {
 	maxMs: number;
 	fullCount: number;
 	incrementalCount: number;
-	blitCount: number;
 	lastReportAt: number;
 }
 
@@ -613,6 +614,7 @@ export function CanvasTerminal({
 	cursorColor = DEFAULT_CURSOR_COLOR,
 	background = DEFAULT_BACKGROUND,
 	isFocused = true,
+	focusGeneration = 0,
 	selectionColor,
 	paneId,
 	accentColor,
@@ -679,7 +681,6 @@ export function CanvasTerminal({
 	const zoomRafId = useRef(0);
 	const onTerminalContextMenuRef = useRef(onTerminalContextMenu);
 	const previousDrawnGridRef = useRef<GridSnapshot | null>(null);
-	const blitCanvasRef = useRef<HTMLCanvasElement | OffscreenCanvas | null>(null);
 	const perfDebugRef = useRef(isTerminalPerfDebugEnabled());
 	const drawPerfRef = useRef<DrawPerfStats>({
 		count: 0,
@@ -687,7 +688,6 @@ export function CanvasTerminal({
 		maxMs: 0,
 		fullCount: 0,
 		incrementalCount: 0,
-		blitCount: 0,
 		lastReportAt: performance.now(),
 	});
 
@@ -755,7 +755,7 @@ export function CanvasTerminal({
 	}, [fontSize, fontFamily, lineHeight]);
 
 	const recordDrawPerf = useCallback(
-		(strategy: "full" | "incremental" | "blit", durationMs: number) => {
+		(strategy: "full" | "incremental", durationMs: number) => {
 			if (!perfDebugRef.current) return;
 			const stats = drawPerfRef.current;
 			stats.count += 1;
@@ -763,48 +763,23 @@ export function CanvasTerminal({
 			stats.maxMs = Math.max(stats.maxMs, durationMs);
 			if (strategy === "full") {
 				stats.fullCount += 1;
-			} else if (strategy === "blit") {
-				stats.blitCount += 1;
 			} else {
 				stats.incrementalCount += 1;
 			}
 			const now = performance.now();
 			if (now - stats.lastReportAt < TERMINAL_PERF_REPORT_INTERVAL_MS) return;
 			console.debug(
-				`[terminal-perf] pane=${paneId} draws=${stats.count} avg=${(stats.totalMs / stats.count).toFixed(2)}ms max=${stats.maxMs.toFixed(2)}ms full=${stats.fullCount} incremental=${stats.incrementalCount} blit=${stats.blitCount}`,
+				`[terminal-perf] pane=${paneId} draws=${stats.count} avg=${(stats.totalMs / stats.count).toFixed(2)}ms max=${stats.maxMs.toFixed(2)}ms full=${stats.fullCount} incremental=${stats.incrementalCount}`,
 			);
 			stats.count = 0;
 			stats.totalMs = 0;
 			stats.maxMs = 0;
 			stats.fullCount = 0;
 			stats.incrementalCount = 0;
-			stats.blitCount = 0;
 			stats.lastReportAt = now;
 		},
 		[paneId],
 	);
-
-	const getBlitCanvas = useCallback((width: number, height: number) => {
-		let canvas = blitCanvasRef.current;
-		if (
-			typeof OffscreenCanvas !== "undefined" &&
-			(!canvas || !(canvas instanceof OffscreenCanvas))
-		) {
-			canvas = new OffscreenCanvas(width, height);
-			blitCanvasRef.current = canvas;
-			return canvas;
-		}
-
-		if (!canvas || canvas instanceof OffscreenCanvas) {
-			const fallbackCanvas = document.createElement("canvas");
-			canvas = fallbackCanvas;
-			blitCanvasRef.current = canvas;
-		}
-
-		if (canvas.width !== width) canvas.width = width;
-		if (canvas.height !== height) canvas.height = height;
-		return canvas;
-	}, []);
 
 	const paintRows = useCallback(
 		(
@@ -985,8 +960,8 @@ export function CanvasTerminal({
 			selectionActiveRef.current ||
 			!!linkHoverRef.current ||
 			!!snap.images;
-		const renderDiff = forceFull ? null : diffTerminalViewport(previousGrid, snap, { allowBlit: false });
-		let strategy: "full" | "incremental" | "blit" = "full";
+		const renderDiff = forceFull ? null : diffTerminalViewport(previousGrid, snap);
+		let strategy: "full" | "incremental" = "full";
 
 		if (!renderDiff || renderDiff.kind === "full") {
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1001,57 +976,7 @@ export function CanvasTerminal({
 				false,
 			);
 		} else {
-			if (renderDiff.blit) {
-				const { sourceRowStart, destinationRowStart, rowCount } = renderDiff.blit;
-				if (rowCount > 0) {
-					const blitCanvas = getBlitCanvas(canvas.width, rowCount * cellH);
-					const blitCtx = blitCanvas.getContext("2d") as
-						| CanvasRenderingContext2D
-						| OffscreenCanvasRenderingContext2D
-						| null;
-					if (!blitCtx) {
-						ctx.clearRect(0, 0, canvas.width, canvas.height);
-						paintRows(
-							ctx,
-							snap,
-							Array.from({ length: snap.rows.length }, (_, row) => row),
-							scaledSize,
-							cellW,
-							cellH,
-							baselineOffset,
-							false,
-						);
-						strategy = "full";
-					} else {
-						blitCtx.clearRect(0, 0, blitCanvas.width, blitCanvas.height);
-						blitCtx.drawImage(
-							canvas,
-							0,
-							sourceRowStart * cellH,
-							canvas.width,
-							rowCount * cellH,
-							0,
-							0,
-							blitCanvas.width,
-							blitCanvas.height,
-						);
-						ctx.drawImage(
-							blitCanvas,
-							0,
-							0,
-							blitCanvas.width,
-							blitCanvas.height,
-							0,
-							destinationRowStart * cellH,
-							canvas.width,
-							rowCount * cellH,
-						);
-					}
-				}
-				strategy = "blit";
-			} else {
-				strategy = "incremental";
-			}
+			strategy = "incremental";
 
 			paintRows(
 				ctx,
@@ -1142,7 +1067,7 @@ export function CanvasTerminal({
 		}
 		previousDrawnGridRef.current = snap;
 		recordDrawPerf(strategy, performance.now() - startedAt);
-	}, [accentColor, background, cursorColor, fontSize, fontFamily, getBlitCanvas, lineHeight, paintRows, recordDrawPerf]);
+	}, [accentColor, background, cursorColor, fontSize, fontFamily, lineHeight, paintRows, recordDrawPerf]);
 
 	// Keep draw ref in sync so the resize observer can trigger redraws
 	// without being recreated when draw's dependencies change.
@@ -1345,19 +1270,12 @@ export function CanvasTerminal({
 	// Focus the terminal container only when logical focus transitions to true —
 	// NOT on every grid update, which would steal focus from inline edits and
 	// context menu buttons during rapid PTY output.
-	const prevFocusedRef = useRef(isFocused);
 	useEffect(() => {
-		const focusChanged = prevFocusedRef.current !== isFocused;
-		prevFocusedRef.current = isFocused;
-		if (
-			focusChanged &&
-			isFocused &&
-			containerRef.current &&
-			document.activeElement !== containerRef.current
-		) {
-			containerRef.current.focus();
+		if (!isFocused || !containerRef.current || document.activeElement === containerRef.current) {
+			return;
 		}
-	}, [isFocused]);
+		containerRef.current.focus();
+	}, [isFocused, focusGeneration]);
 
 	// Three-phase cursor blink: HOLD → BLINK → IDLE.
 	// HOLD: static cursor at max opacity (500ms), no RAF — uses setTimeout.

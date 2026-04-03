@@ -16,6 +16,7 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 	const updatePaneConfig = useStore((s) => s.updatePaneConfig);
 	const updateNodeSizes = useStore((s) => s.updateNodeSizes);
 	const focusedPaneId = useStore((s) => s.focusedPaneId);
+	const focusGeneration = useStore((s) => s.focusGeneration);
 	const setFocusedPane = useStore((s) => s.setFocusedPane);
 	const paneCount = Object.keys(workspace.panes).length;
 
@@ -75,6 +76,7 @@ export function PaneArea({ workspace }: PaneAreaProps) {
 					onClose={handleClose}
 					canClose={paneCount > 1}
 					isFocused={focusedPaneId === node.paneId}
+					focusGeneration={focusGeneration}
 					onFocus={setFocusedPane}
 				/>
 			);

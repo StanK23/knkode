@@ -89,6 +89,7 @@ interface PaneProps {
 	onClose: (paneId: string) => void;
 	canClose: boolean;
 	isFocused: boolean;
+	focusGeneration: number;
 	onFocus: (paneId: string) => void;
 }
 
@@ -103,6 +104,7 @@ export const Pane = memo(function Pane({
 	onClose,
 	canClose,
 	isFocused,
+	focusGeneration,
 	onFocus,
 }: PaneProps) {
 	const [showContext, setShowContext] = useState(false);
@@ -704,6 +706,7 @@ export const Pane = memo(function Pane({
 							cursorStyle={mergedTheme.cursorStyle}
 							cursorColor={mergedTheme.cursorColor ?? mergedTheme.foreground}
 							isFocused={isFocused}
+							focusGeneration={focusGeneration}
 							selectionColor={mergedTheme.selectionColor ?? mergedTheme.accent}
 							paneId={paneId}
 							accentColor={variantTheme.accent}
