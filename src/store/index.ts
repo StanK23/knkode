@@ -167,7 +167,7 @@ interface StoreState {
 	setAgentFilter: (filter: AgentKind | null) => void;
 	openSessionHistory: (paneId: string) => void;
 	closeSessionHistory: () => void;
-	resumeSession: (paneId: string, session: AgentSession, unsafe: boolean) => void;
+	resumeSession: (paneId: string, session: AgentSession, unsafe: boolean) => Promise<void>;
 }
 
 export const useStore = create<StoreState>((set, get) => ({

@@ -4,7 +4,7 @@
 
 **Version**: 2.3.0 | **Branch**: `investigate/windows-tui-input-lag` | **Open PRs**: [#80](https://github.com/knkenko/knkode/pull/80)
 
-PR #80 now contains the Windows TUI input-lag reduction work plus follow-up fixes for terminal focus retention and pane-toolbar button regressions. The branch is verified locally with typecheck and targeted tests. The remaining step is manual validation on the affected Windows machine.
+PR #80 now contains the Windows TUI input-lag reduction work plus follow-up fixes for terminal focus retention, pane-toolbar button regressions, and session-history resume focus restore. The branch is verified locally with typecheck and targeted tests. The remaining step is manual validation on the affected Windows machine.
 
 ## Recently Completed
 
@@ -43,6 +43,14 @@ Included:
 2. **Header drag guard for toolbar controls** — the pane-header drag/focus handler now ignores interactive targets too, so toolbar clicks are not intercepted by drag startup or terminal refocus.
 3. **Preserved TUI focus behavior** — clicks on pane body/background still restore terminal keyboard focus, so the TUI fix remains intact without swallowing toolbar clicks.
 
+### Session-history resume focus restore
+
+Implemented on `investigate/windows-tui-input-lag`.
+
+Included:
+1. **Post-resume pane refocus** — after resuming a session from the history modal, the app now re-focuses the target pane on the next animation frame once the modal has closed.
+2. **Consistent terminal activation** — restoring Claude/Codex/Gemini sessions from history now returns keyboard focus to the terminal without requiring an extra click.
+
 ## What’s Next
 
 1. Reproduce on the affected Windows machine and compare typing latency while Claude/Codex stream output.
@@ -51,7 +59,8 @@ Included:
    - backend logging: launch with `KNKODE_DEBUG_TERMINAL_PERF=1`
 3. Validate that launching a TUI and switching back to an already-selected pane restores keyboard focus without requiring a click.
 4. Validate that quick commands and session history buttons work normally again after the focus changes.
-5. If the manual pass looks good, merge PR #80.
+5. Validate that restoring a session from history also returns focus to the terminal immediately.
+6. If the manual pass looks good, merge PR #80.
 
 ## Important Decisions
 

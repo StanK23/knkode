@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { toPresetName } from "../data/theme-presets";
 import { useModalFocusTrap } from "../hooks/useModalFocusTrap";
@@ -42,7 +42,7 @@ function SessionRow({
 }: {
 	session: AgentSession;
 	paneId: string;
-	onResume: (paneId: string, session: AgentSession, unsafe: boolean) => void;
+	onResume: (paneId: string, session: AgentSession, unsafe: boolean) => Promise<void>;
 	tokens: SessionHistoryTokens;
 }) {
 	const timeStr = formatRelativeTime((session.lastUpdated || null) ?? session.timestamp);
@@ -62,7 +62,7 @@ function SessionRow({
 					type="button"
 					className={`${tokens.resumeButton} ${FOCUS_VIS}`}
 					style={tokens.resumeButtonStyle}
-					onClick={() => onResume(paneId, session, false)}
+					onClick={() => void onResume(paneId, session, false)}
 				>
 					{tokens.resumeLabel}
 				</button>
@@ -70,7 +70,7 @@ function SessionRow({
 					type="button"
 					className={`${tokens.resumeButton} ${FOCUS_VIS} !text-danger hover:!bg-danger hover:!text-canvas`}
 					style={tokens.resumeButtonStyle}
-					onClick={() => onResume(paneId, session, true)}
+					onClick={() => void onResume(paneId, session, true)}
 					title="Resume without confirmation prompts"
 				>
 					unsafe
@@ -87,6 +87,7 @@ export function SessionHistoryModal() {
 	const setAgentFilter = useStore((s) => s.setAgentFilter);
 	const closeSessionHistory = useStore((s) => s.closeSessionHistory);
 	const resumeSession = useStore((s) => s.resumeSession);
+	const setFocusedPane = useStore((s) => s.setFocusedPane);
 	const workspaces = useStore((s) => s.workspaces);
 	const activeWorkspaceId = useStore((s) => s.appState.activeWorkspaceId);
 	const modalRef = useRef<HTMLDivElement>(null);
@@ -101,6 +102,16 @@ export function SessionHistoryModal() {
 	const filtered = useMemo(
 		() => (agentFilter ? sessions.filter((s) => s.agent === agentFilter) : sessions),
 		[sessions, agentFilter],
+	);
+
+	const handleResume = useCallback(
+		async (targetPaneId: string, session: AgentSession, unsafe: boolean) => {
+			await resumeSession(targetPaneId, session, unsafe);
+			requestAnimationFrame(() => {
+				setFocusedPane(targetPaneId);
+			});
+		},
+		[resumeSession, setFocusedPane],
 	);
 
 	// Escape to close
@@ -180,7 +191,7 @@ export function SessionHistoryModal() {
 								key={`${session.agent}-${session.id}`}
 								session={session}
 								paneId={paneId}
-								onResume={resumeSession}
+								onResume={handleResume}
 								tokens={tokens}
 							/>
 						))
