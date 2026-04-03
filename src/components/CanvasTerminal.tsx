@@ -25,6 +25,7 @@ import {
 	DEFAULT_FONT_SIZE,
 	DEFAULT_LINE_HEIGHT,
 } from "../shared/types";
+import { shouldPaintTerminalCellBackground } from "../utils/terminal-background";
 import { isMac, isModKeyHeld } from "../utils/platform";
 
 /** Imperative methods exposed by CanvasTerminal for context menu integration. */
@@ -712,8 +713,12 @@ export function CanvasTerminal({
 		// Clear cursor rect to transparent
 		ctx.clearRect(cx, cy, cellW, cellH);
 
-		// Redraw cell background if it has a custom color
-		if (cursorCell && cursorCell.bg !== snap.defaultBg) {
+		// Redraw cell background. Alternate-screen TUIs expect default-background
+		// cells to be opaque, while normal-screen output keeps them transparent.
+		if (
+			cursorCell &&
+			shouldPaintTerminalCellBackground(cursorCell.bg, snap.defaultBg, snap.isAltScreen)
+		) {
 			ctx.fillStyle = cursorCell.bg;
 			ctx.fillRect(cx, cy, cellW, cellH);
 		}
@@ -725,7 +730,18 @@ export function CanvasTerminal({
 
 		// Redraw cell content
 		if (cursorCell) {
-			drawCellContent(ctx, cursorCell, cx, cy, cellW, cellH, dpr, baselineOffset, scaledSize, fontFamily);
+			drawCellContent(
+				ctx,
+				cursorCell,
+				cx,
+				cy,
+				cellW,
+				cellH,
+				dpr,
+				baselineOffset,
+				scaledSize,
+				fontFamily,
+			);
 		}
 
 		// Redraw above-text images
@@ -801,7 +817,7 @@ export function CanvasTerminal({
 				const y = row * cellH;
 
 				// Background
-				if (cell.bg !== defaultBg) {
+				if (shouldPaintTerminalCellBackground(cell.bg, defaultBg, snap.isAltScreen)) {
 					ctx.fillStyle = cell.bg;
 					ctx.fillRect(x, y, cellW, cellH);
 				}
@@ -818,7 +834,18 @@ export function CanvasTerminal({
 				// SGR 8: hidden/invisible — skip text and decorations, keep background
 				// SGR 5: blink — hide text during off phase
 				if (!cell.hidden && !(cell.blink && !blinkVisible)) {
-					drawCellContent(ctx, cell, x, y, cellW, cellH, ctx.lineWidth, baselineOffset, scaledSize, fontFamily);
+					drawCellContent(
+						ctx,
+						cell,
+						x,
+						y,
+						cellW,
+						cellH,
+						ctx.lineWidth,
+						baselineOffset,
+						scaledSize,
+						fontFamily,
+					);
 				}
 			}
 		}
@@ -869,7 +896,7 @@ export function CanvasTerminal({
 					const x = c * cellW;
 					const y = linkRow * cellH;
 					// Redraw background to clear original text
-					if (cell.bg !== snap.defaultBg) {
+					if (shouldPaintTerminalCellBackground(cell.bg, snap.defaultBg, snap.isAltScreen)) {
 						ctx.fillStyle = cell.bg;
 						ctx.fillRect(x, y, cellW, cellH);
 					} else {

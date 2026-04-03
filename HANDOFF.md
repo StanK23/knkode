@@ -1,37 +1,34 @@
 # Handoff
 
-## What Was Done
+## Current State
 
-### PR #73 — Session History v2: Rich Metadata + Themed Modal (merged)
+**Version**: 2.3.0 | **Branch**: `fix/alt-screen-and-scrollback` | **Open PRs**: none
 
-Enhanced session history with per-agent metadata extraction and full themed modal redesign:
-1. **Claude tail scanning** — reads last 8KB of JSONL for `custom-title` and latest timestamp
-2. **Gemini metadata** — extracts `summary` → title, `lastUpdated`; fixes resume to use 1-based index
-3. **Codex SQLite** — shells out to `sqlite3` CLI for `title`, `git_branch`, `updated_at`
-4. **Agent SVG icons** — official brand icons from Simple Icons (Anthropic, Google Gemini, OpenAI)
-5. **SessionHistoryTokens** — per-variant themed token system (16 themes) following AddPaneButtonTokens pattern
-6. **Themed modal redesign** — portal-rendered modal with agent icons, title-first display, filter tabs
-7. **Gemini --yolo** — unsafe resume support for all three agents
+Local implementation is complete for the terminal alt-screen/rendering investigation. The branch now contains the bug fix, targeted tests, and handoff updates, but no PR has been opened yet.
 
-Review completed by 11 agents (34 findings: 8 must-fix, 15 suggestions, 11 nitpicks).
-19 findings fixed in 5 fix commits (3d43580..110594c). 5 items skipped (out of scope).
+## In Progress
 
-### Previous Work
-- PR #61: Performance & Battery Drain Fix (merged)
-- PR #62: Handle PTY Exit Events & Surface Creation Errors (merged)
-- PR #63: Tighten PaneTheme.preset Typing (merged)
-- PR #64: Remove Dead logScrollDebug IPC Path (merged)
-- PR #65: Harden WinPty Safety (merged)
-- PR #66: Align PR Badge Right (merged)
-- PR #67: Request Fresh Snapshot on Pane Remount (merged)
-- PR #68: README v2.1.0 (merged)
+### Terminal alt-screen rendering and scrollback fix
 
-## What's Next
+Implemented:
+1. **Real scrollback wiring** — threaded pane/theme scrollback through the PTY creation path into Rust `PaneTermConfig`, and implemented `scrollback_size()` so the terminal engine uses the configured value.
+2. **Higher default scrollback** — raised `DEFAULT_SCROLLBACK` from `5000` to `50000`.
+3. **Alt-screen background fix** — default-background cells are now painted opaquely on the alternate screen while normal-screen default backgrounds remain transparent.
+4. **Restart-path consistency** — pane restarts from both the pane body and sidebar context menu now reuse the effective merged scrollback value.
+5. **Regression coverage** — added frontend tests for spawn-config/background decisions and a Rust unit test for configured scrollback reporting.
 
-No active work.
+Verified locally:
+- `bunx tsc --noEmit`
+- `bun run test -- src/utils/pane-spawn.test.ts src/utils/terminal-background.test.ts`
+- `cargo test --manifest-path src-tauri/Cargo.toml pane_term_config_reports_configured_scrollback`
 
-## Active Decisions
+## What’s Next
 
-- Panes remain flat at workspace level (`workspace.panes`), subgroups only own layout trees
-- Each subgroup is an independent `WorkspaceLayout` (preset or custom)
-- Migration is automatic and persisted on first load
+1. Manually verify Codex and Claude panes in the app, especially alt-screen redraws during streaming output and context compaction.
+2. Open the PR from `fix/alt-screen-and-scrollback` if manual verification matches the intended behavior.
+
+## Important Decisions
+
+- Normal-screen default-background cells remain transparent so pane background effects are preserved.
+- Alternate-screen default-background cells must be painted opaquely because TUIs expect a fully owned framebuffer.
+- Scrollback remains a user/theme setting, but it is now enforced by the Rust terminal configuration rather than only persisted in app config.

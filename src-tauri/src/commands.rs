@@ -11,6 +11,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::State;
 
+const MIN_SCROLLBACK: usize = 500;
+const MAX_SCROLLBACK: usize = 50_000;
+
 #[derive(Serialize)]
 pub struct ShellOption {
     value: String,
@@ -92,7 +95,14 @@ pub fn get_available_shells() -> Vec<ShellOption> {
     let candidates: [(&str, &[&str]); 3] = [
         ("Zsh", &["/bin/zsh", "/usr/bin/zsh"]),
         ("Bash", &["/bin/bash", "/usr/bin/bash"]),
-        ("Fish", &["/opt/homebrew/bin/fish", "/usr/local/bin/fish", "/usr/bin/fish"]),
+        (
+            "Fish",
+            &[
+                "/opt/homebrew/bin/fish",
+                "/usr/local/bin/fish",
+                "/usr/bin/fish",
+            ],
+        ),
     ];
 
     let mut seen = HashSet::new();
@@ -107,8 +117,12 @@ pub fn get_available_shells() -> Vec<ShellOption> {
                         let parts: Vec<&str> = candidate.split('\\').collect();
                         system_root_join(&parts)
                             .filter(|path| path.is_file())
-                            .or_else(|| join_from_env("ProgramW6432", &parts).filter(|path| path.is_file()))
-                            .or_else(|| join_from_env("ProgramFiles", &parts).filter(|path| path.is_file()))
+                            .or_else(|| {
+                                join_from_env("ProgramW6432", &parts).filter(|path| path.is_file())
+                            })
+                            .or_else(|| {
+                                join_from_env("ProgramFiles", &parts).filter(|path| path.is_file())
+                            })
                     } else {
                         None
                     }
@@ -180,6 +194,7 @@ pub fn create_pty(
     cwd: String,
     shell: Option<String>,
     startup_command: Option<String>,
+    scrollback: usize,
     pty_mgr: State<'_, Arc<PtyManager>>,
     tracker: State<'_, CwdTracker>,
     app: tauri::AppHandle,
@@ -195,7 +210,19 @@ pub fn create_pty(
             return Err("startup_command must not contain null bytes".to_string());
         }
     }
-    pty_mgr.create(id.clone(), cwd.clone(), shell, startup_command, app)?;
+    if !(MIN_SCROLLBACK..=MAX_SCROLLBACK).contains(&scrollback) {
+        return Err(format!(
+            "scrollback must be between {MIN_SCROLLBACK} and {MAX_SCROLLBACK}"
+        ));
+    }
+    pty_mgr.create(
+        id.clone(),
+        cwd.clone(),
+        shell,
+        startup_command,
+        scrollback,
+        app,
+    )?;
     tracker.track_pane(id, cwd);
     Ok(())
 }

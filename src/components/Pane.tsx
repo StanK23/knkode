@@ -8,6 +8,7 @@ import { registerRenderListener } from "../lib/render-dispatcher";
 import { SCROLLBAR_HIDE_DELAY_MS, type ScreenPosition } from "../lib/ui-constants";
 import {
 	clampFontSize,
+	DEFAULT_SCROLLBACK,
 	effectMul,
 	type GridSnapshot,
 	MAX_UNFOCUSED_DIM,
@@ -49,9 +50,7 @@ function PaneSessionHistoryTrigger({
 		fetchAgentSessions(cwd);
 		openSessionHistory(paneId);
 	}, [paneId, cwd, fetchAgentSessions, openSessionHistory]);
-	return (
-		<button type="button" onClick={handleClick} title="Session history" {...rest} />
-	);
+	return <button type="button" onClick={handleClick} title="Session history" {...rest} />;
 }
 
 /** Stable component for snippet trigger — defined outside Pane to avoid
@@ -160,26 +159,44 @@ export const Pane = memo(function Pane({
 		onFocus,
 	});
 
-	// One-shot capture — PTY should only use initial spawn config
-	const initialSpawnConfigRef = useRef(getPaneSpawnConfig(config));
 	// Ref to merged theme for use in sync-colors-before-create pattern
 	const mergedThemeRef = useRef(mergeThemeWithPreset(workspaceTheme, config.themeOverride));
 	useEffect(() => {
 		mergedThemeRef.current = mergeThemeWithPreset(workspaceTheme, config.themeOverride);
 	}, [workspaceTheme, config.themeOverride]);
 
+	const getSpawnConfig = useCallback(
+		(paneConfig: PaneConfig) =>
+			getPaneSpawnConfig(paneConfig, mergedThemeRef.current.scrollback ?? DEFAULT_SCROLLBACK),
+		[],
+	);
+
+	// One-shot capture — PTY should only use initial spawn config
+	const initialSpawnConfigRef = useRef(getSpawnConfig(config));
+
 	/** Sync palette to Rust then create the PTY. Palette is sent first so
 	 *  the terminal's OSC 10/11 responses are correct from the first byte. */
 	const syncPaletteAndCreatePty = useCallback(
-		async (id: string, cwd: string, shell: string | null, cmd: string | null) => {
+		async (
+			id: string,
+			cwd: string,
+			shell: string | null,
+			cmd: string | null,
+			scrollback: number,
+		) => {
 			const theme = mergedThemeRef.current;
 			try {
-				await window.api.setTerminalColors(id, theme.ansiColors ?? DEFAULT_ANSI, theme.foreground, theme.background);
+				await window.api.setTerminalColors(
+					id,
+					theme.ansiColors ?? DEFAULT_ANSI,
+					theme.foreground,
+					theme.background,
+				);
 			} catch (err: unknown) {
 				console.error(`[pane] pre-create setTerminalColors failed for ${id}:`, err);
 			}
 			try {
-				await window.api.createPty(id, cwd, shell, cmd);
+				await window.api.createPty(id, cwd, shell, cmd, scrollback);
 			} catch (err: unknown) {
 				console.error(`[pane] PTY create failed for ${id}:`, err);
 				removePtyId(id);
@@ -197,13 +214,14 @@ export const Pane = memo(function Pane({
 		const newSet = new Set(activePtyIds);
 		newSet.add(paneId);
 		useStore.setState({ activePtyIds: newSet });
-			syncPaletteAndCreatePty(
-				paneId,
-				initialSpawnConfigRef.current.cwd,
-				initialSpawnConfigRef.current.shell,
-				initialSpawnConfigRef.current.startupCommand,
-			);
-		}, [paneId, syncPaletteAndCreatePty]);
+		syncPaletteAndCreatePty(
+			paneId,
+			initialSpawnConfigRef.current.cwd,
+			initialSpawnConfigRef.current.shell,
+			initialSpawnConfigRef.current.startupCommand,
+			initialSpawnConfigRef.current.scrollback,
+		);
+	}, [paneId, syncPaletteAndCreatePty]);
 
 	// Subscribe to grid snapshots from Rust PTY renderer via centralized dispatcher.
 	// App.tsx has a single onTerminalRender listener that routes by pane ID (O(1) Map lookup),
@@ -405,12 +423,13 @@ export const Pane = memo(function Pane({
 					newSet.add(paneId);
 					useStore.setState({ activePtyIds: newSet });
 				}
-				const restartSpawnConfig = getPaneSpawnConfig(config);
+				const restartSpawnConfig = getSpawnConfig(config);
 				syncPaletteAndCreatePty(
 					paneId,
 					restartSpawnConfig.cwd,
 					restartSpawnConfig.shell,
 					restartSpawnConfig.startupCommand,
+					restartSpawnConfig.scrollback,
 				);
 				return;
 			}
@@ -431,8 +450,8 @@ export const Pane = memo(function Pane({
 				setPtyError(true);
 			});
 		},
-			[paneId, config, scrollToBottom, clearPtyExited, syncPaletteAndCreatePty],
-		);
+		[paneId, config, getSpawnConfig, scrollToBottom, clearPtyExited, syncPaletteAndCreatePty],
+	);
 
 	const handleResize = useCallback(
 		(cols: number, rows: number, pixelWidth: number, pixelHeight: number) => {
@@ -656,7 +675,9 @@ export const Pane = memo(function Pane({
 					isEditing={isEditing}
 					editInputProps={inputProps}
 					SnippetTrigger={(props) => <PaneSnippetTrigger {...snippetTriggerProps} {...props} />}
-					SessionHistoryTrigger={(props) => <PaneSessionHistoryTrigger {...sessionHistoryTriggerProps} {...props} />}
+					SessionHistoryTrigger={(props) => (
+						<PaneSessionHistoryTrigger {...sessionHistoryTriggerProps} {...props} />
+					)}
 					shortcuts={{
 						splitV: `${modKey}+D`,
 						splitH: `${modKey}+Shift+D`,
@@ -726,9 +747,7 @@ export const Pane = memo(function Pane({
 						/>
 						{(ptyError || ptyExited) && (
 							<div className="absolute bottom-2 left-2 right-2 text-xs text-danger bg-danger/10 rounded px-2 py-1 pointer-events-none">
-								{ptyExited
-									? "Process exited — type to restart"
-									: "Terminal disconnected"}
+								{ptyExited ? "Process exited — type to restart" : "Terminal disconnected"}
 							</div>
 						)}
 					</div>
@@ -756,6 +775,7 @@ export const Pane = memo(function Pane({
 					paneId={paneId}
 					workspaceId={workspaceId}
 					config={config}
+					scrollback={mergedTheme.scrollback ?? DEFAULT_SCROLLBACK}
 					canClose={canClose}
 					anchorPos={contextPos}
 					onUpdateConfig={(updates) => onUpdateConfig(paneId, updates)}

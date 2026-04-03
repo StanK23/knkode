@@ -532,7 +532,10 @@ fn shell_basename(shell: &str) -> String {
 
 #[cfg(target_os = "windows")]
 fn is_powershell_shell(shell: &str) -> bool {
-    matches!(shell_basename(shell).as_str(), "powershell.exe" | "pwsh.exe")
+    matches!(
+        shell_basename(shell).as_str(),
+        "powershell.exe" | "pwsh.exe"
+    )
 }
 
 #[cfg(target_os = "windows")]
@@ -880,6 +883,7 @@ impl PtyManager {
         cwd: String,
         shell: Option<String>,
         startup_command: Option<String>,
+        scrollback: usize,
         app: tauri::AppHandle,
     ) -> Result<(), String> {
         // Kill existing session to allow pane restart without explicit cleanup
@@ -934,7 +938,9 @@ impl PtyManager {
                     if let Ok(mut w) = writer_clone.lock() {
                         if let Some(cmd_str) = startup_cmd {
                             if let Err(e) = w.write_all(cmd_str.as_bytes()) {
-                                eprintln!("[pty] Failed to write startup command for {id_clone}: {e}");
+                                eprintln!(
+                                    "[pty] Failed to write startup command for {id_clone}: {e}"
+                                );
                                 return;
                             }
                             if let Err(e) = w.write_all(b"\r") {
@@ -978,6 +984,7 @@ impl PtyManager {
             DEFAULT_ROWS,
             default_pw as usize,
             default_ph as usize,
+            scrollback,
         );
         eprintln!("[pty] Terminal state created for {id}");
 
@@ -1310,7 +1317,9 @@ impl PtyManager {
             .clone();
         drop(sessions);
 
-        reported.or_else(|| pid.and_then(detect_cwd)).or(Some(fallback))
+        reported
+            .or_else(|| pid.and_then(detect_cwd))
+            .or(Some(fallback))
     }
 
     /// Returns elapsed time since last PTY output for each pane that has produced output.
