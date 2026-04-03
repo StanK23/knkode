@@ -2,9 +2,9 @@
 
 ## Current State
 
-**Version**: 2.3.0 | **Branch**: `investigate/windows-tui-input-lag` | **Open PRs**: [#80](https://github.com/knkenko/knkode/pull/80)
+**Version**: 2.3.0 | **Branch**: `main` | **Open PRs**: none
 
-PR #80 now contains the Windows TUI input-lag reduction work plus follow-up fixes for terminal focus retention, pane-toolbar button regressions, and session-history resume focus restore. The branch is verified locally with typecheck and targeted tests. The remaining step is manual validation on the affected Windows machine.
+PR #80 is merged into `main`. It shipped the Windows TUI input-lag reduction work plus follow-up fixes for terminal focus retention, pane-toolbar button regressions, and session-history resume focus restore.
 
 ## Recently Completed
 
@@ -60,7 +60,7 @@ Included:
 3. Validate that launching a TUI and switching back to an already-selected pane restores keyboard focus without requiring a click.
 4. Validate that quick commands and session history buttons work normally again after the focus changes.
 5. Validate that restoring a session from history also returns focus to the terminal immediately.
-6. If the manual pass looks good, merge PR #80.
+6. If the manual pass surfaces a remaining Windows-specific regression, open a follow-up board/card from `main`.
 
 ## Important Decisions
 
