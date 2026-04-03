@@ -1,7 +1,7 @@
 import { useCallback } from "react";
-import { type ThemePresetName, toPresetName } from "../data/theme-presets";
+import { mergeThemeWithPreset, type ThemePresetName, toPresetName } from "../data/theme-presets";
 import { useContextMenu } from "../hooks/useContextMenu";
-import { PANE_RENAME_EVENT, type PaneConfig } from "../shared/types";
+import { DEFAULT_SCROLLBACK, PANE_RENAME_EVENT, type PaneConfig } from "../shared/types";
 import { useStore } from "../store";
 import { PaneContextMenu } from "./PaneContextMenu";
 import { PaneEntryVariant } from "./sidebar-variants/ThemeRegistry";
@@ -31,8 +31,15 @@ export function SidebarPaneEntry({
 	const title = useStore((s) => s.paneTitles[paneId] ?? null);
 	const splitPane = useStore((s) => s.splitPane);
 	const updatePaneConfig = useStore((s) => s.updatePaneConfig);
+	const workspaceTheme = useStore(
+		(s) => s.workspaces.find((workspace) => workspace.id === workspaceId)?.theme ?? null,
+	);
 
 	const preset = toPresetName(config.themeOverride?.preset ?? workspacePreset);
+	const scrollback =
+		(workspaceTheme
+			? mergeThemeWithPreset(workspaceTheme, config.themeOverride).scrollback
+			: undefined) ?? DEFAULT_SCROLLBACK;
 
 	const ctx = useContextMenu();
 
@@ -67,6 +74,7 @@ export function SidebarPaneEntry({
 					paneId={paneId}
 					workspaceId={workspaceId}
 					config={config}
+					scrollback={scrollback}
 					canClose={canClose}
 					anchorPos={ctx.position}
 					onUpdateConfig={(updates) => updatePaneConfig(workspaceId, paneId, updates)}

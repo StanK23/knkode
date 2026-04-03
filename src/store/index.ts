@@ -78,6 +78,7 @@ interface StoreState {
 		cwd: string,
 		shell: string | null,
 		startupCommand: string | null,
+		scrollback: number,
 	) => void;
 	/** Kill PTYs for the given pane IDs and remove them from activePtyIds. */
 	killPtys: (paneIds: string[]) => void;
@@ -254,14 +255,14 @@ export const useStore = create<StoreState>((set, get) => ({
 		});
 	},
 
-	ensurePty: (paneId, cwd, shell, startupCommand) => {
+	ensurePty: (paneId, cwd, shell, startupCommand, scrollback) => {
 		const { activePtyIds } = get();
 		if (activePtyIds.has(paneId)) return;
 		// Optimistically mark as active to prevent concurrent creation attempts
 		const newSet = new Set(activePtyIds);
 		newSet.add(paneId);
 		set({ activePtyIds: newSet });
-		window.api.createPty(paneId, cwd, shell, startupCommand).catch((err) => {
+		window.api.createPty(paneId, cwd, shell, startupCommand, scrollback).catch((err) => {
 			console.error(`[store] Failed to create PTY for pane ${paneId}:`, err);
 			// Remove from active set on failure so retry is possible
 			const current = get().activePtyIds;

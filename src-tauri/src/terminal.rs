@@ -41,11 +41,21 @@ const MAX_TITLE_LEN: usize = 4096;
 /// `color_palette()` always returns the latest value. The mutex is only held
 /// for a clone — no contention with the reader thread.
 #[derive(Debug)]
-struct PaneTermConfig(Mutex<ColorPalette>);
+struct PaneTermConfig {
+    palette: Mutex<ColorPalette>,
+    scrollback: usize,
+}
 
 impl tattoy_wezterm_term::config::TerminalConfiguration for PaneTermConfig {
     fn color_palette(&self) -> ColorPalette {
-        self.0.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.palette
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+
+    fn scrollback_size(&self) -> usize {
+        self.scrollback
     }
 
     fn enable_kitty_graphics(&self) -> bool {
@@ -447,6 +457,7 @@ impl TerminalState {
         rows: usize,
         pixel_width: usize,
         pixel_height: usize,
+        scrollback: usize,
     ) {
         // Build a per-pane config from the stored palette (or default).
         // This config is what wezterm-term falls back to on palette resets
@@ -466,7 +477,10 @@ impl TerminalState {
             pane_palette.background.to_rgb_string(),
             pane_palette.foreground.to_rgb_string(),
         );
-        let pane_config = Arc::new(PaneTermConfig(Mutex::new(pane_palette.clone())));
+        let pane_config = Arc::new(PaneTermConfig {
+            palette: Mutex::new(pane_palette.clone()),
+            scrollback,
+        });
 
         let response_buf = Arc::new(Mutex::new(Vec::new()));
         let writer = SharedWriter(Arc::clone(&response_buf));
@@ -527,7 +541,7 @@ impl TerminalState {
         match self.lock_pane_configs() {
             Ok(configs) => {
                 if let Some(config) = configs.get(id) {
-                    *config.0.lock().unwrap_or_else(|e| e.into_inner()) = palette.clone();
+                    *config.palette.lock().unwrap_or_else(|e| e.into_inner()) = palette.clone();
                 }
             }
             Err(e) => eprintln!("[terminal] pane_configs lock failed in set_colors for {id}: {e}"),
@@ -1186,5 +1200,20 @@ impl TerminalState {
         self.response_buffers
             .lock()
             .map_err(|e| format!("Response buffers lock poisoned: {e}"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pane_term_config_reports_configured_scrollback() {
+        let config = PaneTermConfig {
+            palette: Mutex::new(ColorPalette::default()),
+            scrollback: 50_000,
+        };
+
+        assert_eq!(config.scrollback_size(), 50_000);
     }
 }
