@@ -2,35 +2,39 @@
 
 ## Current State
 
-**Version**: 2.3.0 | **Branch**: `main` | **Open PRs**: none
+**Version**: 2.3.0 | **Branch**: `investigate/windows-tui-input-lag` | **Open PRs**: none
 
-The terminal alt-screen/rendering fix is now merged locally into `main`. There is no active implementation in progress on this branch.
+The Windows TUI input-lag reduction work is implemented locally on this branch and verified with typecheck plus targeted tests. The remaining step is manual validation on the affected Windows machine before opening a PR.
 
-## Recently Shipped
+## Recently Completed
 
-### Terminal alt-screen rendering and scrollback fix
+### Windows TUI input-lag reduction
 
-Merged in local commit `4f8d0fa`.
+Implemented on `investigate/windows-tui-input-lag`.
 
 Included:
-1. **Real scrollback wiring** — threaded pane/theme scrollback through the PTY creation path into Rust `PaneTermConfig`, and implemented `scrollback_size()` so the terminal engine uses the configured value.
-2. **Higher default scrollback** — raised `DEFAULT_SCROLLBACK` from `5000` to `50000`.
-3. **Alt-screen background fix** — default-background cells are now painted opaquely on the alternate screen while normal-screen default backgrounds remain transparent.
-4. **Restart-path consistency** — pane restarts from both the pane body and sidebar context menu now reuse the effective merged scrollback value.
-5. **Regression coverage** — added frontend tests for spawn-config/background decisions and a Rust unit test for configured scrollback reporting.
+1. **Lower terminal snapshot cadence** — reduced Rust PTY snapshot throttling from ~60fps to ~30fps by changing `RENDER_INTERVAL` from `16ms` to `33ms`.
+2. **Incremental canvas redraws** — added viewport diffing so streaming terminal updates repaint only changed rows instead of clearing and redrawing the entire visible grid on every snapshot.
+3. **Scroll blit fast-path** — when output or user scrolling shifts the viewport by whole rows, the canvas now reuses the existing bitmap and redraws only the newly exposed rows.
+4. **Safe fallbacks** — selection-heavy states, link-hover redraws, and image-bearing snapshots still force full redraws so behavior stays correct while the hot path is reduced.
+5. **Opt-in perf instrumentation** — added frontend draw logging behind `localStorage["knkode:debug-terminal-perf"]="1"` and backend snapshot logging behind `KNKODE_DEBUG_TERMINAL_PERF=1`.
+6. **Regression coverage** — added `src/utils/terminal-render.test.ts` for row-diff/blit decisions and a Rust unit test asserting the 30fps render interval.
 
 Verified locally:
 - `bunx tsc --noEmit`
-- `bun run test -- src/utils/pane-spawn.test.ts src/utils/terminal-background.test.ts`
-- `cargo test --manifest-path src-tauri/Cargo.toml pane_term_config_reports_configured_scrollback`
+- `bun run test -- src/utils/terminal-render.test.ts src/utils/terminal-background.test.ts src/utils/pane-spawn.test.ts`
+- `cargo test --manifest-path src-tauri/Cargo.toml`
 
 ## What’s Next
 
-1. Start a dedicated Windows TUI input-lag investigation branch from `main`.
-2. Instrument snapshot cadence and canvas draw cost on the affected Windows machine to confirm whether render saturation is the remaining bottleneck.
+1. Reproduce on the affected Windows machine and compare typing latency while Claude/Codex stream output.
+2. If more evidence is needed, enable:
+   - frontend logging: `localStorage.setItem("knkode:debug-terminal-perf", "1")`
+   - backend logging: launch with `KNKODE_DEBUG_TERMINAL_PERF=1`
+3. If the manual pass looks good, open a PR from `investigate/windows-tui-input-lag`.
 
 ## Important Decisions
 
-- Normal-screen default-background cells remain transparent so pane background effects are preserved.
-- Alternate-screen default-background cells must be painted opaquely because TUIs expect a fully owned framebuffer.
-- Scrollback remains a user/theme setting, but it is now enforced by the Rust terminal configuration rather than only persisted in app config.
+- All pane visual effects remain enabled; the fix targets redraw cost rather than reducing visual quality.
+- Incremental redraw is limited to image-free snapshots because terminal image slices are the riskiest case for stale pixels.
+- Interaction-driven redraws still force full repaint so selection and hover correctness stays simple.
