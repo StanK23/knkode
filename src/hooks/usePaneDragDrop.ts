@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { type DropZone, getDropZone } from "../lib/pane-drag-utils";
 import { DRAG_THRESHOLD, suppressNextClick } from "../lib/ui-constants";
 import { useStore } from "../store";
+import { isInteractiveTarget } from "../utils/interactive-target";
 
 const MOUSE_BUTTON_RIGHT = 2;
 
@@ -61,6 +62,7 @@ export function usePaneDragDrop({ paneId, workspaceId, onFocus }: UsePaneDragDro
 			// Right-click is for context menu
 			if (e.button === MOUSE_BUTTON_RIGHT) return;
 			if (e.button !== 0) return;
+			if (isInteractiveTarget(e.target)) return;
 			onFocus(paneId);
 
 			const startX = e.clientX;

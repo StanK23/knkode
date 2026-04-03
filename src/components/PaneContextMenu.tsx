@@ -14,6 +14,7 @@ interface PaneContextMenuProps {
 	paneId: string;
 	workspaceId: string;
 	config: PaneConfig;
+	scrollback: number;
 	canClose: boolean;
 	anchorPos: ScreenPosition;
 	onUpdateConfig: (updates: Partial<PaneConfig>) => void;
@@ -29,6 +30,7 @@ export function PaneContextMenu({
 	paneId,
 	workspaceId,
 	config,
+	scrollback,
 	canClose,
 	anchorPos,
 	onUpdateConfig,
@@ -270,7 +272,7 @@ export function PaneContextMenu({
 				className="ctx-item"
 				onClick={() => {
 					killPtys([paneId]);
-					ensurePty(paneId, config.cwd, config.shell, config.startupCommand);
+					ensurePty(paneId, config.cwd, config.shell, config.startupCommand, scrollback);
 					closeContext();
 					onFocus();
 				}}

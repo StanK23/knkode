@@ -49,7 +49,7 @@ export function effectMul(level: unknown): number {
 }
 
 export const DEFAULT_CURSOR_STYLE: CursorStyle = "bar";
-export const DEFAULT_SCROLLBACK = 5000;
+export const DEFAULT_SCROLLBACK = 50000;
 export const MIN_SCROLLBACK = 500;
 export const MAX_SCROLLBACK = 50000;
 
@@ -436,6 +436,7 @@ export interface KnkodeApi {
 		cwd: string,
 		shell: string | null,
 		startupCommand: string | null,
+		scrollback: number,
 	): Promise<void>;
 	writePty(id: string, data: string): Promise<void>;
 	resizePty(

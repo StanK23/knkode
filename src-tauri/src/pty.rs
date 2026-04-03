@@ -14,11 +14,81 @@ use tauri::Emitter;
 const SHELL_READY_DELAY_MS: u64 = 300;
 const READ_BUFFER_SIZE: usize = 8192;
 const MAX_SESSIONS: usize = 64;
-/// Minimum interval between render events per terminal (~60fps).
+const PERF_LOG_INTERVAL: Duration = Duration::from_secs(2);
+/// Minimum interval between render events per terminal (~30fps).
 /// During high-throughput output the reader advances terminal state on every
 /// chunk but only snapshots + emits at this cadence, preventing UI freezes.
-const RENDER_INTERVAL: Duration = Duration::from_millis(16);
+const RENDER_INTERVAL: Duration = Duration::from_millis(33);
 const OSC7_PREFIX: &[u8] = b"\x1b]7;";
+
+struct SnapshotPerfLogger {
+    enabled: bool,
+    pane_id: String,
+    source: &'static str,
+    sample_count: u32,
+    total_emit_ms: f64,
+    max_emit_ms: f64,
+    interval_samples: u32,
+    total_interval_ms: f64,
+    last_emit_started_at: Option<Instant>,
+    last_report_at: Instant,
+}
+
+impl SnapshotPerfLogger {
+    fn new(enabled: bool, pane_id: &str, source: &'static str) -> Self {
+        Self {
+            enabled,
+            pane_id: pane_id.to_string(),
+            source,
+            sample_count: 0,
+            total_emit_ms: 0.0,
+            max_emit_ms: 0.0,
+            interval_samples: 0,
+            total_interval_ms: 0.0,
+            last_emit_started_at: None,
+            last_report_at: Instant::now(),
+        }
+    }
+
+    fn record(&mut self, emit_started_at: Instant) {
+        if !self.enabled {
+            return;
+        }
+
+        let completed_at = Instant::now();
+        let emit_ms = completed_at.duration_since(emit_started_at).as_secs_f64() * 1000.0;
+        self.sample_count += 1;
+        self.total_emit_ms += emit_ms;
+        self.max_emit_ms = self.max_emit_ms.max(emit_ms);
+
+        if let Some(previous_emit_started_at) = self.last_emit_started_at.replace(emit_started_at) {
+            self.interval_samples += 1;
+            self.total_interval_ms +=
+                emit_started_at.duration_since(previous_emit_started_at).as_secs_f64() * 1000.0;
+        }
+
+        if completed_at.duration_since(self.last_report_at) < PERF_LOG_INTERVAL {
+            return;
+        }
+
+        let avg_emit_ms = self.total_emit_ms / f64::from(self.sample_count.max(1));
+        let avg_fps = if self.interval_samples == 0 {
+            0.0
+        } else {
+            1000.0 / (self.total_interval_ms / f64::from(self.interval_samples))
+        };
+        eprintln!(
+            "[pty-perf] pane={} source={} emits={} avg_emit={avg_emit_ms:.2}ms max_emit={:.2}ms avg_fps={avg_fps:.1}",
+            self.pane_id, self.source, self.sample_count, self.max_emit_ms
+        );
+        self.sample_count = 0;
+        self.total_emit_ms = 0.0;
+        self.max_emit_ms = 0.0;
+        self.interval_samples = 0;
+        self.total_interval_ms = 0.0;
+        self.last_report_at = completed_at;
+    }
+}
 
 /// RAII guard for Windows HANDLEs — calls `CloseHandle` on drop.
 #[cfg(target_os = "windows")]
@@ -532,7 +602,10 @@ fn shell_basename(shell: &str) -> String {
 
 #[cfg(target_os = "windows")]
 fn is_powershell_shell(shell: &str) -> bool {
-    matches!(shell_basename(shell).as_str(), "powershell.exe" | "pwsh.exe")
+    matches!(
+        shell_basename(shell).as_str(),
+        "powershell.exe" | "pwsh.exe"
+    )
 }
 
 #[cfg(target_os = "windows")]
@@ -880,6 +953,7 @@ impl PtyManager {
         cwd: String,
         shell: Option<String>,
         startup_command: Option<String>,
+        scrollback: usize,
         app: tauri::AppHandle,
     ) -> Result<(), String> {
         // Kill existing session to allow pane restart without explicit cleanup
@@ -934,7 +1008,9 @@ impl PtyManager {
                     if let Ok(mut w) = writer_clone.lock() {
                         if let Some(cmd_str) = startup_cmd {
                             if let Err(e) = w.write_all(cmd_str.as_bytes()) {
-                                eprintln!("[pty] Failed to write startup command for {id_clone}: {e}");
+                                eprintln!(
+                                    "[pty] Failed to write startup command for {id_clone}: {e}"
+                                );
                                 return;
                             }
                             if let Err(e) = w.write_all(b"\r") {
@@ -978,6 +1054,7 @@ impl PtyManager {
             DEFAULT_ROWS,
             default_pw as usize,
             default_ph as usize,
+            scrollback,
         );
         eprintln!("[pty] Terminal state created for {id}");
 
@@ -985,10 +1062,11 @@ impl PtyManager {
         // `dirty`: set when terminal state advances but no snapshot was emitted (throttled).
         // `alive`: cleared when the reader exits so the flush thread can stop.
         // `flush_cond`: wakes the flush thread when throttled data is pending, replacing
-        // the previous 16ms sleep-poll that caused ~60 idle wakeups/sec per session.
+        // the previous fixed-interval sleep-poll that caused unnecessary idle wakeups.
         let dirty = Arc::new(AtomicBool::new(false));
         let alive = Arc::new(AtomicBool::new(true));
         let flush_cond = Arc::new((Mutex::new(()), Condvar::new()));
+        let perf_debug = std::env::var_os("KNKODE_DEBUG_TERMINAL_PERF").is_some();
 
         // Trailing-edge flush thread: ensures the screen always shows the latest
         // state after a data burst ends. Without this, the last chunk in a burst
@@ -1001,7 +1079,10 @@ impl PtyManager {
             let term_state = Arc::clone(&self.terminal_state);
             let id_flush = id.clone();
             let app_flush = app.clone();
+            let perf_debug_flush = perf_debug;
             std::thread::spawn(move || {
+                let mut perf_logger =
+                    SnapshotPerfLogger::new(perf_debug_flush, &id_flush, "flush");
                 let (lock, cv) = &*cond;
                 while alive_flush.load(Ordering::Relaxed) {
                     // Wait until notified by reader or timeout — zero CPU when idle.
@@ -1014,7 +1095,9 @@ impl PtyManager {
                         .wait_timeout(guard, RENDER_INTERVAL)
                         .unwrap_or_else(|e| e.into_inner());
                     if dirty_flush.swap(false, Ordering::AcqRel) {
+                        let emit_started_at = Instant::now();
                         emit_snapshot(&app_flush, &term_state, &id_flush);
+                        perf_logger.record(emit_started_at);
                     }
                 }
             });
@@ -1022,7 +1105,7 @@ impl PtyManager {
 
         // Background reader thread: read PTY output → wezterm-term → throttled emit.
         // Advances terminal state on every chunk but only snapshots + emits at
-        // RENDER_INTERVAL (~60fps) to avoid flooding the frontend during bursts.
+        // RENDER_INTERVAL (~30fps) to avoid flooding the frontend during bursts.
         // The flush thread above catches any trailing updates that get throttled.
         let id_clone = id.clone();
         let sessions_clone = Arc::clone(&self.sessions);
@@ -1030,6 +1113,7 @@ impl PtyManager {
         let last_output_at = Arc::clone(&self.last_output_at);
         let route_flag_reader = Arc::clone(&route_responses);
         let reported_cwd_reader = Arc::clone(&reported_cwd);
+        let perf_debug_reader = perf_debug;
         std::thread::spawn(move || {
             eprintln!("[pty] Reader thread started for {id_clone}");
             let (_, cv) = &*flush_cond;
@@ -1037,6 +1121,7 @@ impl PtyManager {
             let mut osc7_pending = Vec::new();
             let mut last_emit = Instant::now() - RENDER_INTERVAL; // emit first frame immediately
             let mut total_bytes: usize = 0;
+            let mut perf_logger = SnapshotPerfLogger::new(perf_debug_reader, &id_clone, "reader");
             loop {
                 match reader.read(&mut buf) {
                     Ok(0) => {
@@ -1144,7 +1229,7 @@ impl PtyManager {
 
                         if last_emit.elapsed() >= RENDER_INTERVAL {
                             // Record output timestamp for activity detection.
-                            // Throttled to ~60fps — sub-16ms precision is irrelevant
+                            // Throttled to ~30fps — sub-frame precision is irrelevant
                             // given the 2-second idle threshold polled every 3 seconds.
                             let mut times =
                                 last_output_at.lock().unwrap_or_else(|e| e.into_inner());
@@ -1156,9 +1241,11 @@ impl PtyManager {
                             drop(times);
 
                             dirty.store(false, Ordering::Release);
+                            let emit_started_at = Instant::now();
                             if !emit_snapshot(&app, &term_state, &id_clone) {
                                 break;
                             }
+                            perf_logger.record(emit_started_at);
                             last_emit = Instant::now();
                         } else {
                             dirty.store(true, Ordering::Release);
@@ -1175,7 +1262,7 @@ impl PtyManager {
             }
 
             alive.store(false, Ordering::Release);
-            // Wake flush thread so it exits immediately instead of waiting up to 16ms
+            // Wake flush thread so it exits immediately instead of waiting for the next interval
             cv.notify_one();
 
             // Always emit a final snapshot so the screen shows the complete output
@@ -1310,7 +1397,9 @@ impl PtyManager {
             .clone();
         drop(sessions);
 
-        reported.or_else(|| pid.and_then(detect_cwd)).or(Some(fallback))
+        reported
+            .or_else(|| pid.and_then(detect_cwd))
+            .or(Some(fallback))
     }
 
     /// Returns elapsed time since last PTY output for each pane that has produced output.
@@ -1364,5 +1453,16 @@ impl PtyManager {
         self.sessions
             .lock()
             .map_err(|e| format!("Session lock poisoned: {e}"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RENDER_INTERVAL;
+    use std::time::Duration;
+
+    #[test]
+    fn render_interval_targets_thirty_fps() {
+        assert_eq!(RENDER_INTERVAL, Duration::from_millis(33));
     }
 }

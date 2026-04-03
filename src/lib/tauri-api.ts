@@ -82,13 +82,12 @@ const _api: KnkodeApi = {
 	saveSnippets: (snippets) => invoke("save_snippets", { snippets }),
 
 	// Session history
-	listAgentSessions: (projectCwd) =>
-		invoke<AgentSession[]>("list_agent_sessions", { projectCwd }),
+	listAgentSessions: (projectCwd) => invoke<AgentSession[]>("list_agent_sessions", { projectCwd }),
 
 	// PTY
 	trackPaneGit: (id, cwd) => invoke("track_pane_git", { id, cwd }),
-	createPty: (id, cwd, shell, startupCommand) =>
-		invoke("create_pty", { id, cwd, shell, startupCommand }),
+	createPty: (id, cwd, shell, startupCommand, scrollback) =>
+		invoke("create_pty", { id, cwd, shell, startupCommand, scrollback }),
 	writePty: (id, data) => invoke("write_pty", { id, data }),
 	resizePty: (id, cols, rows, pixelWidth, pixelHeight) =>
 		invoke("resize_pty", { id, cols, rows, pixelWidth, pixelHeight }),
