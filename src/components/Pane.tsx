@@ -20,6 +20,7 @@ import {
 	type PaneTheme,
 } from "../shared/types";
 import { useStore } from "../store";
+import { isInteractiveTarget } from "../utils/interactive-target";
 import { shortenPath } from "../utils/path";
 import { getPaneSpawnConfig } from "../utils/pane-spawn";
 import { modKey } from "../utils/platform";
@@ -92,17 +93,6 @@ interface PaneProps {
 	focusGeneration: number;
 	onFocus: (paneId: string) => void;
 }
-
-const PANE_INTERACTIVE_TARGET_SELECTOR = [
-	"button",
-	"input",
-	"select",
-	"textarea",
-	"a[href]",
-	"[role='button']",
-	"[role='menuitem']",
-	"[contenteditable='true']",
-].join(", ");
 
 export const Pane = memo(function Pane({
 	paneId,
@@ -643,10 +633,7 @@ export const Pane = memo(function Pane({
 
 	const handlePaneMouseDown = useCallback(
 		(event: React.MouseEvent<HTMLDivElement>) => {
-			if (
-				event.target instanceof Element &&
-				event.target.closest(PANE_INTERACTIVE_TARGET_SELECTOR)
-			) {
+			if (isInteractiveTarget(event.target)) {
 				return;
 			}
 			focusPane();

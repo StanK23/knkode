@@ -40,7 +40,8 @@ Implemented on `investigate/windows-tui-input-lag`.
 
 Included:
 1. **Interactive-target guard on pane mouse focus** — pane-level `onMouseDown` no longer re-focuses the terminal when the user clicks toolbar controls such as quick commands, session history, close, or split buttons.
-2. **Preserved TUI focus behavior** — clicks on pane body/background still restore terminal keyboard focus, so the TUI fix remains intact without swallowing toolbar clicks.
+2. **Header drag guard for toolbar controls** — the pane-header drag/focus handler now ignores interactive targets too, so toolbar clicks are not intercepted by drag startup or terminal refocus.
+3. **Preserved TUI focus behavior** — clicks on pane body/background still restore terminal keyboard focus, so the TUI fix remains intact without swallowing toolbar clicks.
 
 ## What’s Next
 
