@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { DEFAULT_PRESET_NAME, type ThemePresetName, findPreset } from "../data/theme-presets";
+import { useCreateWorkspaceAction } from "../hooks/useCreateWorkspaceAction";
 import { useModalFocusTrap } from "../hooks/useModalFocusTrap";
 import type { UpdateActions, UpdateState } from "../hooks/useUpdateChecker";
 import {
@@ -64,13 +65,12 @@ interface SettingsPanelProps {
 	onClose: () => void;
 }
 
-const SETTINGS_TABS = ["Workspaces", "Global", "About"] as const;
+const SETTINGS_TABS = ["Workspaces", "Shared", "About"] as const;
 type SettingsTab = (typeof SETTINGS_TABS)[number];
 
 // ── Settings reducer ──────────────────────────────────────────────
 
-interface SettingsState {
-	activeTab: SettingsTab;
+interface WorkspaceSettingsDraft {
 	selectedWorkspaceId: string;
 	name: string;
 	themePreset: ThemePresetName;
@@ -86,6 +86,11 @@ interface SettingsState {
 	glowLevel: EffectLevel;
 	scanlineLevel: EffectLevel;
 	noiseLevel: EffectLevel;
+}
+
+interface SettingsState {
+	activeTab: SettingsTab;
+	draft: WorkspaceSettingsDraft;
 	saveFailed: boolean;
 	confirmDelete: boolean;
 	actionError: string | null;
@@ -93,7 +98,8 @@ interface SettingsState {
 }
 
 type SettingsAction =
-	| { type: "UPDATE"; patch: Partial<SettingsState> }
+	| { type: "UPDATE_UI"; patch: Partial<Pick<SettingsState, "activeTab" | "saveFailed" | "confirmDelete" | "actionError" | "isMutating">> }
+	| { type: "UPDATE_DRAFT"; patch: Partial<WorkspaceSettingsDraft> }
 	| { type: "SET_EFFECT"; category: EffectCategory; level: EffectLevel }
 	| { type: "APPLY_PRESET"; preset: ThemePresetName }
 	| { type: "SWITCH_WORKSPACE"; workspace: Workspace };
@@ -119,7 +125,7 @@ const EFFECT_STATE_KEY: Record<EffectCategory, EffectStateField> = {
 
 function hydrateFromWorkspace(
 	workspace: Workspace,
-): Omit<SettingsState, "activeTab" | "saveFailed" | "confirmDelete" | "actionError" | "isMutating"> {
+): WorkspaceSettingsDraft {
 	const t = workspace.theme;
 	return {
 		selectedWorkspaceId: workspace.id,
@@ -144,21 +150,23 @@ function initState(workspace: Workspace | null): SettingsState {
 	if (!workspace) {
 		return {
 			activeTab: "Workspaces",
-			selectedWorkspaceId: "",
-			name: "",
-			themePreset: DEFAULT_PRESET_NAME,
-			fontSize: DEFAULT_FONT_SIZE,
-			fontFamily: "",
-			scrollback: DEFAULT_SCROLLBACK,
-			cursorStyle: DEFAULT_CURSOR_STYLE,
-			statusBarPosition: "top",
-			lineHeight: DEFAULT_LINE_HEIGHT,
-			dimLevel: "subtle",
-			opacityLevel: "off",
-			gradientLevel: "off",
-			glowLevel: "off",
-			scanlineLevel: "off",
-			noiseLevel: "off",
+			draft: {
+				selectedWorkspaceId: "",
+				name: "",
+				themePreset: DEFAULT_PRESET_NAME,
+				fontSize: DEFAULT_FONT_SIZE,
+				fontFamily: "",
+				scrollback: DEFAULT_SCROLLBACK,
+				cursorStyle: DEFAULT_CURSOR_STYLE,
+				statusBarPosition: "top",
+				lineHeight: DEFAULT_LINE_HEIGHT,
+				dimLevel: "subtle",
+				opacityLevel: "off",
+				gradientLevel: "off",
+				glowLevel: "off",
+				scanlineLevel: "off",
+				noiseLevel: "off",
+			},
 			saveFailed: false,
 			confirmDelete: false,
 			actionError: null,
@@ -167,7 +175,7 @@ function initState(workspace: Workspace | null): SettingsState {
 	}
 	return {
 		activeTab: "Workspaces",
-		...hydrateFromWorkspace(workspace),
+		draft: hydrateFromWorkspace(workspace),
 		saveFailed: false,
 		confirmDelete: false,
 		actionError: null,
@@ -175,54 +183,65 @@ function initState(workspace: Workspace | null): SettingsState {
 	};
 }
 
-function hasWorkspaceDraftChanges(workspace: Workspace, state: SettingsState): boolean {
+function hasWorkspaceDraftChanges(workspace: Workspace, draft: WorkspaceSettingsDraft): boolean {
 	const persisted = hydrateFromWorkspace(workspace);
-	const trimmedName = state.name.trim();
+	const trimmedName = draft.name.trim();
 	return (
 		(trimmedName.length > 0 && trimmedName !== workspace.name) ||
-		state.themePreset !== persisted.themePreset ||
-		state.fontSize !== persisted.fontSize ||
-		state.fontFamily !== persisted.fontFamily ||
-		state.scrollback !== persisted.scrollback ||
-		state.cursorStyle !== persisted.cursorStyle ||
-		state.statusBarPosition !== persisted.statusBarPosition ||
-		state.lineHeight !== persisted.lineHeight ||
-		state.dimLevel !== persisted.dimLevel ||
-		state.opacityLevel !== persisted.opacityLevel ||
-		state.gradientLevel !== persisted.gradientLevel ||
-		state.glowLevel !== persisted.glowLevel ||
-		state.scanlineLevel !== persisted.scanlineLevel ||
-		state.noiseLevel !== persisted.noiseLevel
+		draft.themePreset !== persisted.themePreset ||
+		draft.fontSize !== persisted.fontSize ||
+		draft.fontFamily !== persisted.fontFamily ||
+		draft.scrollback !== persisted.scrollback ||
+		draft.cursorStyle !== persisted.cursorStyle ||
+		draft.statusBarPosition !== persisted.statusBarPosition ||
+		draft.lineHeight !== persisted.lineHeight ||
+		draft.dimLevel !== persisted.dimLevel ||
+		draft.opacityLevel !== persisted.opacityLevel ||
+		draft.gradientLevel !== persisted.gradientLevel ||
+		draft.glowLevel !== persisted.glowLevel ||
+		draft.scanlineLevel !== persisted.scanlineLevel ||
+		draft.noiseLevel !== persisted.noiseLevel
 	);
 }
 
 function settingsReducer(state: SettingsState, action: SettingsAction): SettingsState {
 	switch (action.type) {
-		case "UPDATE":
+		case "UPDATE_UI":
 			return { ...state, ...action.patch };
+		case "UPDATE_DRAFT":
+			return { ...state, draft: { ...state.draft, ...action.patch } };
 		case "SET_EFFECT":
-			return { ...state, [EFFECT_STATE_KEY[action.category]]: action.level };
+			return {
+				...state,
+				draft: {
+					...state.draft,
+					[EFFECT_STATE_KEY[action.category]]: action.level,
+				},
+			};
 		case "APPLY_PRESET": {
 			const p = findPreset(action.preset);
 			if (!p) console.warn("[settings] unknown theme preset:", action.preset);
 			return {
 				...state,
-				themePreset: action.preset,
-				gradientLevel: p?.gradientLevel ?? "off",
-				glowLevel: p?.glowLevel ?? "off",
-				scanlineLevel: p?.scanlineLevel ?? "off",
-				noiseLevel: p?.noiseLevel ?? "off",
-				statusBarPosition: p?.statusBarPosition ?? "top",
-				fontFamily: p?.fontFamily ?? "",
-				fontSize: p?.fontSize ?? DEFAULT_FONT_SIZE,
-				lineHeight: p?.lineHeight ?? DEFAULT_LINE_HEIGHT,
+				draft: {
+					...state.draft,
+					themePreset: action.preset,
+					gradientLevel: p?.gradientLevel ?? "off",
+					glowLevel: p?.glowLevel ?? "off",
+					scanlineLevel: p?.scanlineLevel ?? "off",
+					noiseLevel: p?.noiseLevel ?? "off",
+					statusBarPosition: p?.statusBarPosition ?? "top",
+					fontFamily: p?.fontFamily ?? "",
+					fontSize: p?.fontSize ?? DEFAULT_FONT_SIZE,
+					lineHeight: p?.lineHeight ?? DEFAULT_LINE_HEIGHT,
+				},
 			};
 		}
 		case "SWITCH_WORKSPACE":
 			return {
 				...state,
 				activeTab: state.activeTab,
-				...hydrateFromWorkspace(action.workspace),
+				draft: hydrateFromWorkspace(action.workspace),
 				saveFailed: false,
 				confirmDelete: false,
 				actionError: null,
@@ -245,7 +264,6 @@ export function SettingsPanel({
 	const updateWorkspace = useStore((s) => s.updateWorkspace);
 	const removeWorkspace = useStore((s) => s.removeWorkspace);
 	const updatePaneConfig = useStore((s) => s.updatePaneConfig);
-	const createDefaultWorkspace = useStore((s) => s.createDefaultWorkspace);
 	const homeDir = useStore((s) => s.homeDir);
 
 	const initialWorkspace =
@@ -257,33 +275,45 @@ export function SettingsPanel({
 		initState,
 	);
 
-	const selectedWorkspace = workspaces.find((w) => w.id === state.selectedWorkspaceId);
+	const selectedWorkspace = workspaces.find((w) => w.id === state.draft.selectedWorkspaceId);
 	const pendingSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const confirmDeleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const dialogRef = useRef<HTMLDivElement>(null);
 
 	const update = useCallback(
-		(patch: Partial<SettingsState>) => dispatch({ type: "UPDATE", patch }),
+		(patch: Partial<WorkspaceSettingsDraft>) => dispatch({ type: "UPDATE_DRAFT", patch }),
 		[],
 	);
+	const updateUi = useCallback(
+		(
+			patch: Partial<
+				Pick<SettingsState, "activeTab" | "saveFailed" | "confirmDelete" | "actionError" | "isMutating">
+			>,
+		) => dispatch({ type: "UPDATE_UI", patch }),
+		[],
+	);
+	const createWorkspace = useCreateWorkspaceAction({
+		source: "settings",
+		onError: () => updateUi({ actionError: "Failed to create workspace" }),
+	});
 
 	const effects = useMemo(
 		(): Record<EffectCategory, EffectLevel> => ({
-			dim: state.dimLevel,
-			opacity: state.opacityLevel,
-			gradient: state.gradientLevel,
-			glow: state.glowLevel,
-			scanline: state.scanlineLevel,
-			noise: state.noiseLevel,
+			dim: state.draft.dimLevel,
+			opacity: state.draft.opacityLevel,
+			gradient: state.draft.gradientLevel,
+			glow: state.draft.glowLevel,
+			scanline: state.draft.scanlineLevel,
+			noise: state.draft.noiseLevel,
 		}),
 		[
-			state.dimLevel,
-			state.opacityLevel,
-			state.gradientLevel,
-			state.glowLevel,
-			state.scanlineLevel,
-			state.noiseLevel,
+			state.draft.dimLevel,
+			state.draft.opacityLevel,
+			state.draft.gradientLevel,
+			state.draft.glowLevel,
+			state.draft.scanlineLevel,
+			state.draft.noiseLevel,
 		],
 	);
 
@@ -292,71 +322,71 @@ export function SettingsPanel({
 	}, []);
 
 	const draftTheme = useMemo((): PaneTheme => {
-		const preset = findPreset(state.themePreset);
-		if (!preset) console.warn("[settings] unknown theme preset:", state.themePreset);
+		const preset = findPreset(state.draft.themePreset);
+		if (!preset) console.warn("[settings] unknown theme preset:", state.draft.themePreset);
 		return {
 			background: preset?.background ?? "#1a1a2e",
 			foreground: preset?.foreground ?? "#e0e0e0",
-			fontSize: state.fontSize,
-			unfocusedDim: DIM_VALUES[state.dimLevel],
-			...(state.fontFamily ? { fontFamily: state.fontFamily } : {}),
-			scrollback: state.scrollback,
-			cursorStyle: state.cursorStyle,
-			statusBarPosition: state.statusBarPosition,
-			paneOpacity: OPACITY_VALUES[state.opacityLevel],
+			fontSize: state.draft.fontSize,
+			unfocusedDim: DIM_VALUES[state.draft.dimLevel],
+			...(state.draft.fontFamily ? { fontFamily: state.draft.fontFamily } : {}),
+			scrollback: state.draft.scrollback,
+			cursorStyle: state.draft.cursorStyle,
+			statusBarPosition: state.draft.statusBarPosition,
+			paneOpacity: OPACITY_VALUES[state.draft.opacityLevel],
 			...(preset?.ansiColors ? { ansiColors: preset.ansiColors } : {}),
 			...(preset?.accent ? { accent: preset.accent } : {}),
 			...(preset?.glow ? { glow: preset.glow } : {}),
 			...(preset?.gradient ? { gradient: preset.gradient } : {}),
-			gradientLevel: state.gradientLevel,
-			glowLevel: state.glowLevel,
-			scanlineLevel: state.scanlineLevel,
-			noiseLevel: state.noiseLevel,
+			gradientLevel: state.draft.gradientLevel,
+			glowLevel: state.draft.glowLevel,
+			scanlineLevel: state.draft.scanlineLevel,
+			noiseLevel: state.draft.noiseLevel,
 			...(preset?.scrollbarAccent ? { scrollbarAccent: preset.scrollbarAccent } : {}),
 			...(preset?.cursorColor ? { cursorColor: preset.cursorColor } : {}),
 			...(preset?.selectionColor ? { selectionColor: preset.selectionColor } : {}),
-			lineHeight: state.lineHeight,
-			preset: state.themePreset,
+			lineHeight: state.draft.lineHeight,
+			preset: state.draft.themePreset,
 		};
 	}, [
-		state.cursorStyle,
-		state.dimLevel,
-		state.fontFamily,
-		state.fontSize,
-		state.glowLevel,
-		state.gradientLevel,
-		state.lineHeight,
-		state.noiseLevel,
-		state.opacityLevel,
-		state.scanlineLevel,
-		state.scrollback,
-		state.statusBarPosition,
-		state.themePreset,
+		state.draft.cursorStyle,
+		state.draft.dimLevel,
+		state.draft.fontFamily,
+		state.draft.fontSize,
+		state.draft.glowLevel,
+		state.draft.gradientLevel,
+		state.draft.lineHeight,
+		state.draft.noiseLevel,
+		state.draft.opacityLevel,
+		state.draft.scanlineLevel,
+		state.draft.scrollback,
+		state.draft.statusBarPosition,
+		state.draft.themePreset,
 	]);
 
 	const buildDraftWorkspace = useCallback(
 		(workspace: Workspace): Workspace => ({
 			...workspace,
-			name: state.name.trim() || workspace.name,
+			name: state.draft.name.trim() || workspace.name,
 			theme: draftTheme,
 		}),
-		[state.name, draftTheme],
+		[state.draft.name, draftTheme],
 	);
 
 	/** Persist workspace, surfacing errors to the user via saveFailed indicator. */
 	const persistWorkspace = useCallback(
 		async (ws: Workspace) => {
-			update({ saveFailed: false, actionError: null });
+			updateUi({ saveFailed: false, actionError: null });
 			try {
 				await updateWorkspace(ws);
 				return true;
 			} catch (err: unknown) {
 				console.error("[settings] persist failed:", err);
-				update({ saveFailed: true });
+				updateUi({ saveFailed: true });
 				return false;
 			}
 		},
-		[updateWorkspace, update],
+		[updateWorkspace, updateUi],
 	);
 
 	const flushWorkspaceDraft = useCallback(
@@ -366,34 +396,34 @@ export function SettingsPanel({
 				pendingSaveTimerRef.current = null;
 			}
 			const latest = getLatestWorkspace(workspaceId);
-			if (!latest || !hasWorkspaceDraftChanges(latest, state)) return true;
+			if (!latest || !hasWorkspaceDraftChanges(latest, state.draft)) return true;
 			return persistWorkspace(buildDraftWorkspace(latest));
 		},
-		[state, persistWorkspace, buildDraftWorkspace],
+		[state.draft, persistWorkspace, buildDraftWorkspace],
 	);
 
 	// Auto-persist the current draft. Selection changes explicitly flush before switching.
 	const prevAutoSaveRef = useRef({
-		name: state.name,
-		selectedWorkspaceId: state.selectedWorkspaceId,
+		name: state.draft.name,
+		selectedWorkspaceId: state.draft.selectedWorkspaceId,
 		theme: draftTheme,
 	});
 	useEffect(() => {
 		if (
-			prevAutoSaveRef.current.name === state.name &&
-			prevAutoSaveRef.current.selectedWorkspaceId === state.selectedWorkspaceId &&
+			prevAutoSaveRef.current.name === state.draft.name &&
+			prevAutoSaveRef.current.selectedWorkspaceId === state.draft.selectedWorkspaceId &&
 			prevAutoSaveRef.current.theme === draftTheme
 		)
 			return;
 		prevAutoSaveRef.current = {
-			name: state.name,
-			selectedWorkspaceId: state.selectedWorkspaceId,
+			name: state.draft.name,
+			selectedWorkspaceId: state.draft.selectedWorkspaceId,
 			theme: draftTheme,
 		};
-		const latest = getLatestWorkspace(state.selectedWorkspaceId);
-		if (!latest || !hasWorkspaceDraftChanges(latest, state)) return;
+		const latest = getLatestWorkspace(state.draft.selectedWorkspaceId);
+		if (!latest || !hasWorkspaceDraftChanges(latest, state.draft)) return;
 		pendingSaveTimerRef.current = setTimeout(() => {
-			void flushWorkspaceDraft(state.selectedWorkspaceId);
+			void flushWorkspaceDraft(state.draft.selectedWorkspaceId);
 		}, 250);
 		return () => {
 			if (pendingSaveTimerRef.current) {
@@ -401,7 +431,7 @@ export function SettingsPanel({
 				pendingSaveTimerRef.current = null;
 			}
 		};
-	}, [state, state.name, state.selectedWorkspaceId, draftTheme, flushWorkspaceDraft]);
+	}, [state.draft, draftTheme, flushWorkspaceDraft]);
 
 	useEffect(() => {
 		if (selectedWorkspace || workspaces.length === 0) return;
@@ -414,61 +444,63 @@ export function SettingsPanel({
 
 	const handleSelectWorkspace = useCallback(
 		async (id: string) => {
-			if (id === state.selectedWorkspaceId || state.isMutating) return;
-			update({ isMutating: true, actionError: null });
-			const flushed = await flushWorkspaceDraft(state.selectedWorkspaceId);
+			if (id === state.draft.selectedWorkspaceId || state.isMutating) return;
+			updateUi({ isMutating: true, actionError: null });
+			const flushed = await flushWorkspaceDraft(state.draft.selectedWorkspaceId);
 			if (!flushed) {
-				update({ isMutating: false, actionError: "Failed to save workspace changes" });
+				updateUi({ isMutating: false, actionError: "Failed to save workspace changes" });
 				return;
 			}
 			const ws = useStore.getState().workspaces.find((w) => w.id === id);
 			if (!ws) {
-				update({ isMutating: false, actionError: "Selected workspace is no longer available" });
+				updateUi({ isMutating: false, actionError: "Selected workspace is no longer available" });
 				return;
 			}
 			dispatch({ type: "SWITCH_WORKSPACE", workspace: ws });
-			update({ isMutating: false });
+			updateUi({ isMutating: false });
 		},
-		[state.selectedWorkspaceId, state.isMutating, flushWorkspaceDraft, update],
+		[state.draft.selectedWorkspaceId, state.isMutating, flushWorkspaceDraft, updateUi],
 	);
 
 	const handleAddWorkspace = useCallback(async () => {
 		if (state.isMutating) return;
-		update({ isMutating: true, actionError: null });
-		const flushed = await flushWorkspaceDraft(state.selectedWorkspaceId);
+		updateUi({ isMutating: true, actionError: null });
+		const flushed = await flushWorkspaceDraft(state.draft.selectedWorkspaceId);
 		if (!flushed) {
-			update({ isMutating: false, actionError: "Failed to save workspace changes" });
+			updateUi({ isMutating: false, actionError: "Failed to save workspace changes" });
 			return;
 		}
-		try {
-			const ws = await createDefaultWorkspace();
+		const ws = await createWorkspace();
+		if (ws) {
 			dispatch({ type: "SWITCH_WORKSPACE", workspace: ws });
-		} catch (err) {
-			console.error("[settings] failed to create workspace:", err);
-			update({ actionError: "Failed to create workspace" });
-		} finally {
-			update({ isMutating: false });
 		}
-	}, [createDefaultWorkspace, flushWorkspaceDraft, state.isMutating, state.selectedWorkspaceId, update]);
+		updateUi({ isMutating: false });
+	}, [
+		createWorkspace,
+		flushWorkspaceDraft,
+		state.draft.selectedWorkspaceId,
+		state.isMutating,
+		updateUi,
+	]);
 
 	const handleDelete = useCallback(async () => {
 		if (!state.confirmDelete) {
-			update({ confirmDelete: true });
+			updateUi({ confirmDelete: true });
 			if (confirmDeleteTimerRef.current) {
 				clearTimeout(confirmDeleteTimerRef.current);
 			}
-			confirmDeleteTimerRef.current = setTimeout(() => update({ confirmDelete: false }), 3000);
+			confirmDeleteTimerRef.current = setTimeout(() => updateUi({ confirmDelete: false }), 3000);
 			return;
 		}
 		if (state.isMutating) return;
-		const currentId = state.selectedWorkspaceId;
+		const currentId = state.draft.selectedWorkspaceId;
 		const stateSnapshot = useStore.getState();
 		const remaining = stateSnapshot.workspaces.filter((w) => w.id !== currentId);
 		const fallbackSelection =
 			remaining.find((workspace) => workspace.id === stateSnapshot.appState.activeWorkspaceId) ??
 			remaining[0] ??
 			null;
-		update({ isMutating: true, actionError: null, confirmDelete: false });
+		updateUi({ isMutating: true, actionError: null, confirmDelete: false });
 		try {
 			await removeWorkspace(currentId);
 			if (fallbackSelection) {
@@ -478,11 +510,11 @@ export function SettingsPanel({
 			}
 		} catch (err) {
 			console.error("[settings] failed to delete workspace:", err);
-			update({ actionError: "Failed to delete workspace" });
+			updateUi({ actionError: "Failed to delete workspace" });
 		} finally {
-			update({ isMutating: false });
+			updateUi({ isMutating: false });
 		}
-	}, [state.confirmDelete, state.isMutating, state.selectedWorkspaceId, removeWorkspace, onClose, update]);
+	}, [state.confirmDelete, state.draft.selectedWorkspaceId, state.isMutating, removeWorkspace, onClose, updateUi]);
 
 	// Close on Escape key
 	useEffect(() => {
@@ -505,9 +537,9 @@ export function SettingsPanel({
 
 	const handlePaneUpdate = useCallback(
 		(paneId: string, updates: Partial<PaneConfig>) => {
-			updatePaneConfig(state.selectedWorkspaceId, paneId, updates);
+			updatePaneConfig(state.draft.selectedWorkspaceId, paneId, updates);
 		},
-		[state.selectedWorkspaceId, updatePaneConfig],
+		[state.draft.selectedWorkspaceId, updatePaneConfig],
 	);
 
 	const canDelete = workspaces.length > 1;
@@ -558,7 +590,7 @@ export function SettingsPanel({
 							aria-selected={state.activeTab === tab}
 							aria-controls={`settings-tabpanel-${tab}`}
 							tabIndex={state.activeTab === tab ? 0 : -1}
-							onClick={() => update({ activeTab: tab })}
+							onClick={() => updateUi({ activeTab: tab })}
 							onKeyDown={(e) => {
 								const idx = SETTINGS_TABS.indexOf(tab);
 								if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
@@ -567,7 +599,7 @@ export function SettingsPanel({
 										e.key === "ArrowRight"
 											? SETTINGS_TABS[(idx + 1) % SETTINGS_TABS.length]!
 											: SETTINGS_TABS[(idx - 1 + SETTINGS_TABS.length) % SETTINGS_TABS.length]!;
-									update({ activeTab: next });
+									updateUi({ activeTab: next });
 									document.getElementById(`settings-tab-${next}`)?.focus();
 								}
 							}}
@@ -592,40 +624,47 @@ export function SettingsPanel({
 				>
 					<WorkspaceList
 						workspaces={workspaces}
-						selectedId={state.selectedWorkspaceId}
+						selectedId={state.draft.selectedWorkspaceId}
 						onSelect={(id) => void handleSelectWorkspace(id)}
 						onAdd={() => void handleAddWorkspace()}
 						disabled={state.isMutating}
 					/>
-					{selectedWorkspace && (
-						<WorkspaceDetail
-							workspaceId={selectedWorkspace.id}
-							panes={selectedWorkspace.panes}
-							name={state.name}
-							onNameChange={(v) => update({ name: v })}
-							homeDir={homeDir}
-							statusBarPosition={state.statusBarPosition}
-							onStatusBarPositionChange={(v) => update({ statusBarPosition: v })}
-							onPaneUpdate={handlePaneUpdate}
-							selectedPreset={state.themePreset}
-							onPresetChange={(name) => dispatch({ type: "APPLY_PRESET", preset: name })}
-							fontFamily={state.fontFamily}
-							onFontFamilyChange={(v) => update({ fontFamily: v })}
-							fontSize={state.fontSize}
-							onFontSizeChange={(v) => update({ fontSize: v })}
-							lineHeight={state.lineHeight}
-							onLineHeightChange={(v) => update({ lineHeight: v })}
-							cursorStyle={state.cursorStyle}
-							onCursorStyleChange={(v) => update({ cursorStyle: v })}
-							scrollback={state.scrollback}
-							onScrollbackChange={(v) => update({ scrollback: v })}
-							effects={effects}
-							onEffectChange={handleEffectChange}
-						/>
-					)}
-					{!selectedWorkspace && (
-						<div className="flex-1 min-h-0 flex items-center justify-center px-6 py-10">
-							<div className="max-w-sm text-center space-y-3">
+					<div className="flex-1 min-h-0 flex flex-col">
+						<div className="px-4 md:px-5 pt-4 pb-2 border-b border-edge/30">
+							<p className="text-[11px] leading-5 text-content-muted max-w-[65ch]">
+								These controls affect only the selected workspace. Use the Shared tab for commands
+								and settings that should apply everywhere.
+							</p>
+						</div>
+						{selectedWorkspace && (
+							<WorkspaceDetail
+								workspaceId={selectedWorkspace.id}
+								panes={selectedWorkspace.panes}
+								name={state.draft.name}
+								onNameChange={(v) => update({ name: v })}
+								homeDir={homeDir}
+								statusBarPosition={state.draft.statusBarPosition}
+								onStatusBarPositionChange={(v) => update({ statusBarPosition: v })}
+								onPaneUpdate={handlePaneUpdate}
+								selectedPreset={state.draft.themePreset}
+								onPresetChange={(name) => dispatch({ type: "APPLY_PRESET", preset: name })}
+								fontFamily={state.draft.fontFamily}
+								onFontFamilyChange={(v) => update({ fontFamily: v })}
+								fontSize={state.draft.fontSize}
+								onFontSizeChange={(v) => update({ fontSize: v })}
+								lineHeight={state.draft.lineHeight}
+								onLineHeightChange={(v) => update({ lineHeight: v })}
+								cursorStyle={state.draft.cursorStyle}
+								onCursorStyleChange={(v) => update({ cursorStyle: v })}
+								scrollback={state.draft.scrollback}
+								onScrollbackChange={(v) => update({ scrollback: v })}
+								effects={effects}
+								onEffectChange={handleEffectChange}
+							/>
+						)}
+						{!selectedWorkspace && (
+							<div className="flex-1 min-h-0 flex items-center justify-center px-6 py-10">
+								<div className="max-w-sm text-center space-y-3">
 								<h3 className="text-sm font-medium text-content">No workspace selected</h3>
 								<p className="text-xs leading-5 text-content-muted">
 									Create or reopen a workspace to edit its settings here.
@@ -636,14 +675,15 @@ export function SettingsPanel({
 									disabled={state.isMutating}
 									className="border border-edge rounded-sm px-3 py-1.5 text-xs text-content-secondary hover:text-content hover:border-content-muted focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none disabled:opacity-60 disabled:cursor-wait"
 								>
-									Create workspace
+									+ New Workspace
 								</button>
+								</div>
 							</div>
-						</div>
-					)}
+						)}
+					</div>
 				</div>
 
-				<GlobalTabPanel hidden={state.activeTab !== "Global"} />
+				<GlobalTabPanel hidden={state.activeTab !== "Shared"} />
 
 				<AboutTabPanel
 					updateState={updateState}

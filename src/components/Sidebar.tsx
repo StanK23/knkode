@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useId, useMemo, useRef, useState } from "react";
 import { type ThemePresetName, toPresetName } from "../data/theme-presets";
+import { useCreateWorkspaceAction } from "../hooks/useCreateWorkspaceAction";
 import { useClickOutside } from "../hooks/useClickOutside";
 import { useDragReorder } from "../hooks/useDragReorder";
 import type { UpdateActions, UpdateState } from "../hooks/useUpdateChecker";
@@ -80,7 +81,6 @@ export function Sidebar({
 	const collapsedSections = useStore((s) => s.collapsedSidebarSections);
 	const openWorkspace = useStore((s) => s.openWorkspace);
 	const closeWorkspaceTab = useStore((s) => s.closeWorkspaceTab);
-	const createDefaultWorkspace = useStore((s) => s.createDefaultWorkspace);
 	const updateWorkspace = useStore((s) => s.updateWorkspace);
 	const duplicateWorkspace = useStore((s) => s.duplicateWorkspace);
 	const closePane = useStore((s) => s.closePane);
@@ -209,12 +209,10 @@ export function Sidebar({
 		[duplicateWorkspace, showTransientError],
 	);
 
-	const handleNewWorkspace = useCallback(() => {
-		createDefaultWorkspace().catch((err) => {
-			console.error("[sidebar] Failed to create workspace:", err);
-			showTransientError("Failed to create workspace");
-		});
-	}, [createDefaultWorkspace, showTransientError]);
+	const handleNewWorkspace = useCreateWorkspaceAction({
+		source: "sidebar",
+		onError: () => showTransientError("Failed to create workspace"),
+	});
 
 	return (
 		<div

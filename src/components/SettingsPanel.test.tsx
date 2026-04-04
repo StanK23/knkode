@@ -149,6 +149,34 @@ describe("SettingsPanel", () => {
 		});
 	});
 
+	it("does not persist when switching workspaces without draft changes", async () => {
+		const updateWorkspace = vi.fn().mockResolvedValue(undefined);
+		const ws1 = makeWorkspace("ws-1", "Alpha");
+		const ws2 = makeWorkspace("ws-2", "Beta");
+
+		useStore.setState({
+			workspaces: [ws1, ws2],
+			appState: {
+				...baseStoreState.appState,
+				openWorkspaceIds: [ws1.id, ws2.id],
+				activeWorkspaceId: ws1.id,
+			},
+			updateWorkspace,
+			createDefaultWorkspace: vi.fn(),
+			removeWorkspace: vi.fn(),
+			updatePaneConfig: vi.fn(),
+			homeDir: "/tmp",
+		});
+
+		renderSettings();
+		fireEvent.click(screen.getByRole("button", { name: "Beta" }));
+
+		await waitFor(() => {
+			expect(screen.getByTestId("workspace-detail").textContent).toContain("ws-2");
+		});
+		expect(updateWorkspace).not.toHaveBeenCalled();
+	});
+
 	it("shows an inline error and keeps selection stable when creating a workspace fails", async () => {
 		const ws1 = makeWorkspace("ws-1", "Alpha");
 		const createDefaultWorkspace = vi.fn().mockRejectedValue(new Error("boom"));

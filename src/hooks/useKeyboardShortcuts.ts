@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useCreateWorkspaceAction } from "./useCreateWorkspaceAction";
 import {
 	clampFontSize,
 	DEFAULT_FONT_SIZE,
@@ -43,6 +44,8 @@ interface ShortcutOptions {
 }
 
 export function useKeyboardShortcuts({ toggleSettings, toggleHotkeys }: ShortcutOptions = {}) {
+	const createWorkspace = useCreateWorkspaceAction({ source: "shortcuts" });
+
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
 			// Skip events already handled by another listener (e.g. key-to-ansi sends
@@ -95,9 +98,7 @@ export function useKeyboardShortcuts({ toggleSettings, toggleHotkeys }: Shortcut
 			// Mod+T — new workspace
 			if (e.key === "t" && !e.shiftKey) {
 				e.preventDefault();
-				state.createDefaultWorkspace().catch((err) => {
-					console.error("[shortcuts] Failed to create workspace:", err);
-				});
+				void createWorkspace();
 				return;
 			}
 
@@ -225,5 +226,5 @@ export function useKeyboardShortcuts({ toggleSettings, toggleHotkeys }: Shortcut
 
 		window.addEventListener("keydown", handler);
 		return () => window.removeEventListener("keydown", handler);
-	}, [toggleSettings, toggleHotkeys]);
+	}, [createWorkspace, toggleSettings, toggleHotkeys]);
 }
