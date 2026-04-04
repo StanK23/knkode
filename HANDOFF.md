@@ -2,9 +2,9 @@
 
 ## Current State
 
-**Version**: 2.3.1 | **Branch**: `fix/codex-resize-redraw-history-loss` | **Open PRs**: none
+**Version**: 2.3.1 | **Branch**: `fix/codex-resize-redraw-history-loss` | **Open PRs**: #81
 
-PR #80 is merged into `main`. Current work is implemented on `fix/codex-resize-redraw-history-loss` and is ready to be committed/pushed as the next PR.
+PR #80 is merged into `main`. Current work is implemented on `fix/codex-resize-redraw-history-loss` and is open for review as PR #81.
 
 ## Recently Completed
 
@@ -69,14 +69,13 @@ Included:
 
 ## What’s Next
 
-1. Commit, push, and open the PR from `fix/codex-resize-redraw-history-loss`.
-2. Manually validate on the affected machine:
+1. Review and validate PR #81 on the affected machine:
    - resize a Codex pane narrower and shorter repeatedly
    - confirm the newest visible output remains visible after resize
    - confirm the stale shrink/stretch artifact no longer sticks until later output
-3. Verify scrolled-up panes still preserve scrollback position across resize.
-4. Verify normal shell panes still repaint correctly after resize.
-5. If any remaining resize issue appears, check whether it is a secondary wrap/reflow problem rather than the stale-snapshot bug fixed here.
+2. Verify scrolled-up panes still preserve scrollback position across resize.
+3. Verify normal shell panes still repaint correctly after resize.
+4. If any remaining resize issue appears, check whether it is a secondary wrap/reflow problem rather than the stale-snapshot bug fixed here.
 
 ## Important Decisions
 
