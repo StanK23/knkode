@@ -288,7 +288,8 @@ export function Sidebar({
 												<div className="flex flex-col pb-1">
 													{ws.subgroups.map((sg) => {
 														const sgPaneIds = getPaneIdsInOrder(sg.layout.tree);
-														const isActiveSg = sg.id === ws.activeSubgroupId;
+														const isActiveSg =
+															isActive && sg.id === ws.activeSubgroupId;
 														return (
 															<Fragment key={sg.id}>
 																{sgPaneIds.map((paneId, idx) => {
