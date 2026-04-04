@@ -312,9 +312,8 @@ export function App() {
 									</div>
 								))}
 							</div>
-							{showSettings && activeWorkspace && (
+							{showSettings && (
 								<SettingsPanel
-									workspace={activeWorkspace}
 									updateState={updateState}
 									updateActions={updateActions}
 									onClose={closeSettings}
