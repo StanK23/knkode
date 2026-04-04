@@ -485,13 +485,12 @@ export const Pane = memo(function Pane({
 					});
 			};
 
-			// Codex appears to repaint on its own SIGWINCH cadence, so one immediate
-			// post-resize snapshot can still catch an intermediate frame. Refresh a
-			// few times after the last resize event to converge on the final layout
-			// without forcing synchronous snapshots on every drag tick.
-			for (const delay of [48, 120, 220]) {
-				resizeRefreshTimersRef.current.push(setTimeout(refreshAfterResize, delay));
-			}
+			// Codex appears to repaint on its own SIGWINCH cadence, so refreshing
+			// immediately after the final resize event can still catch an
+			// intermediate wrapped frame. Use one later settled refresh instead of
+			// multiple back-to-back snapshots, which made resize-end latency feel
+			// heavy on large buffers.
+			resizeRefreshTimersRef.current.push(setTimeout(refreshAfterResize, 180));
 		},
 		[paneId],
 	);
