@@ -681,7 +681,7 @@ export function CanvasTerminal({
 	const zoomRafId = useRef(0);
 	const onTerminalContextMenuRef = useRef(onTerminalContextMenu);
 	const previousDrawnGridRef = useRef<GridSnapshot | null>(null);
-	const resizePreviewGridRef = useRef<GridSnapshot | null>(null);
+	const resizePreviewCanvasRef = useRef<HTMLCanvasElement | null>(null);
 	const perfDebugRef = useRef(isTerminalPerfDebugEnabled());
 	const drawPerfRef = useRef<DrawPerfStats>({
 		count: 0,
@@ -704,7 +704,7 @@ export function CanvasTerminal({
 	onTerminalContextMenuRef.current = onTerminalContextMenu;
 
 	useEffect(() => {
-		resizePreviewGridRef.current = null;
+		resizePreviewCanvasRef.current = null;
 	}, [grid]);
 
 	/** Convert client (mouse) coordinates to a viewport-relative cell position.
@@ -786,38 +786,37 @@ export function CanvasTerminal({
 		[paneId],
 	);
 
-	const redrawResizePreview = useCallback((cols: number, rows: number) => {
-		const snap = gridRef.current;
-		if (!snap) {
-			resizePreviewGridRef.current = null;
+	const captureResizePreview = useCallback(() => {
+		const canvas = canvasRef.current;
+		if (!canvas || canvas.width <= 0 || canvas.height <= 0) {
+			resizePreviewCanvasRef.current = null;
+			return;
+		}
+		const preview = document.createElement("canvas");
+		preview.width = canvas.width;
+		preview.height = canvas.height;
+		const previewCtx = preview.getContext("2d");
+		if (!previewCtx) {
+			resizePreviewCanvasRef.current = null;
+			return;
+		}
+		previewCtx.drawImage(canvas, 0, 0);
+		resizePreviewCanvasRef.current = preview;
+	}, []);
+
+	const redrawResizePreview = useCallback(() => {
+		const canvas = canvasRef.current;
+		const ctx = ctxRef.current;
+		const preview = resizePreviewCanvasRef.current;
+		if (!canvas || !ctx) return;
+		if (!preview) {
 			previousDrawnGridRef.current = null;
 			drawRef.current({ forceFull: true });
 			return;
 		}
-
-		const targetRows = Math.max(1, rows);
-		let previewRows = snap.rows;
-		let cursorRow = snap.cursorRow;
-
-		if (snap.rows.length > targetRows) {
-			if (snap.scrollOffset === 0) {
-				const dropped = snap.rows.length - targetRows;
-				previewRows = snap.rows.slice(dropped);
-				cursorRow = Math.max(0, cursorRow - dropped);
-			} else {
-				previewRows = snap.rows.slice(0, targetRows);
-			}
-		}
-
-		resizePreviewGridRef.current = {
-			...snap,
-			rows: previewRows,
-			cols: Math.max(1, cols),
-			totalRows: targetRows,
-			cursorRow,
-		};
+		ctx.clearRect(0, 0, canvas.width, canvas.height);
+		ctx.drawImage(preview, 0, 0, preview.width, preview.height, 0, 0, canvas.width, canvas.height);
 		previousDrawnGridRef.current = null;
-		drawRef.current({ forceFull: true });
 	}, []);
 
 	const paintRows = useCallback(
@@ -974,7 +973,7 @@ export function CanvasTerminal({
 	const draw = useCallback((options?: DrawOptions) => {
 		const startedAt = performance.now();
 		const canvas = canvasRef.current;
-		const snap = resizePreviewGridRef.current ?? gridRef.current;
+		const snap = gridRef.current;
 		const ctx = ctxRef.current;
 		if (!canvas || !ctx) return;
 		if (!snap) {
@@ -1136,8 +1135,7 @@ export function CanvasTerminal({
 				if (rect.width <= 0 || rect.height <= 0) return;
 				const w = Math.floor(rect.width * dpr);
 				const h = Math.floor(rect.height * dpr);
-				let cols = 0;
-				let rows = 0;
+				captureResizePreview();
 
 				// Skip if dimensions haven't changed — avoids clearing the canvas
 				// (setting canvas.width/height always clears it, even to the same value)
@@ -1158,17 +1156,16 @@ export function CanvasTerminal({
 
 				const { width: cellW, height: cellH } = cellMetrics.current;
 				if (cellW > 0 && cellH > 0) {
-					cols = Math.floor(w / cellW);
-					rows = Math.floor(h / cellH);
+					const cols = Math.floor(w / cellW);
+					const rows = Math.floor(h / cellH);
 					if (cols > 0 && rows > 0) {
 						onResizeRef.current(cols, rows, Math.round(cellW * cols), Math.round(cellH * rows));
 					}
 				}
 
-				// Geometry changed — redraw a cheap local preview anchored to the
-				// latest visible rows. Let the normal terminal render stream replace
-				// it once the PTY has actually repainted at the new size.
-				redrawResizePreview(cols, rows);
+				// Geometry changed — stretch the already-rendered canvas as a transient
+				// preview instead of synthesizing terminal rows locally.
+				redrawResizePreview();
 			}, RESIZE_DEBOUNCE_MS);
 		});
 
@@ -1177,7 +1174,7 @@ export function CanvasTerminal({
 			observer.disconnect();
 			if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
 		};
-	}, [measureCell, redrawResizePreview]);
+	}, [captureResizePreview, measureCell, redrawResizePreview]);
 
 	// Re-measure cells + resize + redraw when font metrics change (fontSize, fontFamily, lineHeight).
 	// The ResizeObserver only fires on container size changes, so metric-only changes need this.
@@ -1191,28 +1188,27 @@ export function CanvasTerminal({
 		const dpr = dprRef.current;
 		const { width: cellW, height: cellH } = cellMetrics.current;
 		let geometryChanged = false;
-		let cols = 0;
-		let rows = 0;
 		if (cellW > 0 && cellH > 0) {
 			const rect = container.getBoundingClientRect();
 			const w = Math.floor(rect.width * dpr);
 			const h = Math.floor(rect.height * dpr);
-			cols = Math.floor(w / cellW);
-			rows = Math.floor(h / cellH);
+			const cols = Math.floor(w / cellW);
+			const rows = Math.floor(h / cellH);
 			if (cols > 0 && rows > 0) {
 				const snap = gridRef.current;
 				geometryChanged = snap !== null && (snap.cols !== cols || snap.totalRows !== rows);
+				if (geometryChanged) captureResizePreview();
 				onResizeRef.current(cols, rows, Math.round(cellW * cols), Math.round(cellH * rows));
 			}
 		}
 
 		if (geometryChanged) {
-			redrawResizePreview(cols, rows);
+			redrawResizePreview();
 			return;
 		}
 
 		drawRef.current();
-	}, [measureCell, redrawResizePreview]);
+	}, [captureResizePreview, measureCell, redrawResizePreview]);
 
 	// Wheel scroll → forward as SGR when mouse is grabbed, else scroll normally.
 	// Must use native addEventListener with { passive: false } to allow preventDefault

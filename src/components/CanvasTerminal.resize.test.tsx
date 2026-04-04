@@ -146,7 +146,7 @@ describe("CanvasTerminal resize redraw", () => {
 		quadraticCurveTo.mockReset();
 	});
 
-	it("redraws a preview on geometry-changing resize and accepts a later fresh snapshot", async () => {
+	it("redraws a bitmap preview on geometry-changing resize and accepts a later fresh snapshot", async () => {
 		const onResize = vi.fn();
 		const { rerender } = render(
 			<CanvasTerminal
@@ -171,7 +171,7 @@ describe("CanvasTerminal resize redraw", () => {
 		});
 
 		expect(clearRect).toHaveBeenCalled();
-		expect(fillText).toHaveBeenCalled();
+		expect(drawImage).toHaveBeenCalled();
 
 		rerender(
 			<CanvasTerminal
@@ -187,7 +187,7 @@ describe("CanvasTerminal resize redraw", () => {
 		expect(fillText).toHaveBeenCalled();
 	});
 
-	it("does not truncate row content while previewing a narrower resize", async () => {
+	it("uses the existing canvas bitmap for narrower resize preview", async () => {
 		size.width = 60;
 
 		render(
@@ -209,6 +209,6 @@ describe("CanvasTerminal resize redraw", () => {
 			await vi.runAllTimersAsync();
 		});
 
-		expect(fillText.mock.calls.map((call) => call[0])).toContain("f");
+		expect(drawImage).toHaveBeenCalled();
 	});
 });
