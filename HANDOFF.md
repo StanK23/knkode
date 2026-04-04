@@ -2,9 +2,11 @@
 
 ## Current State
 
-**Version**: 2.3.0 | **Branch**: `main` | **Open PRs**: none
+**Version**: 2.3.1 | **Branch**: `fix/dynamic-terminal-render-cadence` | **Open PRs**: #82
 
 PR #80 is merged into `main`. It shipped the Windows TUI input-lag reduction work plus follow-up fixes for terminal focus retention, pane-toolbar button regressions, and session-history resume focus restore.
+
+PR #82 adds per-pane terminal render cadence based on visibility/focus so hidden mounted workspaces cost less without slowing the active pane.
 
 ## Recently Completed
 
@@ -53,14 +55,12 @@ Included:
 
 ## What’s Next
 
-1. Reproduce on the affected Windows machine and compare typing latency while Claude/Codex stream output.
-2. If more evidence is needed, enable:
-   - frontend logging: `localStorage.setItem("knkode:debug-terminal-perf", "1")`
-   - backend logging: launch with `KNKODE_DEBUG_TERMINAL_PERF=1`
-3. Validate that launching a TUI and switching back to an already-selected pane restores keyboard focus without requiring a click.
-4. Validate that quick commands and session history buttons work normally again after the focus changes.
-5. Validate that restoring a session from history also returns focus to the terminal immediately.
-6. If the manual pass surfaces a remaining Windows-specific regression, open a follow-up board/card from `main`.
+1. Review and validate PR #82 in a real multi-workspace TUI session:
+   - active pane remains responsive
+   - hidden visited workspaces stop burning the same render budget
+   - switching back to a hidden pane refreshes immediately without a stale frame
+2. If the manual pass still shows lag, profile remaining cost in the active-pane path rather than lowering background cadence further.
+3. If follow-up tuning is needed, build on the new render-tier model instead of changing the active-pane cadence globally again.
 
 ## Important Decisions
 
@@ -68,3 +68,5 @@ Included:
 - Incremental redraw is limited to image-free snapshots because terminal image slices are the riskiest case for stale pixels.
 - Interaction-driven redraws still force full repaint so selection and hover correctness stays simple.
 - Runtime scroll blitting stays disabled until there is a proven corruption-free implementation; the helper can still model blit plans in tests, but the live renderer does not use them.
+- Dynamic cadence changes only snapshot emission priority; PTY reads and terminal-state updates remain immediate for every pane.
+- Activity timestamps are now decoupled from render cadence so hidden panes can be throttled without breaking active/idle detection.
