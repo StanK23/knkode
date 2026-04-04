@@ -630,12 +630,6 @@ export function SettingsPanel({
 						disabled={state.isMutating}
 					/>
 					<div className="flex-1 min-h-0 flex flex-col">
-						<div className="px-4 md:px-5 pt-4 pb-2 border-b border-edge/30">
-							<p className="text-[11px] leading-5 text-content-muted max-w-[65ch]">
-								These controls affect only the selected workspace. Use the Shared tab for commands
-								and settings that should apply everywhere.
-							</p>
-						</div>
 						{selectedWorkspace && (
 							<WorkspaceDetail
 								workspaceId={selectedWorkspace.id}
