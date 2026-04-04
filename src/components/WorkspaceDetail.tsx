@@ -1,4 +1,3 @@
-import { useCallback } from "react";
 import { THEME_PRESETS, type ThemePreset, type ThemePresetName } from "../data/theme-presets";
 import {
 	CURSOR_STYLES,
@@ -13,17 +12,15 @@ import {
 	MIN_SCROLLBACK,
 	type PaneConfig,
 	type PaneTheme,
-	type Snippet,
 	isCursorStyle,
 } from "../shared/types";
-import { useStore } from "../store";
 import { hexToRgba } from "../utils/colors";
 import { CwdInput } from "./CwdInput";
 import { FontPicker } from "./FontPicker";
 import { SegmentedButton } from "./SegmentedButton";
 import { SettingsSection } from "./SettingsSection";
 import { ShellSelector } from "./ShellSelector";
-import { SnippetList } from "./SnippetsSection";
+import { SnippetSettingsPanel, useWorkspaceSnippetController } from "./SnippetsSection";
 
 export type EffectCategory = "dim" | "opacity" | "gradient" | "glow" | "scanline" | "noise";
 
@@ -42,7 +39,7 @@ const EFFECT_ENTRIES: readonly { category: EffectCategory; label: string }[] = [
 	{ category: "noise", label: "Noise" },
 ];
 
-const EMPTY_SNIPPETS: readonly Snippet[] = [];
+const THEME_PRESET_OPTIONS: readonly (ThemePreset & { name: ThemePresetName })[] = THEME_PRESETS;
 
 interface WorkspaceDetailProps {
 	workspaceId: string;
@@ -93,31 +90,7 @@ export function WorkspaceDetail({
 	effects,
 	onEffectChange,
 }: WorkspaceDetailProps) {
-	const wsSnippets = useStore(
-		(s) => s.workspaces.find((w) => w.id === workspaceId)?.snippets ?? EMPTY_SNIPPETS,
-	);
-	const addWorkspaceSnippet = useStore((s) => s.addWorkspaceSnippet);
-	const updateWorkspaceSnippet = useStore((s) => s.updateWorkspaceSnippet);
-	const removeWorkspaceSnippet = useStore((s) => s.removeWorkspaceSnippet);
-	const reorderWorkspaceSnippets = useStore((s) => s.reorderWorkspaceSnippets);
-
-	const handleWsAdd = useCallback(
-		(n: string, command: string) => addWorkspaceSnippet(workspaceId, n, command),
-		[workspaceId, addWorkspaceSnippet],
-	);
-	const handleWsUpdate = useCallback(
-		(id: string, updates: Pick<Snippet, "name" | "command">) =>
-			updateWorkspaceSnippet(workspaceId, id, updates),
-		[workspaceId, updateWorkspaceSnippet],
-	);
-	const handleWsRemove = useCallback(
-		(id: string) => removeWorkspaceSnippet(workspaceId, id),
-		[workspaceId, removeWorkspaceSnippet],
-	);
-	const handleWsReorder = useCallback(
-		(from: number, to: number) => reorderWorkspaceSnippets(workspaceId, from, to),
-		[workspaceId, reorderWorkspaceSnippets],
-	);
+	const workspaceSnippetController = useWorkspaceSnippetController(workspaceId);
 
 	return (
 		<div className="flex-1 min-h-0 px-4 md:px-5 py-5 overflow-y-auto overflow-x-hidden flex flex-col gap-7">
@@ -206,41 +179,39 @@ export function WorkspaceDetail({
 						document.getElementById(`theme-preset-${next}`)?.focus();
 					}}
 				>
-					{(THEME_PRESETS as readonly (ThemePreset & { name: ThemePresetName })[]).map(
-						(preset, index) => {
-							const isActive = selectedPreset === preset.name;
-							return (
-								<button
-									type="button"
-									id={`theme-preset-${index}`}
-									key={preset.name}
-									onClick={() => onPresetChange(preset.name)}
-									role="radio"
-									aria-checked={isActive}
-									tabIndex={isActive ? 0 : -1}
-									className={`py-1.5 px-1 rounded-md cursor-pointer border text-center focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
-										isActive
-											? "border-accent ring-1 ring-accent"
-											: "border-transparent hover:border-content-muted"
-									}`}
-									title={preset.name}
-									aria-label={preset.name}
-									style={{
-										background: preset.background,
-										color: preset.foreground,
-										boxShadow:
-											isActive && preset.glow
-												? `0 0 8px ${hexToRgba(preset.glow, 0.25)}`
-												: undefined,
-									}}
-								>
-									<span className="text-[11px] font-medium leading-tight block truncate">
-										{preset.name}
-									</span>
-								</button>
-							);
-						},
-					)}
+					{THEME_PRESET_OPTIONS.map((preset, index) => {
+						const isActive = selectedPreset === preset.name;
+						return (
+							<button
+								type="button"
+								id={`theme-preset-${index}`}
+								key={preset.name}
+								onClick={() => onPresetChange(preset.name)}
+								role="radio"
+								aria-checked={isActive}
+								tabIndex={isActive ? 0 : -1}
+								className={`py-1.5 px-1 rounded-md cursor-pointer border text-center focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
+									isActive
+										? "border-accent ring-1 ring-accent"
+										: "border-transparent hover:border-content-muted"
+								}`}
+								title={preset.name}
+								aria-label={preset.name}
+								style={{
+									background: preset.background,
+									color: preset.foreground,
+									boxShadow:
+										isActive && preset.glow
+											? `0 0 8px ${hexToRgba(preset.glow, 0.25)}`
+											: undefined,
+								}}
+							>
+								<span className="text-[11px] font-medium leading-tight block truncate">
+									{preset.name}
+								</span>
+							</button>
+						);
+					})}
 				</div>
 			</SettingsSection>
 
@@ -356,20 +327,12 @@ export function WorkspaceDetail({
 				))}
 			</SettingsSection>
 
-			{/* Workspace Snippets */}
-			<SettingsSection label="Commands" gap={8}>
-				<span className="text-[10px] text-content-muted -mt-1 mb-1">
-					Snippets available only in this workspace
-				</span>
-				<SnippetList
-					snippets={wsSnippets}
-					onAdd={handleWsAdd}
-					onUpdate={handleWsUpdate}
-					onRemove={handleWsRemove}
-					onReorder={handleWsReorder}
-					listId="workspace"
-				/>
-			</SettingsSection>
+			<SnippetSettingsPanel
+				label="Workspace commands"
+				description="These commands are only available in the selected workspace."
+				controller={workspaceSnippetController}
+				listId="workspace"
+			/>
 		</div>
 	);
 }

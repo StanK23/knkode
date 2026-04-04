@@ -1,39 +1,35 @@
 import { useStore } from "../store";
-import { SettingsSection } from "./SettingsSection";
-import { SnippetList } from "./SnippetsSection";
+import { SnippetSettingsPanel, useGlobalSnippetController } from "./SnippetsSection";
 
 interface GlobalTabPanelProps {
 	hidden?: boolean;
 }
 
 export function GlobalTabPanel({ hidden }: GlobalTabPanelProps) {
-	const snippets = useStore((s) => s.snippets);
-	const addSnippet = useStore((s) => s.addSnippet);
-	const updateSnippet = useStore((s) => s.updateSnippet);
-	const removeSnippet = useStore((s) => s.removeSnippet);
-	const reorderSnippets = useStore((s) => s.reorderSnippets);
+	const globalController = useGlobalSnippetController();
+	const workspaceCount = useStore((s) => s.workspaces.length);
 
 	return (
 		<div
-			id="settings-tabpanel-Global"
+			id="settings-tabpanel-Shared"
 			role="tabpanel"
-			aria-labelledby="settings-tab-Global"
+			aria-labelledby="settings-tab-Shared"
 			hidden={hidden}
 			className="flex-1 min-h-0 px-6 py-6 overflow-y-auto overflow-x-hidden flex flex-col gap-8"
 		>
-			<SettingsSection label="Commands" gap={8}>
-				<span className="text-[10px] text-content-muted -mt-1 mb-1">
-					Global snippets — available from the &gt;_ icon on any pane
-				</span>
-				<SnippetList
-					snippets={snippets}
-					onAdd={addSnippet}
-					onUpdate={updateSnippet}
-					onRemove={removeSnippet}
-					onReorder={reorderSnippets}
-					listId="global"
-				/>
-			</SettingsSection>
+			<div className="space-y-1">
+				<h3 className="text-xs font-medium text-content">Shared commands</h3>
+				<p className="text-[11px] leading-5 text-content-muted max-w-[65ch]">
+					These snippets are available from the &gt;_ menu in every workspace. Use the
+					Workspaces tab when a command should live in only one of your {workspaceCount} workspaces.
+				</p>
+			</div>
+			<SnippetSettingsPanel
+				label="Shared commands"
+				description="Shared snippets — available from the >_ menu in every workspace"
+				controller={globalController}
+				listId="global"
+			/>
 		</div>
 	);
 }

@@ -6,12 +6,16 @@ import { SettingsSection } from "./SettingsSection";
 
 const EMPTY_SNIPPETS: readonly Snippet[] = [];
 
-interface SnippetListProps {
+export interface SnippetController {
 	snippets: readonly Snippet[];
 	onAdd: (name: string, command: string) => void;
 	onUpdate: (id: string, updates: Pick<Snippet, "name" | "command">) => void;
 	onRemove: (id: string) => void;
 	onReorder: (from: number, to: number) => void;
+}
+
+interface SnippetListProps extends SnippetController {
+	snippets: readonly Snippet[];
 	/** Scopes drag-reorder to the correct list when two instances coexist. */
 	listId: "global" | "workspace";
 }
@@ -255,18 +259,54 @@ export const SnippetList = memo(function SnippetList({
 	);
 });
 
-export function SnippetsSection({ workspaceId }: { workspaceId: string }) {
+interface SnippetSettingsPanelProps {
+	label: string;
+	description: string;
+	controller: SnippetController;
+	listId: "global" | "workspace";
+}
+
+export function SnippetSettingsPanel({
+	label,
+	description,
+	controller,
+	listId,
+}: SnippetSettingsPanelProps) {
+	return (
+		<SettingsSection label={label} gap={8}>
+			<span className="text-[10px] text-content-muted -mt-1 mb-1">{description}</span>
+			<SnippetList
+				snippets={controller.snippets}
+				onAdd={controller.onAdd}
+				onUpdate={controller.onUpdate}
+				onRemove={controller.onRemove}
+				onReorder={controller.onReorder}
+				listId={listId}
+			/>
+		</SettingsSection>
+	);
+}
+
+export function useGlobalSnippetController(): SnippetController {
 	const snippets = useStore((s) => s.snippets);
 	const addSnippet = useStore((s) => s.addSnippet);
 	const updateSnippet = useStore((s) => s.updateSnippet);
 	const removeSnippet = useStore((s) => s.removeSnippet);
 	const reorderSnippets = useStore((s) => s.reorderSnippets);
 
+	return {
+		snippets,
+		onAdd: addSnippet,
+		onUpdate: updateSnippet,
+		onRemove: removeSnippet,
+		onReorder: reorderSnippets,
+	};
+}
+
+export function useWorkspaceSnippetController(workspaceId: string): SnippetController {
+
 	const wsSnippets = useStore(
 		(s) => s.workspaces.find((w) => w.id === workspaceId)?.snippets ?? EMPTY_SNIPPETS,
-	);
-	const wsName = useStore(
-		(s) => s.workspaces.find((w) => w.id === workspaceId)?.name ?? "Workspace",
 	);
 	const addWorkspaceSnippet = useStore((s) => s.addWorkspaceSnippet);
 	const updateWorkspaceSnippet = useStore((s) => s.updateWorkspaceSnippet);
@@ -291,31 +331,37 @@ export function SnippetsSection({ workspaceId }: { workspaceId: string }) {
 		[workspaceId, reorderWorkspaceSnippets],
 	);
 
+	return {
+		snippets: wsSnippets,
+		onAdd: handleWsAdd,
+		onUpdate: handleWsUpdate,
+		onRemove: handleWsRemove,
+		onReorder: handleWsReorder,
+	};
+}
+
+export function SnippetsSection({ workspaceId }: { workspaceId: string }) {
+	const globalController = useGlobalSnippetController();
+	const workspaceController = useWorkspaceSnippetController(workspaceId);
+	const wsName = useStore(
+		(s) => s.workspaces.find((w) => w.id === workspaceId)?.name ?? "Workspace",
+	);
+
 	return (
-		<SettingsSection label="Commands" gap={8}>
-			<span className="text-[10px] text-content-muted -mt-1 mb-1">
-				Global snippets — available from the &gt;_ icon on any pane
-			</span>
-			<SnippetList
-				snippets={snippets}
-				onAdd={addSnippet}
-				onUpdate={updateSnippet}
-				onRemove={removeSnippet}
-				onReorder={reorderSnippets}
+		<div className="flex flex-col gap-4">
+			<SnippetSettingsPanel
+				label="Shared commands"
+				description="Shared snippets — available from the >_ menu in every workspace"
+				controller={globalController}
 				listId="global"
 			/>
 			<div className="border-t border-edge my-2" role="separator" />
-			<span className="text-[10px] text-content-muted -mt-1 mb-1">
-				{wsName} snippets — only available in this workspace
-			</span>
-			<SnippetList
-				snippets={wsSnippets}
-				onAdd={handleWsAdd}
-				onUpdate={handleWsUpdate}
-				onRemove={handleWsRemove}
-				onReorder={handleWsReorder}
+			<SnippetSettingsPanel
+				label="Workspace commands"
+				description={`${wsName} snippets — only available in this workspace`}
+				controller={workspaceController}
 				listId="workspace"
 			/>
-		</SettingsSection>
+		</div>
 	);
 }
