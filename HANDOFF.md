@@ -6,7 +6,7 @@
 
 PR #80 is merged into `main`. It shipped the Windows TUI input-lag reduction work plus follow-up fixes for terminal focus retention, pane-toolbar button regressions, and session-history resume focus restore.
 
-PR #82 adds per-pane terminal render cadence based on visibility/focus so hidden mounted workspaces cost less without slowing the active pane.
+PR #82 adds per-pane terminal render cadence based on visibility/focus so hidden mounted workspaces cost less without slowing the active pane. It also lowers the default terminal scrollback from `50000` to `10000` lines for new/fallback pane configs and removes routine PTY/terminal debug noise from the runtime logs.
 
 ## Recently Completed
 
@@ -59,6 +59,7 @@ Included:
    - active pane remains responsive
    - hidden visited workspaces stop burning the same render budget
    - switching back to a hidden pane refreshes immediately without a stale frame
+   - panes backgrounded while scrolled up keep the same scrollback viewport when reactivated
 2. If the manual pass still shows lag, profile remaining cost in the active-pane path rather than lowering background cadence further.
 3. If follow-up tuning is needed, build on the new render-tier model instead of changing the active-pane cadence globally again.
 
