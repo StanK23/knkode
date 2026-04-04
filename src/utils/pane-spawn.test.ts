@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_SCROLLBACK } from "../shared/types";
 import { getPaneSpawnConfig } from "./pane-spawn";
 
 describe("getPaneSpawnConfig", () => {
@@ -10,13 +11,13 @@ describe("getPaneSpawnConfig", () => {
 					shell: "pwsh.exe",
 					startupCommand: "claude",
 				},
-				50000,
+				DEFAULT_SCROLLBACK,
 			),
 		).toEqual({
 			cwd: "C:\\Projects\\knkode",
 			shell: "pwsh.exe",
 			startupCommand: "claude",
-			scrollback: 50000,
+			scrollback: DEFAULT_SCROLLBACK,
 		});
 	});
 
