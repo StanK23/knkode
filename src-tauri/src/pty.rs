@@ -813,7 +813,7 @@ impl PlatformPty {
 
 #[cfg(not(target_os = "windows"))]
 fn create_platform_pty(
-    id: &str,
+    _id: &str,
     cwd: &str,
     shell: Option<&str>,
 ) -> Result<
@@ -862,11 +862,6 @@ fn create_platform_pty(
         .master
         .try_clone_reader()
         .map_err(|e| format!("Failed to clone PTY reader: {e}"))?;
-
-    eprintln!(
-        "[pty] Created Unix PTY for {id}, shell={shell}, pid={:?}",
-        child.process_id()
-    );
 
     Ok((
         writer,
@@ -1026,7 +1021,6 @@ impl PtyManager {
                 // Now that the command is sent, allow responses to flow back.
                 // Codex will query OSC 11 shortly after starting.
                 route_flag.store(true, Ordering::Release);
-                eprintln!("[pty] Response routing enabled for {id_clone}");
             });
         }
 
@@ -1044,7 +1038,6 @@ impl PtyManager {
             platform,
         };
         self.lock_sessions()?.insert(id.clone(), session);
-        eprintln!("[pty] Session stored for {id}");
 
         // Create terminal state AFTER successful session insert to avoid orphaned
         // terminal entries if sessions lock is poisoned
@@ -1056,7 +1049,6 @@ impl PtyManager {
             default_ph as usize,
             scrollback,
         );
-        eprintln!("[pty] Terminal state created for {id}");
 
         // Shared state between reader and flush threads.
         // `dirty`: set when terminal state advances but no snapshot was emitted (throttled).
@@ -1115,7 +1107,6 @@ impl PtyManager {
         let reported_cwd_reader = Arc::clone(&reported_cwd);
         let perf_debug_reader = perf_debug;
         std::thread::spawn(move || {
-            eprintln!("[pty] Reader thread started for {id_clone}");
             let (_, cv) = &*flush_cond;
             let mut buf = [0u8; READ_BUFFER_SIZE];
             let mut osc7_pending = Vec::new();
@@ -1165,14 +1156,6 @@ impl PtyManager {
                                     }
                                 }
                             }
-                            if has_osc10 || has_osc11 {
-                                eprintln!(
-                                    "[pty] OSC color queries in chunk for {id_clone}: \
-                                     osc10={has_osc10}, osc11={has_osc11}, \
-                                     gate_open={}, total_bytes={total_bytes}",
-                                    route_flag_reader.load(Ordering::Relaxed),
-                                );
-                            }
                         }
 
                         term_state.advance_only(&id_clone, &buf[..n]);
@@ -1183,7 +1166,6 @@ impl PtyManager {
                         // receives the bg color and can use explicit palette colors for its
                         // panels, fixing the "no background on first run" race.
                         if has_osc10 && !has_osc11 && route_flag_reader.load(Ordering::Acquire) {
-                            eprintln!("[pty] injecting synthetic OSC 11 query for {id_clone}");
                             term_state.advance_only(&id_clone, b"\x1b]11;?\x07");
                         }
 
@@ -1203,11 +1185,6 @@ impl PtyManager {
                                             eprintln!(
                                                 "[pty] response write failed for {id_clone}: {e}"
                                             );
-                                        } else {
-                                            eprintln!(
-                                                "[pty] routed {len} response bytes to PTY for {id_clone}",
-                                                len = responses.len(),
-                                            );
                                         }
                                         if let Err(e) = w.flush() {
                                             eprintln!(
@@ -1219,11 +1196,6 @@ impl PtyManager {
                                         eprintln!("[pty] writer lock failed for {id_clone}: {e}");
                                     }
                                 }
-                            } else {
-                                eprintln!(
-                                    "[pty] suppressed {len} response bytes during shell init for {id_clone}",
-                                    len = responses.len(),
-                                );
                             }
                         }
 
