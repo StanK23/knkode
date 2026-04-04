@@ -88,6 +88,8 @@ interface SettingsState {
 	noiseLevel: EffectLevel;
 	saveFailed: boolean;
 	confirmDelete: boolean;
+	actionError: string | null;
+	isMutating: boolean;
 }
 
 type SettingsAction =
@@ -115,7 +117,9 @@ const EFFECT_STATE_KEY: Record<EffectCategory, EffectStateField> = {
 	noise: "noiseLevel",
 };
 
-function hydrateFromWorkspace(workspace: Workspace): Omit<SettingsState, "activeTab"> {
+function hydrateFromWorkspace(
+	workspace: Workspace,
+): Omit<SettingsState, "activeTab" | "saveFailed" | "confirmDelete" | "actionError" | "isMutating"> {
 	const t = workspace.theme;
 	return {
 		selectedWorkspaceId: workspace.id,
@@ -133,16 +137,63 @@ function hydrateFromWorkspace(workspace: Workspace): Omit<SettingsState, "active
 		glowLevel: isEffectLevel(t.glowLevel) ? t.glowLevel : "off",
 		scanlineLevel: isEffectLevel(t.scanlineLevel) ? t.scanlineLevel : "off",
 		noiseLevel: isEffectLevel(t.noiseLevel) ? t.noiseLevel : "off",
-		saveFailed: false,
-		confirmDelete: false,
 	};
 }
 
-function initState(workspace: Workspace): SettingsState {
+function initState(workspace: Workspace | null): SettingsState {
+	if (!workspace) {
+		return {
+			activeTab: "Workspaces",
+			selectedWorkspaceId: "",
+			name: "",
+			themePreset: DEFAULT_PRESET_NAME,
+			fontSize: DEFAULT_FONT_SIZE,
+			fontFamily: "",
+			scrollback: DEFAULT_SCROLLBACK,
+			cursorStyle: DEFAULT_CURSOR_STYLE,
+			statusBarPosition: "top",
+			lineHeight: DEFAULT_LINE_HEIGHT,
+			dimLevel: "subtle",
+			opacityLevel: "off",
+			gradientLevel: "off",
+			glowLevel: "off",
+			scanlineLevel: "off",
+			noiseLevel: "off",
+			saveFailed: false,
+			confirmDelete: false,
+			actionError: null,
+			isMutating: false,
+		};
+	}
 	return {
 		activeTab: "Workspaces",
 		...hydrateFromWorkspace(workspace),
+		saveFailed: false,
+		confirmDelete: false,
+		actionError: null,
+		isMutating: false,
 	};
+}
+
+function hasWorkspaceDraftChanges(workspace: Workspace, state: SettingsState): boolean {
+	const persisted = hydrateFromWorkspace(workspace);
+	const trimmedName = state.name.trim();
+	return (
+		(trimmedName.length > 0 && trimmedName !== workspace.name) ||
+		state.themePreset !== persisted.themePreset ||
+		state.fontSize !== persisted.fontSize ||
+		state.fontFamily !== persisted.fontFamily ||
+		state.scrollback !== persisted.scrollback ||
+		state.cursorStyle !== persisted.cursorStyle ||
+		state.statusBarPosition !== persisted.statusBarPosition ||
+		state.lineHeight !== persisted.lineHeight ||
+		state.dimLevel !== persisted.dimLevel ||
+		state.opacityLevel !== persisted.opacityLevel ||
+		state.gradientLevel !== persisted.gradientLevel ||
+		state.glowLevel !== persisted.glowLevel ||
+		state.scanlineLevel !== persisted.scanlineLevel ||
+		state.noiseLevel !== persisted.noiseLevel
+	);
 }
 
 function settingsReducer(state: SettingsState, action: SettingsAction): SettingsState {
@@ -172,6 +223,10 @@ function settingsReducer(state: SettingsState, action: SettingsAction): Settings
 				...state,
 				activeTab: state.activeTab,
 				...hydrateFromWorkspace(action.workspace),
+				saveFailed: false,
+				confirmDelete: false,
+				actionError: null,
+				isMutating: false,
 			};
 		default:
 			return state;
@@ -193,10 +248,8 @@ export function SettingsPanel({
 	const createDefaultWorkspace = useStore((s) => s.createDefaultWorkspace);
 	const homeDir = useStore((s) => s.homeDir);
 
-	// At least one workspace always exists — the app creates a default on init.
 	const initialWorkspace =
-		// biome-ignore lint/style/noNonNullAssertion: workspaces is never empty
-		workspaces.find((w) => w.id === activeWorkspaceId) ?? workspaces[0]!;
+		workspaces.find((w) => w.id === activeWorkspaceId) ?? workspaces[0] ?? null;
 
 	const [state, dispatch] = useReducer(
 		settingsReducer,
@@ -205,6 +258,8 @@ export function SettingsPanel({
 	);
 
 	const selectedWorkspace = workspaces.find((w) => w.id === state.selectedWorkspaceId);
+	const pendingSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const confirmDeleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -236,7 +291,7 @@ export function SettingsPanel({
 		dispatch({ type: "SET_EFFECT", category, level });
 	}, []);
 
-	const buildThemeFromInputs = useCallback((): PaneTheme => {
+	const draftTheme = useMemo((): PaneTheme => {
 		const preset = findPreset(state.themePreset);
 		if (!preset) console.warn("[settings] unknown theme preset:", state.themePreset);
 		return {
@@ -263,82 +318,171 @@ export function SettingsPanel({
 			lineHeight: state.lineHeight,
 			preset: state.themePreset,
 		};
-	}, [state]);
+	}, [
+		state.cursorStyle,
+		state.dimLevel,
+		state.fontFamily,
+		state.fontSize,
+		state.glowLevel,
+		state.gradientLevel,
+		state.lineHeight,
+		state.noiseLevel,
+		state.opacityLevel,
+		state.scanlineLevel,
+		state.scrollback,
+		state.statusBarPosition,
+		state.themePreset,
+	]);
+
+	const buildDraftWorkspace = useCallback(
+		(workspace: Workspace): Workspace => ({
+			...workspace,
+			name: state.name.trim() || workspace.name,
+			theme: draftTheme,
+		}),
+		[state.name, draftTheme],
+	);
 
 	/** Persist workspace, surfacing errors to the user via saveFailed indicator. */
 	const persistWorkspace = useCallback(
-		(ws: Workspace) => {
-			update({ saveFailed: false });
-			updateWorkspace(ws).catch((err: unknown) => {
+		async (ws: Workspace) => {
+			update({ saveFailed: false, actionError: null });
+			try {
+				await updateWorkspace(ws);
+				return true;
+			} catch (err: unknown) {
 				console.error("[settings] persist failed:", err);
 				update({ saveFailed: true });
-			});
+				return false;
+			}
 		},
 		[updateWorkspace, update],
 	);
 
-	// Auto-persist: save full workspace with updated theme whenever buildThemeFromInputs changes.
-	const prevAutoSaveRef = useRef(buildThemeFromInputs);
-	useEffect(() => {
-		if (prevAutoSaveRef.current === buildThemeFromInputs) return;
-		prevAutoSaveRef.current = buildThemeFromInputs;
-		const latest = getLatestWorkspace(state.selectedWorkspaceId);
-		if (!latest) return;
-		const timer = setTimeout(() => {
-			const current = getLatestWorkspace(state.selectedWorkspaceId);
-			if (!current) return;
-			persistWorkspace({ ...current, theme: buildThemeFromInputs() });
-		}, 200);
-		return () => clearTimeout(timer);
-	}, [state.selectedWorkspaceId, buildThemeFromInputs, persistWorkspace]);
+	const flushWorkspaceDraft = useCallback(
+		async (workspaceId: string) => {
+			if (pendingSaveTimerRef.current) {
+				clearTimeout(pendingSaveTimerRef.current);
+				pendingSaveTimerRef.current = null;
+			}
+			const latest = getLatestWorkspace(workspaceId);
+			if (!latest || !hasWorkspaceDraftChanges(latest, state)) return true;
+			return persistWorkspace(buildDraftWorkspace(latest));
+		},
+		[state, persistWorkspace, buildDraftWorkspace],
+	);
 
-	// Auto-persist name with debounce.
-	const prevNameRef = useRef(state.name);
+	// Auto-persist the current draft. Selection changes explicitly flush before switching.
+	const prevAutoSaveRef = useRef({
+		name: state.name,
+		selectedWorkspaceId: state.selectedWorkspaceId,
+		theme: draftTheme,
+	});
 	useEffect(() => {
-		if (prevNameRef.current === state.name) return;
-		prevNameRef.current = state.name;
-		const trimmed = state.name.trim();
-		if (!trimmed) return;
+		if (
+			prevAutoSaveRef.current.name === state.name &&
+			prevAutoSaveRef.current.selectedWorkspaceId === state.selectedWorkspaceId &&
+			prevAutoSaveRef.current.theme === draftTheme
+		)
+			return;
+		prevAutoSaveRef.current = {
+			name: state.name,
+			selectedWorkspaceId: state.selectedWorkspaceId,
+			theme: draftTheme,
+		};
 		const latest = getLatestWorkspace(state.selectedWorkspaceId);
-		if (!latest || trimmed === latest.name) return;
-		const timer = setTimeout(() => {
-			const current = getLatestWorkspace(state.selectedWorkspaceId);
-			if (!current) return;
-			persistWorkspace({ ...current, name: trimmed });
-		}, 300);
-		return () => clearTimeout(timer);
-	}, [state.selectedWorkspaceId, state.name, persistWorkspace]);
+		if (!latest || !hasWorkspaceDraftChanges(latest, state)) return;
+		pendingSaveTimerRef.current = setTimeout(() => {
+			void flushWorkspaceDraft(state.selectedWorkspaceId);
+		}, 250);
+		return () => {
+			if (pendingSaveTimerRef.current) {
+				clearTimeout(pendingSaveTimerRef.current);
+				pendingSaveTimerRef.current = null;
+			}
+		};
+	}, [state, state.name, state.selectedWorkspaceId, draftTheme, flushWorkspaceDraft]);
+
+	useEffect(() => {
+		if (selectedWorkspace || workspaces.length === 0) return;
+		const fallback =
+			workspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? workspaces[0];
+		if (fallback) {
+			dispatch({ type: "SWITCH_WORKSPACE", workspace: fallback });
+		}
+	}, [selectedWorkspace, workspaces, activeWorkspaceId]);
 
 	const handleSelectWorkspace = useCallback(
-		(id: string) => {
+		async (id: string) => {
+			if (id === state.selectedWorkspaceId || state.isMutating) return;
+			update({ isMutating: true, actionError: null });
+			const flushed = await flushWorkspaceDraft(state.selectedWorkspaceId);
+			if (!flushed) {
+				update({ isMutating: false, actionError: "Failed to save workspace changes" });
+				return;
+			}
 			const ws = useStore.getState().workspaces.find((w) => w.id === id);
-			if (!ws) return;
+			if (!ws) {
+				update({ isMutating: false, actionError: "Selected workspace is no longer available" });
+				return;
+			}
 			dispatch({ type: "SWITCH_WORKSPACE", workspace: ws });
+			update({ isMutating: false });
 		},
-		[],
+		[state.selectedWorkspaceId, state.isMutating, flushWorkspaceDraft, update],
 	);
 
 	const handleAddWorkspace = useCallback(async () => {
-		const ws = await createDefaultWorkspace();
-		dispatch({ type: "SWITCH_WORKSPACE", workspace: ws });
-	}, [createDefaultWorkspace]);
-
-	const handleDelete = useCallback(() => {
-		if (!state.confirmDelete) {
-			update({ confirmDelete: true });
-			setTimeout(() => update({ confirmDelete: false }), 3000);
+		if (state.isMutating) return;
+		update({ isMutating: true, actionError: null });
+		const flushed = await flushWorkspaceDraft(state.selectedWorkspaceId);
+		if (!flushed) {
+			update({ isMutating: false, actionError: "Failed to save workspace changes" });
 			return;
 		}
-		const currentId = state.selectedWorkspaceId;
-		const remaining = useStore.getState().workspaces.filter((w) => w.id !== currentId);
-		removeWorkspace(currentId);
-		const nextWs = remaining[0];
-		if (nextWs) {
-			dispatch({ type: "SWITCH_WORKSPACE", workspace: nextWs });
-		} else {
-			onClose();
+		try {
+			const ws = await createDefaultWorkspace();
+			dispatch({ type: "SWITCH_WORKSPACE", workspace: ws });
+		} catch (err) {
+			console.error("[settings] failed to create workspace:", err);
+			update({ actionError: "Failed to create workspace" });
+		} finally {
+			update({ isMutating: false });
 		}
-	}, [state.confirmDelete, state.selectedWorkspaceId, removeWorkspace, onClose, update]);
+	}, [createDefaultWorkspace, flushWorkspaceDraft, state.isMutating, state.selectedWorkspaceId, update]);
+
+	const handleDelete = useCallback(async () => {
+		if (!state.confirmDelete) {
+			update({ confirmDelete: true });
+			if (confirmDeleteTimerRef.current) {
+				clearTimeout(confirmDeleteTimerRef.current);
+			}
+			confirmDeleteTimerRef.current = setTimeout(() => update({ confirmDelete: false }), 3000);
+			return;
+		}
+		if (state.isMutating) return;
+		const currentId = state.selectedWorkspaceId;
+		const stateSnapshot = useStore.getState();
+		const remaining = stateSnapshot.workspaces.filter((w) => w.id !== currentId);
+		const fallbackSelection =
+			remaining.find((workspace) => workspace.id === stateSnapshot.appState.activeWorkspaceId) ??
+			remaining[0] ??
+			null;
+		update({ isMutating: true, actionError: null, confirmDelete: false });
+		try {
+			await removeWorkspace(currentId);
+			if (fallbackSelection) {
+				dispatch({ type: "SWITCH_WORKSPACE", workspace: fallbackSelection });
+			} else {
+				onClose();
+			}
+		} catch (err) {
+			console.error("[settings] failed to delete workspace:", err);
+			update({ actionError: "Failed to delete workspace" });
+		} finally {
+			update({ isMutating: false });
+		}
+	}, [state.confirmDelete, state.isMutating, state.selectedWorkspaceId, removeWorkspace, onClose, update]);
 
 	// Close on Escape key
 	useEffect(() => {
@@ -348,6 +492,14 @@ export function SettingsPanel({
 		document.addEventListener("keydown", handler);
 		return () => document.removeEventListener("keydown", handler);
 	}, [onClose]);
+
+	useEffect(
+		() => () => {
+			if (pendingSaveTimerRef.current) clearTimeout(pendingSaveTimerRef.current);
+			if (confirmDeleteTimerRef.current) clearTimeout(confirmDeleteTimerRef.current);
+		},
+		[],
+	);
 
 	useModalFocusTrap(dialogRef, true, { initialFocus: "first" });
 
@@ -374,11 +526,16 @@ export function SettingsPanel({
 				role="dialog"
 				aria-modal="true"
 				aria-label="Settings"
-				className="bg-canvas/80 backdrop-blur-2xl border border-edge/50 rounded-md w-[750px] max-w-[calc(100vw-2rem)] h-[85vh] flex flex-col shadow-panel animate-panel-in"
+				className="bg-canvas/80 backdrop-blur-2xl border border-edge/50 rounded-md w-[min(960px,calc(100vw-1.5rem))] h-[85vh] flex flex-col shadow-panel animate-panel-in"
 				onClick={(e) => e.stopPropagation()}
 			>
 				<div className="flex items-center justify-between px-6 py-4 border-b border-edge/50">
-					<h2 className="text-sm font-semibold tracking-wide">Settings</h2>
+					<div className="min-w-0">
+						<h2 className="text-sm font-semibold tracking-wide">Settings</h2>
+						{state.actionError && (
+							<p className="mt-1 text-[10px] text-danger">{state.actionError}</p>
+						)}
+					</div>
 					{state.saveFailed && <span className="text-[10px] text-danger">Save failed</span>}
 					<button
 						type="button"
@@ -431,13 +588,14 @@ export function SettingsPanel({
 					role="tabpanel"
 					aria-labelledby="settings-tab-Workspaces"
 					hidden={state.activeTab !== "Workspaces"}
-					className="flex-1 min-h-0 flex"
+					className="flex-1 min-h-0 flex flex-col md:flex-row"
 				>
 					<WorkspaceList
 						workspaces={workspaces}
 						selectedId={state.selectedWorkspaceId}
-						onSelect={handleSelectWorkspace}
-						onAdd={handleAddWorkspace}
+						onSelect={(id) => void handleSelectWorkspace(id)}
+						onAdd={() => void handleAddWorkspace()}
+						disabled={state.isMutating}
 					/>
 					{selectedWorkspace && (
 						<WorkspaceDetail
@@ -465,6 +623,24 @@ export function SettingsPanel({
 							onEffectChange={handleEffectChange}
 						/>
 					)}
+					{!selectedWorkspace && (
+						<div className="flex-1 min-h-0 flex items-center justify-center px-6 py-10">
+							<div className="max-w-sm text-center space-y-3">
+								<h3 className="text-sm font-medium text-content">No workspace selected</h3>
+								<p className="text-xs leading-5 text-content-muted">
+									Create or reopen a workspace to edit its settings here.
+								</p>
+								<button
+									type="button"
+									onClick={() => void handleAddWorkspace()}
+									disabled={state.isMutating}
+									className="border border-edge rounded-sm px-3 py-1.5 text-xs text-content-secondary hover:text-content hover:border-content-muted focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none disabled:opacity-60 disabled:cursor-wait"
+								>
+									Create workspace
+								</button>
+							</div>
+						</div>
+					)}
 				</div>
 
 				<GlobalTabPanel hidden={state.activeTab !== "Global"} />
@@ -479,12 +655,13 @@ export function SettingsPanel({
 					{state.activeTab === "Workspaces" && canDelete && (
 						<button
 							type="button"
-							onClick={handleDelete}
+							onClick={() => void handleDelete()}
+							disabled={state.isMutating}
 							className={`border cursor-pointer text-xs py-1.5 px-3 rounded-sm focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
 								state.confirmDelete
 									? "bg-danger text-white border-danger"
 									: "bg-transparent border-danger text-danger hover:bg-danger/10"
-							}`}
+							} ${state.isMutating ? "opacity-60 cursor-wait" : ""}`}
 						>
 							{state.confirmDelete ? "Are you sure?" : "Delete Workspace"}
 						</button>

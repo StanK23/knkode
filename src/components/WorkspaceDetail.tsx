@@ -16,6 +16,7 @@ import {
 	type Snippet,
 	isCursorStyle,
 } from "../shared/types";
+import { useStore } from "../store";
 import { hexToRgba } from "../utils/colors";
 import { CwdInput } from "./CwdInput";
 import { FontPicker } from "./FontPicker";
@@ -23,7 +24,6 @@ import { SegmentedButton } from "./SegmentedButton";
 import { SettingsSection } from "./SettingsSection";
 import { ShellSelector } from "./ShellSelector";
 import { SnippetList } from "./SnippetsSection";
-import { useStore } from "../store";
 
 export type EffectCategory = "dim" | "opacity" | "gradient" | "glow" | "scanline" | "noise";
 
@@ -120,7 +120,7 @@ export function WorkspaceDetail({
 	);
 
 	return (
-		<div className="flex-1 min-h-0 px-5 py-5 overflow-y-auto overflow-x-hidden flex flex-col gap-7">
+		<div className="flex-1 min-h-0 px-4 md:px-5 py-5 overflow-y-auto overflow-x-hidden flex flex-col gap-7">
 			{/* General */}
 			<SettingsSection label="General">
 				<input
@@ -136,12 +136,15 @@ export function WorkspaceDetail({
 			{/* Panes */}
 			<SettingsSection label="Panes" gap={8}>
 				{Object.entries(panes).map(([paneId, pane]) => (
-					<div key={paneId} className="flex gap-1.5">
+					<div
+						key={paneId}
+						className="grid gap-1.5 lg:grid-cols-[minmax(0,6rem)_minmax(0,1.3fr)_minmax(0,1.3fr)_minmax(0,1.7fr)]"
+					>
 						<input
 							value={pane.label}
 							onChange={(e) => onPaneUpdate(paneId, { label: e.target.value })}
 							maxLength={64}
-							className="settings-input w-24 shrink-0"
+							className="settings-input w-full min-w-0"
 							placeholder="Label"
 							aria-label={`Pane ${pane.label} label`}
 						/>
@@ -151,15 +154,13 @@ export function WorkspaceDetail({
 							onChange={(cwd) => onPaneUpdate(paneId, { cwd })}
 							aria-label={`Pane ${pane.label} working directory`}
 						/>
-						<div className="flex flex-1 min-w-0 gap-1.5">
-							<ShellSelector
-								value={pane.shell}
-								onChange={(shell) => onPaneUpdate(paneId, { shell })}
-								selectClassName="settings-input w-40 shrink-0"
-								inputClassName="settings-input flex-1 min-w-0"
-								ariaLabel={`Pane ${pane.label} shell`}
-							/>
-						</div>
+						<ShellSelector
+							value={pane.shell}
+							onChange={(shell) => onPaneUpdate(paneId, { shell })}
+							selectClassName="settings-input w-full min-w-0"
+							inputClassName="settings-input w-full min-w-0"
+							ariaLabel={`Pane ${pane.label} shell`}
+						/>
 						<input
 							value={pane.startupCommand || ""}
 							onChange={(e) =>
@@ -168,7 +169,7 @@ export function WorkspaceDetail({
 								})
 							}
 							maxLength={1024}
-							className="settings-input flex-[2] min-w-0"
+							className="settings-input w-full min-w-0"
 							placeholder="Startup command"
 							aria-label={`Pane ${pane.label} startup command`}
 						/>
@@ -199,7 +200,9 @@ export function WorkspaceDetail({
 							next = (idx - 1 + THEME_PRESETS.length) % THEME_PRESETS.length;
 						else if (e.key === "ArrowDown") next = Math.min(idx + cols, THEME_PRESETS.length - 1);
 						else if (e.key === "ArrowUp") next = Math.max(idx - cols, 0);
-						onPresetChange(THEME_PRESETS[next]!.name);
+						const nextPreset = THEME_PRESETS[next];
+						if (!nextPreset) return;
+						onPresetChange(nextPreset.name);
 						document.getElementById(`theme-preset-${next}`)?.focus();
 					}}
 				>
@@ -311,7 +314,7 @@ export function WorkspaceDetail({
 					>
 						{CURSOR_STYLES.map((s) => (
 							<option key={s} value={s}>
-								{s[0]!.toUpperCase() + s.slice(1)}
+								{s.slice(0, 1).toUpperCase() + s.slice(1)}
 							</option>
 						))}
 					</select>
