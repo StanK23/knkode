@@ -255,4 +255,29 @@ describe("CanvasTerminal resize redraw", () => {
 		expect(dw).toBe(size.width);
 		expect(dh).toBe(size.height);
 	});
+
+	it("does not issue a real terminal resize on the immediate drag tick", async () => {
+		const onResize = vi.fn();
+
+		render(
+			<CanvasTerminal
+				grid={makeGrid(["abc", "def"])}
+				onWrite={() => {}}
+				onResize={onResize}
+				onScroll={() => {}}
+				paneId="pane-1"
+				isFocused={false}
+			/>,
+		);
+
+		onResize.mockReset();
+		size.width = 20;
+
+		await act(async () => {
+			ResizeObserverMock.instances[0]?.trigger();
+			await vi.advanceTimersByTimeAsync(32);
+		});
+
+		expect(onResize).not.toHaveBeenCalled();
+	});
 });

@@ -245,6 +245,7 @@ export const Pane = memo(function Pane({
 			if (!snapshotMatchesExpectedViewport(snapshot)) {
 				return;
 			}
+			expectedViewportRef.current = null;
 			// Always track the latest scrollback depth for clamping scroll offset
 			maxScrollRef.current = snapshot.scrollbackRows;
 
@@ -278,6 +279,7 @@ export const Pane = memo(function Pane({
 				.scrollTerminal(paneId, 0)
 				.then((snapshot) => {
 					if (!snapshotMatchesExpectedViewport(snapshot)) return;
+					expectedViewportRef.current = null;
 					maxScrollRef.current = snapshot.scrollbackRows;
 					setGrid(snapshot);
 				})
