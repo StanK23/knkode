@@ -620,7 +620,6 @@ struct PtySession {
     initial_cwd: String,
     /// Last cwd explicitly reported by the shell (for example via OSC 7).
     reported_cwd: Arc<Mutex<Option<String>>>,
-    render_tier: Arc<AtomicU8>,
     platform: PlatformPty,
 }
 
@@ -963,11 +962,11 @@ fn create_platform_pty(
 /// concurrently from any thread.
 pub struct PtyManager {
     sessions: Arc<Mutex<HashMap<String, PtySession>>>,
-    render_tiers: Arc<Mutex<HashMap<String, PaneRenderTier>>>,
+    render_tiers: Arc<Mutex<HashMap<String, Arc<AtomicU8>>>>,
     next_generation: AtomicU64,
     terminal_state: Arc<TerminalState>,
     /// Timestamp of the last PTY output per pane.
-    /// Reader threads update on each render; the tracker polls to detect idle agents.
+    /// Reader threads update on the PTY read path; the tracker polls to detect idle agents.
     last_output_at: Arc<Mutex<HashMap<String, Instant>>>,
 }
 
@@ -991,16 +990,8 @@ impl PtyManager {
         scrollback: usize,
         app: tauri::AppHandle,
     ) -> Result<(), String> {
-        let desired_render_tier = self
-            .render_tiers
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .get(&id)
-            .copied()
-            .unwrap_or(PaneRenderTier::FocusedVisible);
-
         // Kill existing session to allow pane restart without explicit cleanup
-        if let Err(e) = self.kill(&id) {
+        if let Err(e) = self.kill_session(&id, false) {
             eprintln!("[pty] Failed to kill existing session for {id}: {e}");
         }
 
@@ -1016,7 +1007,7 @@ impl PtyManager {
         let default_pw = (DEFAULT_COLS * DEFAULT_CELL_PIXEL_WIDTH) as u16;
         let default_ph = (DEFAULT_ROWS * DEFAULT_CELL_PIXEL_HEIGHT) as u16;
         let reported_cwd = Arc::new(Mutex::new(None));
-        let render_tier = Arc::new(AtomicU8::new(desired_render_tier.as_u8()));
+        let render_tier = self.render_tier_handle(&id);
 
         // Platform-specific PTY creation
         let (writer, mut reader, platform) = create_platform_pty(&id, &cwd, shell.as_deref())?;
@@ -1084,7 +1075,6 @@ impl PtyManager {
             generation,
             initial_cwd: cwd.clone(),
             reported_cwd: Arc::clone(&reported_cwd),
-            render_tier: Arc::clone(&render_tier),
             platform,
         };
         self.lock_sessions()?.insert(id.clone(), session);
@@ -1103,8 +1093,8 @@ impl PtyManager {
         // Shared state between reader and flush threads.
         // `dirty`: set when terminal state advances but no snapshot was emitted (throttled).
         // `alive`: cleared when the reader exits so the flush thread can stop.
-        // `flush_cond`: wakes the flush thread when throttled data is pending, replacing
-        // the previous fixed-interval sleep-poll that caused unnecessary idle wakeups.
+        // `flush_cond`: wakes the flush thread only for shutdown, while cadence remains
+        // deadline-based via wait_timeout so busy background panes cannot shortcut their tier interval.
         let dirty = Arc::new(AtomicBool::new(false));
         let alive = Arc::new(AtomicBool::new(true));
         let flush_cond = Arc::new((Mutex::new(()), Condvar::new()));
@@ -1130,8 +1120,9 @@ impl PtyManager {
                     let render_interval =
                         PaneRenderTier::from_u8(render_tier_flush.load(Ordering::Relaxed))
                             .render_interval();
-                    // Wait until notified by reader or timeout — zero CPU when idle.
-                    // Mutex exists only to satisfy condvar API; the bool is in `dirty`.
+                    // Wait until shutdown or timeout — zero CPU when idle, while timeout
+                    // remains the only path that advances the render cadence.
+                    // Mutex exists only to satisfy condvar API; the dirty bit lives separately.
                     let guard = lock.lock().unwrap_or_else(|e| {
                         eprintln!("[pty] flush condvar mutex poisoned, recovering");
                         e.into_inner()
@@ -1148,10 +1139,9 @@ impl PtyManager {
             });
         }
 
-        // Background reader thread: read PTY output → wezterm-term → throttled emit.
-        // Advances terminal state on every chunk but only snapshots + emits at
-        // RENDER_INTERVAL (~30fps) to avoid flooding the frontend during bursts.
-        // The flush thread above catches any trailing updates that get throttled.
+        // Background reader thread: read PTY output → wezterm-term → tier-aware snapshot emission.
+        // Advances terminal state on every chunk, but only snapshots when the active tier deadline
+        // permits it. The flush thread above catches any trailing updates that get throttled.
         let id_clone = id.clone();
         let sessions_clone = Arc::clone(&self.sessions);
         let term_state = Arc::clone(&self.terminal_state);
@@ -1272,8 +1262,6 @@ impl PtyManager {
                             last_emit = Instant::now();
                         } else {
                             dirty.store(true, Ordering::Release);
-                            // Signal flush thread that dirty data is available
-                            cv.notify_one();
                         }
                     }
                     Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
@@ -1378,32 +1366,12 @@ impl PtyManager {
     }
 
     pub fn kill(&self, id: &str) -> Result<(), String> {
-        // Kill is idempotent — silently ignore missing sessions
-        let mut sessions = self.lock_sessions()?;
-        if let Some(mut session) = sessions.remove(id) {
-            session.platform.kill();
-        }
-        self.terminal_state.remove(id);
-        self.last_output_at
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .remove(id);
-        self.render_tiers
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .remove(id);
-        Ok(())
+        self.kill_session(id, true)
     }
 
     pub fn set_render_tier(&self, id: &str, tier: PaneRenderTier) -> Result<(), String> {
-        self.render_tiers
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .insert(id.to_string(), tier);
-        let sessions = self.lock_sessions()?;
-        if let Some(session) = sessions.get(id) {
-            session.render_tier.store(tier.as_u8(), Ordering::Relaxed);
-        }
+        self.render_tier_handle(id)
+            .store(tier.as_u8(), Ordering::Relaxed);
         Ok(())
     }
 
@@ -1497,14 +1465,47 @@ impl PtyManager {
             .lock()
             .map_err(|e| format!("Session lock poisoned: {e}"))
     }
+
+    fn render_tier_handle(&self, id: &str) -> Arc<AtomicU8> {
+        let mut render_tiers = self.render_tiers.lock().unwrap_or_else(|e| e.into_inner());
+        Arc::clone(
+            render_tiers
+                .entry(id.to_string())
+                .or_insert_with(|| Arc::new(AtomicU8::new(PaneRenderTier::FocusedVisible.as_u8()))),
+        )
+    }
+
+    fn kill_session(&self, id: &str, clear_render_tier: bool) -> Result<(), String> {
+        // Kill is idempotent — silently ignore missing sessions.
+        let mut sessions = self.lock_sessions()?;
+        if let Some(mut session) = sessions.remove(id) {
+            session.platform.kill();
+        }
+        drop(sessions);
+        self.terminal_state.remove(id);
+        self.last_output_at
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(id);
+        if clear_render_tier {
+            self.render_tiers
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .remove(id);
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        PaneRenderTier, FOCUSED_VISIBLE_RENDER_INTERVAL, HIDDEN_MOUNTED_RENDER_INTERVAL,
-        UNMOUNTED_RENDER_INTERVAL, VISIBLE_RENDER_INTERVAL,
+        PaneRenderTier, PtyManager, FOCUSED_VISIBLE_RENDER_INTERVAL,
+        HIDDEN_MOUNTED_RENDER_INTERVAL, UNMOUNTED_RENDER_INTERVAL, VISIBLE_RENDER_INTERVAL,
     };
+    use crate::terminal::TerminalState;
+    use std::sync::atomic::Ordering;
+    use std::sync::Arc;
     use std::time::Duration;
 
     #[test]
@@ -1529,5 +1530,72 @@ mod tests {
             UNMOUNTED_RENDER_INTERVAL
         );
         assert_eq!(UNMOUNTED_RENDER_INTERVAL, Duration::from_millis(1000));
+    }
+
+    #[test]
+    fn set_render_tier_persists_before_session_exists() {
+        let manager = PtyManager::new(Arc::new(TerminalState::new()));
+
+        manager
+            .set_render_tier("pane-1", PaneRenderTier::HiddenMounted)
+            .unwrap();
+
+        let handle = manager.render_tier_handle("pane-1");
+        assert_eq!(
+            PaneRenderTier::from_u8(handle.load(Ordering::Relaxed)),
+            PaneRenderTier::HiddenMounted
+        );
+    }
+
+    #[test]
+    fn render_tier_handle_updates_existing_session_handle() {
+        let manager = PtyManager::new(Arc::new(TerminalState::new()));
+        let handle = manager.render_tier_handle("pane-1");
+
+        manager
+            .set_render_tier("pane-1", PaneRenderTier::Visible)
+            .unwrap();
+
+        assert_eq!(
+            PaneRenderTier::from_u8(handle.load(Ordering::Relaxed)),
+            PaneRenderTier::Visible
+        );
+    }
+
+    #[test]
+    fn kill_clears_render_tier_cache() {
+        let manager = PtyManager::new(Arc::new(TerminalState::new()));
+        manager
+            .set_render_tier("pane-1", PaneRenderTier::Unmounted)
+            .unwrap();
+
+        manager.kill("pane-1").unwrap();
+
+        assert!(!manager
+            .render_tiers
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .contains_key("pane-1"));
+    }
+
+    #[test]
+    fn output_ages_are_tracked_independently_of_render_tier() {
+        let manager = PtyManager::new(Arc::new(TerminalState::new()));
+        manager
+            .set_render_tier("pane-1", PaneRenderTier::Unmounted)
+            .unwrap();
+        manager
+            .last_output_at
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(
+                "pane-1".to_string(),
+                std::time::Instant::now() - Duration::from_millis(25),
+            );
+
+        let ages = manager.get_output_ages();
+
+        assert!(ages.contains_key("pane-1"));
+        assert!(ages["pane-1"] >= Duration::from_millis(20));
     }
 }
