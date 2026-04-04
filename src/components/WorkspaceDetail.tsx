@@ -360,8 +360,8 @@ export function WorkspaceDetail({
 			</SettingsSection>
 
 			<SnippetSettingsPanel
-				label="Workspace commands"
-				description="These commands are only available in the selected workspace."
+				label="Commands"
+				description="Only available in this workspace"
 				controller={workspaceSnippetController}
 				listId="workspace"
 			/>
