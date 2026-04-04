@@ -12,17 +12,17 @@ import {
 	EFFECT_LEVELS,
 	type EffectLevel,
 	isEffectLevel,
-	type LayoutPreset,
 	MAX_UNFOCUSED_DIM,
 	MIN_PANE_OPACITY,
 	type PaneConfig,
 	type PaneTheme,
 	type Workspace,
 } from "../shared/types";
-import { applyPresetWithRemap, getActiveSubgroup, updateSubgroupLayout, useStore } from "../store";
+import { useStore } from "../store";
 import { AboutTabPanel } from "./AboutTabPanel";
-import { type EffectCategory, TerminalTabPanel } from "./TerminalTabPanel";
-import { WorkspaceTabPanel } from "./WorkspaceTabPanel";
+import { GlobalTabPanel } from "./GlobalTabPanel";
+import { type EffectCategory, WorkspaceDetail } from "./WorkspaceDetail";
+import { WorkspaceList } from "./WorkspaceList";
 
 /** Numeric values for the EffectLevel-based dim and opacity controls. */
 const DIM_VALUES: Record<EffectLevel, number> = {
@@ -59,19 +59,19 @@ function getLatestWorkspace(wsId: string): Workspace | undefined {
 }
 
 interface SettingsPanelProps {
-	workspace: Workspace;
 	updateState: UpdateState;
 	updateActions: UpdateActions;
 	onClose: () => void;
 }
 
-const SETTINGS_TABS = ["Workspace", "Terminal", "About"] as const;
+const SETTINGS_TABS = ["Workspaces", "Global", "About"] as const;
 type SettingsTab = (typeof SETTINGS_TABS)[number];
 
 // ── Settings reducer ──────────────────────────────────────────────
 
 interface SettingsState {
 	activeTab: SettingsTab;
+	selectedWorkspaceId: string;
 	name: string;
 	themePreset: ThemePresetName;
 	fontSize: number;
@@ -93,7 +93,8 @@ interface SettingsState {
 type SettingsAction =
 	| { type: "UPDATE"; patch: Partial<SettingsState> }
 	| { type: "SET_EFFECT"; category: EffectCategory; level: EffectLevel }
-	| { type: "APPLY_PRESET"; preset: ThemePresetName };
+	| { type: "APPLY_PRESET"; preset: ThemePresetName }
+	| { type: "SWITCH_WORKSPACE"; workspace: Workspace };
 
 /** Effect-level field names within SettingsState. */
 type EffectStateField =
@@ -114,10 +115,10 @@ const EFFECT_STATE_KEY: Record<EffectCategory, EffectStateField> = {
 	noise: "noiseLevel",
 };
 
-function initState(workspace: Workspace): SettingsState {
+function hydrateFromWorkspace(workspace: Workspace): Omit<SettingsState, "activeTab"> {
 	const t = workspace.theme;
 	return {
-		activeTab: "Workspace",
+		selectedWorkspaceId: workspace.id,
 		name: workspace.name,
 		themePreset: t.preset ?? DEFAULT_PRESET_NAME,
 		fontSize: t.fontSize,
@@ -134,6 +135,13 @@ function initState(workspace: Workspace): SettingsState {
 		noiseLevel: isEffectLevel(t.noiseLevel) ? t.noiseLevel : "off",
 		saveFailed: false,
 		confirmDelete: false,
+	};
+}
+
+function initState(workspace: Workspace): SettingsState {
+	return {
+		activeTab: "Workspaces",
+		...hydrateFromWorkspace(workspace),
 	};
 }
 
@@ -159,6 +167,12 @@ function settingsReducer(state: SettingsState, action: SettingsAction): Settings
 				lineHeight: p?.lineHeight ?? DEFAULT_LINE_HEIGHT,
 			};
 		}
+		case "SWITCH_WORKSPACE":
+			return {
+				...state,
+				activeTab: state.activeTab,
+				...hydrateFromWorkspace(action.workspace),
+			};
 		default:
 			return state;
 	}
@@ -167,23 +181,32 @@ function settingsReducer(state: SettingsState, action: SettingsAction): Settings
 // ── Component ─────────────────────────────────────────────────────
 
 export function SettingsPanel({
-	workspace,
 	updateState,
 	updateActions,
 	onClose,
 }: SettingsPanelProps) {
+	const workspaces = useStore((s) => s.workspaces);
+	const activeWorkspaceId = useStore((s) => s.appState.activeWorkspaceId);
 	const updateWorkspace = useStore((s) => s.updateWorkspace);
 	const removeWorkspace = useStore((s) => s.removeWorkspace);
 	const updatePaneConfig = useStore((s) => s.updatePaneConfig);
-	const killPtys = useStore((s) => s.killPtys);
+	const createDefaultWorkspace = useStore((s) => s.createDefaultWorkspace);
 	const homeDir = useStore((s) => s.homeDir);
 
-	const [state, dispatch] = useReducer(settingsReducer, workspace, initState);
+	// At least one workspace always exists — the app creates a default on init.
+	const initialWorkspace =
+		// biome-ignore lint/style/noNonNullAssertion: workspaces is never empty
+		workspaces.find((w) => w.id === activeWorkspaceId) ?? workspaces[0]!;
+
+	const [state, dispatch] = useReducer(
+		settingsReducer,
+		initialWorkspace,
+		initState,
+	);
+
+	const selectedWorkspace = workspaces.find((w) => w.id === state.selectedWorkspaceId);
 
 	const dialogRef = useRef<HTMLDivElement>(null);
-	const activeSubgroup = getActiveSubgroup(workspace);
-	const currentPreset =
-		activeSubgroup.layout.type === "preset" ? activeSubgroup.layout.preset : null;
 
 	const update = useCallback(
 		(patch: Partial<SettingsState>) => dispatch({ type: "UPDATE", patch }),
@@ -251,69 +274,54 @@ export function SettingsPanel({
 				update({ saveFailed: true });
 			});
 		},
-		[updateWorkspace],
+		[updateWorkspace, update],
 	);
 
 	// Auto-persist: save full workspace with updated theme whenever buildThemeFromInputs changes.
-	// Reads latest workspace from store (not the prop) to avoid overwriting concurrent updates.
-	// Tracks previous value via ref and compares to current value before persisting.
-	// A simple useRef(false) mount guard would misfire under React 18 StrictMode,
-	// which double-invokes effects on mount.
 	const prevAutoSaveRef = useRef(buildThemeFromInputs);
 	useEffect(() => {
 		if (prevAutoSaveRef.current === buildThemeFromInputs) return;
 		prevAutoSaveRef.current = buildThemeFromInputs;
-		const latest = getLatestWorkspace(workspace.id);
+		const latest = getLatestWorkspace(state.selectedWorkspaceId);
 		if (!latest) return;
-		// Debounce theme persist to avoid saving on every keystroke (e.g. font-size stepper)
 		const timer = setTimeout(() => {
-			const current = getLatestWorkspace(workspace.id);
+			const current = getLatestWorkspace(state.selectedWorkspaceId);
 			if (!current) return;
 			persistWorkspace({ ...current, theme: buildThemeFromInputs() });
 		}, 200);
 		return () => clearTimeout(timer);
-	}, [workspace.id, buildThemeFromInputs, persistWorkspace]);
+	}, [state.selectedWorkspaceId, buildThemeFromInputs, persistWorkspace]);
 
 	// Auto-persist name with debounce.
-	// Uses value-comparison ref instead of useRef(false) mount guard for StrictMode compat.
 	const prevNameRef = useRef(state.name);
 	useEffect(() => {
 		if (prevNameRef.current === state.name) return;
 		prevNameRef.current = state.name;
 		const trimmed = state.name.trim();
 		if (!trimmed) return;
-		const latest = getLatestWorkspace(workspace.id);
+		const latest = getLatestWorkspace(state.selectedWorkspaceId);
 		if (!latest || trimmed === latest.name) return;
 		const timer = setTimeout(() => {
-			const current = getLatestWorkspace(workspace.id);
+			const current = getLatestWorkspace(state.selectedWorkspaceId);
 			if (!current) return;
 			persistWorkspace({ ...current, name: trimmed });
 		}, 300);
 		return () => clearTimeout(timer);
-	}, [workspace.id, state.name, persistWorkspace]);
+	}, [state.selectedWorkspaceId, state.name, persistWorkspace]);
 
-	const handleLayoutChange = useCallback(
-		(preset: LayoutPreset) => {
-			const latest = getLatestWorkspace(workspace.id);
-			if (!latest) return;
-			const sg = getActiveSubgroup(latest);
-			const { layout, panes, killedPaneIds } = applyPresetWithRemap(
-				sg.layout,
-				latest.panes,
-				preset,
-				homeDir,
-			);
-			if (killedPaneIds.length > 0) {
-				killPtys(killedPaneIds);
-			}
-			persistWorkspace({
-				...latest,
-				subgroups: updateSubgroupLayout(latest.subgroups, sg.id, layout),
-				panes,
-			});
+	const handleSelectWorkspace = useCallback(
+		(id: string) => {
+			const ws = useStore.getState().workspaces.find((w) => w.id === id);
+			if (!ws) return;
+			dispatch({ type: "SWITCH_WORKSPACE", workspace: ws });
 		},
-		[workspace.id, persistWorkspace, killPtys, homeDir],
+		[],
 	);
+
+	const handleAddWorkspace = useCallback(async () => {
+		const ws = await createDefaultWorkspace();
+		dispatch({ type: "SWITCH_WORKSPACE", workspace: ws });
+	}, [createDefaultWorkspace]);
 
 	const handleDelete = useCallback(() => {
 		if (!state.confirmDelete) {
@@ -321,9 +329,16 @@ export function SettingsPanel({
 			setTimeout(() => update({ confirmDelete: false }), 3000);
 			return;
 		}
-		removeWorkspace(workspace.id);
-		onClose();
-	}, [state.confirmDelete, workspace.id, removeWorkspace, onClose]);
+		const currentId = state.selectedWorkspaceId;
+		const remaining = useStore.getState().workspaces.filter((w) => w.id !== currentId);
+		removeWorkspace(currentId);
+		const nextWs = remaining[0];
+		if (nextWs) {
+			dispatch({ type: "SWITCH_WORKSPACE", workspace: nextWs });
+		} else {
+			onClose();
+		}
+	}, [state.confirmDelete, state.selectedWorkspaceId, removeWorkspace, onClose, update]);
 
 	// Close on Escape key
 	useEffect(() => {
@@ -338,10 +353,12 @@ export function SettingsPanel({
 
 	const handlePaneUpdate = useCallback(
 		(paneId: string, updates: Partial<PaneConfig>) => {
-			updatePaneConfig(workspace.id, paneId, updates);
+			updatePaneConfig(state.selectedWorkspaceId, paneId, updates);
 		},
-		[workspace.id, updatePaneConfig],
+		[state.selectedWorkspaceId, updatePaneConfig],
 	);
+
+	const canDelete = workspaces.length > 1;
 
 	return (
 		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape key handled via document listener above
@@ -356,12 +373,12 @@ export function SettingsPanel({
 				ref={dialogRef}
 				role="dialog"
 				aria-modal="true"
-				aria-label="Workspace Settings"
-				className="bg-canvas/80 backdrop-blur-2xl border border-edge/50 rounded-md w-[600px] max-w-[calc(100vw-2rem)] h-[85vh] flex flex-col shadow-panel animate-panel-in"
+				aria-label="Settings"
+				className="bg-canvas/80 backdrop-blur-2xl border border-edge/50 rounded-md w-[750px] max-w-[calc(100vw-2rem)] h-[85vh] flex flex-col shadow-panel animate-panel-in"
 				onClick={(e) => e.stopPropagation()}
 			>
 				<div className="flex items-center justify-between px-6 py-4 border-b border-edge/50">
-					<h2 className="text-sm font-semibold tracking-wide">Workspace Settings</h2>
+					<h2 className="text-sm font-semibold tracking-wide">Settings</h2>
 					{state.saveFailed && <span className="text-[10px] text-danger">Save failed</span>}
 					<button
 						type="button"
@@ -373,7 +390,7 @@ export function SettingsPanel({
 					</button>
 				</div>
 
-				{/* Tab bar — WAI-ARIA tabs pattern with arrow-key navigation */}
+				{/* Tab bar */}
 				<div className="flex px-6 border-b border-edge/50" role="tablist" aria-label="Settings">
 					{SETTINGS_TABS.map((tab) => (
 						<button
@@ -408,37 +425,49 @@ export function SettingsPanel({
 					))}
 				</div>
 
-				<WorkspaceTabPanel
-					workspaceId={workspace.id}
-					panes={workspace.panes}
-					name={state.name}
-					onNameChange={(v) => update({ name: v })}
-					homeDir={homeDir}
-					currentPreset={currentPreset}
-					onLayoutChange={handleLayoutChange}
-					statusBarPosition={state.statusBarPosition}
-					onStatusBarPositionChange={(v) => update({ statusBarPosition: v })}
-					onPaneUpdate={handlePaneUpdate}
-					hidden={state.activeTab !== "Workspace"}
-				/>
+				{/* Workspaces tab — master-detail layout */}
+				<div
+					id="settings-tabpanel-Workspaces"
+					role="tabpanel"
+					aria-labelledby="settings-tab-Workspaces"
+					hidden={state.activeTab !== "Workspaces"}
+					className="flex-1 min-h-0 flex"
+				>
+					<WorkspaceList
+						workspaces={workspaces}
+						selectedId={state.selectedWorkspaceId}
+						onSelect={handleSelectWorkspace}
+						onAdd={handleAddWorkspace}
+					/>
+					{selectedWorkspace && (
+						<WorkspaceDetail
+							workspaceId={selectedWorkspace.id}
+							panes={selectedWorkspace.panes}
+							name={state.name}
+							onNameChange={(v) => update({ name: v })}
+							homeDir={homeDir}
+							statusBarPosition={state.statusBarPosition}
+							onStatusBarPositionChange={(v) => update({ statusBarPosition: v })}
+							onPaneUpdate={handlePaneUpdate}
+							selectedPreset={state.themePreset}
+							onPresetChange={(name) => dispatch({ type: "APPLY_PRESET", preset: name })}
+							fontFamily={state.fontFamily}
+							onFontFamilyChange={(v) => update({ fontFamily: v })}
+							fontSize={state.fontSize}
+							onFontSizeChange={(v) => update({ fontSize: v })}
+							lineHeight={state.lineHeight}
+							onLineHeightChange={(v) => update({ lineHeight: v })}
+							cursorStyle={state.cursorStyle}
+							onCursorStyleChange={(v) => update({ cursorStyle: v })}
+							scrollback={state.scrollback}
+							onScrollbackChange={(v) => update({ scrollback: v })}
+							effects={effects}
+							onEffectChange={handleEffectChange}
+						/>
+					)}
+				</div>
 
-				<TerminalTabPanel
-					selectedPreset={state.themePreset}
-					onPresetChange={(name) => dispatch({ type: "APPLY_PRESET", preset: name })}
-					fontFamily={state.fontFamily}
-					onFontFamilyChange={(v) => update({ fontFamily: v })}
-					fontSize={state.fontSize}
-					onFontSizeChange={(v) => update({ fontSize: v })}
-					lineHeight={state.lineHeight}
-					onLineHeightChange={(v) => update({ lineHeight: v })}
-					cursorStyle={state.cursorStyle}
-					onCursorStyleChange={(v) => update({ cursorStyle: v })}
-					scrollback={state.scrollback}
-					onScrollbackChange={(v) => update({ scrollback: v })}
-					effects={effects}
-					onEffectChange={handleEffectChange}
-					hidden={state.activeTab !== "Terminal"}
-				/>
+				<GlobalTabPanel hidden={state.activeTab !== "Global"} />
 
 				<AboutTabPanel
 					updateState={updateState}
@@ -447,17 +476,19 @@ export function SettingsPanel({
 				/>
 
 				<div className="flex items-center gap-2 px-6 py-3 border-t border-edge/50">
-					<button
-						type="button"
-						onClick={handleDelete}
-						className={`border cursor-pointer text-xs py-1.5 px-3 rounded-sm focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
-							state.confirmDelete
-								? "bg-danger text-white border-danger"
-								: "bg-transparent border-danger text-danger hover:bg-danger/10"
-						}`}
-					>
-						{state.confirmDelete ? "Are you sure?" : "Delete Workspace"}
-					</button>
+					{state.activeTab === "Workspaces" && canDelete && (
+						<button
+							type="button"
+							onClick={handleDelete}
+							className={`border cursor-pointer text-xs py-1.5 px-3 rounded-sm focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none ${
+								state.confirmDelete
+									? "bg-danger text-white border-danger"
+									: "bg-transparent border-danger text-danger hover:bg-danger/10"
+							}`}
+						>
+							{state.confirmDelete ? "Are you sure?" : "Delete Workspace"}
+						</button>
+					)}
 					<div className="flex-1" />
 					<button
 						type="button"
