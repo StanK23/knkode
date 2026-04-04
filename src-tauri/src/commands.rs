@@ -247,10 +247,8 @@ pub fn resize_pty(
     rows: u16,
     pixel_width: Option<u16>,
     pixel_height: Option<u16>,
-    scroll_offset: Option<usize>,
     pty_mgr: State<'_, Arc<PtyManager>>,
-    terminal_state: State<'_, Arc<TerminalState>>,
-) -> Result<GridSnapshot, String> {
+) -> Result<(), String> {
     if cols == 0 || rows == 0 {
         return Err("cols and rows must be at least 1".to_string());
     }
@@ -262,10 +260,7 @@ pub fn resize_pty(
     // Cap pixel dimensions to a reasonable maximum; 0 = unknown/unset
     let pw = pixel_width.unwrap_or(0).min(16384);
     let ph = pixel_height.unwrap_or(0).min(16384);
-    pty_mgr.resize(&id, cols, rows, pw, ph)?;
-    terminal_state
-        .snapshot_at_offset(&id, scroll_offset.unwrap_or(0))
-        .ok_or_else(|| format!("Terminal session not found: {id}"))
+    pty_mgr.resize(&id, cols, rows, pw, ph)
 }
 
 /// Register a pane for git branch/PR tracking without spawning a PTY.

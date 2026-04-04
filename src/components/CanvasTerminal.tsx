@@ -781,12 +781,9 @@ export function CanvasTerminal({
 		[paneId],
 	);
 
-	const invalidateForFreshSnapshot = useCallback(() => {
-		const canvas = canvasRef.current;
-		const ctx = ctxRef.current;
-		if (!canvas || !ctx) return;
-		ctx.clearRect(0, 0, canvas.width, canvas.height);
+	const redrawResizePreview = useCallback(() => {
 		previousDrawnGridRef.current = null;
+		drawRef.current({ forceFull: true });
 	}, []);
 
 	const paintRows = useCallback(
@@ -1132,9 +1129,9 @@ export function CanvasTerminal({
 					}
 				}
 
-				// Geometry changed — wait for a fresh post-resize snapshot instead of
-				// repainting stale pre-resize rows into the new canvas dimensions.
-				invalidateForFreshSnapshot();
+				// Geometry changed — redraw a cheap preview immediately and let Pane
+				// request a fresh post-resize snapshot once the resize settles.
+				redrawResizePreview();
 			}, RESIZE_DEBOUNCE_MS);
 		});
 
@@ -1143,7 +1140,7 @@ export function CanvasTerminal({
 			observer.disconnect();
 			if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
 		};
-	}, [invalidateForFreshSnapshot, measureCell]);
+	}, [measureCell, redrawResizePreview]);
 
 	// Re-measure cells + resize + redraw when font metrics change (fontSize, fontFamily, lineHeight).
 	// The ResizeObserver only fires on container size changes, so metric-only changes need this.
@@ -1171,12 +1168,12 @@ export function CanvasTerminal({
 		}
 
 		if (geometryChanged) {
-			invalidateForFreshSnapshot();
+			redrawResizePreview();
 			return;
 		}
 
 		drawRef.current();
-	}, [invalidateForFreshSnapshot, measureCell]);
+	}, [measureCell, redrawResizePreview]);
 
 	// Wheel scroll → forward as SGR when mouse is grabbed, else scroll normally.
 	// Must use native addEventListener with { passive: false } to allow preventDefault

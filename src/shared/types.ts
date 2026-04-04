@@ -445,8 +445,7 @@ export interface KnkodeApi {
 		rows: number,
 		pixelWidth: number,
 		pixelHeight: number,
-		scrollOffset: number,
-	): Promise<GridSnapshot>;
+	): Promise<void>;
 	killPty(id: string): Promise<void>;
 
 	// Terminal scroll — request a snapshot at a given scrollback offset (0 = bottom)

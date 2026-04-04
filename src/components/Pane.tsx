@@ -133,6 +133,7 @@ export const Pane = memo(function Pane({
 	const isScrolledRef = useRef(false);
 	const pendingScrollDelta = useRef(0);
 	const scrollRafId = useRef(0);
+	const resizeRefreshTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
 	const [scrollbarVisible, setScrollbarVisible] = useState(false);
 	const scrollbarVisibleRef = useRef(false);
 	const scrollbarTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -408,6 +409,7 @@ export const Pane = memo(function Pane({
 		return () => {
 			scrollDragCleanupRef.current?.();
 			if (scrollRafId.current) cancelAnimationFrame(scrollRafId.current);
+			if (resizeRefreshTimerRef.current) clearTimeout(resizeRefreshTimerRef.current);
 		};
 	}, []);
 
@@ -459,24 +461,26 @@ export const Pane = memo(function Pane({
 	const handleResize = useCallback(
 		(cols: number, rows: number, pixelWidth: number, pixelHeight: number) => {
 			window.api
-				.resizePty(
-					paneId,
-					cols,
-					rows,
-					pixelWidth,
-					pixelHeight,
-					scrollOffsetRef.current,
-				)
-				.then((snapshot) => {
-					maxScrollRef.current = snapshot.scrollbackRows;
-					scrollOffsetRef.current = snapshot.scrollOffset;
-					isScrolledRef.current = snapshot.scrollOffset > 0;
-					pendingGridRef.current = snapshot;
-					setGrid(snapshot);
-				})
+				.resizePty(paneId, cols, rows, pixelWidth, pixelHeight)
 				.catch((err: unknown) => {
 					console.error(`[pane] resizePty failed for ${paneId}:`, err);
 				});
+
+			if (resizeRefreshTimerRef.current) clearTimeout(resizeRefreshTimerRef.current);
+			resizeRefreshTimerRef.current = setTimeout(() => {
+				window.api
+					.scrollTerminal(paneId, scrollOffsetRef.current)
+					.then((snapshot) => {
+						maxScrollRef.current = snapshot.scrollbackRows;
+						scrollOffsetRef.current = snapshot.scrollOffset;
+						isScrolledRef.current = snapshot.scrollOffset > 0;
+						pendingGridRef.current = snapshot;
+						setGrid(snapshot);
+					})
+					.catch((err: unknown) => {
+						console.error(`[pane] resize refresh failed for ${paneId}:`, err);
+					});
+			}, 48);
 		},
 		[paneId],
 	);

@@ -146,7 +146,7 @@ describe("CanvasTerminal resize redraw", () => {
 		quadraticCurveTo.mockReset();
 	});
 
-	it("invalidates stale rows on geometry-changing resize and waits for a fresh snapshot", async () => {
+	it("redraws a preview on geometry-changing resize and accepts a later fresh snapshot", async () => {
 		const onResize = vi.fn();
 		const { rerender } = render(
 			<CanvasTerminal
@@ -171,7 +171,7 @@ describe("CanvasTerminal resize redraw", () => {
 		});
 
 		expect(clearRect).toHaveBeenCalled();
-		expect(fillText).not.toHaveBeenCalled();
+		expect(fillText).toHaveBeenCalled();
 
 		rerender(
 			<CanvasTerminal
