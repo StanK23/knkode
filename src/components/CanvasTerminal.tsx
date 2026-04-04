@@ -831,8 +831,9 @@ export function CanvasTerminal({
 			drawRef.current({ forceFull: true });
 			return;
 		}
-		const sourceWidth = preview.width;
+		const sourceWidth = Math.min(preview.width, canvas.width);
 		const sourceHeight = Math.min(preview.height, canvas.height);
+		const destY = snap && snap.scrollOffset === 0 ? canvas.height - sourceHeight : 0;
 		const sourceY =
 			snap && snap.scrollOffset === 0 ? Math.max(0, preview.height - sourceHeight) : 0;
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -843,9 +844,9 @@ export function CanvasTerminal({
 			sourceWidth,
 			sourceHeight,
 			0,
-			0,
-			canvas.width,
-			canvas.height,
+			destY,
+			sourceWidth,
+			sourceHeight,
 		);
 		previousDrawnGridRef.current = null;
 	}, []);
@@ -1213,8 +1214,8 @@ export function CanvasTerminal({
 					}
 				}
 
-				// Geometry changed — stretch the already-rendered canvas as a transient
-				// preview instead of synthesizing terminal rows locally.
+				// Geometry changed — keep the previous terminal frame frozen and clipped
+				// while the real PTY resize is deferred until drag settle.
 				redrawResizePreview();
 			}, RESIZE_DEBOUNCE_MS);
 		});

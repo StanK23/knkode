@@ -76,6 +76,8 @@ describe("CanvasTerminal resize redraw", () => {
 
 	beforeEach(() => {
 		ResizeObserverMock.instances = [];
+		size.width = 30;
+		size.height = 20;
 		vi.useFakeTimers();
 		(globalThis as typeof globalThis & { ResizeObserver: typeof ResizeObserver }).ResizeObserver =
 			ResizeObserverMock as unknown as typeof ResizeObserver;
@@ -212,7 +214,7 @@ describe("CanvasTerminal resize redraw", () => {
 		expect(drawImage).toHaveBeenCalled();
 	});
 
-	it("anchors the bitmap preview to the bottom for the live viewport", async () => {
+	it("anchors the frozen bitmap preview to the bottom for the live viewport", async () => {
 		size.height = 30;
 
 		render(
@@ -249,11 +251,51 @@ describe("CanvasTerminal resize redraw", () => {
 		];
 		expect(sx).toBe(0);
 		expect(sy).toBe(preview.height - sh);
-		expect(sw).toBe(preview.width);
+		expect(sw).toBe(Math.min(preview.width, size.width));
 		expect(dx).toBe(0);
-		expect(dy).toBe(0);
-		expect(dw).toBe(size.width);
+		expect(dy).toBe(size.height - sh);
+		expect(dw).toBe(Math.min(preview.width, size.width));
 		expect(dh).toBe(size.height);
+	});
+
+	it("does not scale the preview when width shrinks", async () => {
+		size.width = 60;
+
+		render(
+			<CanvasTerminal
+				grid={makeGrid(["abcdef"])}
+				onWrite={() => {}}
+				onResize={() => {}}
+				onScroll={() => {}}
+				paneId="pane-1"
+				isFocused={false}
+			/>,
+		);
+
+		drawImage.mockReset();
+		size.width = 20;
+
+		await act(async () => {
+			ResizeObserverMock.instances[0]?.trigger();
+			await vi.runAllTimersAsync();
+		});
+
+		const lastCall = drawImage.mock.calls.at(-1);
+		expect(lastCall).toBeDefined();
+		const [preview, , , sw, , , , dw] = lastCall as [
+			HTMLCanvasElement,
+			number,
+			number,
+			number,
+			number,
+			number,
+			number,
+			number,
+			number,
+		];
+		expect(sw).toBe(size.width);
+		expect(dw).toBe(size.width);
+		expect(preview.width).toBeGreaterThan(size.width);
 	});
 
 	it("does not issue a real terminal resize on the immediate drag tick", async () => {
