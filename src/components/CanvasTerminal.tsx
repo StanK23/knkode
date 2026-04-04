@@ -80,7 +80,7 @@ const CURSOR_STATIC_OPACITY = 0.5;
 const CURSOR_IDLE_TIMEOUT_MS = 5000;
 /** Text blink toggle interval (ms). Standard terminal blink is ~500ms on/off. */
 const TEXT_BLINK_INTERVAL_MS = 500;
-const RESIZE_DEBOUNCE_MS = 100;
+const RESIZE_DEBOUNCE_MS = 16;
 /** Bar cursor width as fraction of cell width. */
 const BAR_WIDTH_RATIO = 0.12;
 /** Underline cursor height as fraction of cell height. */
@@ -781,6 +781,14 @@ export function CanvasTerminal({
 		[paneId],
 	);
 
+	const invalidateForFreshSnapshot = useCallback(() => {
+		const canvas = canvasRef.current;
+		const ctx = ctxRef.current;
+		if (!canvas || !ctx) return;
+		ctx.clearRect(0, 0, canvas.width, canvas.height);
+		previousDrawnGridRef.current = null;
+	}, []);
+
 	const paintRows = useCallback(
 		(
 			ctx: CanvasRenderingContext2D,
@@ -1124,8 +1132,9 @@ export function CanvasTerminal({
 					}
 				}
 
-				// Redraw after resize so the canvas isn't blank
-				drawRef.current();
+				// Geometry changed — wait for a fresh post-resize snapshot instead of
+				// repainting stale pre-resize rows into the new canvas dimensions.
+				invalidateForFreshSnapshot();
 			}, RESIZE_DEBOUNCE_MS);
 		});
 
@@ -1134,7 +1143,7 @@ export function CanvasTerminal({
 			observer.disconnect();
 			if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
 		};
-	}, [measureCell]);
+	}, [invalidateForFreshSnapshot, measureCell]);
 
 	// Re-measure cells + resize + redraw when font metrics change (fontSize, fontFamily, lineHeight).
 	// The ResizeObserver only fires on container size changes, so metric-only changes need this.
@@ -1147,6 +1156,7 @@ export function CanvasTerminal({
 
 		const dpr = dprRef.current;
 		const { width: cellW, height: cellH } = cellMetrics.current;
+		let geometryChanged = false;
 		if (cellW > 0 && cellH > 0) {
 			const rect = container.getBoundingClientRect();
 			const w = Math.floor(rect.width * dpr);
@@ -1154,12 +1164,19 @@ export function CanvasTerminal({
 			const cols = Math.floor(w / cellW);
 			const rows = Math.floor(h / cellH);
 			if (cols > 0 && rows > 0) {
+				const snap = gridRef.current;
+				geometryChanged = snap !== null && (snap.cols !== cols || snap.totalRows !== rows);
 				onResizeRef.current(cols, rows, Math.round(cellW * cols), Math.round(cellH * rows));
 			}
 		}
 
+		if (geometryChanged) {
+			invalidateForFreshSnapshot();
+			return;
+		}
+
 		drawRef.current();
-	}, [measureCell]);
+	}, [invalidateForFreshSnapshot, measureCell]);
 
 	// Wheel scroll → forward as SGR when mouse is grabbed, else scroll normally.
 	// Must use native addEventListener with { passive: false } to allow preventDefault

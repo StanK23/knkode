@@ -458,9 +458,25 @@ export const Pane = memo(function Pane({
 
 	const handleResize = useCallback(
 		(cols: number, rows: number, pixelWidth: number, pixelHeight: number) => {
-			window.api.resizePty(paneId, cols, rows, pixelWidth, pixelHeight).catch((err: unknown) => {
-				console.error(`[pane] resizePty failed for ${paneId}:`, err);
-			});
+			window.api
+				.resizePty(
+					paneId,
+					cols,
+					rows,
+					pixelWidth,
+					pixelHeight,
+					scrollOffsetRef.current,
+				)
+				.then((snapshot) => {
+					maxScrollRef.current = snapshot.scrollbackRows;
+					scrollOffsetRef.current = snapshot.scrollOffset;
+					isScrolledRef.current = snapshot.scrollOffset > 0;
+					pendingGridRef.current = snapshot;
+					setGrid(snapshot);
+				})
+				.catch((err: unknown) => {
+					console.error(`[pane] resizePty failed for ${paneId}:`, err);
+				});
 		},
 		[paneId],
 	);

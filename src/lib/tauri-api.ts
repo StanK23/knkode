@@ -89,8 +89,8 @@ const _api: KnkodeApi = {
 	createPty: (id, cwd, shell, startupCommand, scrollback) =>
 		invoke("create_pty", { id, cwd, shell, startupCommand, scrollback }),
 	writePty: (id, data) => invoke("write_pty", { id, data }),
-	resizePty: (id, cols, rows, pixelWidth, pixelHeight) =>
-		invoke("resize_pty", { id, cols, rows, pixelWidth, pixelHeight }),
+	resizePty: (id, cols, rows, pixelWidth, pixelHeight, scrollOffset) =>
+		invoke<GridSnapshot>("resize_pty", { id, cols, rows, pixelWidth, pixelHeight, scrollOffset }),
 	killPty: (id) => invoke("kill_pty", { id }),
 
 	// Terminal scroll

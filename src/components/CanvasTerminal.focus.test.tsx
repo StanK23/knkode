@@ -9,8 +9,11 @@ vi.mock("@tauri-apps/plugin-clipboard-manager", () => ({
 
 class ResizeObserverMock {
 	observe() {}
+	unobserve() {}
 	disconnect() {}
 }
+
+const originalResizeObserver = globalThis.ResizeObserver;
 
 function renderTerminal(focusGeneration: number, isFocused = true) {
 	return render(
@@ -28,12 +31,19 @@ function renderTerminal(focusGeneration: number, isFocused = true) {
 
 describe("CanvasTerminal focus retention", () => {
 	beforeEach(() => {
-		vi.stubGlobal("ResizeObserver", ResizeObserverMock);
+		(globalThis as typeof globalThis & { ResizeObserver: typeof ResizeObserver }).ResizeObserver =
+			ResizeObserverMock as unknown as typeof ResizeObserver;
 	});
 
 	afterEach(() => {
 		cleanup();
-		vi.unstubAllGlobals();
+		if (originalResizeObserver) {
+			(
+				globalThis as typeof globalThis & { ResizeObserver: typeof originalResizeObserver }
+			).ResizeObserver = originalResizeObserver;
+		} else {
+			delete (globalThis as typeof globalThis & { ResizeObserver?: unknown }).ResizeObserver;
+		}
 	});
 
 	it("focuses the terminal when it mounts already focused", async () => {
