@@ -49,7 +49,7 @@ export function effectMul(level: unknown): number {
 }
 
 export const DEFAULT_CURSOR_STYLE: CursorStyle = "bar";
-export const DEFAULT_SCROLLBACK = 50000;
+export const DEFAULT_SCROLLBACK = 10000;
 export const MIN_SCROLLBACK = 500;
 export const MAX_SCROLLBACK = 50000;
 
