@@ -533,7 +533,6 @@ impl TerminalState {
         foreground: &str,
         background: &str,
     ) -> Result<(), String> {
-        eprintln!("[terminal] set_colors {id}: bg={background:?}, fg={foreground:?}");
         let palette = build_palette(ansi, foreground, background);
 
         // Update the pane config so wezterm-term's reset operations fall back
@@ -570,27 +569,7 @@ impl TerminalState {
             Ok(buffers) => {
                 if let Some(buf) = buffers.get(id) {
                     match buf.lock() {
-                        Ok(mut inner) => {
-                            let data = std::mem::take(&mut *inner);
-                            if !data.is_empty() {
-                                // Show printable ASCII + hex for control chars
-                                let readable: String = data
-                                    .iter()
-                                    .map(|&b| {
-                                        if b >= 0x20 && b < 0x7f {
-                                            (b as char).to_string()
-                                        } else {
-                                            format!("\\x{b:02x}")
-                                        }
-                                    })
-                                    .collect();
-                                eprintln!(
-                                    "[terminal] drain_responses {id}: {len} bytes [{readable}]",
-                                    len = data.len(),
-                                );
-                            }
-                            data
-                        }
+                        Ok(mut inner) => std::mem::take(&mut *inner),
                         Err(e) => {
                             eprintln!("[terminal] drain_responses inner lock failed for {id}: {e}");
                             Vec::new()
