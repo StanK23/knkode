@@ -859,7 +859,7 @@ impl PlatformPty {
 
 #[cfg(not(target_os = "windows"))]
 fn create_platform_pty(
-    id: &str,
+    _id: &str,
     cwd: &str,
     shell: Option<&str>,
 ) -> Result<
@@ -909,11 +909,6 @@ fn create_platform_pty(
         .try_clone_reader()
         .map_err(|e| format!("Failed to clone PTY reader: {e}"))?;
 
-    eprintln!(
-        "[pty] Created Unix PTY for {id}, shell={shell}, pid={:?}",
-        child.process_id()
-    );
-
     Ok((
         writer,
         reader,
@@ -926,7 +921,7 @@ fn create_platform_pty(
 
 #[cfg(target_os = "windows")]
 fn create_platform_pty(
-    id: &str,
+    _id: &str,
     cwd: &str,
     shell: Option<&str>,
 ) -> Result<
@@ -944,8 +939,6 @@ fn create_platform_pty(
     let exe = resolve_windows_shell(shell);
     let args = windows_shell_launch_args(&exe);
 
-    eprintln!("[pty] Windows shell detection for {id}: exe={exe}");
-
     let env_vars = [
         ("TERM", "xterm-256color"),
         ("COLORTERM", "truecolor"),
@@ -959,12 +952,6 @@ fn create_platform_pty(
         cwd,
         &env_vars,
     )?;
-
-    eprintln!(
-        "[pty] Created Windows PTY for {id}, shell={exe}, pid={}",
-        session.pid()
-    );
-
     let writer: Box<dyn Write + Send> = Box::new(pipes.writer);
     let reader: Box<dyn std::io::Read + Send> = Box::new(pipes.reader);
 
@@ -1083,7 +1070,6 @@ impl PtyManager {
                 // Now that the command is sent, allow responses to flow back.
                 // Codex will query OSC 11 shortly after starting.
                 route_flag.store(true, Ordering::Release);
-                eprintln!("[pty] Response routing enabled for {id_clone}");
             });
         }
 
@@ -1102,7 +1088,6 @@ impl PtyManager {
             platform,
         };
         self.lock_sessions()?.insert(id.clone(), session);
-        eprintln!("[pty] Session stored for {id}");
 
         // Create terminal state AFTER successful session insert to avoid orphaned
         // terminal entries if sessions lock is poisoned
@@ -1114,7 +1099,6 @@ impl PtyManager {
             default_ph as usize,
             scrollback,
         );
-        eprintln!("[pty] Terminal state created for {id}");
 
         // Shared state between reader and flush threads.
         // `dirty`: set when terminal state advances but no snapshot was emitted (throttled).
@@ -1177,22 +1161,16 @@ impl PtyManager {
         let perf_debug_reader = perf_debug;
         let render_tier_reader = Arc::clone(&render_tier);
         std::thread::spawn(move || {
-            eprintln!("[pty] Reader thread started for {id_clone}");
             let (_, cv) = &*flush_cond;
             let mut buf = [0u8; READ_BUFFER_SIZE];
             let mut osc7_pending = Vec::new();
             let mut last_emit = Instant::now() - FOCUSED_VISIBLE_RENDER_INTERVAL;
             let mut last_output_recorded_at = Instant::now() - OUTPUT_ACTIVITY_UPDATE_INTERVAL;
-            let mut total_bytes: usize = 0;
             let mut perf_logger = SnapshotPerfLogger::new(perf_debug_reader, &id_clone, "reader");
             loop {
                 match reader.read(&mut buf) {
-                    Ok(0) => {
-                        eprintln!("[pty] Reader EOF for {id_clone} (total bytes: {total_bytes})");
-                        break;
-                    }
+                    Ok(0) => break,
                     Ok(n) => {
-                        total_bytes += n;
                         for cwd in extract_osc7_cwds(&buf[..n], &mut osc7_pending) {
                             let mut reported = reported_cwd_reader
                                 .lock()
@@ -1210,10 +1188,6 @@ impl PtyManager {
                             }
                         }
 
-                        // Detect OSC 10/11 color queries in the incoming data.
-                        // Track which queries arrived so we can supplement a missing
-                        // OSC 11 (background) response when only OSC 10 (foreground)
-                        // was queried — Codex's crossterm sometimes skips OSC 11.
                         let mut has_osc10 = false;
                         let mut has_osc11 = false;
                         {
@@ -1227,14 +1201,6 @@ impl PtyManager {
                                         has_osc11 = true;
                                     }
                                 }
-                            }
-                            if has_osc10 || has_osc11 {
-                                eprintln!(
-                                    "[pty] OSC color queries in chunk for {id_clone}: \
-                                     osc10={has_osc10}, osc11={has_osc11}, \
-                                     gate_open={}, total_bytes={total_bytes}",
-                                    route_flag_reader.load(Ordering::Relaxed),
-                                );
                             }
                         }
 
@@ -1254,13 +1220,7 @@ impl PtyManager {
                             last_output_recorded_at = now;
                         }
 
-                        // If a foreground query (OSC 10) arrived without a background
-                        // query (OSC 11), inject a synthetic OSC 11 query so wezterm-term
-                        // generates the background response too. This ensures Codex always
-                        // receives the bg color and can use explicit palette colors for its
-                        // panels, fixing the "no background on first run" race.
                         if has_osc10 && !has_osc11 && route_flag_reader.load(Ordering::Acquire) {
-                            eprintln!("[pty] injecting synthetic OSC 11 query for {id_clone}");
                             term_state.advance_only(&id_clone, b"\x1b]11;?\x07");
                         }
 
@@ -1279,11 +1239,6 @@ impl PtyManager {
                                         if let Err(e) = w.write_all(&responses) {
                                             eprintln!(
                                                 "[pty] response write failed for {id_clone}: {e}"
-                                            );
-                                        } else {
-                                            eprintln!(
-                                                "[pty] routed {len} response bytes to PTY for {id_clone}",
-                                                len = responses.len(),
                                             );
                                         }
                                         if let Err(e) = w.flush() {
