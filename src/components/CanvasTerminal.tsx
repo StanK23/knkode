@@ -795,26 +795,24 @@ export function CanvasTerminal({
 			return;
 		}
 
-		const targetCols = Math.max(1, cols);
 		const targetRows = Math.max(1, rows);
-		const trimmedRows = snap.rows.map((row) => row.slice(0, targetCols));
-		let previewRows = trimmedRows;
+		let previewRows = snap.rows;
 		let cursorRow = snap.cursorRow;
 
-		if (trimmedRows.length > targetRows) {
+		if (snap.rows.length > targetRows) {
 			if (snap.scrollOffset === 0) {
-				const dropped = trimmedRows.length - targetRows;
-				previewRows = trimmedRows.slice(dropped);
+				const dropped = snap.rows.length - targetRows;
+				previewRows = snap.rows.slice(dropped);
 				cursorRow = Math.max(0, cursorRow - dropped);
 			} else {
-				previewRows = trimmedRows.slice(0, targetRows);
+				previewRows = snap.rows.slice(0, targetRows);
 			}
 		}
 
 		resizePreviewGridRef.current = {
 			...snap,
 			rows: previewRows,
-			cols: targetCols,
+			cols: Math.max(1, cols),
 			totalRows: targetRows,
 			cursorRow,
 		};

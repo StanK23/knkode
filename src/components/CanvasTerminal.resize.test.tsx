@@ -186,4 +186,29 @@ describe("CanvasTerminal resize redraw", () => {
 
 		expect(fillText).toHaveBeenCalled();
 	});
+
+	it("does not truncate row content while previewing a narrower resize", async () => {
+		size.width = 60;
+
+		render(
+			<CanvasTerminal
+				grid={makeGrid(["abcdef"])}
+				onWrite={() => {}}
+				onResize={() => {}}
+				onScroll={() => {}}
+				paneId="pane-1"
+				isFocused={false}
+			/>,
+		);
+
+		fillText.mockReset();
+		size.width = 20;
+
+		await act(async () => {
+			ResizeObserverMock.instances[0]?.trigger();
+			await vi.runAllTimersAsync();
+		});
+
+		expect(fillText.mock.calls.map((call) => call[0])).toContain("f");
+	});
 });
