@@ -3,10 +3,11 @@ use crate::terminal::{
 };
 #[cfg(not(target_os = "windows"))]
 use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
+use serde::Deserialize;
 use serde_json::json;
 use std::collections::HashMap;
 use std::io::{Read, Write};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 use tauri::Emitter;
@@ -15,10 +16,14 @@ const SHELL_READY_DELAY_MS: u64 = 300;
 const READ_BUFFER_SIZE: usize = 8192;
 const MAX_SESSIONS: usize = 64;
 const PERF_LOG_INTERVAL: Duration = Duration::from_secs(2);
-/// Minimum interval between render events per terminal (~30fps).
-/// During high-throughput output the reader advances terminal state on every
-/// chunk but only snapshots + emits at this cadence, preventing UI freezes.
-const RENDER_INTERVAL: Duration = Duration::from_millis(33);
+/// Minimum interval between output-age updates. Activity detection should track
+/// the read path instead of render cadence, but updating the timestamp on every
+/// chunk would add avoidable lock churn during heavy output.
+const OUTPUT_ACTIVITY_UPDATE_INTERVAL: Duration = Duration::from_millis(50);
+const FOCUSED_VISIBLE_RENDER_INTERVAL: Duration = Duration::from_millis(33);
+const VISIBLE_RENDER_INTERVAL: Duration = Duration::from_millis(50);
+const HIDDEN_MOUNTED_RENDER_INTERVAL: Duration = Duration::from_millis(200);
+const UNMOUNTED_RENDER_INTERVAL: Duration = Duration::from_millis(1000);
 const OSC7_PREFIX: &[u8] = b"\x1b]7;";
 
 struct SnapshotPerfLogger {
@@ -32,6 +37,44 @@ struct SnapshotPerfLogger {
     total_interval_ms: f64,
     last_emit_started_at: Option<Instant>,
     last_report_at: Instant,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PaneRenderTier {
+    FocusedVisible,
+    Visible,
+    HiddenMounted,
+    Unmounted,
+}
+
+impl PaneRenderTier {
+    fn as_u8(self) -> u8 {
+        match self {
+            Self::FocusedVisible => 0,
+            Self::Visible => 1,
+            Self::HiddenMounted => 2,
+            Self::Unmounted => 3,
+        }
+    }
+
+    fn from_u8(value: u8) -> Self {
+        match value {
+            0 => Self::FocusedVisible,
+            1 => Self::Visible,
+            2 => Self::HiddenMounted,
+            _ => Self::Unmounted,
+        }
+    }
+
+    fn render_interval(self) -> Duration {
+        match self {
+            Self::FocusedVisible => FOCUSED_VISIBLE_RENDER_INTERVAL,
+            Self::Visible => VISIBLE_RENDER_INTERVAL,
+            Self::HiddenMounted => HIDDEN_MOUNTED_RENDER_INTERVAL,
+            Self::Unmounted => UNMOUNTED_RENDER_INTERVAL,
+        }
+    }
 }
 
 impl SnapshotPerfLogger {
@@ -63,8 +106,10 @@ impl SnapshotPerfLogger {
 
         if let Some(previous_emit_started_at) = self.last_emit_started_at.replace(emit_started_at) {
             self.interval_samples += 1;
-            self.total_interval_ms +=
-                emit_started_at.duration_since(previous_emit_started_at).as_secs_f64() * 1000.0;
+            self.total_interval_ms += emit_started_at
+                .duration_since(previous_emit_started_at)
+                .as_secs_f64()
+                * 1000.0;
         }
 
         if completed_at.duration_since(self.last_report_at) < PERF_LOG_INTERVAL {
@@ -575,6 +620,7 @@ struct PtySession {
     initial_cwd: String,
     /// Last cwd explicitly reported by the shell (for example via OSC 7).
     reported_cwd: Arc<Mutex<Option<String>>>,
+    render_tier: Arc<AtomicU8>,
     platform: PlatformPty,
 }
 
@@ -930,6 +976,7 @@ fn create_platform_pty(
 /// concurrently from any thread.
 pub struct PtyManager {
     sessions: Arc<Mutex<HashMap<String, PtySession>>>,
+    render_tiers: Arc<Mutex<HashMap<String, PaneRenderTier>>>,
     next_generation: AtomicU64,
     terminal_state: Arc<TerminalState>,
     /// Timestamp of the last PTY output per pane.
@@ -941,6 +988,7 @@ impl PtyManager {
     pub fn new(terminal_state: Arc<TerminalState>) -> Self {
         Self {
             sessions: Arc::new(Mutex::new(HashMap::new())),
+            render_tiers: Arc::new(Mutex::new(HashMap::new())),
             next_generation: AtomicU64::new(1),
             terminal_state,
             last_output_at: Arc::new(Mutex::new(HashMap::new())),
@@ -956,6 +1004,14 @@ impl PtyManager {
         scrollback: usize,
         app: tauri::AppHandle,
     ) -> Result<(), String> {
+        let desired_render_tier = self
+            .render_tiers
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(&id)
+            .copied()
+            .unwrap_or(PaneRenderTier::FocusedVisible);
+
         // Kill existing session to allow pane restart without explicit cleanup
         if let Err(e) = self.kill(&id) {
             eprintln!("[pty] Failed to kill existing session for {id}: {e}");
@@ -973,6 +1029,7 @@ impl PtyManager {
         let default_pw = (DEFAULT_COLS * DEFAULT_CELL_PIXEL_WIDTH) as u16;
         let default_ph = (DEFAULT_ROWS * DEFAULT_CELL_PIXEL_HEIGHT) as u16;
         let reported_cwd = Arc::new(Mutex::new(None));
+        let render_tier = Arc::new(AtomicU8::new(desired_render_tier.as_u8()));
 
         // Platform-specific PTY creation
         let (writer, mut reader, platform) = create_platform_pty(&id, &cwd, shell.as_deref())?;
@@ -1041,6 +1098,7 @@ impl PtyManager {
             generation,
             initial_cwd: cwd.clone(),
             reported_cwd: Arc::clone(&reported_cwd),
+            render_tier: Arc::clone(&render_tier),
             platform,
         };
         self.lock_sessions()?.insert(id.clone(), session);
@@ -1080,11 +1138,14 @@ impl PtyManager {
             let id_flush = id.clone();
             let app_flush = app.clone();
             let perf_debug_flush = perf_debug;
+            let render_tier_flush = Arc::clone(&render_tier);
             std::thread::spawn(move || {
-                let mut perf_logger =
-                    SnapshotPerfLogger::new(perf_debug_flush, &id_flush, "flush");
+                let mut perf_logger = SnapshotPerfLogger::new(perf_debug_flush, &id_flush, "flush");
                 let (lock, cv) = &*cond;
                 while alive_flush.load(Ordering::Relaxed) {
+                    let render_interval =
+                        PaneRenderTier::from_u8(render_tier_flush.load(Ordering::Relaxed))
+                            .render_interval();
                     // Wait until notified by reader or timeout — zero CPU when idle.
                     // Mutex exists only to satisfy condvar API; the bool is in `dirty`.
                     let guard = lock.lock().unwrap_or_else(|e| {
@@ -1092,7 +1153,7 @@ impl PtyManager {
                         e.into_inner()
                     });
                     let _ = cv
-                        .wait_timeout(guard, RENDER_INTERVAL)
+                        .wait_timeout(guard, render_interval)
                         .unwrap_or_else(|e| e.into_inner());
                     if dirty_flush.swap(false, Ordering::AcqRel) {
                         let emit_started_at = Instant::now();
@@ -1114,12 +1175,14 @@ impl PtyManager {
         let route_flag_reader = Arc::clone(&route_responses);
         let reported_cwd_reader = Arc::clone(&reported_cwd);
         let perf_debug_reader = perf_debug;
+        let render_tier_reader = Arc::clone(&render_tier);
         std::thread::spawn(move || {
             eprintln!("[pty] Reader thread started for {id_clone}");
             let (_, cv) = &*flush_cond;
             let mut buf = [0u8; READ_BUFFER_SIZE];
             let mut osc7_pending = Vec::new();
-            let mut last_emit = Instant::now() - RENDER_INTERVAL; // emit first frame immediately
+            let mut last_emit = Instant::now() - FOCUSED_VISIBLE_RENDER_INTERVAL;
+            let mut last_output_recorded_at = Instant::now() - OUTPUT_ACTIVITY_UPDATE_INTERVAL;
             let mut total_bytes: usize = 0;
             let mut perf_logger = SnapshotPerfLogger::new(perf_debug_reader, &id_clone, "reader");
             loop {
@@ -1177,6 +1240,20 @@ impl PtyManager {
 
                         term_state.advance_only(&id_clone, &buf[..n]);
 
+                        let now = Instant::now();
+                        if now.duration_since(last_output_recorded_at)
+                            >= OUTPUT_ACTIVITY_UPDATE_INTERVAL
+                        {
+                            let mut times =
+                                last_output_at.lock().unwrap_or_else(|e| e.into_inner());
+                            if let Some(t) = times.get_mut(&id_clone) {
+                                *t = now;
+                            } else {
+                                times.insert(id_clone.clone(), now);
+                            }
+                            last_output_recorded_at = now;
+                        }
+
                         // If a foreground query (OSC 10) arrived without a background
                         // query (OSC 11), inject a synthetic OSC 11 query so wezterm-term
                         // generates the background response too. This ensures Codex always
@@ -1227,19 +1304,10 @@ impl PtyManager {
                             }
                         }
 
-                        if last_emit.elapsed() >= RENDER_INTERVAL {
-                            // Record output timestamp for activity detection.
-                            // Throttled to ~30fps — sub-frame precision is irrelevant
-                            // given the 2-second idle threshold polled every 3 seconds.
-                            let mut times =
-                                last_output_at.lock().unwrap_or_else(|e| e.into_inner());
-                            if let Some(t) = times.get_mut(&id_clone) {
-                                *t = Instant::now();
-                            } else {
-                                times.insert(id_clone.clone(), Instant::now());
-                            }
-                            drop(times);
-
+                        let render_interval =
+                            PaneRenderTier::from_u8(render_tier_reader.load(Ordering::Relaxed))
+                                .render_interval();
+                        if last_emit.elapsed() >= render_interval {
                             dirty.store(false, Ordering::Release);
                             let emit_started_at = Instant::now();
                             if !emit_snapshot(&app, &term_state, &id_clone) {
@@ -1365,6 +1433,22 @@ impl PtyManager {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .remove(id);
+        self.render_tiers
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(id);
+        Ok(())
+    }
+
+    pub fn set_render_tier(&self, id: &str, tier: PaneRenderTier) -> Result<(), String> {
+        self.render_tiers
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(id.to_string(), tier);
+        let sessions = self.lock_sessions()?;
+        if let Some(session) = sessions.get(id) {
+            session.render_tier.store(tier.as_u8(), Ordering::Relaxed);
+        }
         Ok(())
     }
 
@@ -1376,6 +1460,10 @@ impl PtyManager {
         }
         self.terminal_state.remove_all();
         self.last_output_at
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+        self.render_tiers
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .clear();
@@ -1458,11 +1546,33 @@ impl PtyManager {
 
 #[cfg(test)]
 mod tests {
-    use super::RENDER_INTERVAL;
+    use super::{
+        PaneRenderTier, FOCUSED_VISIBLE_RENDER_INTERVAL, HIDDEN_MOUNTED_RENDER_INTERVAL,
+        UNMOUNTED_RENDER_INTERVAL, VISIBLE_RENDER_INTERVAL,
+    };
     use std::time::Duration;
 
     #[test]
-    fn render_interval_targets_thirty_fps() {
-        assert_eq!(RENDER_INTERVAL, Duration::from_millis(33));
+    fn render_tier_intervals_match_expected_cadence() {
+        assert_eq!(
+            PaneRenderTier::FocusedVisible.render_interval(),
+            FOCUSED_VISIBLE_RENDER_INTERVAL
+        );
+        assert_eq!(FOCUSED_VISIBLE_RENDER_INTERVAL, Duration::from_millis(33));
+        assert_eq!(
+            PaneRenderTier::Visible.render_interval(),
+            VISIBLE_RENDER_INTERVAL
+        );
+        assert_eq!(VISIBLE_RENDER_INTERVAL, Duration::from_millis(50));
+        assert_eq!(
+            PaneRenderTier::HiddenMounted.render_interval(),
+            HIDDEN_MOUNTED_RENDER_INTERVAL
+        );
+        assert_eq!(HIDDEN_MOUNTED_RENDER_INTERVAL, Duration::from_millis(200));
+        assert_eq!(
+            PaneRenderTier::Unmounted.render_interval(),
+            UNMOUNTED_RENDER_INTERVAL
+        );
+        assert_eq!(UNMOUNTED_RENDER_INTERVAL, Duration::from_millis(1000));
     }
 }
