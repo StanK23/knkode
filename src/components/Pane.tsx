@@ -131,7 +131,6 @@ export const Pane = memo(function Pane({
 	const scrollOffsetRef = useRef(0);
 	const maxScrollRef = useRef(0);
 	const isScrolledRef = useRef(false);
-	const expectedViewportRef = useRef<{ cols: number; rows: number } | null>(null);
 	const pendingScrollDelta = useRef(0);
 	const scrollRafId = useRef(0);
 	const [scrollbarVisible, setScrollbarVisible] = useState(false);
@@ -235,17 +234,8 @@ export const Pane = memo(function Pane({
 	// display it — the user sees the scroll-request snapshots instead.
 	const pendingGridRef = useRef<GridSnapshot | null>(null);
 	const rafIdRef = useRef(0);
-	const snapshotMatchesExpectedViewport = useCallback((snapshot: GridSnapshot): boolean => {
-		const expected = expectedViewportRef.current;
-		if (!expected) return true;
-		return snapshot.cols === expected.cols && snapshot.totalRows === expected.rows;
-	}, []);
 	useEffect(() => {
 		const unregister = registerRenderListener(paneId, (snapshot) => {
-			if (!snapshotMatchesExpectedViewport(snapshot)) {
-				return;
-			}
-			expectedViewportRef.current = null;
 			// Always track the latest scrollback depth for clamping scroll offset
 			maxScrollRef.current = snapshot.scrollbackRows;
 
@@ -278,8 +268,6 @@ export const Pane = memo(function Pane({
 			window.api
 				.scrollTerminal(paneId, 0)
 				.then((snapshot) => {
-					if (!snapshotMatchesExpectedViewport(snapshot)) return;
-					expectedViewportRef.current = null;
 					maxScrollRef.current = snapshot.scrollbackRows;
 					setGrid(snapshot);
 				})
@@ -290,7 +278,7 @@ export const Pane = memo(function Pane({
 			unregister();
 			if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
 		};
-	}, [paneId, snapshotMatchesExpectedViewport]);
+	}, [paneId]);
 
 	const scrollToBottom = useCallback(() => {
 		scrollOffsetRef.current = 0;
@@ -470,12 +458,9 @@ export const Pane = memo(function Pane({
 
 	const handleResize = useCallback(
 		(cols: number, rows: number, pixelWidth: number, pixelHeight: number) => {
-			expectedViewportRef.current = { cols, rows };
-			window.api
-				.resizePty(paneId, cols, rows, pixelWidth, pixelHeight)
-				.catch((err: unknown) => {
-					console.error(`[pane] resizePty failed for ${paneId}:`, err);
-				});
+			window.api.resizePty(paneId, cols, rows, pixelWidth, pixelHeight).catch((err: unknown) => {
+				console.error(`[pane] resizePty failed for ${paneId}:`, err);
+			});
 		},
 		[paneId],
 	);

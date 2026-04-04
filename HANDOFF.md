@@ -4,25 +4,9 @@
 
 **Version**: 2.3.1 | **Branch**: `fix/codex-resize-redraw-history-loss` | **Open PRs**: #81
 
-PR #80 is merged into `main`. Current work is implemented on `fix/codex-resize-redraw-history-loss` and is open for review as PR #81.
+PR #80 is merged into `main`. PR #81 is being rolled back: the attempted Codex resize/history-loss fixes introduced resize lag and did not solve the visible-history loss bug, so the branch is returning to current `main` behavior before a fresh investigation.
 
 ## Recently Completed
-
-### Codex resize redraw history loss
-
-Implemented on `fix/codex-resize-redraw-history-loss`.
-
-Included:
-1. **Fresh post-resize snapshots** — `resize_pty` now returns a new `GridSnapshot` at the current scroll offset immediately after PTY/terminal geometry changes, instead of returning only success/failure.
-2. **Immediate pane snapshot install** — `Pane.handleResize()` now applies that returned snapshot right away, updates scroll refs, and replaces any stale pending snapshot so Codex panes do not stay stuck on clipped pre-resize content.
-3. **No stale redraw after real geometry changes** — `CanvasTerminal` no longer repaints stale pre-resize rows into the resized canvas. On a real geometry change it now clears/invalidates and waits for the fresh snapshot.
-4. **Reduced resize artifact window** — canvas resize debounce was reduced from `100ms` to `16ms` to cut the visible stale-bitmap shrink/stretch effect during live resize.
-5. **Regression coverage** — added `src/components/CanvasTerminal.resize.test.tsx` to pin the geometry-changing resize invalidation behavior, and updated the existing focus test harness so the canvas tests run cleanly under `bun x vitest`.
-
-Verified locally:
-- `bun x vitest run`
-- `bun x tsc --noEmit`
-- `cargo check --manifest-path src-tauri/Cargo.toml`
 
 ### Windows TUI input-lag reduction
 
@@ -69,13 +53,12 @@ Included:
 
 ## What’s Next
 
-1. Review and validate PR #81 on the affected machine:
-   - resize a Codex pane narrower and shorter repeatedly
-   - confirm the newest visible output remains visible after resize
-   - confirm the stale shrink/stretch artifact no longer sticks until later output
-2. Verify scrolled-up panes still preserve scrollback position across resize.
-3. Verify normal shell panes still repaint correctly after resize.
-4. If any remaining resize issue appears, check whether it is a secondary wrap/reflow problem rather than the stale-snapshot bug fixed here.
+1. Merge or close PR #81 after confirming the branch is back to baseline `main` behavior.
+2. Re-investigate the Codex resize/history-loss bug from the current shipped state instead of continuing the abandoned resize-preview experiments.
+3. Capture evidence from the real terminal stream before changing resize behavior again. Focus on:
+   - whether Codex emits synchronized-output boundaries during resize
+   - whether the broken frame is already present in the first post-resize terminal snapshot
+   - whether the bug reproduces only for Codex or for other TUIs with similar redraw behavior
 
 ## Important Decisions
 

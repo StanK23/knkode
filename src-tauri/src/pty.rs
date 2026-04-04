@@ -6,7 +6,7 @@ use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
 use serde_json::json;
 use std::collections::HashMap;
 use std::io::{Read, Write};
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 use tauri::Emitter;
@@ -20,9 +20,6 @@ const PERF_LOG_INTERVAL: Duration = Duration::from_secs(2);
 /// chunk but only snapshots + emits at this cadence, preventing UI freezes.
 const RENDER_INTERVAL: Duration = Duration::from_millis(33);
 const OSC7_PREFIX: &[u8] = b"\x1b]7;";
-const SYNC_OUTPUT_BEGIN: &[u8] = b"\x1b[?2026h";
-const SYNC_OUTPUT_END: &[u8] = b"\x1b[?2026l";
-const SYNC_OUTPUT_TAIL_LEN: usize = SYNC_OUTPUT_BEGIN.len() - 1;
 
 struct SnapshotPerfLogger {
     enabled: bool,
@@ -35,61 +32,6 @@ struct SnapshotPerfLogger {
     total_interval_ms: f64,
     last_emit_started_at: Option<Instant>,
     last_report_at: Instant,
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-struct SyncOutputTransition {
-    entered: bool,
-    exited: bool,
-}
-
-#[derive(Debug, Default)]
-struct SyncOutputTracker {
-    tail: Vec<u8>,
-    scratch: Vec<u8>,
-    depth: usize,
-}
-
-impl SyncOutputTracker {
-    fn observe(&mut self, chunk: &[u8]) -> SyncOutputTransition {
-        self.scratch.clear();
-        self.scratch.extend_from_slice(&self.tail);
-        self.scratch.extend_from_slice(chunk);
-
-        let mut transition = SyncOutputTransition::default();
-        let mut i = 0;
-        while i + SYNC_OUTPUT_BEGIN.len() <= self.scratch.len() {
-            let remaining = &self.scratch[i..];
-            if remaining.starts_with(SYNC_OUTPUT_BEGIN) {
-                if self.depth == 0 {
-                    transition.entered = true;
-                }
-                self.depth += 1;
-                i += SYNC_OUTPUT_BEGIN.len();
-                continue;
-            }
-            if remaining.starts_with(SYNC_OUTPUT_END) {
-                if self.depth > 0 {
-                    self.depth -= 1;
-                    if self.depth == 0 {
-                        transition.exited = true;
-                    }
-                }
-                i += SYNC_OUTPUT_END.len();
-                continue;
-            }
-            i += 1;
-        }
-
-        let tail_start = self.scratch.len().saturating_sub(SYNC_OUTPUT_TAIL_LEN);
-        self.tail.clear();
-        self.tail.extend_from_slice(&self.scratch[tail_start..]);
-        transition
-    }
-
-    fn is_active(&self) -> bool {
-        self.depth > 0
-    }
 }
 
 impl SnapshotPerfLogger {
@@ -871,7 +813,7 @@ impl PlatformPty {
 
 #[cfg(not(target_os = "windows"))]
 fn create_platform_pty(
-    _id: &str,
+    id: &str,
     cwd: &str,
     shell: Option<&str>,
 ) -> Result<
@@ -920,6 +862,11 @@ fn create_platform_pty(
         .master
         .try_clone_reader()
         .map_err(|e| format!("Failed to clone PTY reader: {e}"))?;
+
+    eprintln!(
+        "[pty] Created Unix PTY for {id}, shell={shell}, pid={:?}",
+        child.process_id()
+    );
 
     Ok((
         writer,
@@ -1079,6 +1026,7 @@ impl PtyManager {
                 // Now that the command is sent, allow responses to flow back.
                 // Codex will query OSC 11 shortly after starting.
                 route_flag.store(true, Ordering::Release);
+                eprintln!("[pty] Response routing enabled for {id_clone}");
             });
         }
 
@@ -1096,6 +1044,7 @@ impl PtyManager {
             platform,
         };
         self.lock_sessions()?.insert(id.clone(), session);
+        eprintln!("[pty] Session stored for {id}");
 
         // Create terminal state AFTER successful session insert to avoid orphaned
         // terminal entries if sessions lock is poisoned
@@ -1107,6 +1056,7 @@ impl PtyManager {
             default_ph as usize,
             scrollback,
         );
+        eprintln!("[pty] Terminal state created for {id}");
 
         // Shared state between reader and flush threads.
         // `dirty`: set when terminal state advances but no snapshot was emitted (throttled).
@@ -1116,7 +1066,6 @@ impl PtyManager {
         let dirty = Arc::new(AtomicBool::new(false));
         let alive = Arc::new(AtomicBool::new(true));
         let flush_cond = Arc::new((Mutex::new(()), Condvar::new()));
-        let sync_output_depth = Arc::new(AtomicUsize::new(0));
         let perf_debug = std::env::var_os("KNKODE_DEBUG_TERMINAL_PERF").is_some();
 
         // Trailing-edge flush thread: ensures the screen always shows the latest
@@ -1131,7 +1080,6 @@ impl PtyManager {
             let id_flush = id.clone();
             let app_flush = app.clone();
             let perf_debug_flush = perf_debug;
-            let sync_output_depth_flush = Arc::clone(&sync_output_depth);
             std::thread::spawn(move || {
                 let mut perf_logger =
                     SnapshotPerfLogger::new(perf_debug_flush, &id_flush, "flush");
@@ -1146,12 +1094,6 @@ impl PtyManager {
                     let _ = cv
                         .wait_timeout(guard, RENDER_INTERVAL)
                         .unwrap_or_else(|e| e.into_inner());
-                    if !dirty_flush.load(Ordering::Acquire) {
-                        continue;
-                    }
-                    if sync_output_depth_flush.load(Ordering::Acquire) > 0 {
-                        continue;
-                    }
                     if dirty_flush.swap(false, Ordering::AcqRel) {
                         let emit_started_at = Instant::now();
                         emit_snapshot(&app_flush, &term_state, &id_flush);
@@ -1172,12 +1114,11 @@ impl PtyManager {
         let route_flag_reader = Arc::clone(&route_responses);
         let reported_cwd_reader = Arc::clone(&reported_cwd);
         let perf_debug_reader = perf_debug;
-        let sync_output_depth_reader = Arc::clone(&sync_output_depth);
         std::thread::spawn(move || {
+            eprintln!("[pty] Reader thread started for {id_clone}");
             let (_, cv) = &*flush_cond;
             let mut buf = [0u8; READ_BUFFER_SIZE];
             let mut osc7_pending = Vec::new();
-            let mut sync_output = SyncOutputTracker::default();
             let mut last_emit = Instant::now() - RENDER_INTERVAL; // emit first frame immediately
             let mut total_bytes: usize = 0;
             let mut perf_logger = SnapshotPerfLogger::new(perf_debug_reader, &id_clone, "reader");
@@ -1224,10 +1165,16 @@ impl PtyManager {
                                     }
                                 }
                             }
+                            if has_osc10 || has_osc11 {
+                                eprintln!(
+                                    "[pty] OSC color queries in chunk for {id_clone}: \
+                                     osc10={has_osc10}, osc11={has_osc11}, \
+                                     gate_open={}, total_bytes={total_bytes}",
+                                    route_flag_reader.load(Ordering::Relaxed),
+                                );
+                            }
                         }
 
-                        let sync_transition = sync_output.observe(&buf[..n]);
-                        sync_output_depth_reader.store(sync_output.depth, Ordering::Release);
                         term_state.advance_only(&id_clone, &buf[..n]);
 
                         // If a foreground query (OSC 10) arrived without a background
@@ -1236,6 +1183,7 @@ impl PtyManager {
                         // receives the bg color and can use explicit palette colors for its
                         // panels, fixing the "no background on first run" race.
                         if has_osc10 && !has_osc11 && route_flag_reader.load(Ordering::Acquire) {
+                            eprintln!("[pty] injecting synthetic OSC 11 query for {id_clone}");
                             term_state.advance_only(&id_clone, b"\x1b]11;?\x07");
                         }
 
@@ -1255,6 +1203,11 @@ impl PtyManager {
                                             eprintln!(
                                                 "[pty] response write failed for {id_clone}: {e}"
                                             );
+                                        } else {
+                                            eprintln!(
+                                                "[pty] routed {len} response bytes to PTY for {id_clone}",
+                                                len = responses.len(),
+                                            );
                                         }
                                         if let Err(e) = w.flush() {
                                             eprintln!(
@@ -1266,20 +1219,15 @@ impl PtyManager {
                                         eprintln!("[pty] writer lock failed for {id_clone}: {e}");
                                     }
                                 }
+                            } else {
+                                eprintln!(
+                                    "[pty] suppressed {len} response bytes during shell init for {id_clone}",
+                                    len = responses.len(),
+                                );
                             }
                         }
 
-                        if sync_transition.exited {
-                            dirty.store(false, Ordering::Release);
-                            let emit_started_at = Instant::now();
-                            if !emit_snapshot(&app, &term_state, &id_clone) {
-                                break;
-                            }
-                            perf_logger.record(emit_started_at);
-                            last_emit = Instant::now();
-                        } else if sync_output.is_active() {
-                            dirty.store(true, Ordering::Release);
-                        } else if last_emit.elapsed() >= RENDER_INTERVAL {
+                        if last_emit.elapsed() >= RENDER_INTERVAL {
                             // Record output timestamp for activity detection.
                             // Throttled to ~30fps — sub-frame precision is irrelevant
                             // given the 2-second idle threshold polled every 3 seconds.
@@ -1314,7 +1262,6 @@ impl PtyManager {
             }
 
             alive.store(false, Ordering::Release);
-            sync_output_depth_reader.store(0, Ordering::Release);
             // Wake flush thread so it exits immediately instead of waiting for the next interval
             cv.notify_one();
 
@@ -1511,66 +1458,11 @@ impl PtyManager {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        SyncOutputTracker, SyncOutputTransition, RENDER_INTERVAL, SYNC_OUTPUT_BEGIN,
-        SYNC_OUTPUT_END,
-    };
+    use super::RENDER_INTERVAL;
     use std::time::Duration;
 
     #[test]
     fn render_interval_targets_thirty_fps() {
         assert_eq!(RENDER_INTERVAL, Duration::from_millis(33));
-    }
-
-    #[test]
-    fn sync_output_tracker_detects_chunked_boundaries() {
-        let mut tracker = SyncOutputTracker::default();
-
-        let transition = tracker.observe(&SYNC_OUTPUT_BEGIN[..4]);
-        assert_eq!(transition, SyncOutputTransition::default());
-        assert!(!tracker.is_active());
-
-        let transition = tracker.observe(&SYNC_OUTPUT_BEGIN[4..]);
-        assert_eq!(
-            transition,
-            SyncOutputTransition {
-                entered: true,
-                exited: false,
-            }
-        );
-        assert!(tracker.is_active());
-
-        let transition = tracker.observe(b"payload");
-        assert_eq!(transition, SyncOutputTransition::default());
-        assert!(tracker.is_active());
-
-        let transition = tracker.observe(SYNC_OUTPUT_END);
-        assert_eq!(
-            transition,
-            SyncOutputTransition {
-                entered: false,
-                exited: true,
-            }
-        );
-        assert!(!tracker.is_active());
-    }
-
-    #[test]
-    fn sync_output_tracker_handles_multiple_sequences_in_one_chunk() {
-        let mut tracker = SyncOutputTracker::default();
-        let mut chunk = Vec::new();
-        chunk.extend_from_slice(SYNC_OUTPUT_BEGIN);
-        chunk.extend_from_slice(b"frame");
-        chunk.extend_from_slice(SYNC_OUTPUT_END);
-
-        let transition = tracker.observe(&chunk);
-        assert_eq!(
-            transition,
-            SyncOutputTransition {
-                entered: true,
-                exited: true,
-            }
-        );
-        assert!(!tracker.is_active());
     }
 }

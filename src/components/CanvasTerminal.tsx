@@ -80,8 +80,7 @@ const CURSOR_STATIC_OPACITY = 0.5;
 const CURSOR_IDLE_TIMEOUT_MS = 5000;
 /** Text blink toggle interval (ms). Standard terminal blink is ~500ms on/off. */
 const TEXT_BLINK_INTERVAL_MS = 500;
-const RESIZE_DEBOUNCE_MS = 32;
-const RESIZE_SETTLE_MS = 140;
+const RESIZE_DEBOUNCE_MS = 100;
 /** Bar cursor width as fraction of cell width. */
 const BAR_WIDTH_RATIO = 0.12;
 /** Underline cursor height as fraction of cell height. */
@@ -682,14 +681,6 @@ export function CanvasTerminal({
 	const zoomRafId = useRef(0);
 	const onTerminalContextMenuRef = useRef(onTerminalContextMenu);
 	const previousDrawnGridRef = useRef<GridSnapshot | null>(null);
-	const resizePreviewCanvasRef = useRef<HTMLCanvasElement | null>(null);
-	const pendingResizeTargetRef = useRef<{
-		cols: number;
-		rows: number;
-		pixelWidth: number;
-		pixelHeight: number;
-	} | null>(null);
-	const resizeCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const perfDebugRef = useRef(isTerminalPerfDebugEnabled());
 	const drawPerfRef = useRef<DrawPerfStats>({
 		count: 0,
@@ -710,18 +701,6 @@ export function CanvasTerminal({
 	fontSizeRef.current = fontSize;
 	onFontSizeChangeRef.current = onFontSizeChange;
 	onTerminalContextMenuRef.current = onTerminalContextMenu;
-
-	useEffect(() => {
-		const pendingTarget = pendingResizeTargetRef.current;
-		if (!pendingTarget) {
-			resizePreviewCanvasRef.current = null;
-			return;
-		}
-		if (grid && grid.cols === pendingTarget.cols && grid.totalRows === pendingTarget.rows) {
-			pendingResizeTargetRef.current = null;
-			resizePreviewCanvasRef.current = null;
-		}
-	}, [grid]);
 
 	/** Convert client (mouse) coordinates to a viewport-relative cell position.
 	 *  Returns viewport-relative {row, col} — NOT absolute physical rows. */
@@ -800,69 +779,6 @@ export function CanvasTerminal({
 			stats.lastReportAt = now;
 		},
 		[paneId],
-	);
-
-	const captureResizePreview = useCallback(() => {
-		const canvas = canvasRef.current;
-		if (!canvas || canvas.width <= 0 || canvas.height <= 0) {
-			resizePreviewCanvasRef.current = null;
-			return;
-		}
-		const preview = document.createElement("canvas");
-		preview.width = canvas.width;
-		preview.height = canvas.height;
-		const previewCtx = preview.getContext("2d");
-		if (!previewCtx) {
-			resizePreviewCanvasRef.current = null;
-			return;
-		}
-		previewCtx.drawImage(canvas, 0, 0);
-		resizePreviewCanvasRef.current = preview;
-	}, []);
-
-	const redrawResizePreview = useCallback(() => {
-		const canvas = canvasRef.current;
-		const ctx = ctxRef.current;
-		const preview = resizePreviewCanvasRef.current;
-		const snap = gridRef.current;
-		if (!canvas || !ctx) return;
-		if (!preview) {
-			previousDrawnGridRef.current = null;
-			drawRef.current({ forceFull: true });
-			return;
-		}
-		const sourceWidth = Math.min(preview.width, canvas.width);
-		const sourceHeight = Math.min(preview.height, canvas.height);
-		const destY = snap && snap.scrollOffset === 0 ? canvas.height - sourceHeight : 0;
-		const sourceY =
-			snap && snap.scrollOffset === 0 ? Math.max(0, preview.height - sourceHeight) : 0;
-		ctx.clearRect(0, 0, canvas.width, canvas.height);
-		ctx.drawImage(
-			preview,
-			0,
-			sourceY,
-			sourceWidth,
-			sourceHeight,
-			0,
-			destY,
-			sourceWidth,
-			sourceHeight,
-		);
-		previousDrawnGridRef.current = null;
-	}, []);
-
-	const scheduleResizeCommit = useCallback(
-		(cols: number, rows: number, pixelWidth: number, pixelHeight: number) => {
-			pendingResizeTargetRef.current = { cols, rows, pixelWidth, pixelHeight };
-			if (resizeCommitTimerRef.current) clearTimeout(resizeCommitTimerRef.current);
-			resizeCommitTimerRef.current = setTimeout(() => {
-				resizeCommitTimerRef.current = null;
-				const target = pendingResizeTargetRef.current;
-				if (!target) return;
-				onResizeRef.current(target.cols, target.rows, target.pixelWidth, target.pixelHeight);
-			}, RESIZE_SETTLE_MS);
-		},
-		[],
 	);
 
 	const paintRows = useCallback(
@@ -1019,14 +935,9 @@ export function CanvasTerminal({
 	const draw = useCallback((options?: DrawOptions) => {
 		const startedAt = performance.now();
 		const canvas = canvasRef.current;
+		const snap = gridRef.current;
 		const ctx = ctxRef.current;
 		if (!canvas || !ctx) return;
-		if (resizePreviewCanvasRef.current && pendingResizeTargetRef.current) {
-			redrawResizePreview();
-			recordDrawPerf("full", performance.now() - startedAt);
-			return;
-		}
-		const snap = gridRef.current;
 		if (!snap) {
 			// Grid cleared (e.g. PTY restart) — wipe stale pixels immediately
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1186,7 +1097,6 @@ export function CanvasTerminal({
 				if (rect.width <= 0 || rect.height <= 0) return;
 				const w = Math.floor(rect.width * dpr);
 				const h = Math.floor(rect.height * dpr);
-				captureResizePreview();
 
 				// Skip if dimensions haven't changed — avoids clearing the canvas
 				// (setting canvas.width/height always clears it, even to the same value)
@@ -1210,13 +1120,12 @@ export function CanvasTerminal({
 					const cols = Math.floor(w / cellW);
 					const rows = Math.floor(h / cellH);
 					if (cols > 0 && rows > 0) {
-						scheduleResizeCommit(cols, rows, Math.round(cellW * cols), Math.round(cellH * rows));
+						onResizeRef.current(cols, rows, Math.round(cellW * cols), Math.round(cellH * rows));
 					}
 				}
 
-				// Geometry changed — keep the previous terminal frame frozen and clipped
-				// while the real PTY resize is deferred until drag settle.
-				redrawResizePreview();
+				// Redraw after resize so the canvas isn't blank
+				drawRef.current();
 			}, RESIZE_DEBOUNCE_MS);
 		});
 
@@ -1225,7 +1134,7 @@ export function CanvasTerminal({
 			observer.disconnect();
 			if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
 		};
-	}, [captureResizePreview, measureCell, redrawResizePreview, scheduleResizeCommit]);
+	}, [measureCell]);
 
 	// Re-measure cells + resize + redraw when font metrics change (fontSize, fontFamily, lineHeight).
 	// The ResizeObserver only fires on container size changes, so metric-only changes need this.
@@ -1238,7 +1147,6 @@ export function CanvasTerminal({
 
 		const dpr = dprRef.current;
 		const { width: cellW, height: cellH } = cellMetrics.current;
-		let geometryChanged = false;
 		if (cellW > 0 && cellH > 0) {
 			const rect = container.getBoundingClientRect();
 			const w = Math.floor(rect.width * dpr);
@@ -1246,20 +1154,12 @@ export function CanvasTerminal({
 			const cols = Math.floor(w / cellW);
 			const rows = Math.floor(h / cellH);
 			if (cols > 0 && rows > 0) {
-				const snap = gridRef.current;
-				geometryChanged = snap !== null && (snap.cols !== cols || snap.totalRows !== rows);
-				if (geometryChanged) captureResizePreview();
-				scheduleResizeCommit(cols, rows, Math.round(cellW * cols), Math.round(cellH * rows));
+				onResizeRef.current(cols, rows, Math.round(cellW * cols), Math.round(cellH * rows));
 			}
 		}
 
-		if (geometryChanged) {
-			redrawResizePreview();
-			return;
-		}
-
 		drawRef.current();
-	}, [captureResizePreview, measureCell, redrawResizePreview, scheduleResizeCommit]);
+	}, [measureCell]);
 
 	// Wheel scroll → forward as SGR when mouse is grabbed, else scroll normally.
 	// Must use native addEventListener with { passive: false } to allow preventDefault
@@ -1463,10 +1363,6 @@ export function CanvasTerminal({
 			if (textBlinkTimerRef.current) {
 				clearInterval(textBlinkTimerRef.current);
 				textBlinkTimerRef.current = null;
-			}
-			if (resizeCommitTimerRef.current) {
-				clearTimeout(resizeCommitTimerRef.current);
-				resizeCommitTimerRef.current = null;
 			}
 			cache.dispose();
 		};
