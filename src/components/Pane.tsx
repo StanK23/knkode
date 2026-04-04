@@ -133,7 +133,7 @@ export const Pane = memo(function Pane({
 	const isScrolledRef = useRef(false);
 	const pendingScrollDelta = useRef(0);
 	const scrollRafId = useRef(0);
-	const resizeRefreshTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
+	const resizeRefreshTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 	const [scrollbarVisible, setScrollbarVisible] = useState(false);
 	const scrollbarVisibleRef = useRef(false);
 	const scrollbarTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -409,7 +409,8 @@ export const Pane = memo(function Pane({
 		return () => {
 			scrollDragCleanupRef.current?.();
 			if (scrollRafId.current) cancelAnimationFrame(scrollRafId.current);
-			if (resizeRefreshTimerRef.current) clearTimeout(resizeRefreshTimerRef.current);
+			for (const timer of resizeRefreshTimersRef.current) clearTimeout(timer);
+			resizeRefreshTimersRef.current = [];
 		};
 	}, []);
 
@@ -466,8 +467,10 @@ export const Pane = memo(function Pane({
 					console.error(`[pane] resizePty failed for ${paneId}:`, err);
 				});
 
-			if (resizeRefreshTimerRef.current) clearTimeout(resizeRefreshTimerRef.current);
-			resizeRefreshTimerRef.current = setTimeout(() => {
+			for (const timer of resizeRefreshTimersRef.current) clearTimeout(timer);
+			resizeRefreshTimersRef.current = [];
+
+			const refreshAfterResize = () => {
 				window.api
 					.scrollTerminal(paneId, scrollOffsetRef.current)
 					.then((snapshot) => {
@@ -480,7 +483,15 @@ export const Pane = memo(function Pane({
 					.catch((err: unknown) => {
 						console.error(`[pane] resize refresh failed for ${paneId}:`, err);
 					});
-			}, 48);
+			};
+
+			// Codex appears to repaint on its own SIGWINCH cadence, so one immediate
+			// post-resize snapshot can still catch an intermediate frame. Refresh a
+			// few times after the last resize event to converge on the final layout
+			// without forcing synchronous snapshots on every drag tick.
+			for (const delay of [48, 120, 220]) {
+				resizeRefreshTimersRef.current.push(setTimeout(refreshAfterResize, delay));
+			}
 		},
 		[paneId],
 	);

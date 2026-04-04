@@ -80,7 +80,7 @@ const CURSOR_STATIC_OPACITY = 0.5;
 const CURSOR_IDLE_TIMEOUT_MS = 5000;
 /** Text blink toggle interval (ms). Standard terminal blink is ~500ms on/off. */
 const TEXT_BLINK_INTERVAL_MS = 500;
-const RESIZE_DEBOUNCE_MS = 16;
+const RESIZE_DEBOUNCE_MS = 32;
 /** Bar cursor width as fraction of cell width. */
 const BAR_WIDTH_RATIO = 0.12;
 /** Underline cursor height as fraction of cell height. */
