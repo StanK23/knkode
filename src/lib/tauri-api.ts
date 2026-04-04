@@ -6,6 +6,7 @@ import type {
 	AppState,
 	GridSnapshot,
 	KnkodeApi,
+	PaneRenderTier,
 	PrInfo,
 	SelectionRange,
 	Snippet,
@@ -91,6 +92,8 @@ const _api: KnkodeApi = {
 	writePty: (id, data) => invoke("write_pty", { id, data }),
 	resizePty: (id, cols, rows, pixelWidth, pixelHeight) =>
 		invoke("resize_pty", { id, cols, rows, pixelWidth, pixelHeight }),
+	setPaneRenderTier: (id: string, tier: PaneRenderTier) =>
+		invoke("set_pane_render_tier", { id, tier }),
 	killPty: (id) => invoke("kill_pty", { id }),
 
 	// Terminal scroll

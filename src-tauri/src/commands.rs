@@ -1,5 +1,5 @@
 use crate::config::ConfigStore;
-use crate::pty::PtyManager;
+use crate::pty::{PaneRenderTier, PtyManager};
 use crate::session_scanner;
 use crate::terminal::{AnsiThemeColors, GridSnapshot, SelectionRange, TerminalState};
 use crate::tracker::CwdTracker;
@@ -261,6 +261,15 @@ pub fn resize_pty(
     let pw = pixel_width.unwrap_or(0).min(16384);
     let ph = pixel_height.unwrap_or(0).min(16384);
     pty_mgr.resize(&id, cols, rows, pw, ph)
+}
+
+#[tauri::command]
+pub fn set_pane_render_tier(
+    id: String,
+    tier: PaneRenderTier,
+    pty_mgr: State<'_, Arc<PtyManager>>,
+) -> Result<(), String> {
+    pty_mgr.set_render_tier(&id, tier)
 }
 
 /// Register a pane for git branch/PR tracking without spawning a PTY.

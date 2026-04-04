@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { HotkeyPanel } from "./components/HotkeyPanel";
 import { PaneArea } from "./components/PaneArea";
@@ -9,7 +9,9 @@ import { findPreset } from "./data/theme-presets";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useUpdateChecker } from "./hooks/useUpdateChecker";
 import { dispatchRender } from "./lib/render-dispatcher";
+import type { PaneRenderTier } from "./shared/types";
 import { useStore } from "./store";
+import { getPaneRenderTiers, isForegroundPaneRenderTier } from "./utils/pane-render-tier";
 import { generateThemeVariables } from "./utils/colors";
 import { isWindows, WINDOWS_CAPTION_BUTTON_WIDTH } from "./utils/platform";
 
@@ -26,6 +28,8 @@ export function App() {
 	const updatePaneTitle = useStore((s) => s.updatePaneTitle);
 	const handlePtyExit = useStore((s) => s.handlePtyExit);
 	const visitedWorkspaceIds = useStore((s) => s.visitedWorkspaceIds);
+	const focusedPaneId = useStore((s) => s.focusedPaneId);
+	const activePtyIds = useStore((s) => s.activePtyIds);
 
 	const [updateState, updateActions] = useUpdateChecker();
 
@@ -171,6 +175,58 @@ export function App() {
 		() => workspaces.filter((w) => visitedWorkspaceIds.includes(w.id)),
 		[workspaces, visitedWorkspaceIds],
 	);
+	const paneRenderTiers = useMemo(
+		() =>
+			getPaneRenderTiers({
+				workspaces,
+				openWorkspaceIds: appState.openWorkspaceIds,
+				activeWorkspaceId: appState.activeWorkspaceId,
+				visitedWorkspaceIds,
+				focusedPaneId,
+				activePtyIds,
+			}),
+		[
+			workspaces,
+			appState.openWorkspaceIds,
+			appState.activeWorkspaceId,
+			visitedWorkspaceIds,
+			focusedPaneId,
+			activePtyIds,
+		],
+	);
+	const previousPaneRenderTiersRef = useRef<Record<string, PaneRenderTier>>({});
+
+	useEffect(() => {
+		const previousTiers = previousPaneRenderTiersRef.current;
+		const currentTiers = paneRenderTiers;
+		const paneIds = new Set([
+			...Object.keys(previousTiers),
+			...Object.keys(currentTiers),
+		]);
+
+		for (const paneId of paneIds) {
+			const nextTier = currentTiers[paneId];
+			if (!nextTier || previousTiers[paneId] === nextTier) continue;
+
+			window.api.setPaneRenderTier(paneId, nextTier).catch((err) => {
+				console.warn(`[app] setPaneRenderTier failed for ${paneId}:`, err);
+			});
+
+			if (
+				isForegroundPaneRenderTier(nextTier) &&
+				!isForegroundPaneRenderTier(previousTiers[paneId] ?? "unmounted")
+			) {
+				window.api
+					.scrollTerminal(paneId, 0)
+					.then((snapshot) => dispatchRender(paneId, snapshot))
+					.catch((err) => {
+						console.warn(`[app] foreground refresh failed for ${paneId}:`, err);
+					});
+			}
+		}
+
+		previousPaneRenderTiersRef.current = currentTiers;
+	}, [paneRenderTiers]);
 
 	if (!initialized) {
 		return (

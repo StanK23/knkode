@@ -301,6 +301,17 @@ export interface PrInfo {
 	readonly title: string;
 }
 
+/** Render priority tier for a pane's terminal snapshots.
+ *  PTY reads and terminal-state updates stay immediate for all panes; only
+ *  snapshot emission cadence changes by tier. */
+export const PANE_RENDER_TIERS = [
+	"focused-visible",
+	"visible",
+	"hidden-mounted",
+	"unmounted",
+] as const;
+export type PaneRenderTier = (typeof PANE_RENDER_TIERS)[number];
+
 export const PANE_SCROLL_EVENT = "pane:scroll" as const;
 export const PANE_RENAME_EVENT = "pane:rename" as const;
 
@@ -446,6 +457,7 @@ export interface KnkodeApi {
 		pixelWidth: number,
 		pixelHeight: number,
 	): Promise<void>;
+	setPaneRenderTier(id: string, tier: PaneRenderTier): Promise<void>;
 	killPty(id: string): Promise<void>;
 
 	// Terminal scroll — request a snapshot at a given scrollback offset (0 = bottom)

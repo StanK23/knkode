@@ -45,6 +45,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             commands::track_pane_git,
             commands::write_pty,
             commands::resize_pty,
+            commands::set_pane_render_tier,
             commands::kill_pty,
             commands::scroll_terminal,
             commands::set_terminal_colors,
