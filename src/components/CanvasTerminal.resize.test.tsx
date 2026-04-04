@@ -211,4 +211,48 @@ describe("CanvasTerminal resize redraw", () => {
 
 		expect(drawImage).toHaveBeenCalled();
 	});
+
+	it("anchors the bitmap preview to the bottom for the live viewport", async () => {
+		size.height = 30;
+
+		render(
+			<CanvasTerminal
+				grid={makeGrid(["aaa", "bbb", "ccc"])}
+				onWrite={() => {}}
+				onResize={() => {}}
+				onScroll={() => {}}
+				paneId="pane-1"
+				isFocused={false}
+			/>,
+		);
+
+		drawImage.mockReset();
+		size.height = 10;
+
+		await act(async () => {
+			ResizeObserverMock.instances[0]?.trigger();
+			await vi.runAllTimersAsync();
+		});
+
+		const lastCall = drawImage.mock.calls.at(-1);
+		expect(lastCall).toBeDefined();
+		const [preview, sx, sy, sw, sh, dx, dy, dw, dh] = lastCall as [
+			HTMLCanvasElement,
+			number,
+			number,
+			number,
+			number,
+			number,
+			number,
+			number,
+			number,
+		];
+		expect(sx).toBe(0);
+		expect(sy).toBe(preview.height - sh);
+		expect(sw).toBe(preview.width);
+		expect(dx).toBe(0);
+		expect(dy).toBe(0);
+		expect(dw).toBe(size.width);
+		expect(dh).toBe(size.height);
+	});
 });

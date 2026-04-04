@@ -808,14 +808,29 @@ export function CanvasTerminal({
 		const canvas = canvasRef.current;
 		const ctx = ctxRef.current;
 		const preview = resizePreviewCanvasRef.current;
+		const snap = gridRef.current;
 		if (!canvas || !ctx) return;
 		if (!preview) {
 			previousDrawnGridRef.current = null;
 			drawRef.current({ forceFull: true });
 			return;
 		}
+		const sourceWidth = preview.width;
+		const sourceHeight = Math.min(preview.height, canvas.height);
+		const sourceY =
+			snap && snap.scrollOffset === 0 ? Math.max(0, preview.height - sourceHeight) : 0;
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
-		ctx.drawImage(preview, 0, 0, preview.width, preview.height, 0, 0, canvas.width, canvas.height);
+		ctx.drawImage(
+			preview,
+			0,
+			sourceY,
+			sourceWidth,
+			sourceHeight,
+			0,
+			0,
+			canvas.width,
+			canvas.height,
+		);
 		previousDrawnGridRef.current = null;
 	}, []);
 
