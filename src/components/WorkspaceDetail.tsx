@@ -123,15 +123,14 @@ export function WorkspaceDetail({
 		<div className="flex-1 min-h-0 px-5 py-5 overflow-y-auto overflow-x-hidden flex flex-col gap-7">
 			{/* General */}
 			<SettingsSection label="General">
-				<label className="flex items-center gap-3">
-					<span className="text-xs text-content-secondary w-16 shrink-0">Name</span>
-					<input
-						value={name}
-						onChange={(e) => onNameChange(e.target.value)}
-						maxLength={128}
-						className="settings-input flex-1 min-w-0"
-					/>
-				</label>
+				<input
+					value={name}
+					onChange={(e) => onNameChange(e.target.value)}
+					maxLength={128}
+					className="settings-input flex-1 min-w-0"
+					placeholder="Workspace name"
+					aria-label="Workspace name"
+				/>
 			</SettingsSection>
 
 			{/* Panes */}
@@ -176,14 +175,6 @@ export function WorkspaceDetail({
 					</div>
 				))}
 			</SettingsSection>
-
-			{/* Status Bar Position */}
-			<SegmentedButton
-				options={STATUS_BAR_POSITIONS}
-				value={statusBarPosition}
-				onChange={onStatusBarPositionChange}
-				label="Status bar"
-			/>
 
 			{/* Theme */}
 			<SettingsSection label="Theme" gap={16}>
@@ -343,6 +334,13 @@ export function WorkspaceDetail({
 					/>
 					<span className="text-[11px] text-content-muted">lines</span>
 				</label>
+
+				<SegmentedButton
+					options={STATUS_BAR_POSITIONS}
+					value={statusBarPosition}
+					onChange={onStatusBarPositionChange}
+					label="Status bar"
+				/>
 
 				{EFFECT_ENTRIES.map(({ category, label }) => (
 					<SegmentedButton
