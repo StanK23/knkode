@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useState } from "react";
 import { THEME_PRESETS, type ThemePreset, type ThemePresetName } from "../data/theme-presets";
 import {
 	CURSOR_STYLES,
@@ -40,6 +41,10 @@ const EFFECT_ENTRIES: readonly { category: EffectCategory; label: string }[] = [
 ];
 
 const THEME_PRESET_OPTIONS: readonly (ThemePreset & { name: ThemePresetName })[] = THEME_PRESETS;
+
+function clampScrollback(value: number): number {
+	return Math.max(MIN_SCROLLBACK, Math.min(MAX_SCROLLBACK, value));
+}
 
 interface WorkspaceDetailProps {
 	workspaceId: string;
@@ -91,6 +96,24 @@ export function WorkspaceDetail({
 	onEffectChange,
 }: WorkspaceDetailProps) {
 	const workspaceSnippetController = useWorkspaceSnippetController(workspaceId);
+	const [scrollbackInput, setScrollbackInput] = useState(() => String(scrollback));
+
+	useEffect(() => {
+		setScrollbackInput(String(scrollback));
+	}, [scrollback]);
+
+	const commitScrollback = useCallback(() => {
+		const parsed = Number(scrollbackInput);
+		if (!Number.isFinite(parsed)) {
+			setScrollbackInput(String(scrollback));
+			return;
+		}
+		const nextValue = clampScrollback(parsed);
+		setScrollbackInput(String(nextValue));
+		if (nextValue !== scrollback) {
+			onScrollbackChange(nextValue);
+		}
+	}, [onScrollbackChange, scrollback, scrollbackInput]);
 
 	return (
 		<div className="flex-1 min-h-0 px-4 md:px-5 py-5 overflow-y-auto overflow-x-hidden flex flex-col gap-7">
@@ -298,11 +321,20 @@ export function WorkspaceDetail({
 						min={MIN_SCROLLBACK}
 						max={MAX_SCROLLBACK}
 						step={500}
-						value={scrollback}
-						onChange={(e) => {
-							const n = Number(e.target.value);
-							if (!Number.isFinite(n)) return;
-							onScrollbackChange(Math.max(MIN_SCROLLBACK, Math.min(MAX_SCROLLBACK, n)));
+						value={scrollbackInput}
+						onChange={(e) => setScrollbackInput(e.target.value)}
+						onBlur={commitScrollback}
+						onKeyDown={(e) => {
+							if (e.key === "Enter") {
+								e.preventDefault();
+								commitScrollback();
+								e.currentTarget.blur();
+							}
+							if (e.key === "Escape") {
+								e.preventDefault();
+								setScrollbackInput(String(scrollback));
+								e.currentTarget.blur();
+							}
 						}}
 						className="settings-input w-24"
 					/>

@@ -6,6 +6,8 @@
 
 PR #83 (`feat: multi-workspace settings with master-detail layout`) is still open. The review follow-up now covers both the blocking findings and the non-blocking cleanup suggestions from the current `pr-swarm` pass without changing branch or PR scope.
 
+Latest follow-up on the same branch fixes the workspace scrollback field so users can clear and retype a new value freely; the value now clamps only when the edit is committed.
+
 ## In Progress
 
 ### PR #83 review fixes
@@ -27,6 +29,7 @@ Included:
 ## Verification
 
 - `bun x vitest run src/components/SettingsPanel.test.tsx src/components/WorkspaceList.test.tsx src/components/SnippetPanels.test.tsx src/store/workspace-pane-actions.test.ts src/store/layout-tree.test.ts`
+- `bun x vitest run src/components/WorkspaceDetail.test.tsx src/components/SettingsPanel.test.tsx`
 - `bun x tsc --noEmit`
 
 ## What’s Next
