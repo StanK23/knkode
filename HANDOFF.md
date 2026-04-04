@@ -2,11 +2,27 @@
 
 ## Current State
 
-**Version**: 2.3.0 | **Branch**: `main` | **Open PRs**: none
+**Version**: 2.3.1 | **Branch**: `fix/codex-resize-redraw-history-loss` | **Open PRs**: none
 
-PR #80 is merged into `main`. It shipped the Windows TUI input-lag reduction work plus follow-up fixes for terminal focus retention, pane-toolbar button regressions, and session-history resume focus restore.
+PR #80 is merged into `main`. Current work is implemented on `fix/codex-resize-redraw-history-loss` and is ready to be committed/pushed as the next PR.
 
 ## Recently Completed
+
+### Codex resize redraw history loss
+
+Implemented on `fix/codex-resize-redraw-history-loss`.
+
+Included:
+1. **Fresh post-resize snapshots** — `resize_pty` now returns a new `GridSnapshot` at the current scroll offset immediately after PTY/terminal geometry changes, instead of returning only success/failure.
+2. **Immediate pane snapshot install** — `Pane.handleResize()` now applies that returned snapshot right away, updates scroll refs, and replaces any stale pending snapshot so Codex panes do not stay stuck on clipped pre-resize content.
+3. **No stale redraw after real geometry changes** — `CanvasTerminal` no longer repaints stale pre-resize rows into the resized canvas. On a real geometry change it now clears/invalidates and waits for the fresh snapshot.
+4. **Reduced resize artifact window** — canvas resize debounce was reduced from `100ms` to `16ms` to cut the visible stale-bitmap shrink/stretch effect during live resize.
+5. **Regression coverage** — added `src/components/CanvasTerminal.resize.test.tsx` to pin the geometry-changing resize invalidation behavior, and updated the existing focus test harness so the canvas tests run cleanly under `bun x vitest`.
+
+Verified locally:
+- `bun x vitest run`
+- `bun x tsc --noEmit`
+- `cargo check --manifest-path src-tauri/Cargo.toml`
 
 ### Windows TUI input-lag reduction
 
@@ -53,14 +69,14 @@ Included:
 
 ## What’s Next
 
-1. Reproduce on the affected Windows machine and compare typing latency while Claude/Codex stream output.
-2. If more evidence is needed, enable:
-   - frontend logging: `localStorage.setItem("knkode:debug-terminal-perf", "1")`
-   - backend logging: launch with `KNKODE_DEBUG_TERMINAL_PERF=1`
-3. Validate that launching a TUI and switching back to an already-selected pane restores keyboard focus without requiring a click.
-4. Validate that quick commands and session history buttons work normally again after the focus changes.
-5. Validate that restoring a session from history also returns focus to the terminal immediately.
-6. If the manual pass surfaces a remaining Windows-specific regression, open a follow-up board/card from `main`.
+1. Commit, push, and open the PR from `fix/codex-resize-redraw-history-loss`.
+2. Manually validate on the affected machine:
+   - resize a Codex pane narrower and shorter repeatedly
+   - confirm the newest visible output remains visible after resize
+   - confirm the stale shrink/stretch artifact no longer sticks until later output
+3. Verify scrolled-up panes still preserve scrollback position across resize.
+4. Verify normal shell panes still repaint correctly after resize.
+5. If any remaining resize issue appears, check whether it is a secondary wrap/reflow problem rather than the stale-snapshot bug fixed here.
 
 ## Important Decisions
 
