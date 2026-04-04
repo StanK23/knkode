@@ -681,6 +681,7 @@ export function CanvasTerminal({
 	const zoomRafId = useRef(0);
 	const onTerminalContextMenuRef = useRef(onTerminalContextMenu);
 	const previousDrawnGridRef = useRef<GridSnapshot | null>(null);
+	const resizePreviewGridRef = useRef<GridSnapshot | null>(null);
 	const perfDebugRef = useRef(isTerminalPerfDebugEnabled());
 	const drawPerfRef = useRef<DrawPerfStats>({
 		count: 0,
@@ -701,6 +702,10 @@ export function CanvasTerminal({
 	fontSizeRef.current = fontSize;
 	onFontSizeChangeRef.current = onFontSizeChange;
 	onTerminalContextMenuRef.current = onTerminalContextMenu;
+
+	useEffect(() => {
+		resizePreviewGridRef.current = null;
+	}, [grid]);
 
 	/** Convert client (mouse) coordinates to a viewport-relative cell position.
 	 *  Returns viewport-relative {row, col} — NOT absolute physical rows. */
@@ -781,7 +786,38 @@ export function CanvasTerminal({
 		[paneId],
 	);
 
-	const redrawResizePreview = useCallback(() => {
+	const redrawResizePreview = useCallback((cols: number, rows: number) => {
+		const snap = gridRef.current;
+		if (!snap) {
+			resizePreviewGridRef.current = null;
+			previousDrawnGridRef.current = null;
+			drawRef.current({ forceFull: true });
+			return;
+		}
+
+		const targetCols = Math.max(1, cols);
+		const targetRows = Math.max(1, rows);
+		const trimmedRows = snap.rows.map((row) => row.slice(0, targetCols));
+		let previewRows = trimmedRows;
+		let cursorRow = snap.cursorRow;
+
+		if (trimmedRows.length > targetRows) {
+			if (snap.scrollOffset === 0) {
+				const dropped = trimmedRows.length - targetRows;
+				previewRows = trimmedRows.slice(dropped);
+				cursorRow = Math.max(0, cursorRow - dropped);
+			} else {
+				previewRows = trimmedRows.slice(0, targetRows);
+			}
+		}
+
+		resizePreviewGridRef.current = {
+			...snap,
+			rows: previewRows,
+			cols: targetCols,
+			totalRows: targetRows,
+			cursorRow,
+		};
 		previousDrawnGridRef.current = null;
 		drawRef.current({ forceFull: true });
 	}, []);
@@ -940,7 +976,7 @@ export function CanvasTerminal({
 	const draw = useCallback((options?: DrawOptions) => {
 		const startedAt = performance.now();
 		const canvas = canvasRef.current;
-		const snap = gridRef.current;
+		const snap = resizePreviewGridRef.current ?? gridRef.current;
 		const ctx = ctxRef.current;
 		if (!canvas || !ctx) return;
 		if (!snap) {
@@ -1102,6 +1138,8 @@ export function CanvasTerminal({
 				if (rect.width <= 0 || rect.height <= 0) return;
 				const w = Math.floor(rect.width * dpr);
 				const h = Math.floor(rect.height * dpr);
+				let cols = 0;
+				let rows = 0;
 
 				// Skip if dimensions haven't changed — avoids clearing the canvas
 				// (setting canvas.width/height always clears it, even to the same value)
@@ -1122,16 +1160,17 @@ export function CanvasTerminal({
 
 				const { width: cellW, height: cellH } = cellMetrics.current;
 				if (cellW > 0 && cellH > 0) {
-					const cols = Math.floor(w / cellW);
-					const rows = Math.floor(h / cellH);
+					cols = Math.floor(w / cellW);
+					rows = Math.floor(h / cellH);
 					if (cols > 0 && rows > 0) {
 						onResizeRef.current(cols, rows, Math.round(cellW * cols), Math.round(cellH * rows));
 					}
 				}
 
-				// Geometry changed — redraw a cheap preview immediately and let Pane
-				// request a fresh post-resize snapshot once the resize settles.
-				redrawResizePreview();
+				// Geometry changed — redraw a cheap local preview anchored to the
+				// latest visible rows. Let the normal terminal render stream replace
+				// it once the PTY has actually repainted at the new size.
+				redrawResizePreview(cols, rows);
 			}, RESIZE_DEBOUNCE_MS);
 		});
 
@@ -1154,12 +1193,14 @@ export function CanvasTerminal({
 		const dpr = dprRef.current;
 		const { width: cellW, height: cellH } = cellMetrics.current;
 		let geometryChanged = false;
+		let cols = 0;
+		let rows = 0;
 		if (cellW > 0 && cellH > 0) {
 			const rect = container.getBoundingClientRect();
 			const w = Math.floor(rect.width * dpr);
 			const h = Math.floor(rect.height * dpr);
-			const cols = Math.floor(w / cellW);
-			const rows = Math.floor(h / cellH);
+			cols = Math.floor(w / cellW);
+			rows = Math.floor(h / cellH);
 			if (cols > 0 && rows > 0) {
 				const snap = gridRef.current;
 				geometryChanged = snap !== null && (snap.cols !== cols || snap.totalRows !== rows);
@@ -1168,7 +1209,7 @@ export function CanvasTerminal({
 		}
 
 		if (geometryChanged) {
-			redrawResizePreview();
+			redrawResizePreview(cols, rows);
 			return;
 		}
 

@@ -133,7 +133,6 @@ export const Pane = memo(function Pane({
 	const isScrolledRef = useRef(false);
 	const pendingScrollDelta = useRef(0);
 	const scrollRafId = useRef(0);
-	const resizeRefreshTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 	const [scrollbarVisible, setScrollbarVisible] = useState(false);
 	const scrollbarVisibleRef = useRef(false);
 	const scrollbarTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -409,8 +408,6 @@ export const Pane = memo(function Pane({
 		return () => {
 			scrollDragCleanupRef.current?.();
 			if (scrollRafId.current) cancelAnimationFrame(scrollRafId.current);
-			for (const timer of resizeRefreshTimersRef.current) clearTimeout(timer);
-			resizeRefreshTimersRef.current = [];
 		};
 	}, []);
 
@@ -466,31 +463,6 @@ export const Pane = memo(function Pane({
 				.catch((err: unknown) => {
 					console.error(`[pane] resizePty failed for ${paneId}:`, err);
 				});
-
-			for (const timer of resizeRefreshTimersRef.current) clearTimeout(timer);
-			resizeRefreshTimersRef.current = [];
-
-			const refreshAfterResize = () => {
-				window.api
-					.scrollTerminal(paneId, scrollOffsetRef.current)
-					.then((snapshot) => {
-						maxScrollRef.current = snapshot.scrollbackRows;
-						scrollOffsetRef.current = snapshot.scrollOffset;
-						isScrolledRef.current = snapshot.scrollOffset > 0;
-						pendingGridRef.current = snapshot;
-						setGrid(snapshot);
-					})
-					.catch((err: unknown) => {
-						console.error(`[pane] resize refresh failed for ${paneId}:`, err);
-					});
-			};
-
-			// Codex appears to repaint on its own SIGWINCH cadence, so refreshing
-			// immediately after the final resize event can still catch an
-			// intermediate wrapped frame. Use one later settled refresh instead of
-			// multiple back-to-back snapshots, which made resize-end latency feel
-			// heavy on large buffers.
-			resizeRefreshTimersRef.current.push(setTimeout(refreshAfterResize, 180));
 		},
 		[paneId],
 	);
