@@ -8,10 +8,15 @@ import { Sidebar } from "./components/Sidebar";
 import { findPreset } from "./data/theme-presets";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useUpdateChecker } from "./hooks/useUpdateChecker";
+import { requestPaneRefresh } from "./lib/pane-refresh-dispatcher";
 import { dispatchRender } from "./lib/render-dispatcher";
 import type { PaneRenderTier } from "./shared/types";
 import { useStore } from "./store";
-import { getPaneRenderTiers, isForegroundPaneRenderTier } from "./utils/pane-render-tier";
+import { getPaneRenderTiers } from "./utils/pane-render-tier";
+import {
+	getPaneRenderTierChanges,
+	prunePaneRenderTiers,
+} from "./utils/pane-render-sync";
 import { generateThemeVariables } from "./utils/colors";
 import { isWindows, WINDOWS_CAPTION_BUTTON_WIDTH } from "./utils/platform";
 
@@ -195,38 +200,59 @@ export function App() {
 		],
 	);
 	const previousPaneRenderTiersRef = useRef<Record<string, PaneRenderTier>>({});
+	const pendingPaneRenderTiersRef = useRef<Record<string, PaneRenderTier>>({});
+	const [paneRenderTierRetryNonce, setPaneRenderTierRetryNonce] = useState(0);
 
 	useEffect(() => {
-		const previousTiers = previousPaneRenderTiersRef.current;
-		const currentTiers = paneRenderTiers;
-		const paneIds = new Set([
-			...Object.keys(previousTiers),
-			...Object.keys(currentTiers),
-		]);
+		const previousTiers = prunePaneRenderTiers(
+			previousPaneRenderTiersRef.current,
+			paneRenderTiers,
+		);
+		const pendingTiers = prunePaneRenderTiers(
+			pendingPaneRenderTiersRef.current,
+			paneRenderTiers,
+		);
+		previousPaneRenderTiersRef.current = previousTiers;
+		pendingPaneRenderTiersRef.current = pendingTiers;
+		let cancelled = false;
 
-		for (const paneId of paneIds) {
-			const nextTier = currentTiers[paneId];
-			if (!nextTier || previousTiers[paneId] === nextTier) continue;
+		for (const change of getPaneRenderTierChanges(previousTiers, paneRenderTiers)) {
+			if (pendingTiers[change.paneId] === change.nextTier) continue;
 
-			window.api.setPaneRenderTier(paneId, nextTier).catch((err) => {
-				console.warn(`[app] setPaneRenderTier failed for ${paneId}:`, err);
-			});
+			pendingPaneRenderTiersRef.current = {
+				...pendingPaneRenderTiersRef.current,
+				[change.paneId]: change.nextTier,
+			};
 
-			if (
-				isForegroundPaneRenderTier(nextTier) &&
-				!isForegroundPaneRenderTier(previousTiers[paneId] ?? "unmounted")
-			) {
-				window.api
-					.scrollTerminal(paneId, 0)
-					.then((snapshot) => dispatchRender(paneId, snapshot))
-					.catch((err) => {
-						console.warn(`[app] foreground refresh failed for ${paneId}:`, err);
-					});
-			}
+			window.api
+				.setPaneRenderTier(change.paneId, change.nextTier)
+				.then(() => {
+					if (cancelled) return;
+					const nextPending = { ...pendingPaneRenderTiersRef.current };
+					delete nextPending[change.paneId];
+					pendingPaneRenderTiersRef.current = nextPending;
+					previousPaneRenderTiersRef.current = {
+						...previousPaneRenderTiersRef.current,
+						[change.paneId]: change.nextTier,
+					};
+					if (change.shouldRefreshMountedPane) {
+						requestPaneRefresh(change.paneId);
+					}
+				})
+				.catch((err) => {
+					if (cancelled) return;
+					const nextPending = { ...pendingPaneRenderTiersRef.current };
+					delete nextPending[change.paneId];
+					pendingPaneRenderTiersRef.current = nextPending;
+					console.warn(`[app] setPaneRenderTier failed for ${change.paneId}:`, err);
+					setPaneRenderTierRetryNonce((value) => value + 1);
+				});
 		}
 
-		previousPaneRenderTiersRef.current = currentTiers;
-	}, [paneRenderTiers]);
+		return () => {
+			cancelled = true;
+		};
+	}, [paneRenderTiers, paneRenderTierRetryNonce]);
 
 	if (!initialized) {
 		return (

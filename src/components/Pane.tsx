@@ -4,6 +4,7 @@ import { useFileDrop } from "../hooks/useFileDrop";
 import { useInlineEdit } from "../hooks/useInlineEdit";
 import { usePaneDragDrop } from "../hooks/usePaneDragDrop";
 import { ZONE_STYLES } from "../lib/pane-drag-utils";
+import { registerPaneRefreshListener } from "../lib/pane-refresh-dispatcher";
 import { registerRenderListener } from "../lib/render-dispatcher";
 import { SCROLLBAR_HIDE_DELAY_MS, type ScreenPosition } from "../lib/ui-constants";
 import {
@@ -274,8 +275,25 @@ export const Pane = memo(function Pane({
 				.catch(console.error);
 		}
 
+		const unregisterRefresh = registerPaneRefreshListener(paneId, async () => {
+			const requestedOffset = scrollOffsetRef.current;
+			const snapshot = await window.api.scrollTerminal(paneId, requestedOffset);
+			maxScrollRef.current = snapshot.scrollbackRows;
+			if (requestedOffset === 0) {
+				if (!isScrolledRef.current) {
+					pendingGridRef.current = null;
+					setGrid(snapshot);
+				}
+				return;
+			}
+			if (scrollOffsetRef.current === requestedOffset) {
+				setGrid(snapshot);
+			}
+		});
+
 		return () => {
 			unregister();
+			unregisterRefresh();
 			if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
 		};
 	}, [paneId]);
