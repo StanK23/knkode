@@ -2,72 +2,41 @@
 
 ## Current State
 
-**Version**: 2.3.1 | **Branch**: `main` | **Open PRs**: none
+**Version**: 2.3.1 | **Branch**: `feature/settings-workspaces-multiview` | **Open PRs**: [#83](https://github.com/knkenko/knkode/pull/83)
 
-PR #80 is merged into `main`. It shipped the Windows TUI input-lag reduction work plus follow-up fixes for terminal focus retention, pane-toolbar button regressions, and session-history resume focus restore.
+PR #83 (`feat: multi-workspace settings with master-detail layout`) is still open. A follow-up fix pass now addresses the current `pr-swarm` findings without changing branch or PR scope.
 
-PR #82 is merged into `main` as `f728440`. It adds per-pane terminal render cadence based on visibility/focus so hidden mounted workspaces cost less without slowing the active pane, lowers the default terminal scrollback from `50000` to `10000` lines for new/fallback pane configs, and removes routine PTY/terminal debug noise from the runtime logs.
+## In Progress
 
-## Recently Completed
+### PR #83 review fixes
 
-### Windows TUI input-lag reduction
-
-Implemented on `investigate/windows-tui-input-lag`.
+Implemented on `feature/settings-workspaces-multiview`.
 
 Included:
-1. **Lower terminal snapshot cadence** — reduced Rust PTY snapshot throttling from ~60fps to ~30fps by changing `RENDER_INTERVAL` from `16ms` to `33ms`.
-2. **Incremental canvas redraws** — added viewport diffing so streaming terminal updates repaint only changed rows instead of clearing and redrawing the entire visible grid on every snapshot.
-3. **No runtime scroll blitting** — the experimental bitmap blit path caused visual corruption during TUI scrolling, so runtime now keeps blitting disabled and falls back to safe redraw behavior for shifted viewports.
-4. **Safe fallbacks** — selection-heavy states, link-hover redraws, and image-bearing snapshots still force full redraws so behavior stays correct while the hot path is reduced.
-5. **Opt-in perf instrumentation** — added frontend draw logging behind `localStorage["knkode:debug-terminal-perf"]="1"` and backend snapshot logging behind `KNKODE_DEBUG_TERMINAL_PERF=1`.
-6. **Regression coverage** — added `src/utils/terminal-render.test.ts` for row-diff/runtime-no-blit decisions and a Rust unit test asserting the 30fps render interval.
+1. **Deterministic draft persistence on workspace switch** — selecting another workspace now flushes the current draft first; the dialog no longer relies on the debounced save eventually landing before the selection changes.
+2. **Async failure handling for add/delete** — workspace creation and deletion now keep the current selection stable until the async store action succeeds, and failures surface inline in the settings header instead of silently drifting the UI.
+3. **Safe empty-state mount** — settings no longer assume `workspaces[0]!`; if no workspace is available, the workspaces tab renders a safe empty state with a create action.
+4. **Responsive master-detail reflow** — the left rail stacks above the detail view on narrow widths, and pane setting rows wrap into a grid so the dialog remains usable at tighter widths / higher zoom.
+5. **Semantic workspace navigation** — the workspace rail now uses plain navigation/button semantics instead of mismatched `listbox` / `option` roles.
+6. **Regression coverage** — added `src/components/SettingsPanel.test.tsx` covering draft flush on switch, add/delete failure handling, and safe empty-state rendering.
 
-### Terminal focus retention
+## Verification
 
-Verified locally:
-- `bunx tsc --noEmit`
-- `bun run test -- src/components/CanvasTerminal.focus.test.tsx src/utils/terminal-render.test.ts src/utils/terminal-background.test.ts src/utils/pane-spawn.test.ts`
-- `cargo test --manifest-path src-tauri/Cargo.toml`
-
-Implemented on `investigate/windows-tui-input-lag`.
-
-Included:
-1. **Launch-time focus restore** — the terminal container now takes DOM focus when a pane mounts in the focused state, so starting Claude/Codex/Gemini no longer requires a follow-up click before typing.
-2. **Same-pane re-focus support** — pane focus now propagates the store’s monotonic `focusGeneration` token through `PaneArea` and `Pane`, so re-selecting an already highlighted pane re-focuses the active TUI.
-3. **Focused regression coverage** — added `src/components/CanvasTerminal.focus.test.tsx` to pin both mount-time focus and same-pane re-focus behavior.
-
-### Pane toolbar button regression
-
-Implemented on `investigate/windows-tui-input-lag`.
-
-Included:
-1. **Interactive-target guard on pane mouse focus** — pane-level `onMouseDown` no longer re-focuses the terminal when the user clicks toolbar controls such as quick commands, session history, close, or split buttons.
-2. **Header drag guard for toolbar controls** — the pane-header drag/focus handler now ignores interactive targets too, so toolbar clicks are not intercepted by drag startup or terminal refocus.
-3. **Preserved TUI focus behavior** — clicks on pane body/background still restore terminal keyboard focus, so the TUI fix remains intact without swallowing toolbar clicks.
-
-### Session-history resume focus restore
-
-Implemented on `investigate/windows-tui-input-lag`.
-
-Included:
-1. **Post-resume pane refocus** — after resuming a session from the history modal, the app now re-focuses the target pane on the next animation frame once the modal has closed.
-2. **Consistent terminal activation** — restoring Claude/Codex/Gemini sessions from history now returns keyboard focus to the terminal without requiring an extra click.
+- `bun x vitest run src/components/SettingsPanel.test.tsx src/store/workspace-pane-actions.test.ts src/store/layout-tree.test.ts`
+- `bun x tsc --noEmit`
 
 ## What’s Next
 
-1. Validate the merged render-tier behavior in a real multi-workspace TUI session:
-   - active pane remains responsive
-   - hidden visited workspaces stop burning the same render budget
-   - switching back to a hidden pane refreshes immediately without a stale frame
-   - panes backgrounded while scrolled up keep the same scrollback viewport when reactivated
-2. If the manual pass still shows lag, profile remaining cost in the active-pane path rather than lowering background cadence further.
-3. If follow-up tuning is needed, build on the new render-tier model instead of changing the active-pane cadence globally again.
+1. Manually validate PR #83 in the app:
+   - edit a workspace, switch to another, and confirm changes persist
+   - fail create/delete paths intentionally and verify inline errors + stable selection
+   - check narrow-width / zoomed settings layout
+   - confirm workspace list keyboard/focus behavior still feels right
+2. Re-run `pr-swarm` on PR #83 after manual validation if another review pass is wanted.
+3. Merge PR #83 only after the review/fix loop is closed.
 
 ## Important Decisions
 
-- All pane visual effects remain enabled; the fix targets redraw cost rather than reducing visual quality.
-- Incremental redraw is limited to image-free snapshots because terminal image slices are the riskiest case for stale pixels.
-- Interaction-driven redraws still force full repaint so selection and hover correctness stays simple.
-- Runtime scroll blitting stays disabled until there is a proven corruption-free implementation; the helper can still model blit plans in tests, but the live renderer does not use them.
-- Dynamic cadence changes only snapshot emission priority; PTY reads and terminal-state updates remain immediate for every pane.
-- Activity timestamps are now decoupled from render cadence so hidden panes can be throttled without breaking active/idle detection.
+- The fix pass keeps the existing PR and board/card context; there is no new branch or split PR.
+- Draft ownership stays inside `SettingsPanel`, but selection changes now explicitly flush or abort instead of trusting debounce timing.
+- The workspace rail uses semantics that match actual interaction behavior rather than pretending to be a listbox.
