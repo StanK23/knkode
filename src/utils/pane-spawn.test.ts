@@ -3,6 +3,10 @@ import { DEFAULT_SCROLLBACK } from "../shared/types";
 import { getPaneSpawnConfig } from "./pane-spawn";
 
 describe("getPaneSpawnConfig", () => {
+	it("keeps the default scrollback at 10000 lines", () => {
+		expect(DEFAULT_SCROLLBACK).toBe(10000);
+	});
+
 	it("returns the current pane spawn values", () => {
 		expect(
 			getPaneSpawnConfig(
