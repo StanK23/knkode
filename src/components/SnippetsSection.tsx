@@ -18,7 +18,7 @@ interface SnippetListProps {
 
 /** Headless snippet list with add/edit/delete/reorder.
  *  Used for both global and workspace-scoped snippet tiers. */
-const SnippetList = memo(function SnippetList({
+export const SnippetList = memo(function SnippetList({
 	snippets,
 	onAdd,
 	onUpdate,
